@@ -1,21 +1,26 @@
-import globalPluginHandler
-import ui
-import scriptHandler
 import addonHandler
-import globalVars
-import wx
-import os
-import zipfile
-import threading
 import ctypes
-import re
 import datetime
+import globalPluginHandler
+import globalVars
 import json
+import os
+import re
 import shutil
-import webbrowser
 import xml.etree.ElementTree as ET
+import zipfile
+import scriptHandler
+import ui
+import webbrowser
+import wx
 
 addonHandler.initTranslation()
+
+DONATION_URL = "https://paypal.me/AccessoDigitale"
+YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
+GITHUB_URL = (
+    "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale"
+)
 
 CONFIG_DIR = os.path.join(globalVars.appArgs.configPath, "rtad_data")
 if not os.path.exists(CONFIG_DIR):
@@ -24,6 +29,7 @@ if not os.path.exists(CONFIG_DIR):
     except Exception:
         pass
 CONFIG_FILE = os.path.join(CONFIG_DIR, "rtad_settings.json")
+
 
 def create_html_help_file():
     """Crea la guida HTML ufficiale leggibile e navigabile nel browser."""
@@ -46,7 +52,7 @@ def create_html_help_file():
 <body>
     <h1>Ricerca Testuale Accesso Digitale</h1>
     <p><strong>Autore e Sviluppatore:</strong> Maurizio Barra</p>
-    <p><em>Add-on per NVDA - Versione 1.1</em></p>
+    <p><em>Add-on per NVDA - Versione 1.2.0</em></p>
 
     <div class="box">
         <p><strong>Descrizione:</strong> Ricerca Testuale Accesso Digitale è uno strumento avanzato e accessibile progettato per permettere agli utenti di lettori di schermo di cercare parole, frasi e stringhe di testo all'interno di documenti, immagini, file multimediali e interi dischi del computer.</p>
@@ -79,8 +85,8 @@ def create_html_help_file():
         <li><strong>Ordinamento Risultati:</strong> Permette di ordinare i risultati dal più recente al meno recente (default), dal meno recente al più recente o alfabeticamente.</li>
     </ul>
 
-    <h2>4. Note Tecniche e Sviluppi Futuri</h2>
-    <p>Il percorso di ricerca selezionato viene ricordato automaticamente anche dopo il riavvio o l'aggiornamento dell'add-on. L'integrazione del motore OCR visivo nativo su larga scala per le immagini è prevista per la versione 2.0.</p>
+    <h2>4. Donazioni e Supporto al Progetto</h2>
+    <p>Se trovi utile questo strumento e vuoi sostenerne lo sviluppo continuo, puoi effettuare una donazione libera tramite PayPal al link: <a href="https://paypal.me/AccessoDigitale">https://paypal.me/AccessoDigitale</a></p>
 </body>
 </html>
 """
@@ -90,6 +96,7 @@ def create_html_help_file():
     except Exception:
         pass
     return help_path
+
 
 def load_last_path():
     try:
@@ -103,6 +110,7 @@ def load_last_path():
         pass
     return os.path.expanduser("~\\Downloads")
 
+
 def save_last_path(path):
     try:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -110,10 +118,11 @@ def save_last_path(path):
     except Exception:
         pass
 
+
 def get_real_ready_drives():
     drives = []
     bitmask = ctypes.windll.kernel32.GetLogicalDrives()
-    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
         if bitmask & 1:
             drive_path = f"{letter}:\\"
             if os.path.exists(drive_path):
@@ -125,51 +134,61 @@ def get_real_ready_drives():
         bitmask >>= 1
     return drives
 
+
 def extract_paragraphs_from_docx(file_path):
     try:
         with zipfile.ZipFile(file_path) as z:
-            xml_content = z.read('word/document.xml')
+            xml_content = z.read("word/document.xml")
             tree = ET.fromstring(xml_content)
             paragraphs = []
             for p in tree.iter():
-                if p.tag.endswith('p'):
-                    p_text = "".join([elem.text for elem in p.iter() if elem.tag.endswith('t') and elem.text])
+                if p.tag.endswith("p"):
+                    p_text = "".join(
+                        [
+                            elem.text
+                            for elem in p.iter()
+                            if elem.tag.endswith("t") and elem.text
+                        ]
+                    )
                     if p_text.strip():
                         paragraphs.append(p_text.strip())
             return paragraphs
     except Exception:
         return []
 
+
 def extract_lines_from_pdf(file_path):
     try:
         with open(file_path, "rb") as f:
             content = f.read().decode("latin1", errors="ignore")
-            matches = re.findall(r'\((.*?)\)', content)
+            matches = re.findall(r"\((.*?)\)", content)
             lines = [m.strip() for m in matches if m.strip()]
             return lines
     except Exception:
         return []
+
 
 def deep_ocr_jpg_scan(file_path):
     try:
         with open(file_path, "rb") as f:
             header = f.read(4194304)
             content_str = header.decode("latin1", errors="ignore")
-            words = re.findall(r'[A-Za-z0-9\s]{3,}', content_str)
+            words = re.findall(r"[A-Za-z0-9\s]{3,}", content_str)
             return " ".join(words)
     except Exception:
         return ""
+
 
 class SearchFrame(wx.Frame):
 
     def __init__(self):
         super(SearchFrame, self).__init__(
-            None, 
-            title="Ricerca Testuale Accesso Digitale - Maurizio Barra", 
-            size=(780, 680),
-            style=wx.DEFAULT_FRAME_STYLE
+            None,
+            title="Ricerca Testuale Accesso Digitale v1.2.0 - Maurizio Barra",
+            size=(780, 720),
+            style=wx.DEFAULT_FRAME_STYLE,
         )
-        
+
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
@@ -183,25 +202,27 @@ class SearchFrame(wx.Frame):
         lbl_filter = wx.StaticText(panel, label="T&ipo di file da cercare:")
         vbox.Add(lbl_filter, 0, wx.ALL, 5)
         self.combo_filter = wx.Choice(
-            panel, 
+            panel,
             choices=[
-                "Tutti i tipi di file", 
-                "Solo Immagini (.jpg, .png, .jpeg, .bmp)", 
-                "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)", 
-                "Solo Documenti (.txt, .docx, .pdf, .eml)"
-            ]
+                "Tutti i tipi di file",
+                "Solo Immagini (.jpg, .png, .jpeg, .bmp)",
+                "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)",
+                "Solo Documenti (.txt, .docx, .pdf, .eml)",
+            ],
         )
         self.combo_filter.SetSelection(0)
         vbox.Add(self.combo_filter, 0, wx.EXPAND | wx.ALL, 5)
 
         # Percorso
-        lbl_path = wx.StaticText(panel, label="&Percorso di ricerca (Memoria automatica):")
+        lbl_path = wx.StaticText(
+            panel, label="&Percorso di ricerca (Memoria automatica):"
+        )
         vbox.Add(lbl_path, 0, wx.ALL, 5)
-        
+
         hbox_path = wx.BoxSizer(wx.HORIZONTAL)
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
-        
+
         btn_browse = wx.Button(panel, label="&Sfoglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
@@ -215,12 +236,21 @@ class SearchFrame(wx.Frame):
         # Pulsanti Azioni principali
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_search = wx.Button(panel, label="&Avvia Ricerca")
-        self.btn_search.Bind(wx.EVT_BUTTON, lambda e: self.start_search_thread())
+        self.btn_search.Bind(
+            wx.EVT_BUTTON, lambda e: self.start_search_thread()
+        )
         hbox_actions.Add(self.btn_search, 0, wx.ALL, 5)
 
         btn_screenshot = wx.Button(panel, label="Cattura Sc&hermo (Alt+K)")
         btn_screenshot.Bind(wx.EVT_BUTTON, self.on_take_screenshot)
         hbox_actions.Add(btn_screenshot, 0, wx.ALL, 5)
+
+        # Pulsante Donazione
+        btn_donate = wx.Button(
+            panel, label="&Sostieni il Progetto (Donazione)..."
+        )
+        btn_donate.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(DONATION_URL))
+        hbox_actions.Add(btn_donate, 0, wx.ALL, 5)
 
         vbox.Add(hbox_actions, 0, wx.ALIGN_CENTER)
 
@@ -231,7 +261,13 @@ class SearchFrame(wx.Frame):
         vbox.Add(self.gauge, 0, wx.EXPAND | wx.ALL, 5)
 
         # Lista Risultati
-        lbl_results = wx.StaticText(panel, label="&Risultati trovati (Premi INVIO o Tasto APPLICAZIONI per opzioni):")
+        lbl_results = wx.StaticText(
+            panel,
+            label=(
+                "&Risultati trovati (Premi INVIO o Tasto APPLICAZIONI per"
+                " opzioni):"
+            ),
+        )
         vbox.Add(lbl_results, 0, wx.ALL, 5)
         self.lst_results = wx.ListBox(panel, style=wx.LB_SINGLE)
         self.lst_results.Bind(wx.EVT_CHAR_HOOK, self.on_list_char_hook)
@@ -250,6 +286,16 @@ class SearchFrame(wx.Frame):
         btn_open.Bind(wx.EVT_BUTTON, self.on_open_file_event)
         hbox_bottom.Add(btn_open, 0, wx.ALL, 5)
 
+        btn_github = wx.Button(panel, label="Pagina &GitHub")
+        btn_github.Bind(
+            wx.EVT_BUTTON, lambda e: webbrowser.open(GITHUB_URL)
+        )
+        hbox_bottom.Add(btn_github, 0, wx.ALL, 5)
+
+        btn_youtube = wx.Button(panel, label="Canale &YouTube")
+        btn_youtube.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(YOUTUBE_URL))
+        hbox_bottom.Add(btn_youtube, 0, wx.ALL, 5)
+
         btn_close = wx.Button(panel, label="C&hiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, self.on_close)
         hbox_bottom.Add(btn_close, 0, wx.ALL, 5)
@@ -262,7 +308,7 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_CHAR_HOOK, self.on_general_char_hook)
 
     def on_general_char_hook(self, event):
-        if event.AltDown() and event.GetKeyCode() == ord('K'):
+        if event.AltDown() and event.GetKeyCode() == ord("K"):
             self.on_take_screenshot(None)
         elif event.GetKeyCode() == wx.WXK_ESCAPE:
             self.Destroy()
@@ -273,7 +319,11 @@ class SearchFrame(wx.Frame):
         self.Destroy()
 
     def on_browse(self, event):
-        dlg = wx.DirDialog(self, "Seleziona la cartella o l'unità per la ricerca", defaultPath=self.txt_path.GetValue())
+        dlg = wx.DirDialog(
+            self,
+            "Seleziona la cartella o l'unità per la ricerca",
+            defaultPath=self.txt_path.GetValue(),
+        )
         if dlg.ShowModal() == wx.ID_OK:
             selected_path = dlg.GetPath()
             self.txt_path.SetValue(selected_path)
@@ -285,7 +335,10 @@ class SearchFrame(wx.Frame):
         drives_str = ";".join(drives)
         self.txt_path.SetValue(drives_str)
         save_last_path(drives_str)
-        ui.message(f"Impostata ricerca sui dischi pronti: {', '.join(drives)}. Premi Avvia Ricerca.")
+        ui.message(
+            f"Impostata ricerca sui dischi pronti: {', '.join(drives)}. Premi"
+            " Avvia Ricerca."
+        )
 
     def on_take_screenshot(self, event):
         try:
@@ -296,16 +349,22 @@ class SearchFrame(wx.Frame):
             mem.Blit(0, 0, size.width, size.height, screen, 0, 0)
             mem.SelectObject(wx.NullBitmap)
 
-            pictures_dir = os.path.expanduser("~\\Pictures\\Catture di schermata")
+            pictures_dir = os.path.expanduser(
+                "~\\Pictures\\Catture di schermata"
+            )
             if not os.path.exists(pictures_dir):
-                pictures_dir = os.path.expanduser("~\\OneDrive\\Immagini\\Catture di schermata")
+                pictures_dir = os.path.expanduser(
+                    "~\\OneDrive\\Immagini\\Catture di schermata"
+                )
                 if not os.path.exists(pictures_dir):
                     os.makedirs(pictures_dir, exist_ok=True)
 
             filename = f"Screenshot_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             full_path = os.path.join(pictures_dir, filename)
             bmp.SaveFile(full_path, wx.BITMAP_TYPE_PNG)
-            ui.message("Screenshot salvato con successo in Catture di schermata.")
+            ui.message(
+                "Screenshot salvato con successo in Catture di schermata."
+            )
         except Exception:
             ui.message("Impossibile salvare lo screenshot.")
 
@@ -327,15 +386,24 @@ class SearchFrame(wx.Frame):
         self.gauge.SetValue(0)
         self.last_spoken_percent = -1
         self.btn_search.Disable()
-        
+
         ui.message("Ricerca in corso...")
 
         targets = [t.strip() for t in target_input.split(";") if t.strip()]
-        threading.Thread(target=self.run_search, args=(query, targets, filter_mode), daemon=True).start()
+        threading.Thread(
+            target=self.run_search,
+            args=(query, targets, filter_mode),
+            daemon=True,
+        ).start()
 
     def run_search(self, query, targets, filter_mode):
         raw_matches = []
-        ignored = ["$recycle.bin", "temp", "system volume information", "appdata\\local\\temp"]
+        ignored = [
+            "$recycle.bin",
+            "temp",
+            "system volume information",
+            "appdata\\local\\temp",
+        ]
 
         img_exts = [".jpg", ".jpeg", ".png", ".bmp"]
         media_exts = [".mp4", ".mp3", ".mkv", ".avi", ".wav"]
@@ -362,7 +430,9 @@ class SearchFrame(wx.Frame):
                     elif filter_mode == 3 and ext not in doc_exts:
                         continue
 
-                    file_list.append(os.path.normpath(os.path.join(root, file)))
+                    file_list.append(
+                        os.path.normpath(os.path.join(root, file))
+                    )
 
         total_files = len(file_list)
 
@@ -384,7 +454,10 @@ class SearchFrame(wx.Frame):
                     "prefix": prefix,
                     "mtime": mtime,
                     "location_info": "Nome File",
-                    "snippet": f"Trovata corrispondenza per '{query}' nel nome del file."
+                    "snippet": (
+                        f"Trovata corrispondenza per '{query}' nel nome del"
+                        " file."
+                    ),
                 })
 
             # 2. Controllo IMMAGINI
@@ -397,13 +470,15 @@ class SearchFrame(wx.Frame):
                         "prefix": "[IMG-TEXT]",
                         "mtime": mtime,
                         "location_info": "Testo visivo",
-                        "snippet": f"Trovato testo visivo contenente '{query}'."
+                        "snippet": f"Trovato testo visivo contenente '{query}'.",
                     })
 
-            # 3. Controllo DOCUMENTI DI TESTO (TXT, EML, LOG, CSV) - Scansione Multi-ricorrenza
+            # 3. Controllo DOCUMENTI DI TESTO (TXT, EML, LOG, CSV)
             elif ext in [".txt", ".eml", ".log", ".csv"]:
                 try:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(
+                        file_path, "r", encoding="utf-8", errors="ignore"
+                    ) as f:
                         lines = f.readlines()
                         for idx, line in enumerate(lines):
                             if query in line.lower():
@@ -416,12 +491,12 @@ class SearchFrame(wx.Frame):
                                     "prefix": prefix,
                                     "mtime": mtime,
                                     "location_info": f"Riga {idx + 1}",
-                                    "snippet": snippet
+                                    "snippet": snippet,
                                 })
                 except Exception:
                     pass
 
-            # 4. Controllo DOCUMENTI WORD (.docx) - Scansione Multi-ricorrenza
+            # 4. Controllo DOCUMENTI WORD (.docx)
             elif ext == ".docx":
                 paragraphs = extract_paragraphs_from_docx(file_path)
                 for idx, p_text in enumerate(paragraphs):
@@ -435,10 +510,10 @@ class SearchFrame(wx.Frame):
                             "prefix": prefix,
                             "mtime": mtime,
                             "location_info": f"Paragrafo {idx + 1}",
-                            "snippet": snippet
+                            "snippet": snippet,
                         })
 
-            # 5. Controllo PDF (.pdf) - Scansione Multi-ricorrenza
+            # 5. Controllo PDF (.pdf)
             elif ext == ".pdf":
                 pdf_lines = extract_lines_from_pdf(file_path)
                 for idx, line in enumerate(pdf_lines):
@@ -452,12 +527,15 @@ class SearchFrame(wx.Frame):
                             "prefix": prefix,
                             "mtime": mtime,
                             "location_info": f"Sezione {idx + 1}",
-                            "snippet": snippet
+                            "snippet": snippet,
                         })
 
             if total_files > 0:
                 percent = int((i / total_files) * 100)
-                if percent % 10 == 0 and percent != self.last_spoken_percent:
+                if (
+                    percent % 10 == 0
+                    and percent != self.last_spoken_percent
+                ):
                     self.last_spoken_percent = percent
                     wx.CallAfter(self.update_progress, percent)
 
@@ -477,8 +555,15 @@ class SearchFrame(wx.Frame):
         self.file_map.clear()
 
         for item in self.current_matches:
-            loc = f" ({item['location_info']})" if "location_info" in item and item["location_info"] else ""
-            display_str = f"{item['prefix']} {item['file_name']}{loc} -- ({item['file_path']})"
+            loc = (
+                f" ({item['location_info']})"
+                if "location_info" in item and item["location_info"]
+                else ""
+            )
+            display_str = (
+                f"{item['prefix']} {item['file_name']}{loc} --"
+                f" ({item['file_path']})"
+            )
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
 
@@ -489,7 +574,10 @@ class SearchFrame(wx.Frame):
     def finish_search(self, matches):
         self.gauge.SetValue(100)
         self.btn_search.Enable()
-        ui.message(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.")
+        ui.message(
+            f"Ricerca completata. Trovati {matches} risultati ordinati dal più"
+            " recente."
+        )
 
     def on_list_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_RETURN:
@@ -509,8 +597,12 @@ class SearchFrame(wx.Frame):
         if sel != wx.NOT_FOUND and sel in self.file_map:
             file_to_open = self.file_map[sel]["file_path"]
             try:
-                ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
-                ui.message(f"Apertura file: {os.path.basename(file_to_open)}")
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, "open", file_to_open, None, None, 1
+                )
+                ui.message(
+                    f"Apertura file: {os.path.basename(file_to_open)}"
+                )
             except Exception:
                 ui.message("Impossibile aprire il file selezionato.")
 
@@ -525,29 +617,75 @@ class SearchFrame(wx.Frame):
 
         menu = wx.Menu()
         item_open = menu.Append(wx.ID_ANY, "Apri File\tINVIO")
-        item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia / Frase con parola chiave")
+        item_copy_snippet = menu.Append(
+            wx.ID_ANY, "Copia Blocco Notizia / Frase con parola chiave"
+        )
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
-        item_copy_text = menu.Append(wx.ID_ANY, "Copia Tutto il Contenuto (o Immagine)")
-        item_copy_to = menu.Append(wx.ID_ANY, "Invia / Copia File in un'altra cartella...")
+        item_copy_text = menu.Append(
+            wx.ID_ANY, "Copia Tutto il Contenuto (o Immagine)"
+        )
+        item_copy_to = menu.Append(
+            wx.ID_ANY, "Invia / Copia File in un'altra cartella..."
+        )
         item_open_folder = menu.Append(wx.ID_ANY, "Apri Cartella Contenitore")
 
         menu.AppendSeparator()
         sort_submenu = wx.Menu()
-        item_sort_recent = sort_submenu.Append(wx.ID_ANY, "Dal Più Recente al Meno Recente")
-        item_sort_oldest = sort_submenu.Append(wx.ID_ANY, "Dal Meno Recente al Più Recente")
-        item_sort_name = sort_submenu.Append(wx.ID_ANY, "Alfabeticamente per Nome (A-Z)")
+        item_sort_recent = sort_submenu.Append(
+            wx.ID_ANY, "Dal Più Recente al Meno Recente"
+        )
+        item_sort_oldest = sort_submenu.Append(
+            wx.ID_ANY, "Dal Meno Recente al Più Recente"
+        )
+        item_sort_name = sort_submenu.Append(
+            wx.ID_ANY, "Alfabeticamente per Nome (A-Z)"
+        )
         menu.AppendSubMenu(sort_submenu, "Ordinamento Risultati")
 
-        self.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_content_or_image_to_clipboard(file_path), item_copy_text)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(file_path), item_copy_to)
-        self.Bind(wx.EVT_MENU, lambda e: self.open_containing_folder(file_path), item_open_folder)
+        self.Bind(
+            wx.EVT_MENU, lambda e: self.open_selected_file(), item_open
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.copy_snippet_to_clipboard(snippet),
+            item_copy_snippet,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.copy_path_to_clipboard(file_path),
+            item_copy_path,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.copy_content_or_image_to_clipboard(file_path),
+            item_copy_text,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.copy_file_to_destination(file_path),
+            item_copy_to,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.open_containing_folder(file_path),
+            item_open_folder,
+        )
 
-        self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("recent_first"), item_sort_recent)
-        self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("oldest_first"), item_sort_oldest)
-        self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("name"), item_sort_name)
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.change_sort_order("recent_first"),
+            item_sort_recent,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.change_sort_order("oldest_first"),
+            item_sort_oldest,
+        )
+        self.Bind(
+            wx.EVT_MENU,
+            lambda e: self.change_sort_order("name"),
+            item_sort_name,
+        )
 
         self.PopupMenu(menu)
         menu.Destroy()
@@ -555,9 +693,13 @@ class SearchFrame(wx.Frame):
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)
         if sort_type == "recent_first":
-            ui.message("Risultati ordinati dal più recente al meno recente.")
+            ui.message(
+                "Risultati ordinati dal più recente al meno recente."
+            )
         elif sort_type == "oldest_first":
-            ui.message("Risultati ordinati dal meno recente al più recente.")
+            ui.message(
+                "Risultati ordinati dal meno recente al più recente."
+            )
         elif sort_type == "name":
             ui.message("Risultati ordinati alfabeticamente per nome.")
 
@@ -575,7 +717,7 @@ class SearchFrame(wx.Frame):
 
     def copy_content_or_image_to_clipboard(self, file_path):
         ext = os.path.splitext(file_path)[1].lower()
-        
+
         if ext in [".jpg", ".jpeg", ".png", ".bmp"]:
             try:
                 img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
@@ -583,7 +725,10 @@ class SearchFrame(wx.Frame):
                 if wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.BitmapDataObject(bmp))
                     wx.TheClipboard.Close()
-                    ui.message("Immagine grafica copiata negli appunti! Pronta da incollare.")
+                    ui.message(
+                        "Immagine grafica copiata negli appunti! Pronta da"
+                        " incollare."
+                    )
                     return
             except Exception:
                 pass
@@ -597,7 +742,9 @@ class SearchFrame(wx.Frame):
             text_content = "\n".join(lines)
         elif ext in [".txt", ".eml", ".log", ".csv"]:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(
+                    file_path, "r", encoding="utf-8", errors="ignore"
+                ) as f:
                     text_content = f.read()
             except Exception:
                 pass
@@ -608,23 +755,33 @@ class SearchFrame(wx.Frame):
                 wx.TheClipboard.Close()
                 ui.message("Contenuto testuale copiato negli appunti!")
         else:
-            ui.message("Impossibile copiare il contenuto da questo formato.")
+            ui.message(
+                "Impossibile copiare il contenuto da questo formato."
+            )
 
     def copy_file_to_destination(self, file_path):
-        dlg = wx.DirDialog(self, "Seleziona la cartella dove copiare il file", defaultPath=os.path.expanduser("~\\Desktop"))
+        dlg = wx.DirDialog(
+            self,
+            "Seleziona la cartella dove copiare il file",
+            defaultPath=os.path.expanduser("~\\Desktop"),
+        )
         if dlg.ShowModal() == wx.ID_OK:
             dest_dir = dlg.GetPath()
             try:
                 shutil.copy(file_path, dest_dir)
                 ui.message(f"File copiato con successo in {dest_dir}!")
             except Exception:
-                ui.message("Impossibile copiare il file nella destinazione.")
+                ui.message(
+                    "Impossibile copiare il file nella destinazione."
+                )
         dlg.Destroy()
 
     def open_containing_folder(self, file_path):
         try:
             folder_path = os.path.dirname(file_path)
-            ctypes.windll.shell32.ShellExecuteW(None, "explore", folder_path, None, None, 1)
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "explore", folder_path, None, None, 1
+            )
             ui.message("Apertura cartella contenitore in corso...")
         except Exception:
             ui.message("Impossibile aprire la cartella contenitore.")
@@ -639,15 +796,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     @scriptHandler.script(
         description="Leader Key per Ricerca Testuale Accesso Digitale",
         category="Ricerca Testuale",
-        gesture="kb:NVDA+shift+control+f"
+        gesture="kb:NVDA+shift+control+f",
     )
     def script_leaderKey(self, gesture):
         self._waiting_for_second_key = True
-        ui.message("Ricerca Testuale: premere F per cercare, S per comandi, H per la Guida nel Browser")
+        ui.message(
+            "Ricerca Testuale: premere F per cercare, S per comandi, H per"
+            " la Guida nel Browser"
+        )
 
     @scriptHandler.script(
-        description="Apri maschera di ricerca",
-        gesture="kb:f"
+        description="Apri maschera di ricerca", gesture="kb:f"
     )
     def script_handleShortcutF(self, gesture):
         if self._waiting_for_second_key:
@@ -657,8 +816,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             gesture.send()
 
     @scriptHandler.script(
-        description="Gestore dei sotto-comandi in sequenza",
-        gesture="kb:s"
+        description="Gestore dei sotto-comandi in sequenza", gesture="kb:s"
     )
     def script_handleShortcutS(self, gesture):
         if self._waiting_for_second_key:
@@ -668,8 +826,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             gesture.send()
 
     @scriptHandler.script(
-        description="Guida dell'add-on nel Browser",
-        gesture="kb:h"
+        description="Guida dell'add-on nel Browser", gesture="kb:h"
     )
     def script_handleShortcutH(self, gesture):
         if self._waiting_for_second_key:
@@ -688,16 +845,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def show_shortcuts_dialog(self):
         msg = (
-            "Comandi disponibili dopo NVDA+Shift+Control+F:\n\n"
+            "Ricerca Testuale Accesso Digitale v1.2.0\n"
+            "Autore: Maurizio Barra\n\n"
+            "Comandi disponibili dopo NVDA+Shift+Control+F:\n"
             "F - Apri maschera di ricerca nei file o dischi\n"
             "S - Mostra questa finestra con i comandi\n"
-            "H - Apri la guida completa HTML nel browser\n"
+            "H - Apri la guida completa HTML nel browser\n\n"
+            "Sostieni il Progetto (Donazione):\n"
+            "https://paypal.me/AccessoDigitale"
         )
         gui_dialog = wx.MessageDialog(
-            None, 
-            msg, 
-            "Ricerca Testuale Accesso Digitale - Comandi", 
-            wx.OK | wx.ICON_INFORMATION
+            None,
+            msg,
+            "Ricerca Testuale Accesso Digitale - Comandi e Info",
+            wx.OK | wx.ICON_INFORMATION,
         )
         gui_dialog.ShowModal()
         gui_dialog.Destroy()

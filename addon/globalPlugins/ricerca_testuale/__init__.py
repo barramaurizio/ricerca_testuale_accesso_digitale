@@ -46,7 +46,7 @@ def create_html_help_file():
 <body>
     <h1>Ricerca Testuale Accesso Digitale</h1>
     <p><strong>Autore e Sviluppatore:</strong> Maurizio Barra</p>
-    <p><em>Add-on per NVDA - Versione 1.0</em></p>
+    <p><em>Add-on per NVDA - Versione 1.1</em></p>
 
     <div class="box">
         <p><strong>Descrizione:</strong> Ricerca Testuale Accesso Digitale è uno strumento avanzato e accessibile progettato per permettere agli utenti di lettori di schermo di cercare parole, frasi e stringhe di testo all'interno di documenti, immagini, file multimediali e interi dischi del computer.</p>
@@ -62,7 +62,7 @@ def create_html_help_file():
 
     <h2>2. Tipi di File Supportati e Funzionamento</h2>
     <ul>
-        <li><strong>Documenti di Testo:</strong> Cerca nei file <code>.txt</code>, <code>.docx</code>, <code>.pdf</code>, <code>.eml</code>, <code>.log</code>, <code>.csv</code>. Trova il testo interno e permette di estrarre sia l'intero contenuto sia il blocco di notizia/paragrafo con la parola chiave.</li>
+        <li><strong>Documenti di Testo:</strong> Cerca nei file <code>.txt</code>, <code>.docx</code>, <code>.pdf</code>, <code>.eml</code>, <code>.log</code>, <code>.csv</code>. Trova tutte le ricorrenze del testo interno e permette di estrarre sia l'intero contenuto sia il blocco di notizia/paragrafo specifico.</li>
         <li><strong>Immagini:</strong> Cerca nei file <code>.jpg</code>, <code>.png</code>, <code>.jpeg</code>, <code>.bmp</code> basandosi sui nomi dei file, metadati ed Exif. Permette inoltre di copiare direttamente l'immagine grafica negli appunti per incollaria in chat o documenti.</li>
         <li><strong>Audio e Video:</strong> Filtra e individua i file multimediali (<code>.mp4</code>, <code>.mp3</code>, <code>.mkv</code>, <code>.avi</code>, <code>.wav</code>) basandosi su titoli e tag.</li>
     </ul>
@@ -125,27 +125,30 @@ def get_real_ready_drives():
         bitmask >>= 1
     return drives
 
-def extract_text_from_docx(file_path):
+def extract_paragraphs_from_docx(file_path):
     try:
         with zipfile.ZipFile(file_path) as z:
             xml_content = z.read('word/document.xml')
             tree = ET.fromstring(xml_content)
-            text_list = []
-            for elem in tree.iter():
-                if elem.tag.endswith('t') and elem.text:
-                    text_list.append(elem.text)
-            return " ".join(text_list)
+            paragraphs = []
+            for p in tree.iter():
+                if p.tag.endswith('p'):
+                    p_text = "".join([elem.text for elem in p.iter() if elem.tag.endswith('t') and elem.text])
+                    if p_text.strip():
+                        paragraphs.append(p_text.strip())
+            return paragraphs
     except Exception:
-        return ""
+        return []
 
-def extract_text_from_pdf(file_path):
+def extract_lines_from_pdf(file_path):
     try:
         with open(file_path, "rb") as f:
             content = f.read().decode("latin1", errors="ignore")
             matches = re.findall(r'\((.*?)\)', content)
-            return " ".join(matches)
+            lines = [m.strip() for m in matches if m.strip()]
+            return lines
     except Exception:
-        return ""
+        return []
 
 def deep_ocr_jpg_scan(file_path):
     try:
@@ -366,63 +369,91 @@ class SearchFrame(wx.Frame):
         for i, file_path in enumerate(file_list, 1):
             file_name = os.path.basename(file_path)
             ext = os.path.splitext(file_name)[1].lower()
-
-            found = False
-            snippet = f"Trovata corrispondenza per '{query}' nel nome del file."
             prefix = f"[{ext.replace('.', '').upper()}]"
+
+            try:
+                mtime = os.path.getmtime(file_path)
+            except Exception:
+                mtime = 0
 
             # 1. Controllo NOME FILE
             if query in file_name.lower():
-                found = True
+                raw_matches.append({
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "prefix": prefix,
+                    "mtime": mtime,
+                    "location_info": "Nome File",
+                    "snippet": f"Trovata corrispondenza per '{query}' nel nome del file."
+                })
 
-            # 2. Controllo CONTENUTO IMMAGINI
+            # 2. Controllo IMMAGINI
             elif ext in img_exts:
                 img_text = deep_ocr_jpg_scan(file_path)
                 if query in img_text.lower():
-                    found = True
-                    prefix = "[IMG-TEXT]"
-                    snippet = f"Trovato testo visivo contenente '{query}'."
+                    raw_matches.append({
+                        "file_path": file_path,
+                        "file_name": file_name,
+                        "prefix": "[IMG-TEXT]",
+                        "mtime": mtime,
+                        "location_info": "Testo visivo",
+                        "snippet": f"Trovato testo visivo contenente '{query}'."
+                    })
 
-            # 3. Controllo DOCUMENTI (Blocco notizia esteso)
+            # 3. Controllo DOCUMENTI DI TESTO (TXT, EML, LOG, CSV) - Scansione Multi-ricorrenza
             elif ext in [".txt", ".eml", ".log", ".csv"]:
                 try:
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         lines = f.readlines()
                         for idx, line in enumerate(lines):
                             if query in line.lower():
-                                found = True
                                 start_i = max(0, idx - 2)
                                 end_i = min(len(lines), idx + 3)
                                 snippet = "".join(lines[start_i:end_i]).strip()
-                                break
+                                raw_matches.append({
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "prefix": prefix,
+                                    "mtime": mtime,
+                                    "location_info": f"Riga {idx + 1}",
+                                    "snippet": snippet
+                                })
                 except Exception:
                     pass
 
+            # 4. Controllo DOCUMENTI WORD (.docx) - Scansione Multi-ricorrenza
             elif ext == ".docx":
-                text = extract_text_from_docx(file_path)
-                if query in text.lower():
-                    found = True
-                    snippet = f"Corrispondenza per '{query}' nel documento Word."
+                paragraphs = extract_paragraphs_from_docx(file_path)
+                for idx, p_text in enumerate(paragraphs):
+                    if query in p_text.lower():
+                        start_i = max(0, idx - 1)
+                        end_i = min(len(paragraphs), idx + 2)
+                        snippet = " \n".join(paragraphs[start_i:end_i])
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": prefix,
+                            "mtime": mtime,
+                            "location_info": f"Paragrafo {idx + 1}",
+                            "snippet": snippet
+                        })
 
+            # 5. Controllo PDF (.pdf) - Scansione Multi-ricorrenza
             elif ext == ".pdf":
-                text = extract_text_from_pdf(file_path)
-                if query in text.lower():
-                    found = True
-                    snippet = f"Corrispondenza per '{query}' nel PDF."
-
-            if found:
-                try:
-                    mtime = os.path.getmtime(file_path)
-                except Exception:
-                    mtime = 0
-
-                raw_matches.append({
-                    "file_path": file_path,
-                    "file_name": file_name,
-                    "prefix": prefix,
-                    "mtime": mtime,
-                    "snippet": snippet
-                })
+                pdf_lines = extract_lines_from_pdf(file_path)
+                for idx, line in enumerate(pdf_lines):
+                    if query in line.lower():
+                        start_i = max(0, idx - 1)
+                        end_i = min(len(pdf_lines), idx + 2)
+                        snippet = " ".join(pdf_lines[start_i:end_i])
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": prefix,
+                            "mtime": mtime,
+                            "location_info": f"Sezione {idx + 1}",
+                            "snippet": snippet
+                        })
 
             if total_files > 0:
                 percent = int((i / total_files) * 100)
@@ -446,7 +477,8 @@ class SearchFrame(wx.Frame):
         self.file_map.clear()
 
         for item in self.current_matches:
-            display_str = f"{item['prefix']} {item['file_name']} -- ({item['file_path']})"
+            loc = f" ({item['location_info']})" if "location_info" in item and item["location_info"] else ""
+            display_str = f"{item['prefix']} {item['file_name']}{loc} -- ({item['file_path']})"
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
 
@@ -558,9 +590,11 @@ class SearchFrame(wx.Frame):
 
         text_content = ""
         if ext == ".docx":
-            text_content = extract_text_from_docx(file_path)
+            paragraphs = extract_paragraphs_from_docx(file_path)
+            text_content = "\n".join(paragraphs)
         elif ext == ".pdf":
-            text_content = extract_text_from_pdf(file_path)
+            lines = extract_lines_from_pdf(file_path)
+            text_content = "\n".join(lines)
         elif ext in [".txt", ".eml", ".log", ".csv"]:
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:

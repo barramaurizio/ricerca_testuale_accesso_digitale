@@ -7,12 +7,13 @@ import json
 import os
 import re
 import shutil
-import xml.etree.ElementTree as ET
-import zipfile
 import scriptHandler
+import threading
 import ui
 import webbrowser
 import wx
+import xml.etree.ElementTree as ET
+import zipfile
 
 addonHandler.initTranslation()
 
@@ -52,7 +53,7 @@ def create_html_help_file():
 <body>
     <h1>Ricerca Testuale Accesso Digitale</h1>
     <p><strong>Autore e Sviluppatore:</strong> Maurizio Barra</p>
-    <p><em>Add-on per NVDA - Versione 1.2.0</em></p>
+    <p><em>Add-on per NVDA - Versione 1.3.0</em></p>
 
     <div class="box">
         <p><strong>Descrizione:</strong> Ricerca Testuale Accesso Digitale è uno strumento avanzato e accessibile progettato per permettere agli utenti di lettori di schermo di cercare parole, frasi e stringhe di testo all'interno di documenti, immagini, file multimediali e interi dischi del computer.</p>
@@ -61,7 +62,8 @@ def create_html_help_file():
     <h2>1. Scorciatoie da Tastiera e Comandi Principali</h2>
     <ul>
         <li><code>NVDA + Shift + Control + F</code> seguito da <code>F</code>: Apri la maschera di ricerca nei file e dischi.</li>
-        <li><code>NVDA + Shift + Control + F</code> seguito da <code>S</code>: Mostra la finestra dei comandi rapidi.</li>
+        <li><code>NVDA + Shift + Control + F</code> seguito da <code>S</code>: Mostra la finestra dei comandi rapidi navigabile.</li>
+        <li><code>NVDA + Shift + Control + F</code> seguito da <code>D</code>: Apri direttamente la pagina delle Donazioni PayPal.</li>
         <li><code>NVDA + Shift + Control + F</code> seguito da <code>H</code>: Apri questa guida completa nel browser predefinito.</li>
         <li><code>Alt + K</code>: Scatta uno screenshot immediato dello schermo e lo salva nella cartella <em>Catture di schermata</em>.</li>
     </ul>
@@ -179,12 +181,98 @@ def deep_ocr_jpg_scan(file_path):
         return ""
 
 
+class ShortcutsFrame(wx.Frame):
+    """Finestra accessibile e completamente navigabile riga per riga per le scorciatoie."""
+
+    def __init__(self, parent):
+        super(ShortcutsFrame, self).__init__(
+            parent,
+            title="Ricerca Testuale Accesso Digitale - Comandi e Info",
+            size=(650, 520),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        self.text_content = (
+            "RICERCA TESTUALE ACCESSO DIGITALE v1.3.0\n"
+            "Autore e Sviluppatore: Maurizio Barra\n\n"
+            "--------------------------------------------------\n"
+            "COMANDI E SCORCIATOIE DA TASTIERA:\n"
+            "--------------------------------------------------\n"
+            "Attivazione comandi sequenziali: NVDA + Shift + Control + F\n\n"
+            "Sequenze disponibili dopo il tasto di attivazione:\n"
+            "  - F : Apri la finestra principale di ricerca nei file o dischi\n"
+            "  - S : Apri questa finestra informativa navigabile riga per riga\n"
+            "  - D : Apri subito la pagina web per le Donazioni PayPal\n"
+            "  - H : Apri la Guida Ufficiale completa in formato HTML nel Browser\n\n"
+            "Comando Diretto Globale:\n"
+            "  - Alt + K : Scatta uno screenshot immediato salvandolo in 'Catture di schermata'\n\n"
+            "--------------------------------------------------\n"
+            "SOSTIENI IL PROGETTO:\n"
+            "Se trovi utile questo strumento, puoi contribuire allo sviluppo con una donazione libera:\n"
+            "https://paypal.me/AccessoDigitale\n"
+            "--------------------------------------------------"
+        )
+
+        lbl_info = wx.StaticText(
+            panel,
+            label=(
+                "Usa le frecce Su/Giù e Sinistra/Destra per navigare nel"
+                " testo:"
+            ),
+        )
+        vbox.Add(lbl_info, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(
+            panel,
+            value=self.text_content,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+        )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+
+        btn_copy = wx.Button(panel, label="&Copia Testo Comandi")
+        btn_copy.Bind(wx.EVT_BUTTON, self.on_copy_text)
+        hbox_btns.Add(btn_copy, 0, wx.ALL, 5)
+
+        btn_donate = wx.Button(panel, label="Apri Link &Donazione...")
+        btn_donate.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(DONATION_URL))
+        hbox_btns.Add(btn_donate, 0, wx.ALL, 5)
+
+        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+
+    def on_copy_text(self, event):
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(self.text_content))
+            wx.TheClipboard.Close()
+            ui.message("Testo dei comandi copiato negli appunti!")
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
+
 class SearchFrame(wx.Frame):
 
     def __init__(self):
         super(SearchFrame, self).__init__(
             None,
-            title="Ricerca Testuale Accesso Digitale v1.2.0 - Maurizio Barra",
+            title="Ricerca Testuale Accesso Digitale v1.3.0 - Maurizio Barra",
             size=(780, 720),
             style=wx.DEFAULT_FRAME_STYLE,
         )
@@ -207,7 +295,7 @@ class SearchFrame(wx.Frame):
                 "Tutti i tipi di file",
                 "Solo Immagini (.jpg, .png, .jpeg, .bmp)",
                 "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)",
-                "Solo Documenti (.txt, .docx, .pdf, .eml)",
+                "Solo Documenti (.txt, .docx, .pdf, .eml, .log, .csv)",
             ],
         )
         self.combo_filter.SetSelection(0)
@@ -223,7 +311,7 @@ class SearchFrame(wx.Frame):
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
 
-        btn_browse = wx.Button(panel, label="&Sfoglia...")
+        btn_browse = wx.Button(panel, label="&Sfoglia e Cerca...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
 
@@ -245,7 +333,6 @@ class SearchFrame(wx.Frame):
         btn_screenshot.Bind(wx.EVT_BUTTON, self.on_take_screenshot)
         hbox_actions.Add(btn_screenshot, 0, wx.ALL, 5)
 
-        # Pulsante Donazione
         btn_donate = wx.Button(
             panel, label="&Sostieni il Progetto (Donazione)..."
         )
@@ -328,6 +415,13 @@ class SearchFrame(wx.Frame):
             selected_path = dlg.GetPath()
             self.txt_path.SetValue(selected_path)
             save_last_path(selected_path)
+            if self.txt_query.GetValue().strip():
+                self.start_search_thread()
+            else:
+                ui.message(
+                    f"Percorso impostato: {selected_path}. Inserisci un testo"
+                    " e premi Avvia Ricerca."
+                )
         dlg.Destroy()
 
     def on_all_drives_set(self, event):
@@ -801,8 +895,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     def script_leaderKey(self, gesture):
         self._waiting_for_second_key = True
         ui.message(
-            "Ricerca Testuale: premere F per cercare, S per comandi, H per"
-            " la Guida nel Browser"
+            "Ricerca Testuale: premere F per cercare, S per comandi, D per"
+            " Donazione, H per la Guida nel Browser"
         )
 
     @scriptHandler.script(
@@ -816,12 +910,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             gesture.send()
 
     @scriptHandler.script(
-        description="Gestore dei sotto-comandi in sequenza", gesture="kb:s"
+        description="Mostra la finestra dei comandi rapidi", gesture="kb:s"
     )
     def script_handleShortcutS(self, gesture):
         if self._waiting_for_second_key:
             self._waiting_for_second_key = False
             wx.CallAfter(self.show_shortcuts_dialog)
+        else:
+            gesture.send()
+
+    @scriptHandler.script(
+        description="Apri direttamente la pagina delle Donazioni PayPal",
+        gesture="kb:d",
+    )
+    def script_handleShortcutD(self, gesture):
+        if self._waiting_for_second_key:
+            self._waiting_for_second_key = False
+            webbrowser.open(DONATION_URL)
+            ui.message("Apertura pagina per la Donazione nel browser...")
         else:
             gesture.send()
 
@@ -844,21 +950,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         frame.txt_query.SetFocus()
 
     def show_shortcuts_dialog(self):
-        msg = (
-            "Ricerca Testuale Accesso Digitale v1.2.0\n"
-            "Autore: Maurizio Barra\n\n"
-            "Comandi disponibili dopo NVDA+Shift+Control+F:\n"
-            "F - Apri maschera di ricerca nei file o dischi\n"
-            "S - Mostra questa finestra con i comandi\n"
-            "H - Apri la guida completa HTML nel browser\n\n"
-            "Sostieni il Progetto (Donazione):\n"
-            "https://paypal.me/AccessoDigitale"
-        )
-        gui_dialog = wx.MessageDialog(
-            None,
-            msg,
-            "Ricerca Testuale Accesso Digitale - Comandi e Info",
-            wx.OK | wx.ICON_INFORMATION,
-        )
-        gui_dialog.ShowModal()
-        gui_dialog.Destroy()
+        frame = ShortcutsFrame(None)
+        frame.Show()
+        frame.Raise()

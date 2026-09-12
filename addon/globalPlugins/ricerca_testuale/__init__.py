@@ -3,7 +3,6 @@ import ctypes
 import datetime
 import globalPluginHandler
 import globalVars
-import inputCore
 import json
 import os
 import re
@@ -17,11 +16,14 @@ import webbrowser
 import wx
 import xml.etree.ElementTree as ET
 import zipfile
+import quopri
+import urllib.parse
+import urllib.request
 
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.4.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale"
@@ -35,53 +37,40 @@ if not os.path.exists(CONFIG_DIR):
 CONFIG_FILE = os.path.join(CONFIG_DIR, "rtad_settings.json")
 
 
-def create_html_help_file():
-    help_path = os.path.join(CONFIG_DIR, "guida_ricerca_testuale.html")
-    html_content = f"""<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>Guida Ufficiale - {APP_TITLE}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 30px; color: #111; background-color: #f9f9f9; }}
-        h1 {{ color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }}
-        h2 {{ color: #333; margin-top: 25px; }}
-        ul {{ margin-left: 20px; }}
-        li {{ margin-bottom: 8px; }}
-        code {{ background-color: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold; }}
-        .box {{ background-color: #eef6fc; border-left: 5px solid #005a9c; padding: 15px; margin: 20px 0; }}
-    </style>
-</head>
-<body>
-    <h1>{APP_TITLE}</h1>
-    <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
-    <p><em>Add-on per NVDA - Versione {APP_VERSION}</em></p>
+def normalize_search_text(txt, remove_accents=False):
+    """Normalizza caratteri speciali, accenti, virgolette e apostrofi per match sicuri."""
+    if not txt:
+        return ""
+    for ap in ["’", "‘", "`", "´", "ʼ", "ʻ", "′", "‵", "՚", "Ꞌ"]:
+        txt = txt.replace(ap, "'")
+    for q in ["“", "”", "«", "»", "„"]:
+        txt = txt.replace(q, '"')
+    txt = txt.replace(chr(160), " ")
+    if remove_accents:
+        import unicodedata
+        nfkd = unicodedata.normalize('NFKD', txt)
+        return "".join([c for c in nfkd if not unicodedata.combining(c)]).lower()
+    return txt.lower()
 
-    <div class="box">
-        <p><strong>Novit&agrave; Versione 1.4.1:</strong> Piena compatibilit&agrave; con la modalit&agrave; navigazione di NVDA (nessuna interferenza con i tasti H, F, S), ricerca su Tutto il PC (<code>Alt + T</code>), lettura avanzamento con <code>Tab</code> o <code>Alt + P</code>, apertura mirata alla riga esatta con <code>INVIO</code>, anteprima vocale con <code>SPAZIO</code> o <code>F4</code> ed esportazione risultati su Desktop.</p>
-    </div>
+def text_matches_terms(text, terms):
+    if not text or not terms:
+        return False
+    n = normalize_search_text(text, False)
+    if all(t in n for t in terms):
+        return True
+    n_no = normalize_search_text(text, True)
+    terms_no = [normalize_search_text(t, True) for t in terms]
+    return all(t in n_no for t in terms_no)
 
-    <h2>1. Scorciatoie da Tastiera</h2>
-    <ul>
-        <li><code>NVDA + Shift + Control + F</code> seguito da <code>F</code>: Apri la finestra di ricerca.</li>
-        <li><code>NVDA + Shift + Control + F</code> seguito da <code>S</code>: Mostra la finestra dei comandi rapidi.</li>
-        <li><code>NVDA + Shift + Control + F</code> seguito da <code>D</code>: Apri la pagina Donazioni PayPal.</li>
-        <li><code>NVDA + Shift + Control + F</code> seguito da <code>H</code>: Apri la Guida nel Browser.</li>
-        <li><code>Alt + T</code>: Seleziona automaticamente tutte le unit&agrave; disco attive (Tutto il PC).</li>
-        <li><code>Alt + P</code>: Annuncia all'istante la percentuale e lo stato di avanzamento della ricerca.</li>
-        <li><code>Alt + K</code>: Scatta uno screenshot e lo salva in <em>Catture di schermata</em>.</li>
-        <li><code>SPAZIO</code> o <code>F4</code> (sui risultati): Anteprima vocale immediata del contesto.</li>
-        <li><code>INVIO</code> (sui risultati): Apre il file alla riga esatta in Notepad++ o Blocco Note.</li>
-    </ul>
-</body>
-</html>
-"""
+def clean_eml_text(raw_text):
+    """Pulisce il testo estratto dai file EML decodificando formati quoted-printable e url-encoded."""
     try:
-        with open(help_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
+        decoded = quopri.decodestring(raw_text.encode("latin1", errors="ignore")).decode("utf-8", errors="ignore")
     except Exception:
-        pass
-    return help_path
+        decoded = raw_text
+    decoded = urllib.parse.unquote_plus(decoded)
+    decoded = re.sub(r"<[^<]+?>", " ", decoded)
+    return " ".join(decoded.split())
 
 
 def load_last_path():
@@ -95,7 +84,6 @@ def load_last_path():
     except Exception:
         pass
     return os.path.expanduser("~\\Downloads")
-
 
 def save_last_path(path):
     try:
@@ -202,9 +190,46 @@ def jump_to_line_in_editor(file_path, line_number):
 
     threading.Thread(target=_jump_worker, daemon=True).start()
 
+def open_word_at_word(file_path, search_term):
+    def _worker():
+        clean_word = normalize_search_text(search_term).strip("'\" ")
+        opened = False
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            import win32com.client
+            try:
+                word = win32com.client.GetActiveObject("Word.Application")
+            except Exception:
+                word = win32com.client.DispatchEx("Word.Application")
+            word.Visible = True
+            doc = word.Documents.Open(os.path.abspath(file_path))
+            time.sleep(0.3)
+            rng = doc.Content
+            find = rng.Find
+            find.ClearFormatting()
+            find.Text = clean_word
+            find.Forward = True
+            find.Wrap = 1
+            if find.Execute():
+                rng.Select()
+            word.Activate()
+            hwnd = ctypes.windll.user32.FindWindowW(None, word.Caption)
+            if hwnd:
+                ctypes.windll.user32.ShowWindow(hwnd, 3)
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+            opened = True
+        except Exception:
+            pass
+        if not opened:
+            try:
+                ctypes.windll.shell32.ShellExecuteW(None, "open", file_path, None, None, 1)
+            except Exception:
+                pass
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 class ShortcutsFrame(wx.Frame):
-
     def __init__(self, parent):
         super(ShortcutsFrame, self).__init__(
             parent,
@@ -222,12 +247,11 @@ class ShortcutsFrame(wx.Frame):
             "--------------------------------------------------\n"
             "COMANDI E SCORCIATOIE DA TASTIERA:\n"
             "--------------------------------------------------\n"
-            "Attivazione comandi sequenziali: NVDA + Shift + Control + F\n\n"
-            "Sequenze disponibili dopo il tasto di attivazione:\n"
-            "  - F : Apri la finestra principale di ricerca\n"
-            "  - S : Apri questa finestra comandi navigabile\n"
-            "  - D : Apri la pagina per le Donazioni PayPal\n"
-            "  - H : Apri la Guida HTML nel Browser\n\n"
+            "Comandi Globali NVDA:\n"
+            "  - NVDA + Shift + Control + F : Apri la finestra principale di ricerca\n"
+            "  - NVDA + Shift + Control + S : Apri questa finestra comandi\n"
+            "  - NVDA + Shift + Control + D : Apri la pagina per le Donazioni PayPal\n"
+            "  - (Per la Guida in formato Web, usa Gestione Componenti Aggiuntivi -> Guida)\n\n"
             "Comandi Finestra di Ricerca:\n"
             "  - Alt + T : Imposta la scansione su TUTTO IL PC (tutte le unità attive)\n"
             "  - Alt + P : Annuncia all'istante lo stato e la percentuale di ricerca\n"
@@ -310,7 +334,7 @@ class SearchFrame(wx.Frame):
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         # 1. Campo Testo
-        lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini):")
+        lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini e dialetti):")
         vbox.Add(lbl_query, 0, wx.ALL, 5)
         self.txt_query = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.txt_query.Bind(wx.EVT_TEXT_ENTER, lambda e: self.start_search_thread())
@@ -327,7 +351,7 @@ class SearchFrame(wx.Frame):
                 "Tutti i tipi di file",
                 "Solo Immagini (.jpg, .png, .jpeg, .bmp)",
                 "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)",
-                "Solo Documenti (.txt, .docx, .pdf, .eml, .log, .csv)",
+                "Solo Documenti (.txt, .docx, .doc, .pdf, .eml, .log, .csv)",
                 "Estensione Personalizzata...",
             ],
         )
@@ -586,10 +610,11 @@ class SearchFrame(wx.Frame):
             "appdata\\local\\temp",
         ]
 
-        terms = query.split()
+        norm_query = normalize_search_text(query)
+        terms = norm_query.split()
         img_exts = [".jpg", ".jpeg", ".png", ".bmp"]
         media_exts = [".mp4", ".mp3", ".mkv", ".avi", ".wav"]
-        doc_exts = [".txt", ".eml", ".log", ".csv", ".docx", ".pdf"]
+        doc_exts = [".txt", ".eml", ".log", ".csv", ".docx", ".doc", ".pdf"]
 
         file_list = []
 
@@ -630,7 +655,7 @@ class SearchFrame(wx.Frame):
 
             self.scanned_count = i
             file_name = os.path.basename(file_path)
-            file_name_lower = file_name.lower()
+            norm_name = normalize_search_text(file_name)
             ext = os.path.splitext(file_name)[1].lower()
             prefix = f"[{ext.replace('.', '').upper()}]"
 
@@ -639,7 +664,7 @@ class SearchFrame(wx.Frame):
             except Exception:
                 mtime = 0
 
-            if all(term in file_name_lower for term in terms):
+            if text_matches_terms(file_name, terms):
                 raw_matches.append({
                     "file_path": file_path,
                     "file_name": file_name,
@@ -650,7 +675,7 @@ class SearchFrame(wx.Frame):
                     "snippet": f"Corrispondenza nel nome: '{file_name}'",
                 })
             elif ext in img_exts:
-                img_text = deep_ocr_jpg_scan(file_path).lower()
+                img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
                 if all(term in img_text for term in terms):
                     raw_matches.append({
                         "file_path": file_path,
@@ -666,10 +691,13 @@ class SearchFrame(wx.Frame):
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         lines = f.readlines()
                         for idx, line in enumerate(lines):
-                            if all(term in line.lower() for term in terms):
+                            cleaned_line = clean_eml_text(line) if ext == ".eml" else line
+                            norm_line = normalize_search_text(cleaned_line)
+                            if text_matches_terms(cleaned_line, terms):
                                 start_i = max(0, idx - 2)
                                 end_i = min(len(lines), idx + 3)
-                                snippet = "".join(lines[start_i:end_i]).strip()
+                                raw_snip = "".join(lines[start_i:end_i]).strip()
+                                snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
                                 raw_matches.append({
                                     "file_path": file_path,
                                     "file_name": file_name,
@@ -681,10 +709,12 @@ class SearchFrame(wx.Frame):
                                 })
                 except Exception:
                     pass
-            elif ext == ".docx":
+            elif ext in [".docx", ".doc"]:
                 paragraphs = extract_paragraphs_from_docx(file_path)
+                found_doc = False
                 for idx, p_text in enumerate(paragraphs):
-                    if all(term in p_text.lower() for term in terms):
+                    if text_matches_terms(p_text, terms):
+                        found_doc = True
                         start_i = max(0, idx - 1)
                         end_i = min(len(paragraphs), idx + 2)
                         snippet = " \n".join(paragraphs[start_i:end_i])
@@ -697,10 +727,26 @@ class SearchFrame(wx.Frame):
                             "location_info": f"Paragrafo {idx + 1}",
                             "snippet": snippet,
                         })
+                if not found_doc and ext == ".doc":
+                    try:
+                        with open(file_path, "rb") as f:
+                            raw_data = normalize_search_text(f.read(4194304).decode("latin1", errors="ignore"))
+                            if text_matches_terms(raw_data, terms):
+                                raw_matches.append({
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "prefix": prefix,
+                                    "mtime": mtime,
+                                    "line_number": None,
+                                    "location_info": "Documento Word",
+                                    "snippet": f"Trovato testo nel file Word: '{query}'.",
+                                })
+                    except Exception:
+                        pass
             elif ext == ".pdf":
                 pdf_lines = extract_lines_from_pdf(file_path)
                 for idx, line in enumerate(pdf_lines):
-                    if all(term in line.lower() for term in terms):
+                    if text_matches_terms(line, terms):
                         start_i = max(0, idx - 1)
                         end_i = min(len(pdf_lines), idx + 2)
                         snippet = " ".join(pdf_lines[start_i:end_i])
@@ -782,6 +828,21 @@ class SearchFrame(wx.Frame):
             item = self.file_map[sel]
             file_to_open = item["file_path"]
             line_num = item.get("line_number")
+            ext = os.path.splitext(file_to_open)[1].lower()
+
+            if ext in [".docx", ".doc"]:
+                target_word = normalize_search_text(self.current_query).strip("'\" ")
+                ui.message(f"Apertura Word e posizionamento su: {target_word}")
+                open_word_at_word(file_to_open, target_word)
+                return
+            
+            if ext == ".eml":
+                try:
+                    ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
+                    ui.message(f"Apertura email: {os.path.basename(file_to_open)}")
+                except Exception:
+                    ui.message("Impossibile aprire l'email.")
+                return
 
             if line_num:
                 ui.message(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
@@ -819,7 +880,7 @@ class SearchFrame(wx.Frame):
         menu.AppendSubMenu(sort_submenu, "Ordinamento Risultati")
 
         self.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
-        self.Bind(wx.EVT_MENU, lambda e: self.speak_selected_preview(), item_preview)
+        self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_content_or_image_to_clipboard(file_path), item_copy_text)
@@ -870,7 +931,7 @@ class SearchFrame(wx.Frame):
                 pass
 
         text_content = ""
-        if ext == ".docx":
+        if ext in [".docx", ".doc"]:
             paragraphs = extract_paragraphs_from_docx(file_path)
             text_content = "\n".join(paragraphs)
         elif ext == ".pdf":
@@ -880,6 +941,8 @@ class SearchFrame(wx.Frame):
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     text_content = f.read()
+                    if ext == ".eml":
+                        text_content = clean_eml_text(text_content)
             except Exception:
                 pass
 
@@ -917,67 +980,30 @@ class SearchFrame(wx.Frame):
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
-    def __init__(self):
-        super(GlobalPlugin, self).__init__()
-        self._waiting_for_second_key = False
-        self._timeout_timer = None
-
-    def _cancel_leader(self):
-        self._waiting_for_second_key = False
-        if self._timeout_timer:
-            try:
-                self._timeout_timer.Stop()
-            except Exception:
-                pass
-            self._timeout_timer = None
-
     @scriptHandler.script(
-        description="Leader Key per Ricerca Testuale Accesso Digitale",
-        category="Ricerca Testuale",
+        description="Apri la finestra principale di Ricerca Testuale",
+        category="Ricerca Testuale Accesso Digitale",
         gesture="kb:NVDA+shift+control+f",
     )
-    def script_leaderKey(self, gesture):
-        self._waiting_for_second_key = True
-        ui.message("Ricerca Testuale: premere F per cercare, S per comandi, D per Donazione, H per la Guida")
+    def script_openSearch(self, gesture):
+        wx.CallAfter(self.open_search_window)
 
-        if self._timeout_timer:
-            try:
-                self._timeout_timer.Stop()
-            except Exception:
-                pass
-        self._timeout_timer = wx.PyTimer(self._cancel_leader)
-        self._timeout_timer.Start(3000, oneShot=True)
+    @scriptHandler.script(
+        description="Mostra la finestra dei comandi rapidi",
+        category="Ricerca Testuale Accesso Digitale",
+        gesture="kb:NVDA+shift+control+s",
+    )
+    def script_showShortcuts(self, gesture):
+        wx.CallAfter(self.show_shortcuts_dialog)
 
-    def event_inputManager_gesture(self, gesture):
-        if not self._waiting_for_second_key:
-            return
-
-        # Catturiamo solo il singolo tasto subito successivo alla sequenza leader
-        sub_key = getattr(gesture, "mainKeyName", "") or getattr(gesture, "displayName", "")
-        sub_key = str(sub_key).lower()
-
-        if sub_key == "f":
-            self._cancel_leader()
-            wx.CallAfter(self.open_search_window)
-            return True
-        elif sub_key == "s":
-            self._cancel_leader()
-            wx.CallAfter(self.show_shortcuts_dialog)
-            return True
-        elif sub_key == "d":
-            self._cancel_leader()
-            webbrowser.open(DONATION_URL)
-            ui.message("Apertura pagina per la Donazione nel browser...")
-            return True
-        elif sub_key == "h":
-            self._cancel_leader()
-            html_file = create_html_help_file()
-            webbrowser.open(f"file:///{html_file}")
-            ui.message("Apertura guida completa nel browser in corso...")
-            return True
-        else:
-            # Qualsiasi altro tasto disattiva subito il layer e lascia passare l'evento normalmente
-            self._cancel_leader()
+    @scriptHandler.script(
+        description="Apri la pagina delle Donazioni PayPal",
+        category="Ricerca Testuale Accesso Digitale",
+        gesture="kb:NVDA+shift+control+d",
+    )
+    def script_openDonation(self, gesture):
+        webbrowser.open(DONATION_URL)
+        ui.message("Apertura pagina donazioni...")
 
     def open_search_window(self):
         frame = SearchFrame()

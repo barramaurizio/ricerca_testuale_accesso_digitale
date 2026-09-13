@@ -1,0 +1,25 @@
+Windows Registry Editor Version 5.00
+
+; Integrazione per le Cartelle
+[HKEY_CLASSES_ROOT\Directory\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+; Integrazione per le Unità / Dischi
+[HKEY_CLASSES_ROOT\Drive\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe"
+
+[HKEY_CLASSES_ROOT\Drive\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+; Integrazione per lo Sfondo della Cartella
+[HKEY_CLASSES_ROOT\Directory\Background\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files (x86)\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%V\""

@@ -1,0 +1,25 @@
+Windows Registry Editor Version 5.00
+
+; --- INTEGRAZIONE CARTELLE ---
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+; --- INTEGRAZIONE UNITA' / DISCHI ---
+[HKEY_CURRENT_USER\Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+
+[HKEY_CURRENT_USER\Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+; --- INTEGRAZIONE SINGOLI FILE ---
+[HKEY_CURRENT_USER\Software\Classes\*\shell\RicercaTestualeAccessoDigitale]
+@="Cerca con Accesso Digitale"
+"Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\RicercaTestualeAccessoDigitale\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""

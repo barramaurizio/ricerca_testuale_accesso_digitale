@@ -1,0 +1,40 @@
+﻿VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=(1, 4, 3, 0),
+        prodvers=(1, 4, 3, 0),
+        mask=0x3F,
+        flags=0x0,
+        OS=0x40004,
+        fileType=0x1,
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable(
+                "041004b0",
+                [
+                    StringStruct(
+                        "CompanyName", "Accesso Digitale di Maurizio Barra"
+                    ),
+                    StringStruct(
+                        "FileDescription", "Ricerca Testuale Accesso Digitale"
+                    ),
+                    StringStruct("FileVersion", "1.4.3.0"),
+                    StringStruct(
+                        "InternalName", "Ricerca Testuale Accesso Digitale"
+                    ),
+                    StringStruct(
+                        "OriginalFilename",
+                        "Ricerca Testuale Accesso Digitale.exe",
+                    ),
+                    StringStruct(
+                        "ProductName", "Ricerca Testuale Accesso Digitale"
+                    ),
+                    StringStruct("ProductVersion", "1.4.3.0"),
+                ],
+            )
+        ]),
+        VarFileInfo([VarStruct("Translation", [1040, 1200])]),
+    ],
+)

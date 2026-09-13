@@ -1,37 +1,39 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Guida Ufficiale - Ricerca Testuale Accesso Digitale</title>
+    <title>Ricerca Testuale Accesso Digitale v1.4.3</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 30px; color: #111; background-color: #f9f9f9; }
-        h1 { color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }
-        h2 { color: #333; margin-top: 25px; }
-        ul { margin-left: 20px; }
-        li { margin-bottom: 8px; }
-        code { background-color: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
-        .box { background-color: #eef6fc; border-left: 5px solid #005a9c; padding: 15px; margin: 20px 0; }
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+        h1, h2 { color: #0056b3; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+        ol { margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale</h1>
-    <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
-    <p><em>Add-on per NVDA - Versione 1.4.1</em></p>
+    <h1>Ricerca Testuale Accesso Digitale v1.4.3</h1>
+    <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
+    
+    <h2>Introduction</h2>
+    <p>An NVDA add-on designed to perform fast and advanced text searches across text files, Word documents, PDFs, images (via basic OCR), and emails on your computer.</p>
 
-    <div class="box">
-        <p><strong>Novit&agrave; Versione 1.4.1:</strong> Piena compatibilit&agrave; con la modalit&agrave; navigazione di NVDA (nessuna interferenza con i tasti H, F, S), ricerca su Tutto il PC (<code>Alt + T</code>), lettura avanzamento con <code>Tab</code> o <code>Alt + P</code>, apertura mirata alla riga esatta con <code>INVIO</code>, anteprima vocale con <code>SPAZIO</code> o <code>F4</code> ed %sportazione risultati su Desktop.</p>
-    </div>
+    <h2>How to reach the exact point in Word documents</h2>
+    <ol>
+        <li>From the add-on results list, press the <strong>Applications key</strong> on the desired Word file.</li>
+        <li>Select <strong>"Copy News Block / Phrase with keyword"</strong> to copy the exact phrase to the clipboard.</li>
+        <li>Open the Word document directly from the results.</li>
+        <li>Press the shortcut key combination <strong>Control + Shift + T</strong> to trigger targeted document search.</li>
+        <li>Paste the copied text by pressing <strong>Control + V</strong> and press <strong>Enter</strong>.</li>
+        <li>Listen to NVDA's speech feedback announcing the results. Use arrow keys to select the match and press <strong>Enter</strong>.</li>
+        <li>When the synthesizer announces <em>"One result, next result Button"</em>, press the <strong>Escape</strong> key: the Word cursor will position itself precisely over the searched text, ready for reading (you can use <code>NVDA + Down Arrow</code> to start continuous reading).</li>
+    </ol>
 
-    <h2>1. Scorciatoie da Tastiera</h2>
+    <h2>Main Keyboard Shortcuts</h2>
     <ul>
-        <li><code>NVDA + Shift + Control + F</code>: Apri la finestra principale di ricerca.</li>
-        <li><code>NVDA + Shift + Control + S</code>: Mostra la finestra dei comandi rapidi.</li>
-        <li><code>NVDA + Shift + Control + D</code>: Apri la pagina Donazioni PayPal.</li>
-        <li><code>Alt + T</code>: Seleziona automaticamente tutte le unit&agrave; disco attive (Tutto il PC).</li>
-        <li><code>Alt + P</code>: Annuncia all'istante la percentuale e lo stato di avanzamento della ricerca.</li>
-        <li><code>Alt + K</code>: Scatta uno screenshot e lo salva in <em>Catture di schermata</em>.</li>
-        <li><code>SPAZIO</code> o <code>F4</code> (sui risultati): Anteprima vocale immediata del contesto.</li>
-        <li><code>INVIO</code> (sui risultati): Apre il file alla riga esatta in Notepad++ o Blocco Note.</li>
+        <li><strong>NVDA + Shift + Control + F</strong>: Open the main search window.</li>
+        <li><strong>NVDA + Shift + Control + S</strong>: Open the shortcuts dialog.</li>
     </ul>
+
+    <p><a href="https://github.com/barramaurizio/ricerca_testuale_accesso_digitale" target="_blank">Project GitHub Page</a></p>
 </body>
 </html>

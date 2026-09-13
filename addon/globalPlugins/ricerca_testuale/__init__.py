@@ -23,7 +23,7 @@ import urllib.request
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.2"
+APP_VERSION = "1.4.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale"
@@ -38,7 +38,6 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "rtad_settings.json")
 
 
 def normalize_search_text(txt, remove_accents=False):
-    """Normalizza caratteri speciali, accenti, virgolette e apostrofi per match sicuri."""
     if not txt:
         return ""
     for ap in ["’", "‘", "`", "´", "ʼ", "ʻ", "′", "‵", "՚", "Ꞌ"]:
@@ -63,7 +62,6 @@ def text_matches_terms(text, terms):
     return all(t in n_no for t in terms_no)
 
 def clean_eml_text(raw_text):
-    """Pulisce il testo estratto dai file EML decodificando formati quoted-printable e url-encoded."""
     try:
         decoded = quopri.decodestring(raw_text.encode("latin1", errors="ignore")).decode("utf-8", errors="ignore")
     except Exception:
@@ -102,7 +100,7 @@ def get_real_ready_drives():
             if os.path.exists(drive_path):
                 try:
                     drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_path)
-                    if drive_type in (2, 3):  # 2=Removibile, 3=Fisso
+                    if drive_type in (2, 3):  
                         os.listdir(drive_path)
                         drives.append(drive_path)
                 except Exception:
@@ -190,44 +188,6 @@ def jump_to_line_in_editor(file_path, line_number):
 
     threading.Thread(target=_jump_worker, daemon=True).start()
 
-def open_word_at_word(file_path, search_term):
-    def _worker():
-        clean_word = normalize_search_text(search_term).strip("'\" ")
-        opened = False
-        try:
-            import pythoncom
-            pythoncom.CoInitialize()
-            import win32com.client
-            try:
-                word = win32com.client.GetActiveObject("Word.Application")
-            except Exception:
-                word = win32com.client.DispatchEx("Word.Application")
-            word.Visible = True
-            doc = word.Documents.Open(os.path.abspath(file_path))
-            time.sleep(0.3)
-            rng = doc.Content
-            find = rng.Find
-            find.ClearFormatting()
-            find.Text = clean_word
-            find.Forward = True
-            find.Wrap = 1
-            if find.Execute():
-                rng.Select()
-            word.Activate()
-            hwnd = ctypes.windll.user32.FindWindowW(None, word.Caption)
-            if hwnd:
-                ctypes.windll.user32.ShowWindow(hwnd, 3)
-                ctypes.windll.user32.SetForegroundWindow(hwnd)
-            opened = True
-        except Exception:
-            pass
-        if not opened:
-            try:
-                ctypes.windll.shell32.ShellExecuteW(None, "open", file_path, None, None, 1)
-            except Exception:
-                pass
-
-    threading.Thread(target=_worker, daemon=True).start()
 
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
@@ -254,6 +214,8 @@ class ShortcutsFrame(wx.Frame):
             "  - (Per la Guida in formato Web, usa Gestione Componenti Aggiuntivi -> Guida)\n\n"
             "Comandi Finestra di Ricerca:\n"
             "  - Alt + T : Imposta la scansione su TUTTO IL PC (tutte le unità attive)\n"
+            "  - Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
+            "  - Alt + I : Mostra Info Versione e Autore\n"
             "  - Alt + P : Annuncia all'istante lo stato e la percentuale di ricerca\n"
             "  - TAB : Raggiunge anche il campo 'Stato avanzamento' leggibile dallo screen reader\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
@@ -329,18 +291,17 @@ class SearchFrame(wx.Frame):
         self.current_matches = []
         self.file_map = {}
         self.current_query = ""
+        self.live_matches_count = 0 
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 1. Campo Testo
         lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini e dialetti):")
         vbox.Add(lbl_query, 0, wx.ALL, 5)
         self.txt_query = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.txt_query.Bind(wx.EVT_TEXT_ENTER, lambda e: self.start_search_thread())
         vbox.Add(self.txt_query, 0, wx.EXPAND | wx.ALL, 5)
 
-        # 2. Filtro Tipo File
         hbox_filter = wx.BoxSizer(wx.HORIZONTAL)
         vbox_filter_choice = wx.BoxSizer(wx.VERTICAL)
         lbl_filter = wx.StaticText(panel, label="T&ipo di file da cercare:")
@@ -369,7 +330,6 @@ class SearchFrame(wx.Frame):
         hbox_filter.Add(self.vbox_custom_ext, 1, wx.EXPAND)
         vbox.Add(hbox_filter, 0, wx.EXPAND)
 
-        # 3. Percorso
         lbl_path = wx.StaticText(panel, label="&Percorso di ricerca (Memoria automatica):")
         vbox.Add(lbl_path, 0, wx.ALL, 5)
 
@@ -386,11 +346,19 @@ class SearchFrame(wx.Frame):
         hbox_path.Add(btn_all_pc, 0, wx.ALL, 5)
         vbox.Add(hbox_path, 0, wx.EXPAND)
 
-        # 4. Pulsanti Azioni Principali
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_search = wx.Button(panel, label="&Avvia Ricerca")
         self.btn_search.Bind(wx.EVT_BUTTON, lambda e: self.start_search_thread())
         hbox_actions.Add(self.btn_search, 0, wx.ALL, 5)
+
+        self.btn_cancel = wx.Button(panel, label="A&nnulla Ricerca")
+        self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel_search)
+        self.btn_cancel.Disable()
+        hbox_actions.Add(self.btn_cancel, 0, wx.ALL, 5)
+
+        btn_info = wx.Button(panel, label="&Info Versione")
+        btn_info.Bind(wx.EVT_BUTTON, self.on_show_info)
+        hbox_actions.Add(btn_info, 0, wx.ALL, 5)
 
         btn_progress_now = wx.Button(panel, label="&Percentuale (Alt+P)")
         btn_progress_now.Bind(wx.EVT_BUTTON, lambda e: self.announce_progress())
@@ -400,16 +368,8 @@ class SearchFrame(wx.Frame):
         btn_screenshot.Bind(wx.EVT_BUTTON, self.on_take_screenshot)
         hbox_actions.Add(btn_screenshot, 0, wx.ALL, 5)
 
-        btn_export = wx.Button(panel, label="&Esporta Risultati...")
-        btn_export.Bind(wx.EVT_BUTTON, self.on_export_results)
-        hbox_actions.Add(btn_export, 0, wx.ALL, 5)
-
-        btn_donate = wx.Button(panel, label="&Sostieni il Progetto...")
-        btn_donate.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(DONATION_URL))
-        hbox_actions.Add(btn_donate, 0, wx.ALL, 5)
         vbox.Add(hbox_actions, 0, wx.ALIGN_CENTER)
 
-        # 5. Sezione Avanzamento (Accessibile via TAB + Barra Grafica)
         lbl_status_progress = wx.StaticText(panel, label="&Stato avanzamento ricerca (raggiungibile con Tab):")
         vbox.Add(lbl_status_progress, 0, wx.ALL, 5)
 
@@ -423,7 +383,6 @@ class SearchFrame(wx.Frame):
         self.gauge = wx.Gauge(panel, range=100)
         vbox.Add(self.gauge, 0, wx.EXPAND | wx.ALL, 5)
 
-        # 6. Lista Risultati
         lbl_results = wx.StaticText(
             panel,
             label="&Risultati trovati (INVIO per riga esatta, SPAZIO/F4 anteprima audio, APPLICAZIONI opzioni):",
@@ -435,7 +394,6 @@ class SearchFrame(wx.Frame):
         self.lst_results.Bind(wx.EVT_CONTEXT_MENU, self.on_context_menu)
         vbox.Add(self.lst_results, 1, wx.EXPAND | wx.ALL, 5)
 
-        # 7. Pulsanti Inferiori
         hbox_bottom = wx.BoxSizer(wx.HORIZONTAL)
         btn_open = wx.Button(panel, label="&Apri File (Alla Riga)")
         btn_open.Bind(wx.EVT_BUTTON, self.on_open_file_event)
@@ -444,6 +402,10 @@ class SearchFrame(wx.Frame):
         btn_preview = wx.Button(panel, label="Anteprima &Voce (F4)")
         btn_preview.Bind(wx.EVT_BUTTON, lambda e: self.speak_selected_preview())
         hbox_bottom.Add(btn_preview, 0, wx.ALL, 5)
+        
+        btn_export = wx.Button(panel, label="&Esporta Risultati...")
+        btn_export.Bind(wx.EVT_BUTTON, self.on_export_results)
+        hbox_bottom.Add(btn_export, 0, wx.ALL, 5)
 
         btn_github = wx.Button(panel, label="Pagina &GitHub")
         btn_github.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(GITHUB_URL))
@@ -458,6 +420,17 @@ class SearchFrame(wx.Frame):
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_general_char_hook)
 
+    def on_cancel_search(self, event):
+        if not self.btn_search.IsEnabled():
+            self._stop_search = True
+            self.btn_cancel.Disable()
+            ui.message("Ricerca interrotta dall'utente. Salvataggio risultati parziali in corso...")
+
+    def on_show_info(self, event):
+        msg = f"{APP_TITLE}\nVersione: {APP_VERSION}\nAutore: Maurizio Barra\nLicenza: GPL v2"
+        ui.message(f"Versione installata {APP_VERSION}. Autore Maurizio Barra.")
+        wx.MessageBox(msg, "Informazioni Versione", wx.OK | wx.ICON_INFORMATION)
+
     def on_filter_changed(self, event):
         sel = self.combo_filter.GetSelection()
         self.txt_custom_ext.Enable(sel == 4)
@@ -471,10 +444,11 @@ class SearchFrame(wx.Frame):
         self.btn_search.SetFocus()
 
     def announce_progress(self):
-        found = len(self.current_matches)
         if not self.btn_search.IsEnabled():
-            msg = f"Avanzamento ricerca: {self.current_percent} percento. File analizzati: {self.scanned_count}. Trovati: {found}."
+            found = getattr(self, 'live_matches_count', 0)
+            msg = f"Avanzamento ricerca: {self.current_percent} percento. File esaminati: {self.scanned_count}. Trovati: {found}."
         else:
+            found = len(self.current_matches)
             msg = f"Stato: {self.txt_status_progress.GetValue()}. Risultati in lista: {found}."
         ui.message(msg)
 
@@ -486,6 +460,10 @@ class SearchFrame(wx.Frame):
             self.on_search_all_pc(None)
         elif event.AltDown() and key == ord("P"):
             self.announce_progress()
+        elif event.AltDown() and key == ord("N"):
+            self.on_cancel_search(None)
+        elif event.AltDown() and key == ord("I"):
+            self.on_show_info(None)
         elif key == wx.WXK_ESCAPE:
             self._stop_search = True
             self.Destroy()
@@ -549,9 +527,9 @@ class SearchFrame(wx.Frame):
                 for idx, item in enumerate(self.current_matches, 1):
                     loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
                     f.write(f"{idx}. {item['file_name']}{loc}\n")
-                    f.write(f"   Percorso: {item['file_path']}\n")
+                    f.write(f"    Percorso: {item['file_path']}\n")
                     if item.get("snippet"):
-                        f.write(f"   Estratto: {item['snippet']}\n")
+                        f.write(f"    Estratto: {item['snippet']}\n")
                     f.write("-" * 50 + "\n")
             ui.message(f"Risultati esportati sul Desktop nel file: Risultati_Ricerca_{timestamp}.txt")
         except Exception:
@@ -569,7 +547,7 @@ class SearchFrame(wx.Frame):
                 ui.message(f"{item['file_name']} - Nessuna anteprima di testo disponibile.")
 
     def start_search_thread(self):
-        query = self.txt_query.GetValue().strip().lower()
+        query = self.txt_query.GetValue().strip()
         target_input = self.txt_path.GetValue().strip()
         filter_mode = self.combo_filter.GetSelection()
         custom_ext = self.txt_custom_ext.GetValue().strip().lower()
@@ -584,6 +562,7 @@ class SearchFrame(wx.Frame):
         self.current_query = query
         self.current_percent = 0
         self.scanned_count = 0
+        self.live_matches_count = 0 
         save_last_path(target_input)
 
         self.lst_results.Clear()
@@ -591,7 +570,9 @@ class SearchFrame(wx.Frame):
         self.current_matches = []
         self.gauge.SetValue(0)
         self.txt_status_progress.SetValue("Ricerca in corso: 0%...")
+        
         self.btn_search.Disable()
+        self.btn_cancel.Enable()
 
         ui.message(f"Ricerca avviata per '{query}'.")
 
@@ -655,7 +636,6 @@ class SearchFrame(wx.Frame):
 
             self.scanned_count = i
             file_name = os.path.basename(file_path)
-            norm_name = normalize_search_text(file_name)
             ext = os.path.splitext(file_name)[1].lower()
             prefix = f"[{ext.replace('.', '').upper()}]"
 
@@ -692,7 +672,6 @@ class SearchFrame(wx.Frame):
                         lines = f.readlines()
                         for idx, line in enumerate(lines):
                             cleaned_line = clean_eml_text(line) if ext == ".eml" else line
-                            norm_line = normalize_search_text(cleaned_line)
                             if text_matches_terms(cleaned_line, terms):
                                 start_i = max(0, idx - 2)
                                 end_i = min(len(lines), idx + 3)
@@ -761,6 +740,7 @@ class SearchFrame(wx.Frame):
                         })
 
             if total_files > 0:
+                self.live_matches_count = len(raw_matches) 
                 percent = int((i / total_files) * 100)
                 self.current_percent = percent
                 if percent % 10 == 0 and percent != last_spoken_percent:
@@ -797,10 +777,18 @@ class SearchFrame(wx.Frame):
     def finish_search(self, matches):
         self.gauge.SetValue(100)
         self.current_percent = 100
-        text = f"Ricerca completata: 100% ({self.scanned_count} file analizzati). Trovati {matches} risultati."
+        
+        if self._stop_search:
+            text = f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file analizzati). Salvati {matches} risultati parziali."
+            ui.message(f"Ricerca annullata. Sono stati conservati {matches} risultati trovati finora.")
+        else:
+            text = f"Ricerca completata: 100% ({self.scanned_count} file analizzati). Trovati {matches} risultati."
+            ui.message(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.")
+            
         self.txt_status_progress.SetValue(text)
         self.btn_search.Enable()
-        ui.message(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.")
+        self.btn_cancel.Disable()
+        
         if matches > 0:
             self.lst_results.SetSelection(0)
             self.lst_results.SetFocus()
@@ -831,9 +819,11 @@ class SearchFrame(wx.Frame):
             ext = os.path.splitext(file_to_open)[1].lower()
 
             if ext in [".docx", ".doc"]:
-                target_word = normalize_search_text(self.current_query).strip("'\" ")
-                ui.message(f"Apertura Word e posizionamento su: {target_word}")
-                open_word_at_word(file_to_open, target_word)
+                ui.message(f"Apertura file Word: {os.path.basename(file_to_open)}")
+                try:
+                    ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
+                except Exception:
+                    pass
                 return
             
             if ext == ".eml":

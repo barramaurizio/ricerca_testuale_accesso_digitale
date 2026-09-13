@@ -1,58 +1,66 @@
-# Text Search Accesso Digitale for NVDA / Ricerca Testuale Accesso Digitale per NVDA
-
-**Author / Autore:** Maurizio Barra (Accesso Digitale)  
-**Version / Versione:** 1.4.1  
-**NVDA Compatibility / Compatibilità NVDA:** 2024.1.0 to 2026.2.0  
-**License / Licenza:** GNU General Public License v2.0  
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.4.3)
+**Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
 
-## English Documentation
+## 🇮🇹 Italiano
 
-### What's New in Version 1.4.1:
-* **Critical Browse Mode Fix:** Completely eliminated single-letter gesture capture bindings (`F`, `H`, `S`). The sequential leader key layer (`NVDA + Shift + Control + F`) is now handled exclusively via a dedicated modal input manager with an automatic 3-second timeout. When inactive, all single keys are completely untouched, restoring full and uninterrupted Browse Mode navigation across web pages and virtual buffers.
-* **Dialect and Special Character Search:** Fully normalized character matching for typographical curved apostrophes and quotation marks.
-* **Multi-drive PC Scanning:** Fast drive detection with `Alt + T`.
-* **Instant Speech Feedback:** Keyboard shortcuts (`Space` / `F4` for voice preview, `Alt + P` for progress announcement).
-
-### Description
-**Text Search Accesso Digitale** is an advanced accessibility add-on for the NVDA screen reader designed to perform rapid, in-depth text and keyword searches across documents, text files, images, and entire storage drives.
-
-### Key Features
-* **Global Shortcut:** Press `NVDA + Shift + Control + F` followed by `F` to open the search interface.
-* **Scan Entire PC (`Alt + T`):** Scan every available drive and partition simultaneously with a single click or shortcut.
-* **Live Progress Announcement (`Alt + P`):** Instantly hear the search percentage and examined file count at any moment.
-* **Direct Jump to Exact Line:** Press `Enter` on any text result to open the document and place the cursor exactly on the matching line.
-* **Instant Speech Preview:** Press `Space` or `F4` to hear an immediate audio preview of the text snippet without opening the file.
-* **Export to Desktop:** Export all search results into a clean, structured `.txt` report saved directly to your Desktop.
-* **Smart Context Menu (`Applications` key or `Shift + F10`):** Copy the matching context snippet, copy the full file content or image to the clipboard, reveal the file in Explorer, or copy it to another directory.
-* **Custom Extension Filtering:** Filter searches by document types, media, images, or define your own custom extension (e.g. `.ini`, `.srt`, `.log`).
-* **Multi-term Search:** Supports searching multiple keywords simultaneously with boolean AND logic.
-* **Instant Screenshot:** Press `Alt + K` within the dialog to capture and save the screen directly into your screenshots directory.
-* **In-App Documentation:** Press `NVDA + Shift + Control + F` followed by `H` to view the comprehensive HTML documentation.
-
----
-
-## Documentazione in Italiano
-
-### Novità della Versione 1.4.1:
-* **Correzione Critica per la Modalità Navigazione:** Rimossa qualsiasi registrazione globale permanente per i tasti a lettera singola (`F`, `H`, `S`). Il tasto guida sequenziale (`NVDA + Shift + Control + F`) opera ora attraverso un gestore modale provvisorio con timeout automatico di 3 secondi. Quando il layer non è attivo, nessun tasto viene intercettato, garantendo la totale assenza di conflitti con la navigazione rapida per titoli o campi modulo sul Web.
-* **Normalizzazione Ricerca Testuale:** Piena compatibilità con apostrofi tipografici ricurvi, virgolette e accenti in testi dialettali o formattati.
-* **Scansione Tutto il PC:** Rilevamento istantaneo delle unità disco attive con `Alt + T`.
-* **Feedback Vocale Rapido:** Scorciatoie `Spazio` o `F4` per ascoltare l'anteprima e `Alt + P` per la percentuale di avanzamento.
-
-### Descrizione
-**Ricerca Testuale Accesso Digitale** è un componente aggiuntivo per lo screen reader NVDA sviluppato per cercare parole, frasi ed elementi testuali all'interno di documenti, testi, immagini e intere unità di archiviazione.
+Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
 ### Caratteristiche Principali
-* **Scorciatoia Globale:** `NVDA + Shift + Control + F` seguita da `F` per richiamare la schermata di ricerca.
-* **Ricerca su Tutto il PC (`Alt + T`):** Scansiona tutti i dischi, partizioni e memorie collegate contemporaneamente con un solo clic o tramite scorciatoia rapida.
-* **Annuncio Percentuale Istantaneo (`Alt + P`):** Vocalizza in tempo reale la percentuale e i file analizzati.
-* **Salto Diretto alla Riga Esatta:** Premendo `Invio` sul risultato di un documento di testo, il file si apre posizionando automaticamente il cursore sulla riga corrispondente.
-* **Anteprima Vocale Immediata:** Premendo `Spazio` o `F4` sull'elenco dei risultati, NVDA legge all'istante l'estratto testuale trovato.
-* **Esportazione su Desktop:** Salva l'intero elenco dei risultati in un file `.txt` ordinato direttamente sul Desktop.
-* **Menu Contestuale Avanzato (`Tasto Applicazioni` o `Shift + F10`):** Copia il frammento di contesto, copia tutto il testo o l'immagine grafica negli appunti, apri la cartella di origine o duplica il file altrove.
-* **Filtro Estensioni Personalizzato:** Cerca per categorie (documenti, immagini, audio/video) oppure imposta un'estensione specifica a piacere (es. `.ini`, `.srt`, `.log`).
-* **Ricerca Multi-termine:** Permette di inserire più parole chiave contemporaneamente con logica AND.
-* **Cattura Schermo Istantanea:** `Alt + K` all'interno della finestra per salvare uno screenshot nella cartella dedicata.
-* **Guida Completa Integrata:** `NVDA + Shift + Control + F` seguita da `H` per consultare la guida formattata nel browser.
+- **Supporto multi-formato**: Cerca in file di testo (`.txt`, `.log`, `.csv`), documenti Word (`.docx`, `.doc`), file PDF, e-mail (`.eml`) e immagini con scansione OCR di base (`.jpg`, `.png`, `.bmp`).
+- **Parole chiave multiple e dialetti**: Supporta ricerche flessibili con più termini.
+- **Memoria automatica dei percorsi**: Memorizza l'ultima cartella cercata per velocizzare i flussi di lavoro.
+- **Scansione globale**: Possibilità di scansionare l'intero PC su tutte le unità attive con un solo comando.
+
+### Come trovare il testo esatto nei documenti Word (v1.4.3)
+Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro. Puoi raggiungere istantaneamente la frase esatta seguendo questa procedura:
+1. Nella lista dei risultati dell'add-on, premi il **Tasto Applicazioni** sul file Word desiderato.
+2. Seleziona **"Copia Blocco Notizia / Frase con parola chiave"**.
+3. Apri il documento Word direttamente dai risultati.
+4. Premi la combinazione di tasti **`Control + Shift + T`** per avviare la ricerca mirata.
+5. Incolla il testo copiato con **`Control + V`** e premi **Invio**.
+6. Quando la sintesi vocale annuncia il risultato e il pulsante successivo, premi il tasto **`Esc`**: il cursore si posizionerà esattamente sopra il testo cercato, pronto per la lettura (`NVDA + Freccia Giù`).
+
+*(Nota: Per chi preferisce l'apertura automatica istantanea senza passaggi manuali, è disponibile anche la versione **Standalone .exe**).*
+
+### Scorciatoie da Tastiera (Add-on NVDA)
+- `NVDA + Shift + Control + F`: Apri la finestra principale di ricerca.
+- `NVDA + Shift + Control + S`: Apri la finestra dei comandi rapidi e delle informazioni.
+- `NVDA + Shift + Control + D`: Apri la pagina per le donazioni PayPal.
+
+---
+
+## 🇬🇧 English
+
+An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
+
+### Key Features
+- **Multi-format support**: Search across text files (`.txt`, `.log`, `.csv`), Word documents (`.docx`, `.doc`), PDF files, emails (`.eml`), and images with basic OCR scanning (`.jpg`, `.png`, `.bmp`).
+- **Multiple keywords**: Supports flexible searches with multiple terms.
+- **Automatic path memory**: Remembers the last searched folder to speed up workflows.
+- **Global scan**: Ability to scan the entire PC across all active drives with a single command.
+
+### How to reach the exact text in Word documents (v1.4.3)
+For Microsoft Word documents, the add-on opens the file cleanly and safely. You can instantly reach the exact phrase by following these steps:
+1. In the add-on results list, press the **Applications Key** on the desired Word file.
+2. Select **"Copy News Block / Phrase with keyword"**.
+3. Open the Word document directly from the results.
+4. Press the shortcut **`Control + Shift + T`** to trigger targeted search.
+5. Paste the copied text with **`Control + V`** and press **Enter**.
+6. When the speech synthesizer announces the result and the next button, press **`Esc`**: the cursor will position itself precisely over the searched text, ready for reading (`NVDA + Down Arrow`).
+
+*(Note: For those who prefer instant automatic opening without manual steps, the **Standalone .exe** version is also available).*
+
+### Keyboard Shortcuts (NVDA Add-on)
+- `NVDA + Shift + Control + F`: Open the main search window.
+- `NVDA + Shift + Control + S`: Open the shortcuts and info dialog.
+- `NVDA + Shift + Control + D`: Open the PayPal donation page.
+
+---
+
+## 📦 Download & Install
+Scarica l'ultima versione rilasciata (`.nvda-addon` o la versione `.exe` standalone) dalla sezione [Releases di GitHub](https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases).
+
+---
+*Sostieni il progetto / Support the project:* [PayPal](https://paypal.me/AccessoDigitale) | [YouTube](https://www.youtube.com/@AccessoDigitale)

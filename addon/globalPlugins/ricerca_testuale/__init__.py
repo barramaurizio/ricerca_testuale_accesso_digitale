@@ -19,14 +19,17 @@ import zipfile
 import quopri
 import urllib.parse
 import urllib.request
+import email
+from email import policy
+import html
 
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.3"
+APP_VERSION = "1.4.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
-GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale"
+GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
 
 CONFIG_DIR = os.path.join(globalVars.appArgs.configPath, "rtad_data")
 if not os.path.exists(CONFIG_DIR):
@@ -70,7 +73,6 @@ def clean_eml_text(raw_text):
     decoded = re.sub(r"<[^<]+?>", " ", decoded)
     return " ".join(decoded.split())
 
-
 def load_last_path():
     try:
         if os.path.exists(CONFIG_FILE):
@@ -90,6 +92,13 @@ def save_last_path(path):
     except Exception:
         pass
 
+def get_dynamic_desktop_path():
+    desktop_path = os.path.expanduser("~\\Desktop")
+    if not os.path.exists(desktop_path):
+        desktop_path = os.path.expanduser("~\\OneDrive\\Desktop")
+        if not os.path.exists(desktop_path):
+            desktop_path = os.path.expanduser("~")
+    return desktop_path
 
 def get_real_ready_drives():
     drives = []
@@ -108,7 +117,6 @@ def get_real_ready_drives():
         bitmask >>= 1
     return drives
 
-
 def extract_paragraphs_from_docx(file_path):
     try:
         with zipfile.ZipFile(file_path) as z:
@@ -126,7 +134,6 @@ def extract_paragraphs_from_docx(file_path):
     except Exception:
         return []
 
-
 def extract_lines_from_pdf(file_path):
     try:
         with open(file_path, "rb") as f:
@@ -138,7 +145,6 @@ def extract_lines_from_pdf(file_path):
     except Exception:
         return []
 
-
 def deep_ocr_jpg_scan(file_path):
     try:
         with open(file_path, "rb") as f:
@@ -148,7 +154,6 @@ def deep_ocr_jpg_scan(file_path):
             return " ".join(words)
     except Exception:
         return ""
-
 
 def jump_to_line_in_editor(file_path, line_number):
     def _jump_worker():
@@ -188,6 +193,134 @@ def jump_to_line_in_editor(file_path, line_number):
 
     threading.Thread(target=_jump_worker, daemon=True).start()
 
+class EmlViewerFrame(wx.Frame):
+    def __init__(self, parent, file_path, search_query):
+        super(EmlViewerFrame, self).__init__(
+            parent,
+            title=f"Lettore Email - {os.path.basename(file_path)}",
+            size=(800, 650),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+        self.file_path = file_path
+        self.search_query = search_query
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+        
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        
+        wx.CallAfter(self.load_email)
+
+    def load_email(self):
+        try:
+            with open(self.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                msg = email.message_from_file(f, policy=policy.default)
+        except Exception:
+            try:
+                with open(self.file_path, "r", encoding="latin1", errors="ignore") as f:
+                    msg = email.message_from_file(f, policy=policy.default)
+            except Exception:
+                self.txt_display.SetValue("Errore durante la lettura del file email.")
+                return
+
+        subject = msg.get("subject", "(Nessun oggetto)")
+        sender = msg.get("from", "(Sconosciuto)")
+        to = msg.get("to", "(Sconosciuto)")
+        date = msg.get("date", "(Nessuna data)")
+
+        body = ""
+        body_html = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get("Content-Disposition"))
+                if "attachment" not in content_disposition:
+                    try:
+                        if content_type == "text/plain":
+                            body += part.get_content()
+                        elif content_type == "text/html":
+                            body_html += part.get_content()
+                    except Exception:
+                        pass
+        else:
+            try:
+                body = msg.get_content()
+            except Exception:
+                pass
+
+        if not body.strip() and body_html:
+            body = body_html
+
+        body = re.sub(r'<style.*?>.*?</style>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
+        body = re.sub(r'<script.*?>.*?</script>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
+        body = re.sub(r'<br\s*/?>', '\n', body, flags=re.IGNORECASE)
+        body = re.sub(r'</p>', '\n\n', body, flags=re.IGNORECASE)
+        body = re.sub(r'</div>', '\n', body, flags=re.IGNORECASE)
+        body = re.sub(r'<[^>]+>', ' ', body)
+        body = html.unescape(body)
+        
+        lines = [line.strip() for line in body.split('\n')]
+        body = '\n'.join([line for line in lines if line])
+
+        full_text = (
+            f"Oggetto: {subject}\n"
+            f"Da: {sender}\n"
+            f"A: {to}\n"
+            f"Data: {date}\n"
+            f"{'-'*60}\n\n"
+            f"{body}"
+        )
+
+        full_text = full_text.replace('\r\n', '\n').replace('\n', '\r\n')
+        self.txt_display.SetValue(full_text)
+
+        if self.search_query:
+            terms = self.search_query.split()
+            pos = -1
+            term_len = 0
+            
+            text_lower = full_text.lower()
+            for term in terms:
+                t = term.lower()
+                idx = text_lower.find(t)
+                if idx != -1:
+                    pos = idx
+                    term_len = len(t)
+                    break
+            
+            if pos == -1:
+                text_norm = normalize_search_text(full_text, True)
+                for term in normalize_search_text(self.search_query, True).split():
+                    idx = text_norm.find(term)
+                    if idx != -1:
+                        pos = idx
+                        term_len = len(term)
+                        break
+
+            self.txt_display.SetFocus()
+            if pos != -1:
+                self.txt_display.SetSelection(pos, pos + term_len)
+            else:
+                self.txt_display.SetInsertionPoint(0)
+        else:
+            self.txt_display.SetFocus()
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
 
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
@@ -514,7 +647,7 @@ class SearchFrame(wx.Frame):
             ui.message("Nessun risultato da esportare.")
             return
 
-        desktop_path = os.path.expanduser("~\\Desktop")
+        desktop_path = get_dynamic_desktop_path()
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         export_file = os.path.join(desktop_path, f"Risultati_Ricerca_{timestamp}.txt")
 
@@ -827,11 +960,9 @@ class SearchFrame(wx.Frame):
                 return
             
             if ext == ".eml":
-                try:
-                    ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
-                    ui.message(f"Apertura email: {os.path.basename(file_to_open)}")
-                except Exception:
-                    ui.message("Impossibile aprire l'email.")
+                ui.message(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
+                viewer = EmlViewerFrame(self, file_to_open, self.current_query)
+                viewer.Show()
                 return
 
             if line_num:
@@ -948,7 +1079,7 @@ class SearchFrame(wx.Frame):
         dlg = wx.DirDialog(
             self,
             "Seleziona la cartella dove copiare il file",
-            defaultPath=os.path.expanduser("~\\Desktop"),
+            defaultPath=get_dynamic_desktop_path(),
         )
         if dlg.ShowModal() == wx.ID_OK:
             dest_dir = dlg.GetPath()

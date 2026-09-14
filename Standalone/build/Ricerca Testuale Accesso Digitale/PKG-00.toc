@@ -1,5 +1,5 @@
-('C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
- 'Accesso Digitale\\Ricerca Testuale Accesso Digitale.pkg',
+('C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+ 'Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.pkg',
  {'BINARY': True,
   'DATA': True,
   'EXECUTABLE': True,
@@ -11,28 +11,28 @@
   'SYMLINK': False},
  [('pyi-contents-directory _internal', '', 'OPTION'),
   ('PYZ-00.pyz',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\PYZ-00.pyz',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\PYZ-00.pyz',
    'PYZ'),
   ('struct',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\localpycs\\struct.pyc',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\localpycs\\struct.pyc',
    'PYMODULE'),
   ('pyimod01_archive',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\localpycs\\pyimod01_archive.pyc',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\localpycs\\pyimod01_archive.pyc',
    'PYMODULE'),
   ('pyimod02_importers',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\localpycs\\pyimod02_importers.pyc',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\localpycs\\pyimod02_importers.pyc',
    'PYMODULE'),
   ('pyimod03_ctypes',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\localpycs\\pyimod03_ctypes.pyc',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\localpycs\\pyimod03_ctypes.pyc',
    'PYMODULE'),
   ('pyimod04_pywin32',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\localpycs\\pyimod04_pywin32.pyc',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\localpycs\\pyimod04_pywin32.pyc',
    'PYMODULE'),
   ('pyiboot01_bootstrap',
    'C:\\Users\\barra\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\loader\\pyiboot01_bootstrap.py',
@@ -47,7 +47,7 @@
    'C:\\Users\\barra\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks\\pyi_rth_pythoncom.py',
    'PYSOURCE'),
   ('app_gui',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\app_gui.py',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\app_gui.py',
    'PYSOURCE')],
  'python311.dll',
  True,

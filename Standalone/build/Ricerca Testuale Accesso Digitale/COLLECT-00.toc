@@ -2,8 +2,8 @@
    'C:\\Program Files\\ImageMagick-7.1.2-Q16-HDRI\\MSVCP140.dll',
    'BINARY'),
   ('Ricerca Testuale Accesso Digitale.exe',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe',
    'EXECUTABLE'),
   ('VCRUNTIME140.dll',
    'C:\\Users\\barra\\AppData\\Local\\Programs\\Python\\Python311\\VCRUNTIME140.dll',
@@ -36,8 +36,8 @@
    'C:\\Users\\barra\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_ssl.pyd',
    'EXTENSION'),
   ('base_library.zip',
-   'C:\\Users\\barra\\Downloads\\RicercaTestualeApp\\build\\Ricerca Testuale '
-   'Accesso Digitale\\base_library.zip',
+   'C:\\Users\\barra\\Downloads\\RicercaTestualeAccessoDigitaleGitHub\\Standalone\\build\\Ricerca '
+   'Testuale Accesso Digitale\\base_library.zip',
    'DATA'),
   ('libcrypto-1_1.dll',
    'C:\\Users\\barra\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\libcrypto-1_1.dll',

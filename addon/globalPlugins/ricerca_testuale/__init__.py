@@ -22,11 +22,17 @@ import urllib.request
 import email
 from email import policy
 import html
+import csv
+
+try:
+    import tones
+except ImportError:
+    tones = None
 
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.4"
+APP_VERSION = "1.4.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -87,8 +93,35 @@ def load_last_path():
 
 def save_last_path(path):
     try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data["last_path"] = path
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({"last_path": path}, f)
+            json.dump(data, f)
+    except Exception:
+        pass
+
+def load_bookmarks():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("bookmarks", [])
+    except Exception:
+        pass
+    return []
+
+def save_bookmarks(bookmarks_list):
+    try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data["bookmarks"] = bookmarks_list
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
     except Exception:
         pass
 
@@ -352,6 +385,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + P : Annuncia all'istante lo stato e la percentuale di ricerca\n"
             "  - TAB : Raggiunge anche il campo 'Stato avanzamento' leggibile dallo screen reader\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
+            "  - Ctrl + P : Stampa rapida dei risultati di ricerca in lista\n"
+            "  - Ctrl + E : Esporta Risultati\n"
+            "  - Ctrl + D : Aggiunge percorso attuale ai Segnalibri\n"
             "  - INVIO (su campo testo) : Avvia subito la ricerca\n"
             "  - INVIO (sui risultati) : Apri file alla riga esatta\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del contesto\n"
@@ -425,6 +461,9 @@ class SearchFrame(wx.Frame):
         self.file_map = {}
         self.current_query = ""
         self.live_matches_count = 0 
+        self.bookmark_items = []
+
+        self._init_menu_bar()
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -539,6 +578,10 @@ class SearchFrame(wx.Frame):
         btn_export = wx.Button(panel, label="&Esporta Risultati...")
         btn_export.Bind(wx.EVT_BUTTON, self.on_export_results)
         hbox_bottom.Add(btn_export, 0, wx.ALL, 5)
+        
+        btn_print = wx.Button(panel, label="Stam&pa Risultati...")
+        btn_print.Bind(wx.EVT_BUTTON, self.on_print_results)
+        hbox_bottom.Add(btn_print, 0, wx.ALL, 5)
 
         btn_github = wx.Button(panel, label="Pagina &GitHub")
         btn_github.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(GITHUB_URL))
@@ -552,6 +595,78 @@ class SearchFrame(wx.Frame):
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_general_char_hook)
+
+    def _init_menu_bar(self):
+        menubar = wx.MenuBar()
+
+        # Menu File
+        file_menu = wx.Menu()
+        item_export = file_menu.Append(wx.ID_ANY, "Esporta &Risultati...\tCtrl+E")
+        item_print = file_menu.Append(wx.ID_ANY, "&Stampa Risultati...\tCtrl+P")
+        file_menu.AppendSeparator()
+        item_exit = file_menu.Append(wx.ID_EXIT, "E&sci\tCtrl+Q")
+        menubar.Append(file_menu, "&File")
+
+        # Menu Segnalibri
+        self.bookmarks_menu = wx.Menu()
+        item_add_bm = self.bookmarks_menu.Append(wx.ID_ANY, "Aggiungi percorso attuale ai Segnalibri\tCtrl+D")
+        item_manage_bm = self.bookmarks_menu.Append(wx.ID_ANY, "Gestisci Segnalibri...")
+        self.bookmarks_menu.AppendSeparator()
+        menubar.Append(self.bookmarks_menu, "Se&gnalibri")
+        
+        self.Bind(wx.EVT_MENU, self.on_add_bookmark, item_add_bm)
+        self.Bind(wx.EVT_MENU, self.on_manage_bookmarks, item_manage_bm)
+        self.update_bookmarks_menu()
+
+        self.SetMenuBar(menubar)
+        self.Bind(wx.EVT_MENU, self.on_export_results, item_export)
+        self.Bind(wx.EVT_MENU, self.on_print_results, item_print)
+        self.Bind(wx.EVT_MENU, self.on_close, item_exit)
+
+    def on_add_bookmark(self, event=None):
+        path = self.txt_path.GetValue().strip()
+        if not path:
+            wx.CallLater(200, lambda: ui.message("Nessun percorso da salvare."))
+            return
+        bms = load_bookmarks()
+        if path not in bms:
+            bms.append(path)
+            save_bookmarks(bms)
+            self.update_bookmarks_menu()
+            wx.CallLater(200, lambda: ui.message("Percorso salvato nei segnalibri."))
+        else:
+            wx.CallLater(200, lambda: ui.message("Percorso già presente nei segnalibri."))
+
+    def on_manage_bookmarks(self, event=None):
+        bms = load_bookmarks()
+        if not bms:
+            wx.CallLater(200, lambda: ui.message("Nessun segnalibro salvato."))
+            return
+        dlg = wx.SingleChoiceDialog(self, "Seleziona il segnalibro da ELIMINARE:", "Gestione Segnalibri", bms)
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel in bms:
+                bms.remove(sel)
+                save_bookmarks(bms)
+                self.update_bookmarks_menu()
+                wx.CallLater(200, lambda: ui.message("Segnalibro eliminato correttamente."))
+        dlg.Destroy()
+
+    def on_select_bookmark(self, path):
+        self.txt_path.SetValue(path)
+        save_last_path(path)
+        wx.CallLater(200, lambda: ui.message(f"Segnalibro caricato: {path}"))
+
+    def update_bookmarks_menu(self):
+        for item_id in self.bookmark_items:
+            self.bookmarks_menu.Remove(item_id)
+        self.bookmark_items.clear()
+        
+        bms = load_bookmarks()
+        for bm in bms:
+            item = self.bookmarks_menu.Append(wx.ID_ANY, bm)
+            self.bookmark_items.append(item.GetId())
+            self.Bind(wx.EVT_MENU, lambda e, p=bm: self.on_select_bookmark(p), item)
 
     def on_cancel_search(self, event):
         if not self.btn_search.IsEnabled():
@@ -587,19 +702,37 @@ class SearchFrame(wx.Frame):
 
     def on_general_char_hook(self, event):
         key = event.GetKeyCode()
-        if event.AltDown() and key == ord("K"):
+        ctrl = event.ControlDown()
+        alt = event.AltDown()
+        
+        if ctrl and key in (ord("P"), ord("p")):
+            self.on_print_results(None)
+            return
+        elif ctrl and key in (ord("E"), ord("e")):
+            self.on_export_results(None)
+            return
+        elif ctrl and key in (ord("D"), ord("d")):
+            self.on_add_bookmark(None)
+            return
+        elif alt and key in (ord("K"), ord("k")):
             self.on_take_screenshot(None)
-        elif event.AltDown() and key == ord("T"):
+            return
+        elif alt and key in (ord("T"), ord("t")):
             self.on_search_all_pc(None)
-        elif event.AltDown() and key == ord("P"):
+            return
+        elif alt and key in (ord("P"), ord("p")):
             self.announce_progress()
-        elif event.AltDown() and key == ord("N"):
+            return
+        elif alt and key in (ord("N"), ord("n")):
             self.on_cancel_search(None)
-        elif event.AltDown() and key == ord("I"):
+            return
+        elif alt and key in (ord("I"), ord("i")):
             self.on_show_info(None)
+            return
         elif key == wx.WXK_ESCAPE:
             self._stop_search = True
             self.Destroy()
+            return
         else:
             event.Skip()
 
@@ -647,26 +780,115 @@ class SearchFrame(wx.Frame):
             ui.message("Nessun risultato da esportare.")
             return
 
-        desktop_path = get_dynamic_desktop_path()
+        wildcard_filters = "File di Testo (*.txt)|*.txt|Pagina Web HTML (*.html)|*.html|File CSV per Tabelle (*.csv)|*.csv"
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_file = os.path.join(desktop_path, f"Risultati_Ricerca_{timestamp}.txt")
+        dlg = wx.FileDialog(self, message="Esporta Risultati", 
+                            defaultDir=get_dynamic_desktop_path(),
+                            defaultFile=f"Risultati_Ricerca_{timestamp}",
+                            wildcard=wildcard_filters, 
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
 
-        try:
-            with open(export_file, "w", encoding="utf-8") as f:
-                f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
-                f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
-                f.write(f"Parola cercata: {self.current_query}\n")
-                f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
-                for idx, item in enumerate(self.current_matches, 1):
-                    loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
-                    f.write(f"{idx}. {item['file_name']}{loc}\n")
-                    f.write(f"    Percorso: {item['file_path']}\n")
-                    if item.get("snippet"):
-                        f.write(f"    Estratto: {item['snippet']}\n")
-                    f.write("-" * 50 + "\n")
-            ui.message(f"Risultati esportati sul Desktop nel file: Risultati_Ricerca_{timestamp}.txt")
-        except Exception:
-            ui.message("Errore durante l'esportazione dei risultati.")
+        if dlg.ShowModal() == wx.ID_OK:
+            export_file = dlg.GetPath()
+            ext = os.path.splitext(export_file)[1].lower()
+            
+            try:
+                if ext == ".csv":
+                    with open(export_file, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f, delimiter=';')
+                        writer.writerow(["Numero", "Nome File", "Percorso", "Informazione Posizione", "Estratto"])
+                        for idx, item in enumerate(self.current_matches, 1):
+                            writer.writerow([idx, item['file_name'], item['file_path'], item.get('location_info', ''), item.get('snippet', '')])
+                
+                elif ext == ".html":
+                    with open(export_file, "w", encoding="utf-8") as f:
+                        f.write("<!DOCTYPE html><html lang='it'><head><meta charset='utf-8'><title>Risultati Ricerca</title></head><body>\n")
+                        f.write(f"<h1>Risultati Ricerca - {APP_TITLE}</h1>\n")
+                        f.write(f"<p>Parola cercata: <strong>{self.current_query}</strong></p>\n")
+                        f.write(f"<p>Totale risultati trovati: <strong>{len(self.current_matches)}</strong></p><hr>\n")
+                        for idx, item in enumerate(self.current_matches, 1):
+                            f.write(f"<h2>{idx}. {item['file_name']}</h2>\n<ul>\n")
+                            f.write(f"<li><strong>Percorso Completo:</strong> {item['file_path']}</li>\n")
+                            if item.get("location_info"):
+                                f.write(f"<li><strong>Posizione:</strong> {item['location_info']}</li>\n")
+                            if item.get("snippet"):
+                                f.write(f"<li><strong>Estratto:</strong> {item['snippet']}</li>\n")
+                            f.write("</ul>\n<hr>\n")
+                        f.write("</body></html>")
+                
+                else: 
+                    with open(export_file, "w", encoding="utf-8") as f:
+                        f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
+                        f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                        f.write(f"Parola cercata: {self.current_query}\n")
+                        f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
+                        for idx, item in enumerate(self.current_matches, 1):
+                            loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
+                            f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
+                            if item.get("snippet"):
+                                f.write(f"    Estratto: {item['snippet']}\n")
+                            f.write("-" * 50 + "\n")
+                
+                ui.message("Risultati esportati con successo nel formato scelto.")
+            except Exception:
+                ui.message("Errore durante l'esportazione dei risultati.")
+        dlg.Destroy()
+
+    def on_print_results(self, event):
+        total_matches = len(self.current_matches)
+        if total_matches == 0:
+            ui.message("Nessun risultato da stampare.")
+            return
+
+        dlg = wx.TextEntryDialog(
+            self,
+            f"Hai trovato {total_matches} risultati.\nQuanti vuoi stamparne partendo dal primo?\n(Lascia vuoto e premi Invio per stamparli tutti)",
+            "Opzioni di Stampa"
+        )
+        
+        if dlg.ShowModal() == wx.ID_OK:
+            val = dlg.GetValue().strip()
+            limit = total_matches
+            if val.isdigit():
+                limit = int(val)
+                if limit <= 0:
+                    limit = total_matches
+                elif limit > total_matches:
+                    limit = total_matches
+            
+            dlg.Destroy()
+            
+            temp_print_path = os.path.join(CONFIG_DIR, "stampa_temporanea.txt")
+            try:
+                with open(temp_print_path, "w", encoding="utf-8") as f:
+                    f.write(f"=== {APP_TITLE} - Risultati Ricerca ===\n")
+                    f.write(f"Data Stampa: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                    f.write(f"Parola cercata: {self.current_query}\n")
+                    f.write(f"Risultati stampati: {limit} di {total_matches}\n\n")
+                    
+                    for idx, item in enumerate(self.current_matches[:limit], 1):
+                        loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
+                        f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
+                        if item.get("snippet"):
+                            f.write(f"    Estratto: {item['snippet']}\n")
+                        f.write("-" * 40 + "\n")
+                
+                notepad_path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32", "notepad.exe")
+                if not os.path.exists(notepad_path):
+                    notepad_path = "notepad.exe"
+                    
+                subprocess.Popen([notepad_path, "/p", temp_print_path])
+                
+                if limit == total_matches:
+                    ui.message("Inviati tutti i risultati alla stampante predefinita.")
+                else:
+                    ui.message(f"Inviati i primi {limit} risultati alla stampante predefinita.")
+            except Exception:
+                ui.message("Impossibile stampare. Assicurati di avere una stampante configurata.")
+        else:
+            dlg.Destroy()
+            ui.message("Stampa annullata.")
+
 
     def speak_selected_preview(self):
         sel = self.lst_results.GetSelection()
@@ -708,6 +930,14 @@ class SearchFrame(wx.Frame):
         self.btn_cancel.Enable()
 
         ui.message(f"Ricerca avviata per '{query}'.")
+        
+        # --- INIZIO EARCONS NVDA (Avvio) ---
+        if tones:
+            try:
+                wx.CallLater(100, lambda: tones.beep(800, 150))
+            except Exception:
+                pass
+        # --- FINE EARCONS ---
 
         targets = [t.strip() for t in target_input.split(";") if t.strip()]
         threading.Thread(
@@ -914,9 +1144,23 @@ class SearchFrame(wx.Frame):
         if self._stop_search:
             text = f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file analizzati). Salvati {matches} risultati parziali."
             ui.message(f"Ricerca annullata. Sono stati conservati {matches} risultati trovati finora.")
+            # --- EARCONS NVDA (Annullato) ---
+            if tones:
+                try: wx.CallLater(100, lambda: tones.beep(400, 300))
+                except Exception: pass
         else:
             text = f"Ricerca completata: 100% ({self.scanned_count} file analizzati). Trovati {matches} risultati."
             ui.message(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.")
+            # --- EARCONS NVDA (Completato) ---
+            if tones:
+                try:
+                    if matches > 0:
+                        wx.CallLater(100, lambda: tones.beep(1000, 150))
+                        wx.CallLater(300, lambda: tones.beep(1500, 200))
+                    else:
+                        wx.CallLater(100, lambda: tones.beep(600, 300))
+                except Exception:
+                    pass
             
         self.txt_status_progress.SetValue(text)
         self.btn_search.Enable()

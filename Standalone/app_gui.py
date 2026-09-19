@@ -23,9 +23,11 @@ import html
 import logging
 import traceback
 import platform
+import winsound
+import csv
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.4"
+APP_VERSION = "1.4.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -175,7 +177,7 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.4.4:</strong> Nuova barra dei menu con funzionalit&agrave; per esportare Log Diagnostici sul Desktop e inviare email di supporto. Lettore nativo per file .eml migliorato e fix percorsi OneDrive.</p>
+        <p><strong>Novit&agrave; Versione 1.4.5:</strong> Menu Segnalibri per salvare i percorsi preferiti, Esportazione multipla (HTML, CSV), Stampa diretta controllata, Suoni di sistema.</p>
         <p>F7: Attiva / Disattiva sintesi vocale<br>CONTROL: Zittisce immediatamente la voce</p>
     </div>
     <h2>1. Scorciatoie da Tastiera</h2>
@@ -186,6 +188,8 @@ def create_html_help_file():
         <li><code>Alt + P</code>: Annuncia la percentuale, lo stato e i risultati in tempo reale.</li>
         <li><code>Tab</code>: Raggiunge la casella accessibile di stato e avanzamento ricerca.</li>
         <li><code>Alt + K</code>: Scatta uno screenshot e lo salva in <em>Catture di schermata</em>.</li>
+        <li><code>Ctrl + P</code>: Stampa rapida dei risultati di ricerca in lista.</li>
+        <li><code>Ctrl + D</code>: Aggiunge il percorso di ricerca attuale ai Segnalibri.</li>
         <li><code>SPAZIO</code> o <code>F4</code> (sui risultati): Anteprima vocale immediata del contesto.</li>
         <li><code>INVIO</code> (sui risultati): Apre il file alla riga esatta in Notepad++ o Blocco Note.</li>
         <li><code>Tasto APPLICAZIONI</code> o <code>Shift + F10</code>: Menu contestuale completo.</li>
@@ -216,10 +220,37 @@ def load_last_path():
 
 def save_last_path(path):
     try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data["last_path"] = path
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({"last_path": path}, f)
+            json.dump(data, f)
     except Exception as e:
         logging.error(f"Errore salvataggio ultimo percorso: {e}")
+
+def load_bookmarks():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("bookmarks", [])
+    except Exception as e:
+        logging.error(f"Errore caricamento segnalibri: {e}")
+    return []
+
+def save_bookmarks(bookmarks_list):
+    try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data["bookmarks"] = bookmarks_list
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception as e:
+        logging.error(f"Errore salvataggio segnalibri: {e}")
 
 def get_real_ready_drives():
     drives = []
@@ -532,6 +563,8 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + P : Annuncia stato, percentuale e risultati in tempo reale\n"
             "  - TAB : Raggiunge la casella 'Stato avanzamento'\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
+            "  - Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
+            "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"
             "  - INVIO : Avvia ricerca o apri file alla riga esatta\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
             "  - F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
@@ -598,6 +631,7 @@ class MainWindow(wx.Frame):
         self.file_map = {}
         self.current_query = ""
         self.live_matches_count = 0
+        self.bookmark_items = []
 
         self._init_menu_bar()
 
@@ -715,9 +749,21 @@ class MainWindow(wx.Frame):
         # Menu File
         file_menu = wx.Menu()
         item_export = file_menu.Append(wx.ID_ANY, "Esporta &Risultati...\tCtrl+E")
+        item_print = file_menu.Append(wx.ID_ANY, "&Stampa Risultati...\tCtrl+P")
         file_menu.AppendSeparator()
         item_exit = file_menu.Append(wx.ID_EXIT, "E&sci\tCtrl+Q")
         menubar.Append(file_menu, "&File")
+
+        # Menu Segnalibri
+        self.bookmarks_menu = wx.Menu()
+        item_add_bm = self.bookmarks_menu.Append(wx.ID_ANY, "Aggiungi percorso attuale ai Segnalibri\tCtrl+D")
+        item_manage_bm = self.bookmarks_menu.Append(wx.ID_ANY, "Gestisci Segnalibri...")
+        self.bookmarks_menu.AppendSeparator()
+        menubar.Append(self.bookmarks_menu, "Se&gnalibri")
+        
+        self.Bind(wx.EVT_MENU, self.on_add_bookmark, item_add_bm)
+        self.Bind(wx.EVT_MENU, self.on_manage_bookmarks, item_manage_bm)
+        self.update_bookmarks_menu()
 
         # Menu Strumenti
         tools_menu = wx.Menu()
@@ -727,6 +773,7 @@ class MainWindow(wx.Frame):
         # Menu Aiuto
         help_menu = wx.Menu()
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
+        item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
         item_info = help_menu.Append(wx.ID_ANY, "&Info Versione\tAlt+I")
         help_menu.AppendSeparator()
@@ -737,13 +784,60 @@ class MainWindow(wx.Frame):
         self.SetMenuBar(menubar)
 
         self.Bind(wx.EVT_MENU, self.on_export_results, item_export)
+        self.Bind(wx.EVT_MENU, self.on_print_results, item_print)
         self.Bind(wx.EVT_MENU, self.on_close, item_exit)
         self.Bind(wx.EVT_MENU, self.on_check_updates, item_update)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
+        self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_REPO_URL), item_github)
         self.Bind(wx.EVT_MENU, self.on_show_info, item_info)
         self.Bind(wx.EVT_MENU, self.on_export_log, item_log)
         self.Bind(wx.EVT_MENU, self.on_send_feedback, item_feedback)
+
+    def on_add_bookmark(self, event=None):
+        path = self.txt_path.GetValue().strip()
+        if not path:
+            speak_accessible("Nessun percorso da salvare.")
+            return
+        bms = load_bookmarks()
+        if path not in bms:
+            bms.append(path)
+            save_bookmarks(bms)
+            self.update_bookmarks_menu()
+            speak_accessible("Percorso salvato nei segnalibri.")
+        else:
+            speak_accessible("Percorso già presente nei segnalibri.")
+
+    def on_manage_bookmarks(self, event=None):
+        bms = load_bookmarks()
+        if not bms:
+            speak_accessible("Nessun segnalibro salvato.")
+            return
+        dlg = wx.SingleChoiceDialog(self, "Seleziona il segnalibro da ELIMINARE:", "Gestione Segnalibri", bms)
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel in bms:
+                bms.remove(sel)
+                save_bookmarks(bms)
+                self.update_bookmarks_menu()
+                speak_accessible("Segnalibro eliminato correttamente.")
+        dlg.Destroy()
+
+    def on_select_bookmark(self, path):
+        self.txt_path.SetValue(path)
+        save_last_path(path)
+        speak_accessible(f"Segnalibro caricato: {path}")
+
+    def update_bookmarks_menu(self):
+        for item_id in self.bookmark_items:
+            self.bookmarks_menu.Remove(item_id)
+        self.bookmark_items.clear()
+        
+        bms = load_bookmarks()
+        for bm in bms:
+            item = self.bookmarks_menu.Append(wx.ID_ANY, bm)
+            self.bookmark_items.append(item.GetId())
+            self.Bind(wx.EVT_MENU, lambda e, p=bm: self.on_select_bookmark(p), item)
 
     def get_dynamic_desktop_path(self):
         desktop_path = os.path.expanduser("~\\Desktop")
@@ -833,8 +927,15 @@ class MainWindow(wx.Frame):
     def on_global_char_hook(self, event):
         key = event.GetKeyCode()
         alt = event.AltDown()
+        ctrl = event.ControlDown()
 
-        if alt and key in (ord("P"), ord("p")):
+        if ctrl and key in (ord("P"), ord("p")):
+            self.on_print_results(None)
+            return
+        elif ctrl and key in (ord("D"), ord("d")):
+            self.on_add_bookmark(None)
+            return
+        elif alt and key in (ord("P"), ord("p")):
             self.announce_progress()
             return
         elif alt and key in (ord("T"), ord("t")):
@@ -855,7 +956,7 @@ class MainWindow(wx.Frame):
         elif key == wx.WXK_F1:
             self.show_shortcuts_dialog()
             return
-        elif key == wx.WXK_CONTROL:
+        elif key == wx.WXK_CONTROL and not ctrl:
             stop_accessible_speech()
             return
         elif key == wx.WXK_F7:
@@ -934,26 +1035,154 @@ class MainWindow(wx.Frame):
             speak_accessible("Nessun risultato da esportare.")
             return
             
-        desktop_path = self.get_dynamic_desktop_path()
+        wildcard_filters = "File di Testo (*.txt)|*.txt|Pagina Web HTML (*.html)|*.html|File CSV per Tabelle (*.csv)|*.csv"
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_file = os.path.join(desktop_path, f"Risultati_Ricerca_{timestamp}.txt")
+        dlg = wx.FileDialog(self, message="Esporta Risultati", 
+                            defaultDir=self.get_dynamic_desktop_path(),
+                            defaultFile=f"Risultati_Ricerca_{timestamp}",
+                            wildcard=wildcard_filters, 
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+
+        if dlg.ShowModal() == wx.ID_OK:
+            export_file = dlg.GetPath()
+            ext = os.path.splitext(export_file)[1].lower()
+            
+            try:
+                if ext == ".csv":
+                    with open(export_file, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f, delimiter=';')
+                        writer.writerow(["Numero", "Nome File", "Percorso", "Informazione Posizione", "Estratto"])
+                        for idx, item in enumerate(self.current_matches, 1):
+                            writer.writerow([idx, item['file_name'], item['file_path'], item.get('location_info', ''), item.get('snippet', '')])
+                
+                elif ext == ".html":
+                    with open(export_file, "w", encoding="utf-8") as f:
+                        f.write("<!DOCTYPE html><html lang='it'><head><meta charset='utf-8'><title>Risultati Ricerca</title></head><body>\n")
+                        f.write(f"<h1>Risultati Ricerca - {APP_TITLE}</h1>\n")
+                        f.write(f"<p>Parola cercata: <strong>{self.current_query}</strong></p>\n")
+                        f.write(f"<p>Totale risultati trovati: <strong>{len(self.current_matches)}</strong></p><hr>\n")
+                        for idx, item in enumerate(self.current_matches, 1):
+                            f.write(f"<h2>{idx}. {item['file_name']}</h2>\n<ul>\n")
+                            f.write(f"<li><strong>Percorso Completo:</strong> {item['file_path']}</li>\n")
+                            if item.get("location_info"):
+                                f.write(f"<li><strong>Posizione:</strong> {item['location_info']}</li>\n")
+                            if item.get("snippet"):
+                                f.write(f"<li><strong>Estratto:</strong> {item['snippet']}</li>\n")
+                            f.write("</ul>\n<hr>\n")
+                        f.write("</body></html>")
+                
+                else: 
+                    with open(export_file, "w", encoding="utf-8") as f:
+                        f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
+                        f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                        f.write(f"Parola cercata: {self.current_query}\n")
+                        f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
+                        for idx, item in enumerate(self.current_matches, 1):
+                            loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
+                            f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
+                            if item.get("snippet"):
+                                f.write(f"    Estratto: {item['snippet']}\n")
+                            f.write("-" * 50 + "\n")
+                
+                logging.info(f"Esportati {len(self.current_matches)} risultati in {export_file}")
+                speak_accessible("Risultati esportati con successo nel formato scelto.")
+            except Exception as e:
+                logging.error(f"Errore esportazione risultati: {e}")
+                speak_accessible("Errore durante l'esportazione.")
+        dlg.Destroy()
+
+    def on_print_results(self, event):
+        total_matches = len(self.current_matches)
+        if total_matches == 0:
+            speak_accessible("Nessun risultato da stampare.")
+            return
+
+        dlg = wx.TextEntryDialog(
+            self,
+            f"Hai trovato {total_matches} risultati.\nQuanti vuoi stamparne partendo dal primo?\n(Lascia vuoto e premi Invio per stamparli tutti)",
+            "Opzioni di Stampa"
+        )
+        
+        if dlg.ShowModal() == wx.ID_OK:
+            val = dlg.GetValue().strip()
+            limit = total_matches
+            if val.isdigit():
+                limit = int(val)
+                if limit <= 0:
+                    limit = total_matches
+                elif limit > total_matches:
+                    limit = total_matches
+            
+            dlg.Destroy()
+            
+            temp_print_path = os.path.join(CONFIG_DIR, "stampa_temporanea.txt")
+            try:
+                with open(temp_print_path, "w", encoding="utf-8") as f:
+                    f.write(f"=== {APP_TITLE} - Risultati Ricerca ===\n")
+                    f.write(f"Data Stampa: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                    f.write(f"Parola cercata: {self.current_query}\n")
+                    f.write(f"Risultati stampati: {limit} di {total_matches}\n\n")
+                    
+                    for idx, item in enumerate(self.current_matches[:limit], 1):
+                        loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
+                        f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
+                        if item.get("snippet"):
+                            f.write(f"    Estratto: {item['snippet']}\n")
+                        f.write("-" * 40 + "\n")
+                
+                notepad_path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32", "notepad.exe")
+                if not os.path.exists(notepad_path):
+                    notepad_path = "notepad.exe"
+                    
+                subprocess.Popen([notepad_path, "/p", temp_print_path])
+                
+                if limit == total_matches:
+                    speak_accessible("Inviati tutti i risultati alla stampante predefinita.")
+                else:
+                    speak_accessible(f"Inviati i primi {limit} risultati alla stampante predefinita.")
+            except Exception as e:
+                logging.error(f"Errore durante la stampa dei risultati: {e}")
+                speak_accessible("Impossibile stampare. Assicurati di avere una stampante configurata.")
+        else:
+            dlg.Destroy()
+            speak_accessible("Stampa annullata.")
+
+    def on_print_guide(self, event):
+        temp_guide_path = os.path.join(CONFIG_DIR, "stampa_guida.txt")
         try:
-            with open(export_file, "w", encoding="utf-8") as f:
-                f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
-                f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
-                f.write(f"Parola cercata: {self.current_query}\n")
-                f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
-                for idx, item in enumerate(self.current_matches, 1):
-                    loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
-                    f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
-                    if item.get("snippet"):
-                        f.write(f"    Estratto: {item['snippet']}\n")
-                    f.write("-" * 50 + "\n")
-            logging.info(f"Esportati {len(self.current_matches)} risultati in {export_file}")
-            speak_accessible(f"Risultati esportati sul Desktop nel file Risultati Ricerca {timestamp}.")
+            guide_text = (
+                f"{APP_TITLE} v{APP_VERSION}\n"
+                "Autore e Sviluppatore: Maurizio Barra (Accesso Digitale)\n\n"
+                "--- COMANDI E SCORCIATOIE DA TASTIERA (STANDALONE) ---\n\n"
+                "Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
+                "Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
+                "Alt + I : Info Versione e Autore\n"
+                "Alt + P : Annuncia stato, percentuale e risultati in tempo reale\n"
+                "TAB : Raggiunge la casella 'Stato avanzamento'\n"
+                "Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
+                "Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
+                "Ctrl + D: Aggiungi percorso ai segnalibri\n"
+                "INVIO : Avvia ricerca o apri file alla riga esatta\n"
+                "SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
+                "F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
+                "CONTROL : Zittisce all'istante la lettura in corso\n"
+                "Tasto APPLICAZIONI : Menu contestuale completo\n"
+                "F1 : Apri la Guida HTML nel Browser\n"
+                "ESC : Chiudi la finestra\n"
+            )
+            with open(temp_guide_path, "w", encoding="utf-8") as f:
+                f.write(guide_text)
+
+            notepad_path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32", "notepad.exe")
+            if not os.path.exists(notepad_path):
+                notepad_path = "notepad.exe"
+                
+            subprocess.Popen([notepad_path, "/p", temp_guide_path])
+            
+            speak_accessible("Guida ai comandi inviata alla stampante predefinita.")
         except Exception as e:
-            logging.error(f"Errore esportazione risultati: {e}")
-            speak_accessible("Errore durante l'esportazione.")
+            logging.error(f"Errore durante la stampa della guida: {e}")
+            speak_accessible("Impossibile stampare la guida. Assicurati di avere una stampante configurata.")
 
     def on_list_key_down(self, event):
         key = event.GetKeyCode()
@@ -1066,6 +1295,10 @@ class MainWindow(wx.Frame):
 
         logging.info(f"Avvio ricerca. Testo: '{query}'. Tipo filtro: {filter_mode}. Path: {target_input}")
         speak_accessible(f"Ricerca avviata per '{query}'.")
+
+        # --- INIZIO FEEDBACK ACUSTICO AVVIO ---
+        threading.Thread(target=lambda: winsound.Beep(800, 150), daemon=True).start()
+        # --- FINE FEEDBACK ACUSTICO ---
 
         targets = [t.strip() for t in target_input.split(";") if t.strip()]
         threading.Thread(target=self.run_search, args=(query, targets, filter_mode, custom_ext), daemon=True).start()
@@ -1185,6 +1418,20 @@ class MainWindow(wx.Frame):
         speak_accessible(f"Ricerca al {percent} percento")
 
     def finish_search(self, matches):
+        # --- INIZIO FEEDBACK ACUSTICO FINE ---
+        def _play_end_sound():
+            if self._stop_search:
+                winsound.Beep(400, 300) 
+            elif matches > 0:
+                winsound.Beep(1000, 150)
+                time.sleep(0.05)
+                winsound.Beep(1500, 200)
+            else:
+                winsound.Beep(600, 300) 
+
+        threading.Thread(target=_play_end_sound, daemon=True).start()
+        # --- FINE FEEDBACK ACUSTICO ---
+
         self.gauge.SetValue(100)
         self.current_percent = 100
         if self._stop_search:

@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Compilazione Ricerca Testuale Accesso Digitale v1.4.4
+echo Compilazione Ricerca Testuale Accesso Digitale v1.4.6
 echo ======================================================
 
 REM 1. Compilazione Standalone Portatile (File singolo .exe pronto all'uso)

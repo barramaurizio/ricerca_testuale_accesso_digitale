@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.4.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.4.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,11 +7,12 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
-### 🌟 Novità della Versione 1.4.5
-- **Segnalibri di Ricerca:** Nuovo menu e scorciatoia (`Ctrl + D`) per salvare, gestire e richiamare i tuoi percorsi di ricerca preferiti.
-- **Esportazione Multi-Formato:** Esporta la lista dei risultati in formato Testo Naturale (`.txt`), Pagina Web (`.html`) o Tabella (`.csv`) tramite `Ctrl + E`.
-- **Stampa Diretta:** Stampa i risultati di ricerca in modo accessibile e controllato potendo scegliere il numero di elementi (`Ctrl + P`).
-- **Feedback Acustici (Earcons):** Inseriti segnali sonori eleganti e non invasivi per l'avvio della ricerca e la notifica dei risultati, senza mai interrompere o sovrapporsi alla voce di NVDA.
+### 🌟 Novità della Versione 1.4.6
+- **Stop Vocale Istantaneo e Pausa:** Premendo `Control` la voce si interrompe in modo estremamente reattivo. Nell'Add-on NVDA è ora possibile mettere in Pausa e Riprendere la lettura usando il tasto `Shift`.
+- **Apertura Cartelle Mirata:** Il comando "Apri Cartella Contenitore" ora apre Esplora Risorse posizionando automaticamente il cursore sul file esatto che hai trovato.
+- **Blocco Notizia Potenziato:** Ispezione intelligente del testo per estrarre sempre la frase esatta, ripiegando sul nome del file solo se la parola non è all'interno del contenuto.
+- **Fix Copia Testo:** Risolto un bug che impediva la corretta copia negli appunti di alcuni file di testo salvati con codifica UTF-16.
+- **Changelog Automatico:** Al primo avvio post-aggiornamento, il programma ti accoglierà con una finestra riepilogativa delle novità.
 
 ### Caratteristiche Principali
 - **Supporto multi-formato**: Cerca in file di testo (`.txt`, `.log`, `.csv`), documenti Word (`.docx`, `.doc`), file PDF, e-mail (`.eml` con lettore nativo) e immagini con scansione OCR di base (`.jpg`, `.png`, `.bmp`).
@@ -41,11 +42,12 @@ Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro
 
 An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
 
-### 🌟 What's New in Version 1.4.5
-- **Search Bookmarks:** New menu and shortcut (`Ctrl + D`) to securely save, manage, and recall your favorite search paths.
-- **Multi-Format Export:** Export your results list to Plain Text (`.txt`), Web Page (`.html`), or Spreadsheet (`.csv`) by pressing `Ctrl + E`.
-- **Direct Printing:** Safely and accessibly print your search results, with the ability to choose the number of items (`Ctrl + P`).
-- **Audio Feedback (Earcons):** Elegant and non-intrusive system sounds for search start and result notifications, fully compatible with NVDA's speech without overlapping.
+### 🌟 What's New in Version 1.4.6
+- **Instant Speech Stop & Pause:** Pressing `Control` instantly stops the speech in a highly responsive way. In the NVDA Add-on, you can now Pause and Resume reading using the `Shift` key.
+- **Targeted Folder Opening:** The "Open Containing Folder" command now opens File Explorer with the cursor automatically placed on the exact found file.
+- **Enhanced News Block:** Intelligent text inspection to always extract the exact phrase, falling back to the file name only if the word is not inside the content.
+- **Text Copy Fix:** Resolved a bug that prevented correctly copying some text files saved with UTF-16 encoding to the clipboard.
+- **Automatic Changelog:** Upon the first launch after an update, the program will welcome you with a summary window of what's new.
 
 ### Key Features
 - **Multi-format support**: Search across text files (`.txt`, `.log`, `.csv`), Word documents (`.docx`, `.doc`), PDF files, emails (`.eml` with native reader), and images with basic OCR scanning (`.jpg`, `.png`, `.bmp`).

@@ -1,0 +1,4 @@
+Novità della Versione 1.4.6:
+- Integrazione ottimizzata per lo Stop Vocale istantaneo (tasto Control).
+- Apertura Cartella Mirata: Esplora risorse ora punta direttamente al file trovato.
+- Estrazione Testo Potenziata per file di testo (Risolto bug codifica UTF-16).

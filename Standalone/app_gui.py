@@ -27,7 +27,7 @@ import winsound
 import csv
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.5"
+APP_VERSION = "1.4.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -155,6 +155,23 @@ def clean_eml_text(raw_text):
     decoded = re.sub(r"<[^<]+?>", " ", decoded)
     return " ".join(decoded.split())
 
+def check_first_run_update():
+    try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        
+        last_v = data.get("last_version", "")
+        if last_v != APP_VERSION:
+            data["last_version"] = APP_VERSION
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            return True
+    except Exception as e:
+        logging.error(f"Errore controllo versione: {e}")
+    return False
+
 def create_html_help_file():
     help_path = os.path.join(CONFIG_DIR, "guida_ricerca_testuale.html")
     html_content = f"""<!DOCTYPE html>
@@ -177,8 +194,8 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.4.5:</strong> Menu Segnalibri per salvare i percorsi preferiti, Esportazione multipla (HTML, CSV), Stampa diretta controllata, Suoni di sistema.</p>
-        <p>F7: Attiva / Disattiva sintesi vocale<br>CONTROL: Zittisce immediatamente la voce</p>
+        <p><strong>Novit&agrave; Versione 1.4.6:</strong> Estratti testo potenziati per una ricerca sempre più precisa e apertura mirata della cartella direttamente sul file.</p>
+        <p>F7: Attiva / Disattiva sintesi vocale<br>CONTROL: Zittisce immediatamente la voce di lettura</p>
     </div>
     <h2>1. Scorciatoie da Tastiera</h2>
     <ul>
@@ -539,6 +556,55 @@ class EmlViewerFrame(wx.Frame):
         else:
             event.Skip()
 
+class WhatsNewFrame(wx.Frame):
+    def __init__(self, parent):
+        super(WhatsNewFrame, self).__init__(
+            parent,
+            title=f"Novità della Versione {APP_VERSION}",
+            size=(700, 500),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        text_content = (
+            f"Benvenuto nella versione {APP_VERSION}!\n\n"
+            "Ecco le principali novità di questo aggiornamento:\n"
+            "--------------------------------------------------\n"
+            "• Stop Vocale Istantaneo: premendo il tasto CONTROL puoi zittire immediatamente la lettura in corso in modo ancora più reattivo.\n\n"
+            "• Apertura Cartelle Mirata: la funzione 'Apri Cartella' apre Esplora Risorse posizionando automaticamente il cursore sul file esatto che hai trovato.\n\n"
+            "• Blocco Notizia Potenziato: il programma ispeziona sempre il contenuto reale del file per garantirti l'estrazione precisa della frase trovata, e usa il Titolo come risultato solo se la parola non è presente nel testo.\n\n"
+            "• Risoluzione Bug Copia Testo: corretto un errore che bloccava la copia di alcuni documenti testuali (salvati in codifica UTF-16), mostrandoti solo la prima lettera.\n"
+            "--------------------------------------------------\n"
+            "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
+        )
+
+        lbl_info = wx.StaticText(panel, label="Leggi tutte le novità dell'ultimo aggiornamento:")
+        vbox.Add(lbl_info, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="Chiudi e Continua (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        
+        speak_accessible("Finestra delle novità aperta. Usa le frecce per leggere.")
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
         super(ShortcutsFrame, self).__init__(
@@ -742,6 +808,9 @@ class MainWindow(wx.Frame):
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_global_char_hook)
+        
+        if check_first_run_update():
+            wx.CallLater(600, self.show_whats_new_dialog)
 
     def _init_menu_bar(self):
         menubar = wx.MenuBar()
@@ -772,6 +841,7 @@ class MainWindow(wx.Frame):
 
         # Menu Aiuto
         help_menu = wx.Menu()
+        item_whatsnew = help_menu.Append(wx.ID_ANY, "&Novità della Versione")
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
@@ -787,6 +857,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_print_results, item_print)
         self.Bind(wx.EVT_MENU, self.on_close, item_exit)
         self.Bind(wx.EVT_MENU, self.on_check_updates, item_update)
+        self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_REPO_URL), item_github)
@@ -886,6 +957,11 @@ class MainWindow(wx.Frame):
             logging.error(f"Impossibile aprire il client di posta per feedback: {e}")
             speak_accessible("Impossibile aprire il programma di posta.")
 
+    def show_whats_new_dialog(self):
+        dlg = WhatsNewFrame(self)
+        dlg.Show()
+        dlg.Raise()
+
     def show_shortcuts_dialog(self):
         dlg = ShortcutsFrame(self)
         dlg.Show()
@@ -958,11 +1034,13 @@ class MainWindow(wx.Frame):
             return
         elif key == wx.WXK_CONTROL and not ctrl:
             stop_accessible_speech()
+            event.Skip()
             return
         elif key == wx.WXK_F7:
             self.on_toggle_speech()
             return
         elif key == wx.WXK_SHIFT:
+            event.Skip()
             return
         elif key == wx.WXK_ESCAPE:
             self._stop_search = True
@@ -1224,41 +1302,50 @@ class MainWindow(wx.Frame):
                     data = json.loads(response.read().decode("utf-8"))
                     latest_tag = data.get("tag_name", "").replace("app-", "").replace("v", "").strip()
                     html_url = data.get("html_url", GITHUB_REPO_URL)
-                    if latest_tag and latest_tag != APP_VERSION:
-                        logging.info(f"Nuova versione trovata: {latest_tag}")
-                        exe_url = None
-                        for asset in data.get("assets", []):
-                            if asset.get("name", "").endswith(".exe"):
-                                exe_url = asset.get("browser_download_url")
-                                break
-                        def _prompt():
-                            dlg = wx.MessageDialog(self, f"Nuova versione {latest_tag} disponibile!\n\nScarico subito?", "Aggiornamento", wx.YES_NO | wx.ICON_QUESTION)
-                            if dlg.ShowModal() == wx.ID_YES:
-                                dlg.Destroy()
-                                if exe_url:
-                                    def _dl():
-                                        try:
-                                            speak_accessible("Download in corso, attendere...")
-                                            out = os.path.join(os.path.expanduser("~"), "Downloads", f"Ricerca_Testuale_v{latest_tag}.exe")
-                                            req2 = urllib.request.Request(exe_url, headers={"User-Agent": "Mozilla/5.0"})
-                                            with urllib.request.urlopen(req2) as resp, open(out, "wb") as f_out:
-                                                f_out.write(resp.read())
-                                            logging.info("Download aggiornamento completato. Avvio installer.")
-                                            speak_accessible("Avvio aggiornamento.")
-                                            subprocess.Popen([out])
-                                            wx.CallAfter(self.Close)
-                                        except Exception as e:
-                                            logging.error(f"Errore download aggiornamento: {e}")
-                                            wx.CallAfter(lambda: speak_accessible("Errore download."))
-                                    threading.Thread(target=_dl, daemon=True).start()
+                    
+                    if latest_tag:
+                        try:
+                            v_online = [int(x) for x in latest_tag.split('.')]
+                            v_local = [int(x) for x in APP_VERSION.split('.')]
+                            is_newer = v_online > v_local
+                        except Exception:
+                            is_newer = latest_tag != APP_VERSION
+                            
+                        if is_newer:
+                            logging.info(f"Nuova versione trovata: {latest_tag}")
+                            exe_url = None
+                            for asset in data.get("assets", []):
+                                if asset.get("name", "").endswith(".exe"):
+                                    exe_url = asset.get("browser_download_url")
+                                    break
+                            def _prompt():
+                                dlg = wx.MessageDialog(self, f"Nuova versione {latest_tag} disponibile!\n\nScarico subito?", "Aggiornamento", wx.YES_NO | wx.ICON_QUESTION)
+                                if dlg.ShowModal() == wx.ID_YES:
+                                    dlg.Destroy()
+                                    if exe_url:
+                                        def _dl():
+                                            try:
+                                                speak_accessible("Download in corso, attendere...")
+                                                out = os.path.join(os.path.expanduser("~"), "Downloads", f"Ricerca_Testuale_v{latest_tag}.exe")
+                                                req2 = urllib.request.Request(exe_url, headers={"User-Agent": "Mozilla/5.0"})
+                                                with urllib.request.urlopen(req2) as resp, open(out, "wb") as f_out:
+                                                    f_out.write(resp.read())
+                                                logging.info("Download aggiornamento completato. Avvio installer.")
+                                                speak_accessible("Avvio aggiornamento.")
+                                                subprocess.Popen([out])
+                                                wx.CallAfter(self.Close)
+                                            except Exception as e:
+                                                logging.error(f"Errore download aggiornamento: {e}")
+                                                wx.CallAfter(lambda: speak_accessible("Errore download."))
+                                        threading.Thread(target=_dl, daemon=True).start()
+                                    else:
+                                        webbrowser.open(html_url)
                                 else:
-                                    webbrowser.open(html_url)
-                            else:
-                                dlg.Destroy()
-                        wx.CallAfter(_prompt)
-                    else:
-                        if not silent:
-                            wx.CallAfter(lambda: speak_accessible("Versione aggiornata."))
+                                    dlg.Destroy()
+                            wx.CallAfter(_prompt)
+                        else:
+                            if not silent:
+                                wx.CallAfter(lambda: speak_accessible("Versione aggiornata."))
             except Exception as e:
                 logging.warning(f"Impossibile verificare aggiornamenti: {e}")
                 if not silent:
@@ -1343,36 +1430,48 @@ class MainWindow(wx.Frame):
             except: mtime = 0
 
             try:
-                if text_matches_terms(file_name, terms):
-                    raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": "Nome File", "snippet": f"Corrispondenza: '{file_name}'"})
-                elif ext in img_exts:
+                name_matched = text_matches_terms(file_name, terms)
+                found_in_content = False
+
+                if ext in img_exts:
                     img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
                     if all(t in img_text for t in terms):
                         raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": "[IMG-TEXT]", "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": "Testo visivo", "snippet": f"Trovato testo visivo contenente '{query}'."})
+                        found_in_content = True
                 elif ext in [".txt", ".eml", ".log", ".csv", custom_ext]:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        lines = f.readlines()
-                        for idx, line in enumerate(lines):
-                            cleaned_line = clean_eml_text(line) if ext == ".eml" else line
-                            if text_matches_terms(cleaned_line, terms):
-                                start_i, end_i = max(0, idx - 2), min(len(lines), idx + 3)
-                                raw_snip = "".join(lines[start_i:end_i]).strip()
-                                snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
-                                raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": idx + 1, "paragraph_index": None, "location_info": f"Riga {idx + 1}", "snippet": snippet})
+                    with open(file_path, "rb") as f:
+                        raw_data = f.read()
+                    if raw_data.startswith(b'\xff\xfe') or raw_data.startswith(b'\xfe\xff'):
+                        text_data = raw_data.decode("utf-16", errors="ignore")
+                    else:
+                        try:
+                            text_data = raw_data.decode("utf-8")
+                        except UnicodeDecodeError:
+                            text_data = raw_data.decode("latin1", errors="ignore")
+                    text_data = text_data.replace('\x00', '')
+                    lines = text_data.split('\n')
+                    for idx, line in enumerate(lines):
+                        cleaned_line = clean_eml_text(line) if ext == ".eml" else line
+                        if text_matches_terms(cleaned_line, terms):
+                            start_i, end_i = max(0, idx - 2), min(len(lines), idx + 3)
+                            raw_snip = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                            snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
+                            raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": idx + 1, "paragraph_index": None, "location_info": f"Riga {idx + 1}", "snippet": snippet})
+                            found_in_content = True
                 elif ext in [".docx", ".doc"]:
                     paragraphs = extract_paragraphs_from_docx(file_path)
-                    found_doc = False
                     for idx, p_text in enumerate(paragraphs):
                         if text_matches_terms(p_text, terms):
-                            found_doc = True
                             start_i, end_i = max(0, idx - 1), min(len(paragraphs), idx + 2)
                             snippet = " \n".join(paragraphs[start_i:end_i])
                             raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": idx + 1, "location_info": f"Paragrafo {idx + 1}", "snippet": snippet})
-                    if not found_doc and ext == ".doc":
+                            found_in_content = True
+                    if not found_in_content and ext == ".doc":
                         with open(file_path, "rb") as f:
                             raw_data = normalize_search_text(f.read(4194304).decode("latin1", errors="ignore"))
                             if text_matches_terms(raw_data, terms):
                                 raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": 1, "location_info": "Documento Word", "snippet": f"Testo nel file Word: '{query}'."})
+                                found_in_content = True
                 elif ext == ".pdf":
                     pdf_lines = extract_lines_from_pdf(file_path)
                     for idx, line in enumerate(pdf_lines):
@@ -1380,6 +1479,11 @@ class MainWindow(wx.Frame):
                             start_i, end_i = max(0, idx - 1), min(len(pdf_lines), idx + 2)
                             snippet = " ".join(pdf_lines[start_i:end_i])
                             raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": f"Sezione {idx + 1}", "snippet": snippet})
+                            found_in_content = True
+
+                if name_matched and not found_in_content:
+                    raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": "Nome File", "snippet": f"Corrispondenza: '{file_name}'"})
+
             except Exception as e:
                 logging.debug(f"Salto file bloccato o corrotto durante scansione ({file_path}): {e}")
 
@@ -1554,9 +1658,17 @@ class MainWindow(wx.Frame):
         elif ext == ".pdf": text_content = "\n".join(extract_lines_from_pdf(file_path))
         elif ext in [".txt", ".eml", ".log", ".csv"]:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    text_content = f.read()
-                    if ext == ".eml": text_content = clean_eml_text(text_content)
+                with open(file_path, "rb") as f:
+                    raw_data = f.read()
+                if raw_data.startswith(b'\xff\xfe') or raw_data.startswith(b'\xfe\xff'):
+                    text_content = raw_data.decode("utf-16", errors="ignore")
+                else:
+                    try:
+                        text_content = raw_data.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text_content = raw_data.decode("latin1", errors="ignore")
+                text_content = text_content.replace('\x00', '')
+                if ext == ".eml": text_content = clean_eml_text(text_content)
             except Exception as e:
                 logging.warning(f"Errore copia testo negli appunti: {e}")
 
@@ -1581,11 +1693,10 @@ class MainWindow(wx.Frame):
 
     def open_containing_folder(self, file_path):
         try:
-            folder_path = os.path.dirname(file_path)
-            ctypes.windll.shell32.ShellExecuteW(None, "explore", folder_path, None, None, 1)
-            speak_accessible("Apertura cartella...")
+            subprocess.Popen(f'explorer /select,"{file_path}"')
+            speak_accessible("Apertura cartella con file selezionato...")
         except Exception as e:
-            logging.error(f"Impossibile aprire la cartella {folder_path}: {e}")
+            logging.error(f"Impossibile aprire la cartella: {e}")
             speak_accessible("Impossibile aprire la cartella.")
 
 def main():

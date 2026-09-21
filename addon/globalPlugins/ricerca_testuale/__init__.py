@@ -32,7 +32,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.5"
+APP_VERSION = "1.4.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -78,6 +78,23 @@ def clean_eml_text(raw_text):
     decoded = urllib.parse.unquote_plus(decoded)
     decoded = re.sub(r"<[^<]+?>", " ", decoded)
     return " ".join(decoded.split())
+
+def check_first_run_update():
+    try:
+        data = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        
+        last_v = data.get("last_version", "")
+        if last_v != APP_VERSION:
+            data["last_version"] = APP_VERSION
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            return True
+    except Exception:
+        pass
+    return False
 
 def load_last_path():
     try:
@@ -355,6 +372,55 @@ class EmlViewerFrame(wx.Frame):
         else:
             event.Skip()
 
+class WhatsNewFrame(wx.Frame):
+    def __init__(self, parent):
+        super(WhatsNewFrame, self).__init__(
+            parent,
+            title=f"Novità della Versione {APP_VERSION}",
+            size=(700, 500),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        text_content = (
+            f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
+            "Ecco le principali novità di questo aggiornamento:\n"
+            "--------------------------------------------------\n"
+            "• Pausa e Ripresa: pieno supporto nativo di NVDA per la Pausa e Ripresa della voce (tramite il tasto SHIFT).\n\n"
+            "• Apertura Cartelle Mirata: la funzione 'Apri Cartella Contenitore' ora apre Esplora Risorse posizionando automaticamente il cursore sul file esatto che hai trovato.\n\n"
+            "• Blocco Notizia Potenziato: il programma ispeziona sempre il contenuto reale del file per garantirti l'estrazione precisa della frase trovata, e usa il Titolo come risultato solo se la parola non è presente nel testo.\n\n"
+            "• Risoluzione Bug Copia Testo: corretto un errore che bloccava la copia di alcuni documenti testuali (salvati in codifica UTF-16), mostrandoti solo la prima lettera.\n"
+            "--------------------------------------------------\n"
+            "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
+        )
+
+        lbl_info = wx.StaticText(panel, label="Leggi tutte le novità dell'ultimo aggiornamento:")
+        vbox.Add(lbl_info, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="Chiudi e Continua (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        
+        ui.message("Finestra delle novità aperta. Usa le frecce per leggere.")
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
         super(ShortcutsFrame, self).__init__(
@@ -596,6 +662,11 @@ class SearchFrame(wx.Frame):
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_general_char_hook)
 
+    def show_whats_new_dialog(self):
+        dlg = WhatsNewFrame(self)
+        dlg.Show()
+        dlg.Raise()
+
     def _init_menu_bar(self):
         menubar = wx.MenuBar()
 
@@ -618,10 +689,16 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_manage_bookmarks, item_manage_bm)
         self.update_bookmarks_menu()
 
+        # Menu Aiuto
+        help_menu = wx.Menu()
+        item_whatsnew = help_menu.Append(wx.ID_ANY, "&Novità della Versione")
+        menubar.Append(help_menu, "&Aiuto")
+
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self.on_export_results, item_export)
         self.Bind(wx.EVT_MENU, self.on_print_results, item_print)
         self.Bind(wx.EVT_MENU, self.on_close, item_exit)
+        self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
 
     def on_add_bookmark(self, event=None):
         path = self.txt_path.GetValue().strip()
@@ -1007,100 +1084,112 @@ class SearchFrame(wx.Frame):
             except Exception:
                 mtime = 0
 
-            if text_matches_terms(file_name, terms):
-                raw_matches.append({
-                    "file_path": file_path,
-                    "file_name": file_name,
-                    "prefix": prefix,
-                    "mtime": mtime,
-                    "line_number": None,
-                    "location_info": "Nome File",
-                    "snippet": f"Corrispondenza nel nome: '{file_name}'",
-                })
-            elif ext in img_exts:
-                img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
-                if all(term in img_text for term in terms):
+            try:
+                name_matched = text_matches_terms(file_name, terms)
+                found_in_content = False
+
+                if ext in img_exts:
+                    img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
+                    if all(term in img_text for term in terms):
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": "[IMG-TEXT]",
+                            "mtime": mtime,
+                            "line_number": None,
+                            "location_info": "Testo visivo",
+                            "snippet": f"Trovato testo visivo contenente '{query}'.",
+                        })
+                        found_in_content = True
+                elif ext in [".txt", ".eml", ".log", ".csv", custom_ext]:
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            lines = f.readlines()
+                            for idx, line in enumerate(lines):
+                                cleaned_line = clean_eml_text(line) if ext == ".eml" else line
+                                if text_matches_terms(cleaned_line, terms):
+                                    start_i = max(0, idx - 2)
+                                    end_i = min(len(lines), idx + 3)
+                                    raw_snip = "".join(lines[start_i:end_i]).strip()
+                                    snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
+                                    raw_matches.append({
+                                        "file_path": file_path,
+                                        "file_name": file_name,
+                                        "prefix": prefix,
+                                        "mtime": mtime,
+                                        "line_number": idx + 1,
+                                        "location_info": f"Riga {idx + 1}",
+                                        "snippet": snippet,
+                                    })
+                                    found_in_content = True
+                    except Exception:
+                        pass
+                elif ext in [".docx", ".doc"]:
+                    paragraphs = extract_paragraphs_from_docx(file_path)
+                    found_doc = False
+                    for idx, p_text in enumerate(paragraphs):
+                        if text_matches_terms(p_text, terms):
+                            found_doc = True
+                            start_i = max(0, idx - 1)
+                            end_i = min(len(paragraphs), idx + 2)
+                            snippet = " \n".join(paragraphs[start_i:end_i])
+                            raw_matches.append({
+                                "file_path": file_path,
+                                "file_name": file_name,
+                                "prefix": prefix,
+                                "mtime": mtime,
+                                "line_number": None,
+                                "location_info": f"Paragrafo {idx + 1}",
+                                "snippet": snippet,
+                            })
+                    if not found_doc and ext == ".doc":
+                        try:
+                            with open(file_path, "rb") as f:
+                                raw_data = normalize_search_text(f.read(4194304).decode("latin1", errors="ignore"))
+                                if text_matches_terms(raw_data, terms):
+                                    raw_matches.append({
+                                        "file_path": file_path,
+                                        "file_name": file_name,
+                                        "prefix": prefix,
+                                        "mtime": mtime,
+                                        "line_number": None,
+                                        "location_info": "Documento Word",
+                                        "snippet": f"Trovato testo nel file Word: '{query}'.",
+                                    })
+                                    found_in_content = True
+                        except Exception:
+                            pass
+                elif ext == ".pdf":
+                    pdf_lines = extract_lines_from_pdf(file_path)
+                    for idx, line in enumerate(pdf_lines):
+                        if text_matches_terms(line, terms):
+                            start_i = max(0, idx - 1)
+                            end_i = min(len(pdf_lines), idx + 2)
+                            snippet = " ".join(pdf_lines[start_i:end_i])
+                            raw_matches.append({
+                                "file_path": file_path,
+                                "file_name": file_name,
+                                "prefix": prefix,
+                                "mtime": mtime,
+                                "line_number": None,
+                                "location_info": f"Sezione {idx + 1}",
+                                "snippet": snippet,
+                            })
+                            found_in_content = True
+
+                if name_matched and not found_in_content:
                     raw_matches.append({
                         "file_path": file_path,
                         "file_name": file_name,
-                        "prefix": "[IMG-TEXT]",
+                        "prefix": prefix,
                         "mtime": mtime,
                         "line_number": None,
-                        "location_info": "Testo visivo",
-                        "snippet": f"Trovato testo visivo contenente '{query}'.",
+                        "location_info": "Nome File",
+                        "snippet": f"Corrispondenza nel nome: '{file_name}'",
                     })
-            elif ext in [".txt", ".eml", ".log", ".csv", custom_ext]:
-                try:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        lines = f.readlines()
-                        for idx, line in enumerate(lines):
-                            cleaned_line = clean_eml_text(line) if ext == ".eml" else line
-                            if text_matches_terms(cleaned_line, terms):
-                                start_i = max(0, idx - 2)
-                                end_i = min(len(lines), idx + 3)
-                                raw_snip = "".join(lines[start_i:end_i]).strip()
-                                snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
-                                raw_matches.append({
-                                    "file_path": file_path,
-                                    "file_name": file_name,
-                                    "prefix": prefix,
-                                    "mtime": mtime,
-                                    "line_number": idx + 1,
-                                    "location_info": f"Riga {idx + 1}",
-                                    "snippet": snippet,
-                                })
-                except Exception:
-                    pass
-            elif ext in [".docx", ".doc"]:
-                paragraphs = extract_paragraphs_from_docx(file_path)
-                found_doc = False
-                for idx, p_text in enumerate(paragraphs):
-                    if text_matches_terms(p_text, terms):
-                        found_doc = True
-                        start_i = max(0, idx - 1)
-                        end_i = min(len(paragraphs), idx + 2)
-                        snippet = " \n".join(paragraphs[start_i:end_i])
-                        raw_matches.append({
-                            "file_path": file_path,
-                            "file_name": file_name,
-                            "prefix": prefix,
-                            "mtime": mtime,
-                            "line_number": None,
-                            "location_info": f"Paragrafo {idx + 1}",
-                            "snippet": snippet,
-                        })
-                if not found_doc and ext == ".doc":
-                    try:
-                        with open(file_path, "rb") as f:
-                            raw_data = normalize_search_text(f.read(4194304).decode("latin1", errors="ignore"))
-                            if text_matches_terms(raw_data, terms):
-                                raw_matches.append({
-                                    "file_path": file_path,
-                                    "file_name": file_name,
-                                    "prefix": prefix,
-                                    "mtime": mtime,
-                                    "line_number": None,
-                                    "location_info": "Documento Word",
-                                    "snippet": f"Trovato testo nel file Word: '{query}'.",
-                                })
-                    except Exception:
-                        pass
-            elif ext == ".pdf":
-                pdf_lines = extract_lines_from_pdf(file_path)
-                for idx, line in enumerate(pdf_lines):
-                    if text_matches_terms(line, terms):
-                        start_i = max(0, idx - 1)
-                        end_i = min(len(pdf_lines), idx + 2)
-                        snippet = " ".join(pdf_lines[start_i:end_i])
-                        raw_matches.append({
-                            "file_path": file_path,
-                            "file_name": file_name,
-                            "prefix": prefix,
-                            "mtime": mtime,
-                            "line_number": None,
-                            "location_info": f"Sezione {idx + 1}",
-                            "snippet": snippet,
-                        })
+
+            except Exception:
+                pass
 
             if total_files > 0:
                 self.live_matches_count = len(raw_matches) 
@@ -1304,10 +1393,18 @@ class SearchFrame(wx.Frame):
             text_content = "\n".join(lines)
         elif ext in [".txt", ".eml", ".log", ".csv"]:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    text_content = f.read()
-                    if ext == ".eml":
-                        text_content = clean_eml_text(text_content)
+                with open(file_path, "rb") as f:
+                    raw_data = f.read()
+                if raw_data.startswith(b'\xff\xfe') or raw_data.startswith(b'\xfe\xff'):
+                    text_content = raw_data.decode("utf-16", errors="ignore")
+                else:
+                    try:
+                        text_content = raw_data.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text_content = raw_data.decode("latin1", errors="ignore")
+                text_content = text_content.replace('\x00', '')
+                if ext == ".eml":
+                    text_content = clean_eml_text(text_content)
             except Exception:
                 pass
 
@@ -1336,8 +1433,7 @@ class SearchFrame(wx.Frame):
 
     def open_containing_folder(self, file_path):
         try:
-            folder_path = os.path.dirname(file_path)
-            ctypes.windll.shell32.ShellExecuteW(None, "explore", folder_path, None, None, 1)
+            subprocess.Popen(f'explorer /select,"{file_path}"')
             ui.message("Apertura cartella contenitore in corso...")
         except Exception:
             ui.message("Impossibile aprire la cartella contenitore.")
@@ -1375,6 +1471,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         frame.Show()
         frame.Raise()
         frame.txt_query.SetFocus()
+        if check_first_run_update():
+            wx.CallLater(600, frame.show_whats_new_dialog)
 
     def show_shortcuts_dialog(self):
         frame = ShortcutsFrame(None)

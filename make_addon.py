@@ -2,9 +2,9 @@ import os
 import zipfile
 
 addon_dir = "addon"
-output_name = "ricerca_testuale_accesso_digitale-1.4.5.nvda-addon"
+output_name = "ricerca_testuale_accesso_digitale-1.4.6.nvda-addon"
 
-print(f"Creazione del pacchetto NVDA per la versione 1.4.5...")
+print(f"Creazione del pacchetto NVDA per la versione 1.4.6...")
 
 with zipfile.ZipFile(output_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
     for root, dirs, files in os.walk(addon_dir):

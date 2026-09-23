@@ -1,1 +1,6 @@
 Standalone/build/
+__pycache__/
+*.py[cod]
+Standalone/dist/
+Standalone/InstallerOutput/
+*.spec

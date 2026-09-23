@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.4.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.0)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,15 +7,14 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
-### 🌟 Novità della Versione 1.4.6
-- **Stop Vocale Istantaneo e Pausa:** Premendo `Control` la voce si interrompe in modo estremamente reattivo. Nell'Add-on NVDA è ora possibile mettere in Pausa e Riprendere la lettura usando il tasto `Shift`.
-- **Apertura Cartelle Mirata:** Il comando "Apri Cartella Contenitore" ora apre Esplora Risorse posizionando automaticamente il cursore sul file esatto che hai trovato.
-- **Blocco Notizia Potenziato:** Ispezione intelligente del testo per estrarre sempre la frase esatta, ripiegando sul nome del file solo se la parola non è all'interno del contenuto.
-- **Fix Copia Testo:** Risolto un bug che impediva la corretta copia negli appunti di alcuni file di testo salvati con codifica UTF-16.
-- **Changelog Automatico:** Al primo avvio post-aggiornamento, il programma ti accoglierà con una finestra riepilogativa delle novità.
+### 🌟 Novità della Versione 1.5.0
+- **Feed RSS/Atom:** cerca in URL http(s), file locali `.rss`/`.atom`/`.xml` e elenchi OPML; più percorsi separati da `;` o `,`.
+- **Feed Thunderbird:** pulsante dedicato per individuare automaticamente le cartelle `Mail\Feeds`; ricerca a testo pulito (un risultato per articolo) e apertura del link originale nel browser.
+- **Occorrenze grezze opzionali:** casella per elencare anche le righe `[FEED-RIGA]` oltre agli articoli, con salto alla riga in editor.
+- **Ordinamento per data articolo** nei feed e nota nello stato sulle occorrenze grezze rispetto agli articoli distinti.
 
 ### Caratteristiche Principali
-- **Supporto multi-formato**: Cerca in file di testo (`.txt`, `.log`, `.csv`), documenti Word (`.docx`, `.doc`), file PDF, e-mail (`.eml` con lettore nativo) e immagini con scansione OCR di base (`.jpg`, `.png`, `.bmp`).
+- **Supporto multi-formato**: Cerca in file di testo (`.txt`, `.log`, `.csv`), documenti Word (`.docx`, `.doc`), file PDF, e-mail (`.eml` con lettore nativo), feed RSS/Thunderbird e immagini con scansione OCR di base (`.jpg`, `.png`, `.bmp`).
 - **Parole chiave multiple e dialetti**: Supporta ricerche flessibili con più termini.
 - **Memoria automatica dei percorsi**: Memorizza l'ultima cartella cercata per velocizzare i flussi di lavoro.
 - **Scansione globale**: Possibilità di scansionare l'intero PC su tutte le unità attive con un solo comando.
@@ -42,15 +41,14 @@ Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro
 
 An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
 
-### 🌟 What's New in Version 1.4.6
-- **Instant Speech Stop & Pause:** Pressing `Control` instantly stops the speech in a highly responsive way. In the NVDA Add-on, you can now Pause and Resume reading using the `Shift` key.
-- **Targeted Folder Opening:** The "Open Containing Folder" command now opens File Explorer with the cursor automatically placed on the exact found file.
-- **Enhanced News Block:** Intelligent text inspection to always extract the exact phrase, falling back to the file name only if the word is not inside the content.
-- **Text Copy Fix:** Resolved a bug that prevented correctly copying some text files saved with UTF-16 encoding to the clipboard.
-- **Automatic Changelog:** Upon the first launch after an update, the program will welcome you with a summary window of what's new.
+### 🌟 What's New in Version 1.5.0
+- **RSS/Atom feeds:** search http(s) URLs, local `.rss`/`.atom`/`.xml` files and OPML lists; multiple paths separated by `;` or `,`.
+- **Thunderbird Feeds:** dedicated button to auto-detect `Mail\Feeds` folders; cleaned-text search (one result per article) and open the original link in the browser.
+- **Optional raw occurrences:** checkbox to also list `[FEED-RIGA]` lines besides articles, with jump-to-line in an editor.
+- **Sort by article date** for feeds and a status note comparing raw occurrences to distinct articles.
 
 ### Key Features
-- **Multi-format support**: Search across text files (`.txt`, `.log`, `.csv`), Word documents (`.docx`, `.doc`), PDF files, emails (`.eml` with native reader), and images with basic OCR scanning (`.jpg`, `.png`, `.bmp`).
+- **Multi-format support**: Search across text files (`.txt`, `.log`, `.csv`), Word documents (`.docx`, `.doc`), PDF files, emails (`.eml` with native reader), RSS/Thunderbird feeds, and images with basic OCR scanning (`.jpg`, `.png`, `.bmp`).
 - **Multiple keywords**: Supports flexible searches with multiple terms.
 - **Automatic path memory**: Remembers the last searched folder to speed up workflows.
 - **Global scan**: Ability to scan the entire PC across all active drives with a single command.

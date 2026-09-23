@@ -1,3 +1,9 @@
+Novità della Versione 1.5.0
+- Feed RSS/Atom (URL, .rss/.atom/.xml, OPML) e pulsante Feed Thunderbird
+- Un risultato per articolo + data articolo; occorrenze grezze opzionali [FEED-RIGA]
+- Esclusione indici .msf; lettura con Thunderbird aperto
+- Filtro risultati Ctrl+F; guida/novità aggiornate
+- Build: feedparser in PyInstaller (--hidden-import=feedparser)
 Novità della Versione 1.4.6:
 - Integrazione ottimizzata per lo Stop Vocale istantaneo (tasto Control).
 - Apertura Cartella Mirata: Esplora risorse ora punta direttamente al file trovato.

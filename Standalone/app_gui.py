@@ -19,15 +19,23 @@ import quopri
 import wx
 import email
 from email import policy
+from email.header import decode_header
+from email.utils import parsedate_to_datetime
 import html
 import logging
 import traceback
 import platform
 import winsound
 import csv
+import mailbox
+
+try:
+    import feedparser
+except ImportError:
+    feedparser = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.4.6"
+APP_VERSION = "1.5.0"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -59,6 +67,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 logging.info(f"=== Avvio {APP_TITLE} v{APP_VERSION} ===")
 logging.info(f"Sistema OS: {platform.system()} {platform.release()} - {platform.version()}")
+if feedparser is None:
+    logging.warning("Modulo feedparser non disponibile: ricerca RSS/Atom non attiva fino all'installazione.")
 
 
 def normalize_search_text(txt, remove_accents=False):
@@ -83,6 +93,72 @@ def text_matches_terms(text, terms):
     n_no = normalize_search_text(text, True)
     terms_no = [normalize_search_text(t, True) for t in terms]
     return all(t in n_no for t in terms_no)
+
+
+def read_file_bytes_shared(file_path):
+    """Legge un file anche se Thunderbird (o altro) lo tiene aperto.
+
+    Su Windows usa CreateFile con condivisione lettura/scrittura; altrove open normale.
+    """
+    if sys.platform.startswith("win"):
+        try:
+            GENERIC_READ = 0x80000000
+            FILE_SHARE_READ = 0x00000001
+            FILE_SHARE_WRITE = 0x00000002
+            FILE_SHARE_DELETE = 0x00000004
+            OPEN_EXISTING = 3
+            FILE_ATTRIBUTE_NORMAL = 0x80
+            INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+            CreateFileW = ctypes.windll.kernel32.CreateFileW
+            CreateFileW.restype = ctypes.c_void_p
+            handle = CreateFileW(
+                str(file_path),
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                None,
+            )
+            if handle is None or handle == INVALID_HANDLE_VALUE or handle == -1:
+                raise OSError("CreateFile non riuscita")
+            try:
+                GetFileSizeEx = ctypes.windll.kernel32.GetFileSizeEx
+                size = ctypes.c_longlong(0)
+                if not GetFileSizeEx(ctypes.c_void_p(handle), ctypes.byref(size)):
+                    raise OSError("GetFileSizeEx fallita")
+                buf = ctypes.create_string_buffer(size.value)
+                read = ctypes.c_ulong(0)
+                if not ctypes.windll.kernel32.ReadFile(
+                    ctypes.c_void_p(handle), buf, size.value, ctypes.byref(read), None
+                ):
+                    raise OSError("ReadFile fallita")
+                return buf.raw[: read.value]
+            finally:
+                ctypes.windll.kernel32.CloseHandle(ctypes.c_void_p(handle))
+        except Exception as e:
+            logging.debug(f"Lettura condivisa Windows fallita su {file_path}: {e}")
+    with open(file_path, "rb") as f:
+        return f.read()
+
+
+def message_date_timestamp(msg, fallback=0):
+    """Timestamp dall'header Date del messaggio (per ordinare i feed dal più recente)."""
+    raw = None
+    try:
+        raw = msg.get("Date") or msg.get("date")
+    except Exception:
+        raw = None
+    if raw:
+        try:
+            dt = parsedate_to_datetime(str(raw))
+            if dt is not None:
+                if dt.tzinfo is None:
+                    return dt.timestamp()
+                return dt.timestamp()
+        except Exception:
+            pass
+    return fallback
 
 _sapi_voice = None
 _sapi_lock = threading.Lock()
@@ -146,14 +222,525 @@ def speak_accessible(text, force=False):
 
     threading.Thread(target=_worker, daemon=True).start()
 
-def clean_eml_text(raw_text):
+def decode_email_header(raw_header):
+    if not raw_header:
+        return ""
     try:
-        decoded = quopri.decodestring(raw_text.encode("latin1", errors="ignore")).decode("utf-8", errors="ignore")
+        decoded_parts = decode_header(str(raw_header))
+        result = ""
+        for part, encoding in decoded_parts:
+            if isinstance(part, bytes):
+                result += part.decode(encoding or 'utf-8', errors='ignore')
+            else:
+                result += str(part)
+        return " ".join(result.splitlines()).strip()
     except Exception:
-        decoded = raw_text
-    decoded = urllib.parse.unquote_plus(decoded)
-    decoded = re.sub(r"<[^<]+?>", " ", decoded)
-    return " ".join(decoded.split())
+        return str(raw_header)
+
+def get_clean_email_text(msg):
+    body = ""
+    body_html = ""
+    if msg.is_multipart():
+        for part in msg.walk():
+            ctype = part.get_content_type()
+            cdisp = str(part.get("Content-Disposition"))
+            if "attachment" not in cdisp:
+                payload = part.get_payload(decode=True)
+                if payload:
+                    charset = part.get_content_charset() or 'utf-8'
+                    try:
+                        text_part = payload.decode(charset, errors='ignore')
+                    except:
+                        text_part = payload.decode('latin1', errors='ignore')
+                    
+                    if ctype == "text/plain":
+                        body += text_part + "\n"
+                    elif ctype == "text/html":
+                        body_html += text_part + "\n"
+    else:
+        payload = msg.get_payload(decode=True)
+        if payload:
+            charset = msg.get_content_charset() or 'utf-8'
+            try:
+                body = payload.decode(charset, errors='ignore')
+            except:
+                body = payload.decode('latin1', errors='ignore')
+
+    if not body.strip() and body_html:
+        body = body_html
+
+    body = re.sub(r'<style.*?>.*?</style>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
+    body = re.sub(r'<script.*?>.*?</script>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
+    body = re.sub(r'<br\s*/?>', '\n', body, flags=re.IGNORECASE)
+    body = re.sub(r'</p>', '\n\n', body, flags=re.IGNORECASE)
+    body = re.sub(r'</div>', '\n', body, flags=re.IGNORECASE)
+    body = re.sub(r'<[^>]+>', ' ', body)
+    body = html.unescape(body)
+    
+    lines = [line.strip() for line in body.split('\n')]
+    return '\n'.join([line for line in lines if line])
+
+
+
+def strip_html_to_text(html_content):
+    if not html_content:
+        return ""
+    text = str(html_content)
+    text = re.sub(r'<style.*?>.*?</style>', ' ', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<script.*?>.*?</script>', ' ', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', '\n\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</div>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = html.unescape(text)
+    lines = [line.strip() for line in text.split('\n')]
+    return '\n'.join([line for line in lines if line])
+
+
+def extract_feed_entry_text(entry):
+    parts = []
+    title = entry.get("title") or ""
+    if title:
+        parts.append(str(title))
+    for key in ("summary", "description"):
+        val = entry.get(key)
+        if val:
+            parts.append(strip_html_to_text(val))
+    content_list = entry.get("content") or []
+    for item in content_list:
+        if isinstance(item, dict):
+            val = item.get("value")
+            if val:
+                parts.append(strip_html_to_text(val))
+        elif item:
+            parts.append(strip_html_to_text(item))
+    tags = entry.get("tags") or []
+    for tag in tags:
+        if isinstance(tag, dict):
+            term = tag.get("term") or tag.get("label") or ""
+        else:
+            term = str(tag)
+        if term:
+            parts.append(str(term))
+    return "\n".join([p for p in parts if p]).strip()
+
+
+def search_online_or_local_feed(source, terms):
+    results = []
+    if feedparser is None:
+        logging.warning(f"feedparser assente: impossibile analizzare {source}")
+        return results
+    try:
+        feed = feedparser.parse(source)
+    except Exception as e:
+        logging.debug(f"Errore feedparser su {source}: {e}")
+        return results
+    for entry in getattr(feed, "entries", []) or []:
+        text = extract_feed_entry_text(entry)
+        title = entry.get("title") or "(Nessun Titolo)"
+        if not text_matches_terms(text, terms) and not text_matches_terms(title, terms):
+            continue
+        link = entry.get("link") or source
+        clean = strip_html_to_text(text)
+        snippet = clean[:150] + "..." if len(clean) > 150 else clean
+        display_title = title[:60] + "..." if len(title) > 60 else title
+        results.append({
+            "file_path": link,
+            "file_name": display_title,
+            "prefix": "[RSS]",
+            "mtime": time.time(),
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": "Notizia Feed RSS",
+            "snippet": snippet,
+            "article_url": link,
+        })
+    return results
+
+
+def parse_opml_urls(path):
+    urls = []
+    try:
+        tree = ET.parse(path)
+        root = tree.getroot()
+        for outline in root.iter():
+            tag = outline.tag.lower() if isinstance(outline.tag, str) else ""
+            if not tag.endswith("outline"):
+                continue
+            url = outline.attrib.get("xmlUrl") or outline.attrib.get("xmlurl")
+            if not url:
+                url = outline.attrib.get("url")
+            if url and (url.startswith("http://") or url.startswith("https://")):
+                urls.append(url)
+    except Exception as e:
+        logging.debug(f"Errore lettura OPML {path}: {e}")
+    # dedupe preserving order
+    seen = set()
+    unique = []
+    for u in urls:
+        if u not in seen:
+            seen.add(u)
+            unique.append(u)
+    return unique
+
+
+def find_thunderbird_feeds_dirs():
+    found = []
+    appdata = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+    for tb_name in ("Thunderbird", "thunderbird"):
+        profiles_root = os.path.join(appdata, tb_name, "Profiles")
+        if not os.path.isdir(profiles_root):
+            continue
+        try:
+            for profile in os.listdir(profiles_root):
+                feeds_dir = os.path.join(profiles_root, profile, "Mail", "Feeds")
+                if os.path.isdir(feeds_dir):
+                    found.append(os.path.normpath(feeds_dir))
+        except Exception as e:
+            logging.debug(f"Errore scansione profili {profiles_root}: {e}")
+    # dedupe
+    seen = set()
+    unique = []
+    for d in found:
+        key = d.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(d)
+    return unique
+
+
+def is_thunderbird_junk_file(path):
+    """Indici/database Thunderbird da non scansionare (.msf, sqlite, ecc.)."""
+    if not path:
+        return False
+    name = os.path.basename(path).lower()
+    for bad in (".msf", ".sqlite", ".sqlite-wal", ".sqlite-shm", ".json", ".dat", ".ini"):
+        if name.endswith(bad):
+            return True
+    if name in ("msgfilterrules.dat", "filterlog.html", "feeds.rdf", "feeditems.json"):
+        return True
+    return False
+
+
+def is_thunderbird_feeds_path(path):
+    if not path:
+        return False
+    low = path.replace("/", "\\").lower()
+    return "thunderbird" in low and ("\\mail\\feeds" in low or low.endswith("\\feeds") or "\\feeds\\" in low)
+
+
+def is_thunderbird_mail_container(path):
+    """Narrow detection: Thunderbird mail/feeds containers only, skip indexes/DBs."""
+    if not path:
+        return False
+    if is_thunderbird_junk_file(path):
+        return False
+    low = path.replace("/", "\\").lower()
+    if "thunderbird" not in low:
+        return False
+    return ("\\mail\\" in low) or ("\\imapmail\\" in low) or ("\\feeds" in low) or low.endswith("\\feeds")
+
+
+def extract_article_url_from_message(msg, body_text=""):
+    for header in ("Content-Base", "Content-Location", "content-base", "content-location"):
+        val = msg.get(header)
+        if val:
+            val = str(val).strip().strip("<>").strip()
+            if val.startswith("http://") or val.startswith("https://"):
+                return val
+    raw_headers = ""
+    try:
+        raw_headers = str(msg)
+    except Exception:
+        pass
+    m = re.search(r'base\s+href=["\'](https?://[^"\']+)["\']', raw_headers, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    search_blob = (body_text or "") + "\n" + raw_headers
+    candidates = re.findall(r'https?://[^\s<>"\']+', search_blob)
+    preferred = []
+    others = []
+    for c in candidates:
+        url = c.rstrip(").,;]")
+        low = url.lower()
+        if any(x in low for x in ("facebook.com", "twitter.com", "instagram.com", "mailto:", "javascript:")):
+            continue
+        if "/news/" in low or re.search(r"/\d{4}/\d{2}/", low):
+            preferred.append(url)
+        else:
+            others.append(url)
+    if preferred:
+        return preferred[0]
+    if others:
+        return others[0]
+    return ""
+
+
+def _parse_messages_from_bytes(data):
+    """Split mbox-like bytes on From_ lines and yield (index, message)."""
+    if not data:
+        return
+    parts = re.split(br'(?m)^From ', data)
+    idx = 0
+    for i, part in enumerate(parts):
+        chunk = part if i == 0 else (b"From " + part)
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        try:
+            msg = email.message_from_bytes(chunk, policy=policy.default)
+        except Exception:
+            try:
+                msg = email.message_from_bytes(chunk)
+            except Exception:
+                continue
+        if not msg.get("subject") and not msg.get("from") and not msg.get_payload():
+            continue
+        yield idx, msg
+        idx += 1
+
+
+def iter_mbox_like_messages(file_path, prefer_from_split=False):
+    """Yield (index, email.message) from mailbox.mbox and/or From-line split.
+
+    Per i Feed Thunderbird prefer_from_split=True: lo split su From_ è più
+    affidabile dei file in Mail\\Feeds rispetto a mailbox.mbox.
+    """
+    data = None
+    try:
+        data = read_file_bytes_shared(file_path)
+    except Exception as e:
+        logging.debug(f"Lettura binaria fallita {file_path}: {e}")
+
+    if prefer_from_split and data:
+        yielded = False
+        for item in _parse_messages_from_bytes(data):
+            yielded = True
+            yield item
+        if yielded:
+            return
+
+    mb = None
+    try:
+        mb = mailbox.mbox(file_path)
+        count = 0
+        for msg in mb:
+            yield count, msg
+            count += 1
+        if count > 0:
+            return
+    except Exception as e:
+        logging.debug(f"mailbox.mbox fallito su {file_path}: {e}")
+    finally:
+        try:
+            if mb:
+                mb.close()
+        except Exception:
+            pass
+
+    if data and not prefer_from_split:
+        for item in _parse_messages_from_bytes(data):
+            yield item
+
+
+def _match_message_to_result(file_path, file_name, msg, msg_idx, terms, mtime, prefix="[FEED]"):
+    subject = decode_email_header(str(msg.get("subject", "")))
+    sender = decode_email_header(str(msg.get("from", "")))
+    body = get_clean_email_text(msg)
+    haystack = f"{subject}\n{sender}\n{body}"
+    if not text_matches_terms(haystack, terms):
+        return None
+    snippet = ""
+    if body:
+        for line in body.split("\n"):
+            if text_matches_terms(line, terms):
+                snippet = line.strip()
+                break
+        if not snippet:
+            snippet = " ".join(body.split())[:200]
+    if not snippet:
+        snippet = f"{subject} — {sender}".strip(" —")
+    if len(snippet) > 200:
+        snippet = snippet[:200] + "..."
+    article_url = extract_article_url_from_message(msg, body)
+    display = subject[:60] + ("..." if len(subject) > 60 else "") if subject else file_name
+    article_ts = message_date_timestamp(msg, fallback=mtime or 0)
+    date_label = ""
+    if article_ts:
+        try:
+            date_label = datetime.datetime.fromtimestamp(article_ts).strftime("%d/%m/%Y")
+        except Exception:
+            date_label = ""
+    loc = "Articolo Feed"
+    if date_label:
+        loc = f"Articolo Feed {date_label}"
+    return {
+        "file_path": file_path,
+        "file_name": display or file_name,
+        "prefix": prefix,
+        "mtime": article_ts if article_ts else (mtime or 0),
+        "line_number": msg_idx,
+        "paragraph_index": None,
+        "location_info": loc,
+        "snippet": snippet,
+        "article_url": article_url,
+    }
+
+
+def count_raw_term_occurrences(file_path, terms):
+    """Conta quante volte i termini compaiono nel file grezzo (stile Notepad++)."""
+    if not terms:
+        return 0
+    try:
+        raw = read_file_bytes_shared(file_path)
+    except Exception:
+        return 0
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        text = raw.decode("utf-16", errors="ignore")
+    else:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw.decode("latin1", errors="ignore")
+    text = text.replace("\x00", "")
+    norm = normalize_search_text(text, False)
+    # Occorrenze del primo termine (come ricerca semplice in editor);
+    # se più termini, conta le righe/blocchi che li contengono tutti.
+    if len(terms) == 1:
+        term = terms[0]
+        if not term:
+            return 0
+        count = 0
+        start = 0
+        while True:
+            pos = norm.find(term, start)
+            if pos < 0:
+                break
+            count += 1
+            start = pos + max(1, len(term))
+        if count:
+            return count
+        # fallback senza accenti
+        norm2 = normalize_search_text(text, True)
+        term2 = normalize_search_text(terms[0], True)
+        count = 0
+        start = 0
+        while term2:
+            pos = norm2.find(term2, start)
+            if pos < 0:
+                break
+            count += 1
+            start = pos + max(1, len(term2))
+        return count
+    # multi-termine: conta le "finestre" per riga
+    lines = text.splitlines()
+    return sum(1 for line in lines if text_matches_terms(line, terms))
+
+
+def search_thunderbird_feed_file(file_path, terms, mtime, include_raw_lines=False):
+    """Search Thunderbird Feeds file: one result per matching message (cleaned text).
+
+    Se include_raw_lines=True, aggiunge anche risultati [FEED-RIGA] per le occorrenze grezze.
+    """
+    results = []
+    if is_thunderbird_junk_file(file_path):
+        return results, 0
+    file_name = os.path.basename(file_path)
+    parsed_any = False
+    raw_occurrences = count_raw_term_occurrences(file_path, terms)
+    try:
+        for msg_idx, msg in iter_mbox_like_messages(file_path, prefer_from_split=True):
+            parsed_any = True
+            hit = _match_message_to_result(file_path, file_name, msg, msg_idx, terms, mtime)
+            if hit:
+                hit["raw_occurrences_in_file"] = raw_occurrences
+                results.append(hit)
+    except Exception as e:
+        logging.debug(f"Errore parse feed Thunderbird {file_path}: {e}")
+        parsed_any = False
+
+    if include_raw_lines:
+        try:
+            raw = read_file_bytes_shared(file_path)
+            try:
+                text_data = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                text_data = raw.decode("latin1", errors="ignore")
+            lines = text_data.replace("\x00", "").splitlines()
+            max_lines = min(len(lines), 20000)
+            added = 0
+            max_raw_results = 500
+            for idx in range(max_lines):
+                if added >= max_raw_results:
+                    break
+                line = lines[idx]
+                if not text_matches_terms(line, terms):
+                    continue
+                snippet = strip_html_to_text(line)
+                snippet = " ".join(snippet.split())
+                if not snippet:
+                    continue
+                results.append({
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "prefix": "[FEED-RIGA]",
+                    "mtime": mtime or 0,
+                    "line_number": idx + 1,
+                    "paragraph_index": None,
+                    "location_info": f"Riga grezza {idx + 1}",
+                    "snippet": snippet[:200] + ("..." if len(snippet) > 200 else ""),
+                    "article_url": "",
+                })
+                added += 1
+        except Exception as e:
+            logging.debug(f"Occorrenze grezze feed fallite {file_path}: {e}")
+
+    if parsed_any or results:
+        return results, raw_occurrences
+
+    try:
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+        except Exception:
+            with open(file_path, "r", encoding="latin1", errors="ignore") as f:
+                lines = f.readlines()
+        max_lines = min(len(lines), 5000)
+        for idx in range(max_lines):
+            line = lines[idx]
+            if not text_matches_terms(line, terms):
+                continue
+            start_i = max(0, idx - 2)
+            end_i = min(len(lines), idx + 3)
+            snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+            snippet = strip_html_to_text(snippet)
+            snippet = " ".join(snippet.split())
+            article_url = ""
+            for j in range(idx, max(-1, idx - 30), -1):
+                match_base = re.search(r'base\s+href=["\'](https?://[^"\']+)["\']', lines[j], re.IGNORECASE)
+                if match_base:
+                    article_url = match_base.group(1)
+                    break
+            if not article_url:
+                mlink = re.search(r'https?://[^\s<>"\']+', snippet)
+                if mlink:
+                    article_url = mlink.group(0)
+            results.append({
+                "file_path": file_path,
+                "file_name": file_name,
+                "prefix": "[FEED]",
+                "mtime": mtime,
+                "line_number": idx + 1,
+                "paragraph_index": None,
+                "location_info": "Articolo Feed",
+                "snippet": snippet[:200] + ("..." if len(snippet) > 200 else ""),
+                "article_url": article_url,
+                "raw_occurrences_in_file": raw_occurrences,
+            })
+            break
+    except Exception as e:
+        logging.debug(f"Fallback raw feed fallito {file_path}: {e}")
+    return results, raw_occurrences
 
 def check_first_run_update():
     try:
@@ -194,24 +781,28 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.4.6:</strong> Estratti testo potenziati per una ricerca sempre più precisa e apertura mirata della cartella direttamente sul file.</p>
+        <p><strong>Novit&agrave; Versione 1.5.0:</strong> Ricerca MBOX/EML, Feed RSS/Atom (anche file locali), supporto OPML, pulsante <em>Feed Thunderbird</em> per individuare automaticamente la cartella Feeds, ricerca migliorata negli articoli feed (testo pulito, un risultato per messaggio) e filtro rapido nei risultati.</p>
         <p>F7: Attiva / Disattiva sintesi vocale<br>CONTROL: Zittisce immediatamente la voce di lettura</p>
+        <p>Suggerimento: usa il pulsante <code>Feed Thunderbird</code> oppure inserisci URL http(s), file <code>.rss/.atom/.xml/.opml</code> o percorsi multipli separati da virgola o punto e virgola.</p>
     </div>
     <h2>1. Scorciatoie da Tastiera</h2>
     <ul>
+        <li><code>Ctrl + F</code>: Salta alla casella per filtrare rapidamente i risultati.</li>
         <li><code>Alt + T</code>: Seleziona automaticamente tutte le unit&agrave; disco attive (Tutto il PC).</li>
         <li><code>Alt + N</code>: Annulla la ricerca in corso e salva i risultati trovati.</li>
         <li><code>Alt + I</code>: Info Versione e Autore.</li>
-        <li><code>Alt + P</code>: Annuncia la percentuale, lo stato e i risultati in tempo reale.</li>
+        <li><code>Alt + P</code>: Annuncia la percentuale (Premi 2 volte velocemente per copiare lo stato negli appunti).</li>
         <li><code>Tab</code>: Raggiunge la casella accessibile di stato e avanzamento ricerca.</li>
         <li><code>Alt + K</code>: Scatta uno screenshot e lo salva in <em>Catture di schermata</em>.</li>
         <li><code>Ctrl + P</code>: Stampa rapida dei risultati di ricerca in lista.</li>
         <li><code>Ctrl + D</code>: Aggiunge il percorso di ricerca attuale ai Segnalibri.</li>
         <li><code>SPAZIO</code> o <code>F4</code> (sui risultati): Anteprima vocale immediata del contesto.</li>
-        <li><code>INVIO</code> (sui risultati): Apre il file alla riga esatta in Notepad++ o Blocco Note.</li>
+        <li><code>INVIO</code> (sui risultati): Apre il file. Se &egrave; un Feed RSS, apre la notizia nel browser.</li>
         <li><code>Tasto APPLICAZIONI</code> o <code>Shift + F10</code>: Menu contestuale completo.</li>
         <li><code>F1</code>: Apri la presente guida nel browser predefinito.</li>
         <li><code>ESC</code>: Chiudi la finestra attiva.</li>
+        <li><code>Feed Thunderbird</code>: rileva automaticamente le cartelle Feeds di Thunderbird e le inserisce nel percorso.</li>
+        <li>File <code>.rss</code>, <code>.atom</code>, <code>.xml</code> e <code>.opml</code>: ricercabili come feed (OPML espande gli URL contenuti).</li>
     </ul>
 </body>
 </html>
@@ -229,8 +820,10 @@ def load_last_path():
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 path = data.get("last_path", "")
-                if path and os.path.exists(path.split(";")[0]):
-                    return path
+                if path:
+                    first_path = path.split(";")[0]
+                    if first_path.startswith("http") or os.path.exists(first_path):
+                        return path
     except Exception as e:
         logging.error(f"Errore caricamento ultimo percorso: {e}")
     return os.path.expanduser("~\\Downloads")
@@ -468,44 +1061,11 @@ class EmlViewerFrame(wx.Frame):
                 self.txt_display.SetValue("Errore durante la lettura del file email.")
                 return
 
-        subject = msg.get("subject", "(Nessun oggetto)")
-        sender = msg.get("from", "(Sconosciuto)")
-        to = msg.get("to", "(Sconosciuto)")
+        subject = decode_email_header(msg.get("subject", "(Nessun oggetto)"))
+        sender = decode_email_header(msg.get("from", "(Sconosciuto)"))
+        to = decode_email_header(msg.get("to", "(Sconosciuto)"))
         date = msg.get("date", "(Nessuna data)")
-
-        body = ""
-        body_html = ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                content_disposition = str(part.get("Content-Disposition"))
-                if "attachment" not in content_disposition:
-                    try:
-                        if content_type == "text/plain":
-                            body += part.get_content()
-                        elif content_type == "text/html":
-                            body_html += part.get_content()
-                    except Exception as e:
-                        logging.warning(f"Errore parsing parte email: {e}")
-        else:
-            try:
-                body = msg.get_content()
-            except Exception:
-                pass
-
-        if not body.strip() and body_html:
-            body = body_html
-
-        body = re.sub(r'<style.*?>.*?</style>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
-        body = re.sub(r'<script.*?>.*?</script>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
-        body = re.sub(r'<br\s*/?>', '\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'</p>', '\n\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'</div>', '\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'<[^>]+>', ' ', body)
-        body = html.unescape(body)
-        
-        lines = [line.strip() for line in body.split('\n')]
-        body = '\n'.join([line for line in lines if line])
+        body = get_clean_email_text(msg)
 
         full_text = (
             f"Oggetto: {subject}\n"
@@ -523,7 +1083,100 @@ class EmlViewerFrame(wx.Frame):
             terms = self.search_query.split()
             pos = -1
             term_len = 0
+            text_lower = full_text.lower()
+            for term in terms:
+                t = term.lower()
+                idx = text_lower.find(t)
+                if idx != -1:
+                    pos = idx
+                    term_len = len(t)
+                    break
             
+            if pos == -1:
+                text_norm = normalize_search_text(full_text, True)
+                for term in normalize_search_text(self.search_query, True).split():
+                    idx = text_norm.find(term)
+                    if idx != -1:
+                        pos = idx
+                        term_len = len(term)
+                        break
+
+            self.txt_display.SetFocus()
+            if pos != -1:
+                self.txt_display.SetSelection(pos, pos + term_len)
+            else:
+                self.txt_display.SetInsertionPoint(0)
+        else:
+            self.txt_display.SetFocus()
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
+class MboxViewerFrame(wx.Frame):
+    def __init__(self, parent, mbox_file_path, msg_index, search_query):
+        super(MboxViewerFrame, self).__init__(
+            parent,
+            title=f"Lettore MBOX - Messaggio {msg_index + 1}",
+            size=(800, 650),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+        self.mbox_file_path = mbox_file_path
+        self.msg_index = msg_index
+        self.search_query = search_query
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+        
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        
+        wx.CallAfter(self.load_message)
+
+    def load_message(self):
+        logging.info(f"Avvio visualizzazione interna MBOX: {self.mbox_file_path} (indice {self.msg_index})")
+        try:
+            mb = mailbox.mbox(self.mbox_file_path)
+            msg = mb[self.msg_index]
+        except Exception as e:
+            logging.error(f"Impossibile leggere il messaggio {self.msg_index} in {self.mbox_file_path}: {e}")
+            self.txt_display.SetValue("Errore durante la lettura del messaggio.")
+            return
+
+        subject = decode_email_header(msg.get("subject", "(Nessun oggetto)"))
+        sender = decode_email_header(msg.get("from", "(Sconosciuto)"))
+        to = decode_email_header(msg.get("to", "(Sconosciuto)"))
+        date = msg.get("date", "(Nessuna data)")
+        body = get_clean_email_text(msg)
+
+        full_text = (
+            f"Oggetto: {subject}\n"
+            f"Da: {sender}\n"
+            f"A: {to}\n"
+            f"Data: {date}\n"
+            f"{'-'*60}\n\n"
+            f"{body}"
+        )
+
+        full_text = full_text.replace('\r\n', '\n').replace('\n', '\r\n')
+        self.txt_display.SetValue(full_text)
+
+        if self.search_query:
+            terms = self.search_query.split()
+            pos = -1
+            term_len = 0
             text_lower = full_text.lower()
             for term in terms:
                 t = term.lower()
@@ -570,17 +1223,22 @@ class WhatsNewFrame(wx.Frame):
 
         text_content = (
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
-            "Ecco le principali novità di questo aggiornamento:\n"
+            "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Stop Vocale Istantaneo: premendo il tasto CONTROL puoi zittire immediatamente la lettura in corso in modo ancora più reattivo.\n\n"
-            "• Apertura Cartelle Mirata: la funzione 'Apri Cartella' apre Esplora Risorse posizionando automaticamente il cursore sul file esatto che hai trovato.\n\n"
-            "• Blocco Notizia Potenziato: il programma ispeziona sempre il contenuto reale del file per garantirti l'estrazione precisa della frase trovata, e usa il Titolo come risultato solo se la parola non è presente nel testo.\n\n"
-            "• Risoluzione Bug Copia Testo: corretto un errore che bloccava la copia di alcuni documenti testuali (salvati in codifica UTF-16), mostrandoti solo la prima lettera.\n"
+            "• Ricerca nei Feed RSS/Atom: incolla un URL http(s), un file .rss/.atom/.xml oppure un OPML con elenco feed.\n"
+            "   Puoi cercare più link o cartelle contemporaneamente separandoli con virgola o punto e virgola.\n\n"
+            "• Pulsante Feed Thunderbird: trova automaticamente le cartelle Mail\\Feeds dei profili Thunderbird.\n"
+            "   La ricerca nei feed locali usa testo pulito (oggetto/corpo) con un risultato per articolo, data articolo e apre il link originale.\n"
+            "   Gli indici Thunderbird (.msf) vengono ignorati correttamente.\n\n"
+            "• Occorrenze grezze opzionali: casella per elencare anche le righe [FEED-RIGA] oltre agli articoli.\n\n"
+            "• Esplorazione Archivi di Posta (MBOX): cerca negli archivi e nelle cartelle Mail/ImapMail di Thunderbird.\n\n"
+            "• Filtro Istantaneo Risultati: casella per filtrare i risultati (scorciatoia Ctrl+F).\n\n"
+            "• Lettore Email Integrato: .eml e .mbox in finestra dedicata, senza codici di formattazione.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
 
-        lbl_info = wx.StaticText(panel, label="Leggi tutte le novità dell'ultimo aggiornamento:")
+        lbl_info = wx.StaticText(panel, label="Leggi la novità dell'ultimo aggiornamento:")
         vbox.Add(lbl_info, 0, wx.ALL, 8)
 
         self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
@@ -623,18 +1281,21 @@ class ShortcutsFrame(wx.Frame):
             "--------------------------------------------------\n"
             "COMANDI E SCORCIATOIE DA TASTIERA (STANDALONE):\n"
             "--------------------------------------------------\n"
+            "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
             "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
             "  - Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
             "  - Alt + I : Info Versione e Autore\n"
-            "  - Alt + P : Annuncia stato, percentuale e risultati in tempo reale\n"
+            "  - Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
             "  - TAB : Raggiunge la casella 'Stato avanzamento'\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
             "  - Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
             "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"
-            "  - INVIO : Avvia ricerca o apri file alla riga esatta\n"
+            "  - INVIO : Avvia ricerca, apri file alla riga esatta o apri articolo nel Browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
             "  - F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
             "  - CONTROL : Zittisce all'istante la lettura in corso\n"
+            "  - Pulsante Feed Thunderbird : rileva le cartelle Feeds di Thunderbird\n"
+            "  - Supporto OPML / RSS locale : file .opml, .rss, .atom, .xml nel percorso\n"
             "  - Tasto APPLICAZIONI : Menu contestuale completo\n"
             "  - F1 : Apri la Guida HTML nel Browser\n"
             "  - ESC : Chiudi la finestra\n\n"
@@ -698,6 +1359,9 @@ class MainWindow(wx.Frame):
         self.current_query = ""
         self.live_matches_count = 0
         self.bookmark_items = []
+        self.last_alt_p_time = 0
+        self.current_sort = "recent_first"
+        self.last_feed_raw_occurrences = 0
 
         self._init_menu_bar()
 
@@ -720,7 +1384,7 @@ class MainWindow(wx.Frame):
                 "Tutti i tipi di file",
                 "Solo Immagini (.jpg, .png, .jpeg, .bmp)",
                 "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)",
-                "Solo Documenti (.txt, .docx, .doc, .pdf, .eml, .log, .csv)",
+                "Solo Documenti (.txt, .eml, .log, .csv, .docx, .doc, .pdf, .mbox, .rss, .opml)",
                 "Estensione Personalizzata...",
             ],
         )
@@ -732,13 +1396,13 @@ class MainWindow(wx.Frame):
         self.vbox_custom_ext = wx.BoxSizer(wx.VERTICAL)
         lbl_custom_ext = wx.StaticText(panel, label="Estensione specifica (es. .ini o .srt):")
         self.vbox_custom_ext.Add(lbl_custom_ext, 0, wx.ALL, 5)
-        self.txt_custom_ext = wx.TextCtrl(panel, value=".txt")
+        self.txt_custom_ext = wx.TextCtrl(panel, value="")
         self.txt_custom_ext.Enable(False)
         self.vbox_custom_ext.Add(self.txt_custom_ext, 1, wx.EXPAND | wx.ALL, 5)
         hbox_filter.Add(self.vbox_custom_ext, 1, wx.EXPAND)
         vbox.Add(hbox_filter, 0, wx.EXPAND)
 
-        lbl_path = wx.StaticText(panel, label="&Percorso di ricerca (Memoria automatica):")
+        lbl_path = wx.StaticText(panel, label="&Percorso di ricerca (Memoria automatica o inserisci link Feed RSS):")
         vbox.Add(lbl_path, 0, wx.ALL, 5)
 
         hbox_path = wx.BoxSizer(wx.HORIZONTAL)
@@ -752,7 +1416,18 @@ class MainWindow(wx.Frame):
         btn_all_pc = wx.Button(panel, label="&Tutto il PC")
         btn_all_pc.Bind(wx.EVT_BUTTON, self.on_search_all_pc)
         hbox_path.Add(btn_all_pc, 0, wx.ALL, 5)
+
+        btn_tb_feeds = wx.Button(panel, label="Feed &Thunderbird")
+        btn_tb_feeds.Bind(wx.EVT_BUTTON, self.on_detect_thunderbird_feeds)
+        hbox_path.Add(btn_tb_feeds, 0, wx.ALL, 5)
         vbox.Add(hbox_path, 0, wx.EXPAND)
+
+        self.chk_feed_raw = wx.CheckBox(
+            panel,
+            label="Nei feed, elenca anche le &occorrenze grezze (oltre agli articoli)",
+        )
+        self.chk_feed_raw.SetValue(False)
+        vbox.Add(self.chk_feed_raw, 0, wx.ALL, 5)
 
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_search = wx.Button(panel, label="&Avvia Ricerca")
@@ -768,6 +1443,10 @@ class MainWindow(wx.Frame):
         btn_progress_now.Bind(wx.EVT_BUTTON, lambda e: self.announce_progress())
         hbox_actions.Add(btn_progress_now, 0, wx.ALL, 5)
 
+        btn_copy_status = wx.Button(panel, label="Copia S&tato")
+        btn_copy_status.Bind(wx.EVT_BUTTON, lambda e: self.copy_status_to_clipboard())
+        hbox_actions.Add(btn_copy_status, 0, wx.ALL, 5)
+
         btn_screenshot = wx.Button(panel, label="Cattura Sc&hermo (Alt+K)")
         btn_screenshot.Bind(wx.EVT_BUTTON, self.on_take_screenshot)
         hbox_actions.Add(btn_screenshot, 0, wx.ALL, 5)
@@ -782,6 +1461,12 @@ class MainWindow(wx.Frame):
 
         self.gauge = wx.Gauge(panel, range=100)
         vbox.Add(self.gauge, 0, wx.EXPAND | wx.ALL, 5)
+
+        lbl_filter_res = wx.StaticText(panel, label="&Filtra i risultati nella lista (Ctrl+F):")
+        vbox.Add(lbl_filter_res, 0, wx.ALL, 5)
+        self.txt_filter = wx.TextCtrl(panel)
+        self.txt_filter.Bind(wx.EVT_TEXT, self.on_filter_text)
+        vbox.Add(self.txt_filter, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
 
         lbl_results = wx.StaticText(panel, label="&Risultati trovati (INVIO apre file, SPAZIO/F4 anteprima vocale, APPLICAZIONI opzioni):")
         vbox.Add(lbl_results, 0, wx.ALL, 5)
@@ -970,6 +1655,8 @@ class MainWindow(wx.Frame):
     def on_filter_changed(self, event):
         sel = self.combo_filter.GetSelection()
         self.txt_custom_ext.Enable(sel == 4)
+        if sel != 4:
+            self.txt_custom_ext.SetValue("")
 
     def on_search_all_pc(self, event):
         drives = get_real_ready_drives()
@@ -979,13 +1666,57 @@ class MainWindow(wx.Frame):
         speak_accessible(f"Tutto il PC impostato: {len(drives)} unità attive. Premi Invio per avviare.")
         self.btn_search.SetFocus()
 
-    def announce_progress(self):
+    def on_detect_thunderbird_feeds(self, event):
+        dirs = find_thunderbird_feeds_dirs()
+        if not dirs:
+            speak_accessible(
+                "Nessuna cartella Feed Thunderbird trovata. "
+                "Verifica che Thunderbird sia installato e che esistano i Feed RSS nel profilo."
+            )
+            logging.warning("Nessuna cartella Feed Thunderbird rilevata.")
+            return
+        joined = ";".join(dirs)
+        self.txt_path.SetValue(joined)
+        save_last_path(joined)
+        n = len(dirs)
+        speak_accessible(
+            f"Trovate {n} cartelle Feed Thunderbird. Percorso aggiornato. "
+            "Inserisci la parola da cercare e premi Avvia Ricerca."
+        )
+        self.txt_query.SetFocus()
+
+
+    def copy_status_to_clipboard(self):
         if not self.btn_search.IsEnabled():
             found = getattr(self, 'live_matches_count', 0)
             msg = f"Avanzamento {self.current_percent} percento. File esaminati {self.scanned_count}. Risultati trovati {found}."
         else:
-            found = len(self.current_matches)
-            msg = f"Stato: {self.txt_status_progress.GetValue()}. Risultati in lista: {found}."
+            found = self.lst_results.GetCount()
+            msg = f"Stato: {self.txt_status_progress.GetValue()} Risultati in lista filtrata: {found}."
+        
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(msg))
+            wx.TheClipboard.Close()
+            speak_accessible("Stato copiato negli appunti.")
+        else:
+            speak_accessible("Impossibile copiare negli appunti.")
+
+    def announce_progress(self):
+        current_time = time.time()
+        is_double_tap = (current_time - self.last_alt_p_time) < 0.6
+        self.last_alt_p_time = current_time
+
+        if is_double_tap:
+            self.copy_status_to_clipboard()
+            return
+
+        if not self.btn_search.IsEnabled():
+            found = getattr(self, 'live_matches_count', 0)
+            msg = f"Avanzamento {self.current_percent} percento. File esaminati {self.scanned_count}. Risultati trovati {found}."
+        else:
+            found = self.lst_results.GetCount()
+            msg = f"Stato: {self.txt_status_progress.GetValue()} Risultati in lista: {found}."
+        
         speak_accessible(msg)
 
     def on_cancel_search(self, event):
@@ -1005,7 +1736,16 @@ class MainWindow(wx.Frame):
         alt = event.AltDown()
         ctrl = event.ControlDown()
 
-        if ctrl and key in (ord("P"), ord("p")):
+        if key == wx.WXK_CONTROL and not alt and not event.ShiftDown():
+            stop_accessible_speech()
+            event.Skip()
+            return
+
+        if ctrl and key in (ord("F"), ord("f")):
+            self.txt_filter.SetFocus()
+            speak_accessible("Filtra risultati")
+            return
+        elif ctrl and key in (ord("P"), ord("p")):
             self.on_print_results(None)
             return
         elif ctrl and key in (ord("D"), ord("d")):
@@ -1032,10 +1772,6 @@ class MainWindow(wx.Frame):
         elif key == wx.WXK_F1:
             self.show_shortcuts_dialog()
             return
-        elif key == wx.WXK_CONTROL and not ctrl:
-            stop_accessible_speech()
-            event.Skip()
-            return
         elif key == wx.WXK_F7:
             self.on_toggle_speech()
             return
@@ -1048,7 +1784,7 @@ class MainWindow(wx.Frame):
             return
 
         focus = wx.Window.FindFocus()
-        text_ctrls = (self.txt_query, self.txt_path, self.txt_custom_ext)
+        text_ctrls = (self.txt_query, self.txt_path, self.txt_custom_ext, self.txt_filter)
         
         if key == wx.WXK_SPACE:
             if focus not in text_ctrls and not isinstance(focus, wx.Button):
@@ -1232,10 +1968,11 @@ class MainWindow(wx.Frame):
                 f"{APP_TITLE} v{APP_VERSION}\n"
                 "Autore e Sviluppatore: Maurizio Barra (Accesso Digitale)\n\n"
                 "--- COMANDI E SCORCIATOIE DA TASTIERA (STANDALONE) ---\n\n"
+                "Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
                 "Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
                 "Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
                 "Alt + I : Info Versione e Autore\n"
-                "Alt + P : Annuncia stato, percentuale e risultati in tempo reale\n"
+                "Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
                 "TAB : Raggiunge la casella 'Stato avanzamento'\n"
                 "Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
                 "Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
@@ -1278,8 +2015,6 @@ class MainWindow(wx.Frame):
             speak_accessible("Nessun elemento selezionato nella lista.")
             return
         item = self.file_map.get(sel)
-        if not item and 0 <= sel < len(self.current_matches):
-            item = self.current_matches[sel]
         if item:
             snip = item.get("snippet", "").strip()
             loc = item.get("location_info", "")
@@ -1359,6 +2094,7 @@ class MainWindow(wx.Frame):
         custom_ext = self.txt_custom_ext.GetValue().strip().lower()
         if not custom_ext.startswith(".") and custom_ext:
             custom_ext = "." + custom_ext
+        include_feed_raw = bool(self.chk_feed_raw.GetValue())
 
         if not query:
             speak_accessible("Inserire un testo da cercare.")
@@ -1369,9 +2105,15 @@ class MainWindow(wx.Frame):
         self.current_percent = 0
         self.scanned_count = 0
         self.live_matches_count = 0
+        self.last_feed_raw_occurrences = 0
+        self.txt_filter.SetValue("")
         save_last_path(target_input)
 
         self.lst_results.Clear()
+        
+        # --- FIX NVDA SCONOSCIUTO ---
+        self.lst_results.Append("Ricerca in corso... attendere prego.")
+        
         self.file_map.clear()
         self.current_matches = []
         self.gauge.SetValue(0)
@@ -1387,47 +2129,149 @@ class MainWindow(wx.Frame):
         threading.Thread(target=lambda: winsound.Beep(800, 150), daemon=True).start()
         # --- FINE FEEDBACK ACUSTICO ---
 
-        targets = [t.strip() for t in target_input.split(";") if t.strip()]
-        threading.Thread(target=self.run_search, args=(query, targets, filter_mode, custom_ext), daemon=True).start()
+        targets = [t.strip() for t in re.split(r'[;,]', target_input) if t.strip()]
+        threading.Thread(
+            target=self.run_search,
+            args=(query, targets, filter_mode, custom_ext, include_feed_raw),
+            daemon=True,
+        ).start()
 
-    def run_search(self, query, targets, filter_mode, custom_ext):
+    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False):
         raw_matches = []
         ignored = ["$recycle.bin", "system volume information", "appdata\\local\\temp"]
         norm_query = normalize_search_text(query)
         terms = norm_query.split()
         img_exts = [".jpg", ".jpeg", ".png", ".bmp"]
         media_exts = [".mp4", ".mp3", ".mkv", ".avi", ".wav"]
-        doc_exts = [".txt", ".eml", ".log", ".csv", ".docx", ".doc", ".pdf"]
+        doc_exts = [
+            ".txt", ".eml", ".log", ".csv", ".docx", ".doc", ".pdf",
+            ".mbox", ".mbx", ".rss", ".xml", ".atom", ".opml",
+        ]
+        feed_file_exts = {".rss", ".xml", ".atom"}
 
         file_list = []
+        rss_sources = []
+        opml_files = []
+
         for folder in targets:
-            if self._stop_search or not os.path.exists(folder):
+            if self._stop_search:
+                break
+            if folder.startswith("http://") or folder.startswith("https://"):
+                rss_sources.append(folder)
+                continue
+
+            if not os.path.exists(folder):
                 continue
             if os.path.isfile(folder):
-                file_list.append(os.path.normpath(folder))
+                ext = os.path.splitext(folder)[1].lower()
+                if ext == ".opml":
+                    opml_files.append(os.path.normpath(folder))
+                elif ext in feed_file_exts:
+                    rss_sources.append(os.path.normpath(folder))
+                else:
+                    file_list.append(os.path.normpath(folder))
                 continue
+
             for root, dirs, files in os.walk(folder):
-                if self._stop_search: break
-                if any(ign in root.lower() for ign in ignored): continue
+                if self._stop_search:
+                    break
+                if any(ign in root.lower() for ign in ignored):
+                    continue
                 for file in files:
                     ext = os.path.splitext(file)[1].lower()
-                    if filter_mode == 1 and ext not in img_exts: continue
-                    elif filter_mode == 2 and ext not in media_exts: continue
-                    elif filter_mode == 3 and ext not in doc_exts: continue
-                    elif filter_mode == 4 and ext != custom_ext: continue
-                    file_list.append(os.path.normpath(os.path.join(root, file)))
+                    full = os.path.normpath(os.path.join(root, file))
+                    if is_thunderbird_junk_file(full):
+                        continue
+                    is_tb = is_thunderbird_mail_container(full)
 
-        total_files = len(file_list)
+                    if filter_mode == 1 and ext not in img_exts:
+                        continue
+                    elif filter_mode == 2 and ext not in media_exts:
+                        continue
+                    elif filter_mode == 3 and ext not in doc_exts and not is_tb:
+                        continue
+                    elif filter_mode == 4 and ext != custom_ext:
+                        continue
+
+                    if ext == ".opml":
+                        opml_files.append(full)
+                    elif ext in feed_file_exts and not is_thunderbird_feeds_path(full):
+                        rss_sources.append(full)
+                    else:
+                        file_list.append(full)
+
+        # Expand OPML into feed URLs (counted in progress)
+        for opml_path in opml_files:
+            if self._stop_search:
+                break
+            for url in parse_opml_urls(opml_path):
+                if url not in rss_sources:
+                    rss_sources.append(url)
+
+        work_units = len(file_list) + len(rss_sources)
+        if work_units <= 0:
+            work_units = 1
+        units_done = 0
         last_spoken_percent = -1
+        feed_raw_total = 0
 
-        for i, file_path in enumerate(file_list, 1):
-            if self._stop_search: break
-            self.scanned_count = i
+        def bump_progress():
+            nonlocal units_done, last_spoken_percent
+            units_done += 1
+            self.scanned_count = units_done
+            self.live_matches_count = len(raw_matches)
+            percent = int((units_done / work_units) * 100)
+            if percent > 100:
+                percent = 100
+            self.current_percent = percent
+            if percent % 5 == 0 and percent != last_spoken_percent:
+                last_spoken_percent = percent
+                wx.CallAfter(self.update_progress, percent, units_done, work_units, len(raw_matches))
+
+        # === Feed RSS/Atom (URL o file locali) ===
+        missing_feedparser_announced = False
+        for source in rss_sources:
+            if self._stop_search:
+                break
+            if feedparser is None:
+                if not missing_feedparser_announced:
+                    missing_feedparser_announced = True
+                    logging.warning("feedparser mancante: impossibile cercare nei feed RSS/Atom.")
+                    wx.CallAfter(
+                        speak_accessible,
+                        "Modulo feedparser non installato: ricerca RSS non disponibile.",
+                    )
+                bump_progress()
+                continue
+            try:
+                raw_matches.extend(search_online_or_local_feed(source, terms))
+            except Exception as e:
+                logging.debug(f"Errore lettura Feed {source}: {e}")
+            bump_progress()
+
+        # === Scansione file locali ===
+        for file_path in file_list:
+            if self._stop_search:
+                break
             file_name = os.path.basename(file_path)
             ext = os.path.splitext(file_name)[1].lower()
+
+            is_feed = is_thunderbird_feeds_path(file_path)
+            is_mbox = False
+            if ext in [".mbox", ".mbx"]:
+                is_mbox = True
+            elif is_thunderbird_mail_container(file_path) and not is_feed:
+                is_mbox = True
+
+            if is_mbox:
+                ext = ".mbox"
+
             prefix = f"[{ext.replace('.', '').upper()}]"
-            try: mtime = os.path.getmtime(file_path)
-            except: mtime = 0
+
+            try:
+                mtime = os.path.getmtime(file_path)
+            except Exception:
+                mtime = 0
 
             try:
                 name_matched = text_matches_terms(file_name, terms)
@@ -1436,9 +2280,110 @@ class MainWindow(wx.Frame):
                 if ext in img_exts:
                     img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
                     if all(t in img_text for t in terms):
-                        raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": "[IMG-TEXT]", "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": "Testo visivo", "snippet": f"Trovato testo visivo contenente '{query}'."})
+                        raw_matches.append({
+                            "file_path": file_path, "file_name": file_name, "prefix": "[IMG-TEXT]",
+                            "mtime": mtime, "line_number": None, "paragraph_index": None,
+                            "location_info": "Testo visivo",
+                            "snippet": f"Trovato testo visivo contenente '{query}'.",
+                        })
                         found_in_content = True
-                elif ext in [".txt", ".eml", ".log", ".csv", custom_ext]:
+
+                elif is_feed:
+                    if is_thunderbird_junk_file(file_path):
+                        bump_progress()
+                        continue
+                    feed_hits, raw_occ = search_thunderbird_feed_file(
+                        file_path, terms, mtime, include_raw_lines=include_feed_raw
+                    )
+                    feed_raw_total += raw_occ
+                    if feed_hits:
+                        raw_matches.extend(feed_hits)
+                        found_in_content = True
+
+                elif is_mbox:
+                    mb = None
+                    try:
+                        mb = mailbox.mbox(file_path)
+                        for msg_idx, msg in enumerate(mb):
+                            if self._stop_search:
+                                break
+                            subject = decode_email_header(str(msg.get("subject", "")))
+                            sender = decode_email_header(str(msg.get("from", "")))
+                            body = get_clean_email_text(msg)
+                            msg_ts = message_date_timestamp(msg, fallback=mtime)
+                            msg_found = False
+                            if body:
+                                lines = body.split("\n")
+                                for line_idx, line in enumerate(lines):
+                                    if text_matches_terms(line, terms):
+                                        start_i = max(0, line_idx - 1)
+                                        end_i = min(len(lines), line_idx + 2)
+                                        snip = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                                        raw_matches.append({
+                                            "file_path": file_path, "file_name": file_name,
+                                            "prefix": "[MBOX]", "mtime": msg_ts,
+                                            "line_number": msg_idx, "paragraph_index": None,
+                                            "location_info": f"Testo Msg {msg_idx + 1}",
+                                            "snippet": snip,
+                                        })
+                                        found_in_content = True
+                                        msg_found = True
+                                        break
+                            if not msg_found and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
+                                raw_matches.append({
+                                    "file_path": file_path, "file_name": file_name,
+                                    "prefix": "[MBOX]", "mtime": msg_ts,
+                                    "line_number": msg_idx, "paragraph_index": None,
+                                    "location_info": f"Oggetto Msg {msg_idx + 1}",
+                                    "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                                })
+                                found_in_content = True
+                    except Exception as e:
+                        logging.debug(f"Errore lettura MBOX {file_path}: {e}")
+                    finally:
+                        try:
+                            if mb:
+                                mb.close()
+                        except Exception:
+                            pass
+
+                elif ext == ".eml":
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            msg = email.message_from_file(f, policy=policy.default)
+                    except Exception:
+                        with open(file_path, "r", encoding="latin1", errors="ignore") as f:
+                            msg = email.message_from_file(f, policy=policy.default)
+
+                    subject = decode_email_header(str(msg.get("subject", "")))
+                    sender = decode_email_header(str(msg.get("from", "")))
+                    body = get_clean_email_text(msg)
+
+                    if body:
+                        lines = body.split("\n")
+                        for line_idx, line in enumerate(lines):
+                            if text_matches_terms(line, terms):
+                                start_i = max(0, line_idx - 1)
+                                end_i = min(len(lines), line_idx + 2)
+                                snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                                raw_matches.append({
+                                    "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                    "mtime": mtime, "line_number": line_idx + 1, "paragraph_index": None,
+                                    "location_info": "Testo Email", "snippet": snippet,
+                                })
+                                found_in_content = True
+                                break
+
+                    if not found_in_content and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
+                        raw_matches.append({
+                            "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                            "mtime": mtime, "line_number": 1, "paragraph_index": None,
+                            "location_info": "Intestazione Email",
+                            "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                        })
+                        found_in_content = True
+
+                elif ext in [".txt", ".log", ".csv", custom_ext]:
                     with open(file_path, "rb") as f:
                         raw_data = f.read()
                     if raw_data.startswith(b'\xff\xfe') or raw_data.startswith(b'\xfe\xff'):
@@ -1451,73 +2396,104 @@ class MainWindow(wx.Frame):
                     text_data = text_data.replace('\x00', '')
                     lines = text_data.split('\n')
                     for idx, line in enumerate(lines):
-                        cleaned_line = clean_eml_text(line) if ext == ".eml" else line
-                        if text_matches_terms(cleaned_line, terms):
+                        if text_matches_terms(line, terms):
                             start_i, end_i = max(0, idx - 2), min(len(lines), idx + 3)
-                            raw_snip = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
-                            snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
-                            raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": idx + 1, "paragraph_index": None, "location_info": f"Riga {idx + 1}", "snippet": snippet})
+                            snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": mtime, "line_number": idx + 1, "paragraph_index": None,
+                                "location_info": f"Riga {idx + 1}", "snippet": snippet,
+                            })
                             found_in_content = True
+
                 elif ext in [".docx", ".doc"]:
                     paragraphs = extract_paragraphs_from_docx(file_path)
                     for idx, p_text in enumerate(paragraphs):
                         if text_matches_terms(p_text, terms):
                             start_i, end_i = max(0, idx - 1), min(len(paragraphs), idx + 2)
                             snippet = " \n".join(paragraphs[start_i:end_i])
-                            raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": idx + 1, "location_info": f"Paragrafo {idx + 1}", "snippet": snippet})
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": mtime, "line_number": None, "paragraph_index": idx + 1,
+                                "location_info": f"Paragrafo {idx + 1}", "snippet": snippet,
+                            })
                             found_in_content = True
                     if not found_in_content and ext == ".doc":
                         with open(file_path, "rb") as f:
                             raw_data = normalize_search_text(f.read(4194304).decode("latin1", errors="ignore"))
                             if text_matches_terms(raw_data, terms):
-                                raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": 1, "location_info": "Documento Word", "snippet": f"Testo nel file Word: '{query}'."})
+                                raw_matches.append({
+                                    "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                    "mtime": mtime, "line_number": None, "paragraph_index": 1,
+                                    "location_info": "Documento Word",
+                                    "snippet": f"Testo nel file Word: '{query}'.",
+                                })
                                 found_in_content = True
+
                 elif ext == ".pdf":
                     pdf_lines = extract_lines_from_pdf(file_path)
                     for idx, line in enumerate(pdf_lines):
                         if text_matches_terms(line, terms):
                             start_i, end_i = max(0, idx - 1), min(len(pdf_lines), idx + 2)
                             snippet = " ".join(pdf_lines[start_i:end_i])
-                            raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": f"Sezione {idx + 1}", "snippet": snippet})
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": mtime, "line_number": None, "paragraph_index": None,
+                                "location_info": f"Sezione {idx + 1}", "snippet": snippet,
+                            })
                             found_in_content = True
 
                 if name_matched and not found_in_content:
-                    raw_matches.append({"file_path": file_path, "file_name": file_name, "prefix": prefix, "mtime": mtime, "line_number": None, "paragraph_index": None, "location_info": "Nome File", "snippet": f"Corrispondenza: '{file_name}'"})
+                    raw_matches.append({
+                        "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                        "mtime": mtime, "line_number": None, "paragraph_index": None,
+                        "location_info": "Nome File",
+                        "snippet": f"Corrispondenza: '{file_name}'",
+                    })
 
             except Exception as e:
                 logging.debug(f"Salto file bloccato o corrotto durante scansione ({file_path}): {e}")
 
-            if total_files > 0:
-                self.live_matches_count = len(raw_matches)
-                percent = int((i / total_files) * 100)
-                self.current_percent = percent
-                if percent % 10 == 0 and percent != last_spoken_percent:
-                    last_spoken_percent = percent
-                    wx.CallAfter(self.update_progress, percent, i, total_files, len(raw_matches))
+            bump_progress()
 
         self.current_matches = raw_matches
-        self.sort_and_display_matches(sort_type="recent_first")
+        self.last_feed_raw_occurrences = feed_raw_total
         wx.CallAfter(self.finish_search, len(raw_matches))
 
-    def sort_and_display_matches(self, sort_type="recent_first"):
-        if sort_type == "recent_first":
-            self.current_matches.sort(key=lambda x: x["mtime"], reverse=True)
-        elif sort_type == "oldest_first":
-            self.current_matches.sort(key=lambda x: x["mtime"], reverse=False)
-        elif sort_type == "name":
-            self.current_matches.sort(key=lambda x: x["file_name"].lower())
+    def on_filter_text(self, event):
+        self.update_list_display()
 
+    def sort_and_display_matches(self, sort_type="recent_first"):
+        self.current_sort = sort_type
+        if sort_type == "recent_first":
+            self.current_matches.sort(key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0), reverse=True)
+        elif sort_type == "oldest_first":
+            self.current_matches.sort(key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0), reverse=False)
+        elif sort_type == "name":
+            self.current_matches.sort(key=lambda x: (x.get("file_name") or "").lower())
+
+        self.update_list_display()
+
+    def update_list_display(self):
+        filter_text = self.txt_filter.GetValue().lower().strip()
         self.lst_results.Clear()
         self.file_map.clear()
+        
         for item in self.current_matches:
             loc = f" ({item['location_info']})" if item.get("location_info") else ""
             display_str = f"{item['prefix']} {item['file_name']}{loc} -- ({item['file_path']})"
+            
+            if filter_text:
+                searchable_content = f"{display_str} {item.get('snippet', '')}".lower()
+                if filter_text not in searchable_content:
+                    continue
+                    
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
 
     def update_progress(self, percent, current, total, matches):
         self.gauge.SetValue(percent)
-        text = f"Avanzamento: {percent}% ({current}/{total} file, {matches} risultati)"
+        text = f"Avanzamento: {percent}% ({current}/{total} elementi, {matches} risultati)"
         self.txt_status_progress.SetValue(text)
         speak_accessible(f"Ricerca al {percent} percento")
 
@@ -1538,17 +2514,42 @@ class MainWindow(wx.Frame):
 
         self.gauge.SetValue(100)
         self.current_percent = 100
+        feed_raw = getattr(self, "last_feed_raw_occurrences", 0) or 0
+        feed_note = ""
+        feed_speak = ""
+        if feed_raw > 0 and feed_raw != matches:
+            feed_note = (
+                f" Nei feed: {matches} articoli distinti "
+                f"(nel file grezzo la parola compare circa {feed_raw} volte, come in Notepad++)."
+            )
+            feed_speak = (
+                f" Nei feed sono {matches} articoli. "
+                f"Nel testo grezzo la parola compare circa {feed_raw} volte."
+            )
+
         if self._stop_search:
-            text = f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). Salvati {matches} risultati."
-            speak_accessible(f"Ricerca annullata. Conservati {matches} risultati.")
+            text = (
+                f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} elementi). "
+                f"Salvati {matches} risultati.{feed_note}"
+            )
+            speak_accessible(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
         else:
-            text = f"Ricerca completata: 100% ({self.scanned_count} file). Trovati {matches} risultati."
-            logging.info(f"Ricerca completata. File esaminati: {self.scanned_count}. Trovati: {matches}.")
-            speak_accessible(f"Completata. Trovati {matches} risultati.")
+            text = (
+                f"Ricerca completata: 100% ({self.scanned_count} elementi). "
+                f"Trovati {matches} risultati.{feed_note}"
+            )
+            logging.info(
+                f"Ricerca completata. Elementi esaminati: {self.scanned_count}. "
+                f"Risultati: {matches}. Occorrenze grezze feed: {feed_raw}."
+            )
+            speak_accessible(f"Completata. Trovati {matches} risultati.{feed_speak}")
         self.txt_status_progress.SetValue(text)
         self.btn_search.Enable()
         self.btn_cancel.Disable()
-        if matches > 0:
+        
+        self.sort_and_display_matches(sort_type=self.current_sort)
+        
+        if self.lst_results.GetCount() > 0:
             self.lst_results.SetSelection(0)
             self.lst_results.SetFocus()
 
@@ -1562,6 +2563,46 @@ class MainWindow(wx.Frame):
             file_to_open = item["file_path"]
             line_num = item.get("line_number")
             ext = os.path.splitext(file_to_open)[1].lower()
+
+            if item.get("prefix") == "[FEED-RIGA]":
+                if line_num:
+                    speak_accessible(f"Apertura alla riga {line_num} nel file feed")
+                    jump_to_line_in_editor(file_to_open, line_num)
+                else:
+                    speak_accessible("Riga non disponibile.")
+                return
+
+            if item.get("prefix") in ("[RSS]", "[FEED]"):
+                url = item.get("article_url") or file_to_open
+                if url and (str(url).startswith("http://") or str(url).startswith("https://")):
+                    speak_accessible(
+                        "Apertura articolo nel browser. "
+                        "Se compare un banner sui cookie, accettarlo per leggere la notizia."
+                    )
+                    webbrowser.open(url)
+                    return
+                if item.get("prefix") == "[FEED]":
+                    # fallback: editor or mbox viewer
+                    if line_num is not None and isinstance(line_num, int) and line_num >= 0:
+                        try:
+                            viewer = MboxViewerFrame(self, file_to_open, line_num, self.current_query)
+                            viewer.Show()
+                            speak_accessible("Apertura articolo feed nel lettore interno")
+                            return
+                        except Exception:
+                            pass
+                    if line_num:
+                        speak_accessible(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
+                        jump_to_line_in_editor(file_to_open, line_num)
+                        return
+                speak_accessible("Collegamento articolo non disponibile.")
+                return
+
+            if item.get("prefix") == "[MBOX]":
+                speak_accessible(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
+                viewer = MboxViewerFrame(self, file_to_open, line_num, self.current_query)
+                viewer.Show()
+                return
 
             if ext in [".docx", ".doc"]:
                 para_idx = item.get("paragraph_index")
@@ -1594,8 +2635,8 @@ class MainWindow(wx.Frame):
         snippet = item_data["snippet"]
 
         menu = wx.Menu()
-        item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta)\tINVIO")
-        item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPAZIO")
+        item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta) / Browser\tRETURN")
+        item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPACE")
         item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia")
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
         item_copy_text = menu.Append(wx.ID_ANY, "Copia Contenuto (o Immagine)")
@@ -1613,7 +2654,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_content_or_image_to_clipboard(file_path), item_copy_text)
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_content_or_image_to_clipboard(item_data), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(file_path), item_copy_to)
         self.Bind(wx.EVT_MENU, lambda e: self.open_containing_folder(file_path), item_open_folder)
         self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("recent_first"), item_sort_recent)
@@ -1640,8 +2681,12 @@ class MainWindow(wx.Frame):
             wx.TheClipboard.Close()
             speak_accessible("Percorso copiato!")
 
-    def copy_content_or_image_to_clipboard(self, file_path):
+    def copy_content_or_image_to_clipboard(self, item_data):
+        file_path = item_data["file_path"]
         ext = os.path.splitext(file_path)[1].lower()
+        prefix = item_data.get("prefix", "")
+        msg_index = item_data.get("line_number")
+
         if ext in [".jpg", ".jpeg", ".png", ".bmp"]:
             try:
                 img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
@@ -1654,9 +2699,44 @@ class MainWindow(wx.Frame):
                 logging.warning(f"Errore copia immagine negli appunti: {e}")
 
         text_content = ""
-        if ext in [".docx", ".doc"]: text_content = "\n".join(extract_paragraphs_from_docx(file_path))
-        elif ext == ".pdf": text_content = "\n".join(extract_lines_from_pdf(file_path))
-        elif ext in [".txt", ".eml", ".log", ".csv"]:
+        if prefix in ("[RSS]", "[FEED]"):
+            url = item_data.get("article_url") or file_path
+            text_content = (
+                f"{item_data.get('file_name', '')}\n"
+                f"{item_data.get('snippet', '')}\n"
+                f"Link: {url}"
+            )
+        elif prefix == "[MBOX]":
+            try:
+                mb = mailbox.mbox(file_path)
+                msg = mb[msg_index]
+                subject = decode_email_header(msg.get("subject", "(Nessun oggetto)"))
+                sender = decode_email_header(msg.get("from", "(Sconosciuto)"))
+                date = msg.get("date", "(Nessuna data)")
+                body = get_clean_email_text(msg)
+                text_content = f"Oggetto: {subject}\nDa: {sender}\nData: {date}\n{'-'*60}\n\n{body}"
+            except Exception as e:
+                logging.warning(f"Errore copia mbox: {e}")
+        elif ext == ".eml":
+            try:
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        msg = email.message_from_file(f, policy=policy.default)
+                except Exception:
+                    with open(file_path, "r", encoding="latin1", errors="ignore") as f:
+                        msg = email.message_from_file(f, policy=policy.default)
+                subject = decode_email_header(msg.get("subject", "(Nessun oggetto)"))
+                sender = decode_email_header(msg.get("from", "(Sconosciuto)"))
+                date = msg.get("date", "(Nessuna data)")
+                body = get_clean_email_text(msg)
+                text_content = f"Oggetto: {subject}\nDa: {sender}\nData: {date}\n{'-'*60}\n\n{body}"
+            except Exception as e:
+                logging.warning(f"Errore copia eml: {e}")
+        elif ext in [".docx", ".doc"]: 
+            text_content = "\n".join(extract_paragraphs_from_docx(file_path))
+        elif ext == ".pdf": 
+            text_content = "\n".join(extract_lines_from_pdf(file_path))
+        elif ext in [".txt", ".log", ".csv"]:
             try:
                 with open(file_path, "rb") as f:
                     raw_data = f.read()
@@ -1668,7 +2748,6 @@ class MainWindow(wx.Frame):
                     except UnicodeDecodeError:
                         text_content = raw_data.decode("latin1", errors="ignore")
                 text_content = text_content.replace('\x00', '')
-                if ext == ".eml": text_content = clean_eml_text(text_content)
             except Exception as e:
                 logging.warning(f"Errore copia testo negli appunti: {e}")
 
@@ -1677,7 +2756,8 @@ class MainWindow(wx.Frame):
                 wx.TheClipboard.SetData(wx.TextDataObject(text_content))
                 wx.TheClipboard.Close()
                 speak_accessible("Testo copiato negli appunti!")
-        else: speak_accessible("Impossibile copiare il contenuto.")
+        else: 
+            speak_accessible("Impossibile copiare il contenuto.")
 
     def copy_file_to_destination(self, file_path):
         dlg = wx.DirDialog(self, "Seleziona cartella", defaultPath=os.path.expanduser("~\\Desktop"))

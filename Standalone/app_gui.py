@@ -35,7 +35,7 @@ except ImportError:
     feedparser = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -767,13 +767,14 @@ def create_html_help_file():
     <meta charset="UTF-8">
     <title>Guida Ufficiale - {APP_TITLE}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 30px; color: #111; background-color: #f9f9f9; }}
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 30px; color: #111; background-color: #f9f9f9; max-width: 900px; }}
         h1 {{ color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }}
         h2 {{ color: #333; margin-top: 25px; }}
         ul {{ margin-left: 20px; }}
         li {{ margin-bottom: 8px; }}
         code {{ background-color: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold; }}
         .box {{ background-color: #eef6fc; border-left: 5px solid #005a9c; padding: 15px; margin: 20px 0; }}
+        .note {{ background: #fff8e6; border-left: 5px solid #c90; padding: 12px; margin: 16px 0; }}
     </style>
 </head>
 <body>
@@ -781,29 +782,46 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.5.0:</strong> Ricerca MBOX/EML, Feed RSS/Atom (anche file locali), supporto OPML, pulsante <em>Feed Thunderbird</em> per individuare automaticamente la cartella Feeds, ricerca migliorata negli articoli feed (testo pulito, un risultato per messaggio) e filtro rapido nei risultati.</p>
-        <p>F7: Attiva / Disattiva sintesi vocale<br>CONTROL: Zittisce immediatamente la voce di lettura</p>
-        <p>Suggerimento: usa il pulsante <code>Feed Thunderbird</code> oppure inserisci URL http(s), file <code>.rss/.atom/.xml/.opml</code> o percorsi multipli separati da virgola o punto e virgola.</p>
+        <p><strong>Novit&agrave; Versione 1.5.1</strong></p>
+        <ul>
+            <li><strong>Cronologia ricerche:</strong> salva in locale gli ultimi testi e percorsi; <code>Ctrl+H</code> riprende un testo, <code>Ctrl+Shift+H</code> un percorso; menu <em>Cronologia</em>.</li>
+            <li>Restano le novit&agrave; 1.5.0: Feed RSS/Atom, Feed Thunderbird, occorrenze grezze, filtro <code>Ctrl+F</code>.</li>
+        </ul>
+        <p><code>F7</code>: attiva/disattiva sintesi &middot; <code>CONTROL</code>: zittisce subito la lettura.</p>
     </div>
-    <h2>1. Scorciatoie da Tastiera</h2>
+    <h2>Formati supportati</h2>
     <ul>
-        <li><code>Ctrl + F</code>: Salta alla casella per filtrare rapidamente i risultati.</li>
-        <li><code>Alt + T</code>: Seleziona automaticamente tutte le unit&agrave; disco attive (Tutto il PC).</li>
-        <li><code>Alt + N</code>: Annulla la ricerca in corso e salva i risultati trovati.</li>
-        <li><code>Alt + I</code>: Info Versione e Autore.</li>
-        <li><code>Alt + P</code>: Annuncia la percentuale (Premi 2 volte velocemente per copiare lo stato negli appunti).</li>
-        <li><code>Tab</code>: Raggiunge la casella accessibile di stato e avanzamento ricerca.</li>
-        <li><code>Alt + K</code>: Scatta uno screenshot e lo salva in <em>Catture di schermata</em>.</li>
-        <li><code>Ctrl + P</code>: Stampa rapida dei risultati di ricerca in lista.</li>
-        <li><code>Ctrl + D</code>: Aggiunge il percorso di ricerca attuale ai Segnalibri.</li>
-        <li><code>SPAZIO</code> o <code>F4</code> (sui risultati): Anteprima vocale immediata del contesto.</li>
-        <li><code>INVIO</code> (sui risultati): Apre il file. Se &egrave; un Feed RSS, apre la notizia nel browser.</li>
-        <li><code>Tasto APPLICAZIONI</code> o <code>Shift + F10</code>: Menu contestuale completo.</li>
-        <li><code>F1</code>: Apri la presente guida nel browser predefinito.</li>
-        <li><code>ESC</code>: Chiudi la finestra attiva.</li>
-        <li><code>Feed Thunderbird</code>: rileva automaticamente le cartelle Feeds di Thunderbird e le inserisce nel percorso.</li>
-        <li>File <code>.rss</code>, <code>.atom</code>, <code>.xml</code> e <code>.opml</code>: ricercabili come feed (OPML espande gli URL contenuti).</li>
+        <li>Testo (<code>.txt</code>, <code>.log</code>, <code>.csv</code>), Word, PDF, EML/MBOX, Feed RSS/Atom/Thunderbird, immagini con OCR di base.</li>
     </ul>
+    <h2>Feed RSS e Thunderbird</h2>
+    <ul>
+        <li>Usa il pulsante <code>Feed Thunderbird</code> oppure inserisci URL/file feed/OPML nel percorso.</li>
+        <li><code>[RSS]</code> / <code>[FEED]</code>: Invio apre l'articolo nel browser.</li>
+        <li><code>[FEED-RIGA]</code> (se attiva la casella occorrenze grezze): Invio salta alla riga nel file.</li>
+    </ul>
+    <div class="note">
+        <strong>Nota:</strong> articoli distinti = risultati <code>[FEED]</code>; occorrenze grezze nel file = <code>[FEED-RIGA]</code>. Lo stato spiega entrambi i numeri.
+    </div>
+    <h2>Scorciatoie da tastiera</h2>
+    <ul>
+        <li><code>Ctrl + H</code>: cronologia testi cercati.</li>
+        <li><code>Ctrl + Shift + H</code>: cronologia percorsi usati.</li>
+        <li><code>Ctrl + F</code>: salta alla casella filtro risultati.</li>
+        <li><code>Alt + T</code>: tutto il PC (unit&agrave; attive).</li>
+        <li><code>Alt + N</code>: annulla ricerca e mantieni i risultati.</li>
+        <li><code>Alt + I</code>: info versione e autore.</li>
+        <li><code>Alt + P</code>: annuncia lo stato (due volte = copia negli appunti).</li>
+        <li><code>TAB</code> / <code>Alt+S</code> / <code>S</code>: campo accessibile di stato/avanzamento.</li>
+        <li><code>Alt + K</code>: screenshot in <em>Catture di schermata</em>.</li>
+        <li><code>Ctrl + P</code>: stampa risultati in lista.</li>
+        <li><code>Ctrl + D</code>: aggiungi percorso ai segnalibri.</li>
+        <li><code>SPAZIO</code> / <code>F4</code>: anteprima vocale del contesto.</li>
+        <li><code>INVIO</code> sui risultati: apre file alla riga o articolo feed nel browser.</li>
+        <li><code>Tasto APPLICAZIONI</code> / <code>Shift + F10</code>: menu contestuale.</li>
+        <li><code>F1</code>: apre questa guida nel browser.</li>
+        <li><code>ESC</code>: chiude la finestra attiva.</li>
+    </ul>
+    <p>Sostieni il progetto: <a href="{DONATION_URL}">{DONATION_URL}</a></p>
 </body>
 </html>
 """
@@ -861,6 +879,71 @@ def save_bookmarks(bookmarks_list):
             json.dump(data, f)
     except Exception as e:
         logging.error(f"Errore salvataggio segnalibri: {e}")
+
+HISTORY_MAX = 20
+
+
+def _load_settings_dict():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+    except Exception as e:
+        logging.error(f"Errore lettura impostazioni: {e}")
+    return {}
+
+
+def _save_settings_dict(data):
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception as e:
+        logging.error(f"Errore salvataggio impostazioni: {e}")
+
+
+def load_query_history():
+    hist = _load_settings_dict().get("query_history", [])
+    return [x for x in hist if isinstance(x, str) and x.strip()]
+
+
+def load_path_history():
+    hist = _load_settings_dict().get("path_history", [])
+    return [x for x in hist if isinstance(x, str) and x.strip()]
+
+
+def _push_history_item(key, value, max_items=HISTORY_MAX):
+    value = (value or "").strip()
+    if not value:
+        return
+    data = _load_settings_dict()
+    hist = [x for x in data.get(key, []) if isinstance(x, str) and x.strip()]
+    hist = [x for x in hist if x.casefold() != value.casefold()]
+    hist.insert(0, value)
+    data[key] = hist[:max_items]
+    _save_settings_dict(data)
+
+
+def add_query_to_history(query):
+    _push_history_item("query_history", query)
+
+
+def add_path_to_history(path):
+    _push_history_item("path_history", path)
+
+
+def clear_query_history():
+    data = _load_settings_dict()
+    data["query_history"] = []
+    _save_settings_dict(data)
+
+
+def clear_path_history():
+    data = _load_settings_dict()
+    data["path_history"] = []
+    _save_settings_dict(data)
+
 
 def get_real_ready_drives():
     drives = []
@@ -1225,15 +1308,11 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Ricerca nei Feed RSS/Atom: incolla un URL http(s), un file .rss/.atom/.xml oppure un OPML con elenco feed.\n"
-            "   Puoi cercare più link o cartelle contemporaneamente separandoli con virgola o punto e virgola.\n\n"
-            "• Pulsante Feed Thunderbird: trova automaticamente le cartelle Mail\\Feeds dei profili Thunderbird.\n"
-            "   La ricerca nei feed locali usa testo pulito (oggetto/corpo) con un risultato per articolo, data articolo e apre il link originale.\n"
-            "   Gli indici Thunderbird (.msf) vengono ignorati correttamente.\n\n"
-            "• Occorrenze grezze opzionali: casella per elencare anche le righe [FEED-RIGA] oltre agli articoli.\n\n"
-            "• Esplorazione Archivi di Posta (MBOX): cerca negli archivi e nelle cartelle Mail/ImapMail di Thunderbird.\n\n"
-            "• Filtro Istantaneo Risultati: casella per filtrare i risultati (scorciatoia Ctrl+F).\n\n"
-            "• Lettore Email Integrato: .eml e .mbox in finestra dedicata, senza codici di formattazione.\n"
+            "• Cronologia ricerche: salva in locale gli ultimi testi cercati e i percorsi usati.\n"
+            "   - Pulsante Cronologia oppure Ctrl+H: riprendi un testo già cercato.\n"
+            "   - Ctrl+Shift+H: riprendi un percorso già usato.\n"
+            "   - Menu Cronologia: elenco rapido, percorsi e svuota cronologia.\n\n"
+            "• Restano attive tutte le novità della 1.5.0 (Feed RSS/Thunderbird, filtro Ctrl+F, ecc.).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -1281,12 +1360,14 @@ class ShortcutsFrame(wx.Frame):
             "--------------------------------------------------\n"
             "COMANDI E SCORCIATOIE DA TASTIERA (STANDALONE):\n"
             "--------------------------------------------------\n"
+            "  - Ctrl + H : Cronologia testi cercati (riprendi una ricerca precedente)\n"
+            "  - Ctrl + Shift + H : Cronologia percorsi usati\n"
             "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
             "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
             "  - Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
             "  - Alt + I : Info Versione e Autore\n"
             "  - Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
-            "  - TAB : Raggiunge la casella 'Stato avanzamento'\n"
+            "  - TAB oppure Alt+S / S : Raggiunge la casella 'Stato avanzamento'\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
             "  - Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
             "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"
@@ -1359,6 +1440,7 @@ class MainWindow(wx.Frame):
         self.current_query = ""
         self.live_matches_count = 0
         self.bookmark_items = []
+        self.history_query_items = []
         self.last_alt_p_time = 0
         self.current_sort = "recent_first"
         self.last_feed_raw_occurrences = 0
@@ -1370,9 +1452,14 @@ class MainWindow(wx.Frame):
 
         lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini e dialetti):")
         vbox.Add(lbl_query, 0, wx.ALL, 5)
+        hbox_query = wx.BoxSizer(wx.HORIZONTAL)
         self.txt_query = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.txt_query.Bind(wx.EVT_TEXT_ENTER, lambda e: self.start_search_thread())
-        vbox.Add(self.txt_query, 0, wx.EXPAND | wx.ALL, 5)
+        hbox_query.Add(self.txt_query, 1, wx.EXPAND | wx.ALL, 5)
+        btn_query_hist = wx.Button(panel, label="Cronolo&gia")
+        btn_query_hist.Bind(wx.EVT_BUTTON, self.on_recall_query_history)
+        hbox_query.Add(btn_query_hist, 0, wx.ALL, 5)
+        vbox.Add(hbox_query, 0, wx.EXPAND)
 
         hbox_filter = wx.BoxSizer(wx.HORIZONTAL)
         vbox_filter_choice = wx.BoxSizer(wx.VERTICAL)
@@ -1409,7 +1496,7 @@ class MainWindow(wx.Frame):
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
 
-        btn_browse = wx.Button(panel, label="&Sfoglia...")
+        btn_browse = wx.Button(panel, label="S&foglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
 
@@ -1453,10 +1540,18 @@ class MainWindow(wx.Frame):
 
         vbox.Add(hbox_actions, 0, wx.ALIGN_CENTER)
 
-        lbl_status_progress = wx.StaticText(panel, label="&Stato avanzamento ricerca (raggiungibile con Tab):")
+        lbl_status_progress = wx.StaticText(
+            panel,
+            label="&Stato avanzamento ricerca (raggiungibile con Tab e premendo S):",
+        )
         vbox.Add(lbl_status_progress, 0, wx.ALL, 5)
 
-        self.txt_status_progress = wx.TextCtrl(panel, value="Pronto per la ricerca. Premi Alt+P o ascolta l'avanzamento.", style=wx.TE_READONLY)
+        self.txt_status_progress = wx.TextCtrl(
+            panel,
+            value="Pronto per la ricerca. Premi Alt+P, Tab oppure S per lo stato.",
+            style=wx.TE_READONLY,
+        )
+        self.txt_status_progress.SetName("Stato avanzamento ricerca")
         vbox.Add(self.txt_status_progress, 0, wx.EXPAND | wx.ALL, 5)
 
         self.gauge = wx.Gauge(panel, range=100)
@@ -1518,6 +1613,22 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_add_bookmark, item_add_bm)
         self.Bind(wx.EVT_MENU, self.on_manage_bookmarks, item_manage_bm)
         self.update_bookmarks_menu()
+
+        # Menu Cronologia
+        self.history_menu = wx.Menu()
+        item_hist_query = self.history_menu.Append(wx.ID_ANY, "Richiama &testo cercato...\tCtrl+H")
+        item_hist_path = self.history_menu.Append(wx.ID_ANY, "Richiama &percorso...\tCtrl+Shift+H")
+        self.history_menu.AppendSeparator()
+        item_clear_queries = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia &testi")
+        item_clear_paths = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia p&ercorsi")
+        self.history_menu.AppendSeparator()
+        menubar.Append(self.history_menu, "Cro&nologia")
+
+        self.Bind(wx.EVT_MENU, self.on_recall_query_history, item_hist_query)
+        self.Bind(wx.EVT_MENU, self.on_recall_path_history, item_hist_path)
+        self.Bind(wx.EVT_MENU, self.on_clear_query_history, item_clear_queries)
+        self.Bind(wx.EVT_MENU, self.on_clear_path_history, item_clear_paths)
+        self.update_history_menu()
 
         # Menu Strumenti
         tools_menu = wx.Menu()
@@ -1594,6 +1705,78 @@ class MainWindow(wx.Frame):
             item = self.bookmarks_menu.Append(wx.ID_ANY, bm)
             self.bookmark_items.append(item.GetId())
             self.Bind(wx.EVT_MENU, lambda e, p=bm: self.on_select_bookmark(p), item)
+
+    def on_recall_query_history(self, event=None):
+        hist = load_query_history()
+        if not hist:
+            speak_accessible("Nessun testo nella cronologia.")
+            return
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona un testo già cercato da riprendere:",
+            "Cronologia testi",
+            hist,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel:
+                self.on_apply_history_query(sel)
+        dlg.Destroy()
+
+    def on_recall_path_history(self, event=None):
+        hist = load_path_history()
+        if not hist:
+            speak_accessible("Nessun percorso nella cronologia.")
+            return
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona un percorso già usato da riprendere:",
+            "Cronologia percorsi",
+            hist,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel:
+                self.txt_path.SetValue(sel)
+                save_last_path(sel)
+                self.txt_path.SetFocus()
+                self.txt_path.SetInsertionPointEnd()
+                speak_accessible(f"Percorso ripreso: {sel}")
+        dlg.Destroy()
+
+    def on_apply_history_query(self, query):
+        self.txt_query.SetValue(query)
+        self.txt_query.SetFocus()
+        self.txt_query.SetInsertionPointEnd()
+        speak_accessible(f"Testo ripreso: {query}")
+
+    def on_clear_query_history(self, event=None):
+        if not load_query_history():
+            speak_accessible("La cronologia testi è già vuota.")
+            return
+        clear_query_history()
+        self.update_history_menu()
+        speak_accessible("Cronologia testi svuotata.")
+
+    def on_clear_path_history(self, event=None):
+        if not load_path_history():
+            speak_accessible("La cronologia percorsi è già vuota.")
+            return
+        clear_path_history()
+        speak_accessible("Cronologia percorsi svuotata.")
+
+    def update_history_menu(self):
+        for item_id in self.history_query_items:
+            try:
+                self.history_menu.Remove(item_id)
+            except Exception:
+                pass
+        self.history_query_items.clear()
+        for query in load_query_history()[:10]:
+            label = query if len(query) <= 60 else query[:57] + "..."
+            item = self.history_menu.Append(wx.ID_ANY, label)
+            self.history_query_items.append(item.GetId())
+            self.Bind(wx.EVT_MENU, lambda e, q=query: self.on_apply_history_query(q), item)
 
     def get_dynamic_desktop_path(self):
         desktop_path = os.path.expanduser("~\\Desktop")
@@ -1701,6 +1884,15 @@ class MainWindow(wx.Frame):
         else:
             speak_accessible("Impossibile copiare negli appunti.")
 
+    def focus_status_progress(self, event=None):
+        try:
+            self.txt_status_progress.SetFocus()
+            self.txt_status_progress.SetInsertionPoint(0)
+            msg = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
+            speak_accessible(msg)
+        except Exception:
+            speak_accessible("Impossibile raggiungere lo stato di avanzamento.")
+
     def announce_progress(self):
         current_time = time.time()
         is_double_tap = (current_time - self.last_alt_p_time) < 0.6
@@ -1745,6 +1937,12 @@ class MainWindow(wx.Frame):
             self.txt_filter.SetFocus()
             speak_accessible("Filtra risultati")
             return
+        elif ctrl and key in (ord("H"), ord("h")) and event.ShiftDown():
+            self.on_recall_path_history()
+            return
+        elif ctrl and key in (ord("H"), ord("h")):
+            self.on_recall_query_history()
+            return
         elif ctrl and key in (ord("P"), ord("p")):
             self.on_print_results(None)
             return
@@ -1753,6 +1951,9 @@ class MainWindow(wx.Frame):
             return
         elif alt and key in (ord("P"), ord("p")):
             self.announce_progress()
+            return
+        elif alt and key in (ord("S"), ord("s")):
+            self.focus_status_progress()
             return
         elif alt and key in (ord("T"), ord("t")):
             self.on_search_all_pc(None)
@@ -1785,7 +1986,12 @@ class MainWindow(wx.Frame):
 
         focus = wx.Window.FindFocus()
         text_ctrls = (self.txt_query, self.txt_path, self.txt_custom_ext, self.txt_filter)
-        
+
+        if key in (ord("S"), ord("s")) and not ctrl and not alt and not event.ShiftDown():
+            if focus not in text_ctrls and not isinstance(focus, wx.TextCtrl):
+                self.focus_status_progress()
+                return
+
         if key == wx.WXK_SPACE:
             if focus not in text_ctrls and not isinstance(focus, wx.Button):
                 self.speak_selected_preview()
@@ -1968,12 +2174,14 @@ class MainWindow(wx.Frame):
                 f"{APP_TITLE} v{APP_VERSION}\n"
                 "Autore e Sviluppatore: Maurizio Barra (Accesso Digitale)\n\n"
                 "--- COMANDI E SCORCIATOIE DA TASTIERA (STANDALONE) ---\n\n"
+                "Ctrl + H : Cronologia testi cercati\n"
+                "Ctrl + Shift + H : Cronologia percorsi\n"
                 "Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
                 "Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
                 "Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
                 "Alt + I : Info Versione e Autore\n"
                 "Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
-                "TAB : Raggiunge la casella 'Stato avanzamento'\n"
+                "TAB / Alt+S / S : Raggiunge la casella 'Stato avanzamento'\n"
                 "Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
                 "Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
                 "Ctrl + D: Aggiungi percorso ai segnalibri\n"
@@ -2108,6 +2316,9 @@ class MainWindow(wx.Frame):
         self.last_feed_raw_occurrences = 0
         self.txt_filter.SetValue("")
         save_last_path(target_input)
+        add_query_to_history(query)
+        add_path_to_history(target_input)
+        self.update_history_menu()
 
         self.lst_results.Clear()
         

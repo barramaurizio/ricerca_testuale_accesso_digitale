@@ -2,50 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.0</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.1 — Guide</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
+        h2 { margin-top: 1.6em; border-bottom: 1px solid #cde; padding-bottom: 0.2em; }
         code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
         ol, ul { margin-bottom: 20px; }
+        li { margin-bottom: 6px; }
         .update { background: #eef6fc; padding: 15px; border-left: 5px solid #0056b3; margin-bottom: 20px; }
+        .note { background: #fff8e6; padding: 12px; border-left: 5px solid #c90; margin: 16px 0; }
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.0</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.1</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
-    
+    <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
+
     <div class="update">
-        <strong>What's New in v1.5.0:</strong> 
+        <strong>What's New in Version 1.5.1</strong>
         <ul>
-            <li><strong>RSS/Atom feeds:</strong> search http(s) URLs, <code>.rss</code>/<code>.atom</code>/<code>.xml</code> files and OPML lists (multiple paths separated by <code>;</code> or <code>,</code>).</li>
-            <li><strong>Thunderbird Feeds:</strong> dedicated button that auto-detects profile <code>Mail\Feeds</code> folders; cleaned-text search with one result per article and opens the original link in the browser.</li>
-            <li><strong>Optional raw occurrences:</strong> checkbox to also list raw <code>[FEED-RIGA]</code> lines besides articles; jump to line in Notepad++ when available.</li>
-            <li><strong>Sorting and status:</strong> feed results sorted by article date; status reports the difference between distinct articles and raw occurrences in the file.</li>
+            <li><strong>Search history:</strong> keeps recent queries and paths locally. <em>Cronologia</em> button or <code>Ctrl+H</code> to recall a query; <code>Ctrl+Shift+H</code> for a path; <em>Cronologia</em> menu with quick list and clear.</li>
+        </ul>
+        <strong>What's New in Version 1.5.0</strong>
+        <ul>
+            <li><strong>RSS/Atom feeds:</strong> search <code>http(s)</code> URLs, <code>.rss</code>/<code>.atom</code>/<code>.xml</code> files and OPML lists. Multiple paths or URLs separated by <code>;</code> or <code>,</code>.</li>
+            <li><strong>Thunderbird Feeds:</strong> dedicated button that finds profile <code>Mail\Feeds</code> folders. Clean-text search (subject/body), one result per article; Enter opens the original link in the browser.</li>
+            <li><strong>Optional raw occurrences:</strong> checkbox to also list <code>[FEED-RIGA]</code> lines besides <code>[FEED]</code> articles (handy when comparing counts with Notepad++).</li>
+            <li><strong>Thunderbird indexes skipped:</strong> <code>.msf</code> and similar index files are not scanned.</li>
+            <li><strong>Sorting and status:</strong> feed results sorted by article date; status reports the difference between articles and raw occurrences.</li>
+            <li><strong>Read while Thunderbird is open:</strong> local feeds can be searched even if Thunderbird is running.</li>
+            <li><strong>Results filter:</strong> <code>Ctrl+F</code> jumps to the list filter box.</li>
         </ul>
     </div>
 
-    <h2>Introduction</h2>
-    <p>An NVDA add-on designed to perform fast and advanced text searches across text files, Word documents, PDFs, images (via basic OCR), emails and RSS/Thunderbird feeds on your computer.</p>
+    <h2>Supported formats</h2>
+    <ul>
+        <li>Text: <code>.txt</code>, <code>.log</code>, <code>.csv</code> and similar</li>
+        <li>Documents: Word (<code>.docx</code>, <code>.doc</code>), PDF</li>
+        <li>Mail: <code>.eml</code> files (native reading) and Thunderbird-style mailbox / Feeds containers</li>
+        <li>Feeds: RSS/Atom URLs, local feed files, OPML, <code>Mail\Feeds</code> folders</li>
+        <li>Images: basic OCR on <code>.jpg</code>, <code>.png</code>, <code>.bmp</code></li>
+    </ul>
+
+    <h2>How to use RSS and Thunderbird Feeds</h2>
+    <ol>
+        <li>Open search with <strong>NVDA + Shift + Control + F</strong>.</li>
+        <li>In the path field you can:
+            <ul>
+                <li>paste one or more <code>http(s)</code> URLs;</li>
+                <li>point to <code>.rss</code>/<code>.atom</code>/<code>.xml</code>/<code>.opml</code> files;</li>
+                <li>or press <strong>Feed Thunderbird</strong> to insert profile Feeds folders automatically.</li>
+            </ul>
+        </li>
+        <li>Type the keywords and start the search (Enter in the text field or the Search button).</li>
+        <li>In the results list:
+            <ul>
+                <li><code>[RSS]</code> / <code>[FEED]</code>: <strong>Enter</strong> opens the article in the browser;</li>
+                <li><code>[FEED-RIGA]</code> (if raw occurrences are enabled): <strong>Enter</strong> jumps to the line in the file (Notepad++ when available).</li>
+            </ul>
+        </li>
+    </ol>
+    <div class="note">
+        <strong>About counts:</strong> one article may contain the keyword several times. Distinct articles are the <code>[FEED]</code> results; raw occurrences in the file are <code>[FEED-RIGA]</code>. Status explains both numbers.
+    </div>
 
     <h2>How to reach the exact point in Word documents</h2>
     <ol>
-        <li>From the add-on results list, press the <strong>Applications key</strong> on the desired Word file.</li>
-        <li>Select <strong>"Copy News Block / Phrase with keyword"</strong> to copy the exact phrase to the clipboard.</li>
-        <li>Open the Word document directly from the results.</li>
-        <li>Press the shortcut key combination <strong>Control + Shift + T</strong> to trigger targeted document search.</li>
-        <li>Paste the copied text by pressing <strong>Control + V</strong> and press <strong>Enter</strong>.</li>
-        <li>Listen to NVDA's speech feedback announcing the results. Use arrow keys to select the match and press <strong>Enter</strong>.</li>
-        <li>When the synthesizer announces <em>"One result, next result Button"</em>, press the <strong>Escape</strong> key: the Word cursor will position itself precisely over the searched text, ready for reading (you can use <code>NVDA + Down Arrow</code> to start continuous reading).</li>
+        <li>From the results list, press the <strong>Applications key</strong> on the desired Word file.</li>
+        <li>Select <strong>«Copy News Block / Phrase with keyword»</strong>.</li>
+        <li>Open the Word document from the results.</li>
+        <li>Press <strong>Control + Shift + T</strong> to start targeted search.</li>
+        <li>Paste with <strong>Control + V</strong> and press <strong>Enter</strong>.</li>
+        <li>Select the match with the arrow keys and confirm with <strong>Enter</strong>.</li>
+        <li>When speech announces the next result, press <strong>Escape</strong>: the cursor lands on the searched text (then <code>NVDA + Down Arrow</code> for continuous reading).</li>
     </ol>
+    <p><em>If you prefer automatic opening without these steps, also use the Standalone (.exe) version.</em></p>
 
-    <h2>Main Keyboard Shortcuts</h2>
+    <h2>Global NVDA shortcuts</h2>
     <ul>
-        <li><strong>NVDA + Shift + Control + F</strong>: Open the main search window.</li>
-        <li><strong>NVDA + Shift + Control + S</strong>: Open the shortcuts dialog.</li>
-        <li><strong>NVDA + Shift + Control + D</strong>: Open the PayPal donation page.</li>
+        <li><strong>NVDA + Shift + Control + F</strong>: open the main search window.</li>
+        <li><strong>NVDA + Shift + Control + S</strong>: open the commands and info dialog.</li>
+        <li><strong>NVDA + Shift + Control + D</strong>: open the PayPal donation page.</li>
     </ul>
 
-    <p><a href="https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases" target="_blank">Project GitHub Page</a></p>
+    <h2>Shortcuts in the search window</h2>
+    <ul>
+        <li><strong>Ctrl + H</strong>: recall recent search queries.</li>
+        <li><strong>Ctrl + Shift + H</strong>: recall recent search paths.</li>
+        <li><strong>Alt + T</strong>: scan the whole PC (all active drives).</li>
+        <li><strong>Alt + N</strong>: cancel the current search and keep results already found.</li>
+        <li><strong>Alt + I</strong>: version and author info.</li>
+        <li><strong>Alt + P</strong>: announce status; press twice quickly to copy status to the clipboard.</li>
+        <li><strong>Copy Status button</strong>: copy search details to the clipboard.</li>
+        <li><strong>Ctrl + F</strong>: jump to the «Filter results» box.</li>
+        <li><strong>TAB / Alt+S / S</strong>: also reach the «Progress status» field readable by the screen reader.</li>
+        <li><strong>Alt + K</strong>: screenshot into «Screen captures».</li>
+        <li><strong>Ctrl + P</strong>: quick print of listed results.</li>
+        <li><strong>Ctrl + E</strong>: export results.</li>
+        <li><strong>Ctrl + D</strong>: add the current path to bookmarks.</li>
+        <li><strong>Ctrl + U</strong>: check for updates (prefers the <code>.nvda-addon</code> asset from the release).</li>
+        <li><strong>Enter</strong> (in the text field): start the search immediately.</li>
+        <li><strong>Enter</strong> (on results): open the file at the line, or open the feed article in the browser.</li>
+        <li><strong>Space / F4</strong>: immediate spoken preview of the context.</li>
+        <li><strong>Applications key</strong>: context menu for the selected result.</li>
+        <li><strong>F1</strong>: command guide (from the Help menu).</li>
+        <li><strong>Escape</strong>: close the window.</li>
+    </ul>
+
+    <h2>Help menu</h2>
+    <ul>
+        <li><strong>What's New</strong>: summary of the current update.</li>
+        <li><strong>Command Guide (F1)</strong> and <strong>Print Guide</strong>.</li>
+        <li><strong>Official GitHub page</strong>.</li>
+        <li><strong>Export Diagnostic Info to Desktop</strong>: assistance sheet (not the NVDA log; for logs use NVDA+F1).</li>
+        <li><strong>Report a Problem / Send Feedback</strong>: opens the mail client with a prepared subject and body.</li>
+    </ul>
+
+    <h2>Download and updates</h2>
+    <p>
+        Official releases (Add-on and Standalone):
+        <a href="https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases" target="_blank" rel="noopener">GitHub Releases</a>.
+        The NVDA Add-on Store receives Add-on versions after registration on the addon-datastore.
+    </p>
+    <p>
+        Support the project:
+        <a href="https://paypal.me/AccessoDigitale" target="_blank" rel="noopener">PayPal</a>
+        ·
+        <a href="https://www.youtube.com/@AccessoDigitale" target="_blank" rel="noopener">YouTube Accesso Digitale</a>
+    </p>
 </body>
 </html>

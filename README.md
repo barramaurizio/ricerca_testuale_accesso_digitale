@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.0)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.1)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,9 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.1
+- **Cronologia ricerche:** ultimi testi e percorsi in locale; `Ctrl+H` / pulsante Cronologia e `Ctrl+Shift+H`; menu Cronologia.
 
 ### 🌟 Novità della Versione 1.5.0
 - **Feed RSS/Atom:** cerca in URL http(s), file locali `.rss`/`.atom`/`.xml` e elenchi OPML; più percorsi separati da `;` o `,`.
@@ -34,12 +37,17 @@ Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro
 - `NVDA + Shift + Control + F`: Apri la finestra principale di ricerca.
 - `NVDA + Shift + Control + S`: Apri la finestra dei comandi rapidi e delle informazioni.
 - `NVDA + Shift + Control + D`: Apri la pagina per le donazioni PayPal.
+- Nella finestra: `Ctrl+F` filtra i risultati, `Alt+P` annuncia lo stato (due volte = copia), `Ctrl+U` verifica aggiornamenti, pulsante **Feed Thunderbird** per i Feed RSS locali.
+- Guida completa (IT/EN): `addon/doc/it/readme.html` e `addon/doc/en/readme.html` (anche da Gestione componenti aggiuntivi → Guida).
 
 ---
 
 ## 🇬🇧 English
 
 An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
+
+### 🌟 What's New in Version 1.5.1
+- **Search history:** recent queries and paths kept locally; `Ctrl+H` / Cronologia button and `Ctrl+Shift+H`; Cronologia menu.
 
 ### 🌟 What's New in Version 1.5.0
 - **RSS/Atom feeds:** search http(s) URLs, local `.rss`/`.atom`/`.xml` files and OPML lists; multiple paths separated by `;` or `,`.
@@ -68,6 +76,8 @@ For Microsoft Word documents, the add-on opens the file cleanly and safely. You 
 - `NVDA + Shift + Control + F`: Open the main search window.
 - `NVDA + Shift + Control + S`: Open the shortcuts and info dialog.
 - `NVDA + Shift + Control + D`: Open the PayPal donation page.
+- In the window: `Ctrl+F` filters results, `Alt+P` announces status (twice = copy), `Ctrl+U` checks for updates, **Feed Thunderbird** button for local RSS Feeds.
+- Full guide (IT/EN): `addon/doc/it/readme.html` and `addon/doc/en/readme.html` (also via Add-on Manager → Help).
 
 ---
 

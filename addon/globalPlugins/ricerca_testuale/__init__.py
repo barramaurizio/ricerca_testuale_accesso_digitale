@@ -41,7 +41,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -704,6 +704,71 @@ def save_bookmarks(bookmarks_list):
     except Exception:
         pass
 
+HISTORY_MAX = 20
+
+
+def _load_settings_dict():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+    except Exception:
+        pass
+    return {}
+
+
+def _save_settings_dict(data):
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
+def load_query_history():
+    hist = _load_settings_dict().get("query_history", [])
+    return [x for x in hist if isinstance(x, str) and x.strip()]
+
+
+def load_path_history():
+    hist = _load_settings_dict().get("path_history", [])
+    return [x for x in hist if isinstance(x, str) and x.strip()]
+
+
+def _push_history_item(key, value, max_items=HISTORY_MAX):
+    value = (value or "").strip()
+    if not value:
+        return
+    data = _load_settings_dict()
+    hist = [x for x in data.get(key, []) if isinstance(x, str) and x.strip()]
+    hist = [x for x in hist if x.casefold() != value.casefold()]
+    hist.insert(0, value)
+    data[key] = hist[:max_items]
+    _save_settings_dict(data)
+
+
+def add_query_to_history(query):
+    _push_history_item("query_history", query)
+
+
+def add_path_to_history(path):
+    _push_history_item("path_history", path)
+
+
+def clear_query_history():
+    data = _load_settings_dict()
+    data["query_history"] = []
+    _save_settings_dict(data)
+
+
+def clear_path_history():
+    data = _load_settings_dict()
+    data["path_history"] = []
+    _save_settings_dict(data)
+
+
 def get_dynamic_desktop_path():
     desktop_path = os.path.expanduser("~\\Desktop")
     if not os.path.exists(desktop_path):
@@ -950,12 +1015,11 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Ricerca nei Feed RSS/Atom: incolla un URL http(s), un file .rss/.atom/.xml oppure un OPML.\n"
-            "   Puoi cercare più link o cartelle contemporaneamente separandoli con virgola o punto e virgola.\n\n"
-            "• Pulsante Feed Thunderbird: trova automaticamente le cartelle Mail\\Feeds dei profili Thunderbird.\n"
-            "   La ricerca nei feed locali usa testo pulito (oggetto/corpo) con un risultato per articolo e apre il link originale nel browser.\n\n"
-            "• Occorrenze grezze opzionali: casella per elencare anche le righe grezze [FEED-RIGA] oltre agli articoli.\n\n"
-            "• Ordinamento per data articolo nei feed e nota sulle occorrenze grezze nello stato di avanzamento.\n"
+            "• Cronologia ricerche: salva in locale gli ultimi testi cercati e i percorsi usati.\n"
+            "   - Pulsante Cronologia oppure Ctrl+H: riprendi un testo già cercato.\n"
+            "   - Ctrl+Shift+H: riprendi un percorso già usato.\n"
+            "   - Menu Cronologia: elenco rapido, percorsi e svuota cronologia.\n\n"
+            "• Restano attive tutte le novità della 1.5.0 (Feed RSS/Thunderbird, filtro Ctrl+F, ecc.).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -1014,8 +1078,10 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + I : Mostra Info Versione e Autore\n"
             "  - Alt + P : Annuncia lo stato (due volte velocemente per copiare negli appunti)\n"
             "  - Pulsante Copia Stato : copia i dettagli della ricerca negli appunti\n"
+            "  - Ctrl + H : Cronologia testi cercati (riprendi una ricerca precedente)\n"
+            "  - Ctrl + Shift + H : Cronologia percorsi usati\n"
             "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
-            "  - TAB : Raggiunge anche il campo 'Stato avanzamento' leggibile dallo screen reader\n"
+            "  - TAB oppure Alt+S / S : Raggiunge anche il campo 'Stato avanzamento' leggibile dallo screen reader\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
             "  - Ctrl + P : Stampa rapida dei risultati di ricerca in lista\n"
             "  - Ctrl + E : Esporta Risultati\n"
@@ -1100,6 +1166,7 @@ class SearchFrame(wx.Frame):
         self.current_query = ""
         self.live_matches_count = 0
         self.bookmark_items = []
+        self.history_query_items = []
         self.last_alt_p_time = 0
         self.last_feed_raw_occurrences = 0
         self.current_sort = "recent_first"
@@ -1111,9 +1178,14 @@ class SearchFrame(wx.Frame):
 
         lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini e dialetti):")
         vbox.Add(lbl_query, 0, wx.ALL, 5)
+        hbox_query = wx.BoxSizer(wx.HORIZONTAL)
         self.txt_query = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.txt_query.Bind(wx.EVT_TEXT_ENTER, lambda e: self.start_search_thread())
-        vbox.Add(self.txt_query, 0, wx.EXPAND | wx.ALL, 5)
+        hbox_query.Add(self.txt_query, 1, wx.EXPAND | wx.ALL, 5)
+        btn_query_hist = wx.Button(panel, label="Cronolo&gia")
+        btn_query_hist.Bind(wx.EVT_BUTTON, self.on_recall_query_history)
+        hbox_query.Add(btn_query_hist, 0, wx.ALL, 5)
+        vbox.Add(hbox_query, 0, wx.EXPAND)
 
         hbox_filter = wx.BoxSizer(wx.HORIZONTAL)
         vbox_filter_choice = wx.BoxSizer(wx.VERTICAL)
@@ -1150,7 +1222,7 @@ class SearchFrame(wx.Frame):
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
 
-        btn_browse = wx.Button(panel, label="&Sfoglia...")
+        btn_browse = wx.Button(panel, label="S&foglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
 
@@ -1198,14 +1270,18 @@ class SearchFrame(wx.Frame):
 
         vbox.Add(hbox_actions, 0, wx.ALIGN_CENTER)
 
-        lbl_status_progress = wx.StaticText(panel, label="&Stato avanzamento ricerca (raggiungibile con Tab):")
+        lbl_status_progress = wx.StaticText(
+            panel,
+            label="&Stato avanzamento ricerca (raggiungibile con Tab e premendo S):",
+        )
         vbox.Add(lbl_status_progress, 0, wx.ALL, 5)
 
         self.txt_status_progress = wx.TextCtrl(
             panel,
-            value="Pronto per la ricerca. Premi Alt+P o ascolta l'avanzamento.",
+            value="Pronto per la ricerca. Premi Alt+P, Tab oppure S per lo stato.",
             style=wx.TE_READONLY,
         )
+        self.txt_status_progress.SetName("Stato avanzamento ricerca")
         vbox.Add(self.txt_status_progress, 0, wx.EXPAND | wx.ALL, 5)
 
         self.gauge = wx.Gauge(panel, range=100)
@@ -1324,8 +1400,11 @@ class SearchFrame(wx.Frame):
                 "NVDA+Shift+Control+F : Apri ricerca\n"
                 "NVDA+Shift+Control+S : Comandi\n"
                 "NVDA+Shift+Control+D : Donazioni\n"
+                "Ctrl+H : Cronologia testi\n"
+                "Ctrl+Shift+H : Cronologia percorsi\n"
                 "Ctrl+F : Filtra risultati\n"
                 "Alt+P : Stato (due volte = copia)\n"
+                "Alt+S / S : Campo stato avanzamento\n"
                 "Ctrl+U : Verifica aggiornamenti\n"
                 "Ctrl+E / Ctrl+P / Ctrl+D : Esporta / Stampa / Segnalibro\n"
             )
@@ -1416,6 +1495,22 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_manage_bookmarks, item_manage_bm)
         self.update_bookmarks_menu()
 
+        # Menu Cronologia
+        self.history_menu = wx.Menu()
+        item_hist_query = self.history_menu.Append(wx.ID_ANY, "Richiama &testo cercato...\tCtrl+H")
+        item_hist_path = self.history_menu.Append(wx.ID_ANY, "Richiama &percorso...\tCtrl+Shift+H")
+        self.history_menu.AppendSeparator()
+        item_clear_queries = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia &testi")
+        item_clear_paths = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia p&ercorsi")
+        self.history_menu.AppendSeparator()
+        menubar.Append(self.history_menu, "Cro&nologia")
+
+        self.Bind(wx.EVT_MENU, self.on_recall_query_history, item_hist_query)
+        self.Bind(wx.EVT_MENU, self.on_recall_path_history, item_hist_path)
+        self.Bind(wx.EVT_MENU, self.on_clear_query_history, item_clear_queries)
+        self.Bind(wx.EVT_MENU, self.on_clear_path_history, item_clear_paths)
+        self.update_history_menu()
+
         # Menu Strumenti
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...	Ctrl+U")
@@ -1491,6 +1586,78 @@ class SearchFrame(wx.Frame):
             self.bookmark_items.append(item.GetId())
             self.Bind(wx.EVT_MENU, lambda e, p=bm: self.on_select_bookmark(p), item)
 
+    def on_recall_query_history(self, event=None):
+        hist = load_query_history()
+        if not hist:
+            wx.CallLater(200, lambda: ui.message("Nessun testo nella cronologia."))
+            return
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona un testo già cercato da riprendere:",
+            "Cronologia testi",
+            hist,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel:
+                self.on_apply_history_query(sel)
+        dlg.Destroy()
+
+    def on_recall_path_history(self, event=None):
+        hist = load_path_history()
+        if not hist:
+            wx.CallLater(200, lambda: ui.message("Nessun percorso nella cronologia."))
+            return
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona un percorso già usato da riprendere:",
+            "Cronologia percorsi",
+            hist,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            sel = dlg.GetStringSelection()
+            if sel:
+                self.txt_path.SetValue(sel)
+                save_last_path(sel)
+                self.txt_path.SetFocus()
+                self.txt_path.SetInsertionPointEnd()
+                wx.CallLater(200, lambda: ui.message(f"Percorso ripreso: {sel}"))
+        dlg.Destroy()
+
+    def on_apply_history_query(self, query):
+        self.txt_query.SetValue(query)
+        self.txt_query.SetFocus()
+        self.txt_query.SetInsertionPointEnd()
+        wx.CallLater(200, lambda: ui.message(f"Testo ripreso: {query}"))
+
+    def on_clear_query_history(self, event=None):
+        if not load_query_history():
+            wx.CallLater(200, lambda: ui.message("La cronologia testi è già vuota."))
+            return
+        clear_query_history()
+        self.update_history_menu()
+        wx.CallLater(200, lambda: ui.message("Cronologia testi svuotata."))
+
+    def on_clear_path_history(self, event=None):
+        if not load_path_history():
+            wx.CallLater(200, lambda: ui.message("La cronologia percorsi è già vuota."))
+            return
+        clear_path_history()
+        wx.CallLater(200, lambda: ui.message("Cronologia percorsi svuotata."))
+
+    def update_history_menu(self):
+        for item_id in self.history_query_items:
+            try:
+                self.history_menu.Remove(item_id)
+            except Exception:
+                pass
+        self.history_query_items.clear()
+        for query in load_query_history()[:10]:
+            label = query if len(query) <= 60 else query[:57] + "..."
+            item = self.history_menu.Append(wx.ID_ANY, label)
+            self.history_query_items.append(item.GetId())
+            self.Bind(wx.EVT_MENU, lambda e, q=query: self.on_apply_history_query(q), item)
+
     def on_cancel_search(self, event):
         if not self.btn_search.IsEnabled():
             self._stop_search = True
@@ -1552,6 +1719,15 @@ class SearchFrame(wx.Frame):
         else:
             ui.message("Impossibile copiare negli appunti.")
 
+    def focus_status_progress(self, event=None):
+        try:
+            self.txt_status_progress.SetFocus()
+            self.txt_status_progress.SetInsertionPoint(0)
+            msg = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
+            ui.message(msg)
+        except Exception:
+            ui.message("Impossibile raggiungere lo stato di avanzamento.")
+
     def announce_progress(self):
         current_time = time.time()
         is_double_tap = (current_time - getattr(self, "last_alt_p_time", 0)) < 0.6
@@ -1585,6 +1761,12 @@ class SearchFrame(wx.Frame):
             self.txt_filter.SetFocus()
             ui.message("Filtra risultati")
             return
+        elif ctrl and key in (ord("H"), ord("h")) and event.ShiftDown():
+            self.on_recall_path_history()
+            return
+        elif ctrl and key in (ord("H"), ord("h")):
+            self.on_recall_query_history()
+            return
         elif ctrl and key in (ord("U"), ord("u")):
             self.on_check_updates(None)
             return
@@ -1608,6 +1790,17 @@ class SearchFrame(wx.Frame):
             return
         elif alt and key in (ord("P"), ord("p")):
             self.announce_progress()
+            return
+        elif alt and key in (ord("S"), ord("s")):
+            self.focus_status_progress()
+            return
+        elif key in (ord("S"), ord("s")) and not ctrl and not alt and not event.ShiftDown():
+            focus = wx.Window.FindFocus()
+            text_ctrls = (self.txt_query, self.txt_path, self.txt_custom_ext, self.txt_filter)
+            if focus not in text_ctrls and not isinstance(focus, wx.TextCtrl):
+                self.focus_status_progress()
+                return
+            event.Skip()
             return
         elif alt and key in (ord("N"), ord("n")):
             self.on_cancel_search(None)
@@ -1807,12 +2000,17 @@ class SearchFrame(wx.Frame):
         self.live_matches_count = 0
         self.last_feed_raw_occurrences = 0
         save_last_path(target_input)
+        add_query_to_history(query)
+        add_path_to_history(target_input)
+        self.update_history_menu()
 
         try:
             self.txt_filter.SetValue("")
         except Exception:
             pass
         self.lst_results.Clear()
+        # Evita che NVDA dica "sconosciuto" sulla lista vuota durante la scansione
+        self.lst_results.Append("Ricerca in corso... attendere prego.")
         self.file_map.clear()
         self.current_matches = []
         self.gauge.SetValue(0)
@@ -1933,7 +2131,7 @@ class SearchFrame(wx.Frame):
             if percent > 100:
                 percent = 100
             self.current_percent = percent
-            if percent % 10 == 0 and percent != last_spoken_percent:
+            if percent % 5 == 0 and percent != last_spoken_percent:
                 last_spoken_percent = percent
                 wx.CallAfter(self.update_progress, percent, units_done, work_units, len(raw_matches))
 

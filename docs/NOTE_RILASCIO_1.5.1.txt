@@ -1,0 +1,31 @@
+🌟 Novità della Versione 1.5.1
+(Copia questo testo nelle release GitHub)
+
+🇮🇹 Italiano
+
+- Cronologia ricerche: salva in locale gli ultimi testi cercati e i percorsi usati.
+- Pulsante Cronologia o Ctrl+H: riprendi un testo già cercato.
+- Ctrl+Shift+H: riprendi un percorso già usato.
+- Menu Cronologia: elenco rapido, percorsi e svuota.
+
+🇬🇧 English
+
+- Search history: keeps recent queries and paths locally.
+- Cronologia button or Ctrl+H: recall a previous query.
+- Ctrl+Shift+H: recall a previous path.
+- Cronologia menu: quick list, paths, and clear.
+
+---
+
+Titoli release consigliati
+
+Add-on:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.1
+Tag: v1.5.1
+Asset: ricerca_testuale_accesso_digitale-1.5.1.nvda-addon
+
+Standalone:
+Ricerca Testuale Accesso Digitale Standalone v1.5.1
+Tag: app-v1.5.1
+Asset: Setup_RicercaTestualeAccessoDigitale_v1.5.1.exe
+       RicercaTestualeAccessoDigitale_Portable_v1.5.1.exe

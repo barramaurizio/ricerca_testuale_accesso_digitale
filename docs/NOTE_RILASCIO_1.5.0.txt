@@ -1,0 +1,37 @@
+🌟 Novità della Versione 1.5.0
+(Copia questo testo nelle release GitHub)
+
+🇮🇹 Italiano
+
+- Feed RSS/Atom: cerca in URL http(s), file .rss/.atom/.xml e elenchi OPML (più percorsi con ; o ,).
+- Pulsante Feed Thunderbird: individua automaticamente le cartelle Mail\Feeds dei profili.
+- Ricerca feed a testo pulito: un risultato per articolo, data articolo in lista, apertura link originale nel browser.
+- Occorrenze grezze opzionali: casella per elencare anche le righe [FEED-RIGA] (utile per confrontare con Notepad++).
+- Indici Thunderbird (.msf e simili) esclusi correttamente dalla scansione.
+- Lettura possibile anche con Thunderbird aperto; avanzamento e annunci accessibili (Alt+P, sintesi, NVDA).
+- Filtro istantaneo risultati (Ctrl+F), MBOX/EML e funzioni già presenti dalla 1.4.x.
+
+🇬🇧 English
+
+- RSS/Atom feeds: search http(s) URLs, .rss/.atom/.xml files and OPML lists (multiple paths with ; or ,).
+- Thunderbird Feeds button: auto-detects Mail\Feeds folders in profiles.
+- Clean-text feed search: one result per article, article date in the list, opens the original link in the browser.
+- Optional raw occurrences: checkbox to also list [FEED-RIGA] lines (handy vs Notepad++ counts).
+- Thunderbird index files (.msf and similar) correctly skipped.
+- Can read while Thunderbird is open; accessible progress and speech (Alt+P, NVDA messages).
+- Instant results filter (Ctrl+F), plus MBOX/EML and features from 1.4.x.
+
+---
+
+Titoli release consigliati
+
+Add-on:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.0
+Tag: v1.5.0
+Asset: ricerca_testuale_accesso_digitale-1.5.0.nvda-addon
+
+Standalone:
+Ricerca Testuale Accesso Digitale Standalone v1.5.0
+Tag: app-v1.5.0
+Asset: Setup_RicercaTestualeAccessoDigitale_v1.5.0.exe
+       RicercaTestualeAccessoDigitale_Portable_v1.5.0.exe

@@ -1,0 +1,65 @@
+📘 MASTER FILE - Workflow Definitivo "Ricerca Testuale Accesso Digitale"
+Questo documento contiene l'architettura completa e le procedure step-by-step per aggiornare, compilare, pacchettizzare e pubblicare le nuove versioni (Standalone e Add-on NVDA) del progetto.
+
+📁 PARTE 1: Struttura del Progetto (Mappa delle Cartelle)
+La cartella di lavoro principale (sincronizzata con GitHub) si trova in:
+C:\Users\barra\Downloads\RicercaTestualeAccessoDigitaleGitHub
+
+Al suo interno l'albero è rigorosamente diviso così:
+📄 .gitignore
+📄 ricerca_testuale_accesso_digitale-X.X.X.nvda-addon
+📄 make_addon.py
+📄 README.md
+📁 addon
+  📄 manifest.ini
+  📁 doc -> 📁 it e 📁 en (readme.html)
+  📁 globalPlugins -> 📁 ricerca_testuale -> 📄 __init__.py
+📁 Standalone
+  📄 app_gui.py
+  📄 setup.iss
+  📄 version.txt
+  📄 compila.bat e 📄 build_exe.ps1
+  📄 IntegrazioneFileECartelle.reg e IntegrazioneMenu.reg
+  📁 InstallerOutput -> Setup_RicercaTestualeAccessoDigitale_vX.X.X.exe
+  📁 dist -> RicercaTestualeAccessoDigitale_Portable_vX.X.X.exe e cartella esplosa
+  📁 build (temporanea)
+
+🔄 REGOLA ZERO: L'ORDINE DI SVILUPPO
+Fase 1 (Applicazione Standalone): Si parte sempre dallo sviluppo e dal test delle novità sull'app indipendente.
+Fase 2 (Add-on NVDA): Stesse modifiche nell'Add-on, adattando alle regole NVDA (ui.message(), niente logging/SAPI5).
+Fase 3 (Compilazione Globale): Compilazione e pubblicazione simultanea.
+
+🛠️ PARTE 2: Compilazione Add-on NVDA (.nvda-addon)
+Regola d'oro: L'Add-on non deve MAI usare il modulo logging o SAPI5, ma solo ui.message().
+1. Aggiorna APP_VERSION in addon/globalPlugins/ricerca_testuale/__init__.py
+2. Aggiorna manifest.ini, doc/it/readme.html, doc/en/readme.html, README.md
+3. Aggiorna output_name in make_addon.py
+4. Esegui make_addon.py; rimuovi/sposta vecchi .nvda-addon
+
+⚙️ PARTE 3: Compilazione Applicazione Standalone (.exe)
+1. APP_VERSION in Standalone/app_gui.py
+2. version.txt
+3. setup.iss (AppVersion, OutputBaseFilename)
+4. Ordine: compila.bat -> Inno Setup F9 -> poi rinomina Portable in dist
+5. Sposta vecchi Installer/Portable sul disco esterno
+
+☁️ PARTE 4: GitHub Desktop
+Commit to main + Push origin con Summary e Description chiari.
+
+📦 PARTE 5: Release GitHub (due release separate)
+- Tag vX.X.X = Add-on (.nvda-addon)
+- Tag app-vX.X.X = Standalone (Setup + Portable)
+
+📢 PARTE 6: Store NVDA (addon-datastore)
+New issue Add-on registration con Download URL .nvda-addon, Source URL repo, Publisher Maurizio Barra, Channel stable.
+
+🤖 PARTE 7: Automazione preparazione rilascio (dal PC)
+Dalla root del repo:
+- prepara_rilascio.bat  (menu: check / bump / addon / notes / summary)
+- verifica_versioni.bat (solo controllo allineamento)
+- oppure: python tools\rtad_release.py check|bump X.Y.Z|addon|summary
+
+Lo script aggiorna i numeri di versione e ricostruisce il .nvda-addon.
+Restano manuali: novità nel codice, test, compila.bat, GitHub Desktop, Release Web, store.
+Dettagli: docs\AUTOMAZIONE_RILASCIO.md
+

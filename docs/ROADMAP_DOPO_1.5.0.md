@@ -33,36 +33,34 @@ Queste idee restano valide come **pista separata** (opzionale Standalone, o prog
 
 ## Piano per fasi (testabili una alla volta)
 
-### Fase A — `1.5.1` (cronologia) — STANDALONE OK, ADD-ON IN TEST
+### Fase A — `1.5.1` (cronologia) — FATTA ✅
 
 Obiettivo: rilascio piccolo, rischio basso, subito testabile.
 
-1. **Fix / lucidature** dalla 1.5.0 (segnalazioni store, testi guida, piccoli bug).  
-2. **Cronologia ricerche** ✅ Standalone testata da Maurizio; ✅ Add-on portato (da testare).  
-3. Allineamento gemelli + note bilingue + datastore dopo OK Add-on.
-
-*Idee accodate (non in 1.5.1):* EPUB (zip di XHTML, fattibile snello in una 1.5.x successiva); ricerca dentro ZIP generici (più delicata); miglioramento PDF con decompressione stream zlib (senza librerie pesanti).
-
-*Criterio “fatto”:* cronologia usabile a tastiera su entrambi i gemelli; nessuna regressione su feed/Thunderbird/Alt+P/Ctrl+F.
+1. Cronologia ricerche (testi + percorsi), Ctrl+H / Ctrl+Shift+H, menu, Add-on allineato.  
+2. Accessibilità: placeholder «Ricerca in corso…»; stato con Tab/Alt+S/S.  
+3. Release + datastore completati; tool automazione rilascio in repo.
 
 ---
 
-### Fase B — `1.5.2` (profili di ricerca)
+### Fase B — `1.5.2` (profili di ricerca) — PROSSIMA
 
 1. **Profili salvati** (es. «solo Feed Thunderbird», «solo EML», «cartella X + parole Y»).  
 2. Scorciatoia o menu per caricare/salvare/eliminare.  
-3. Stessa UX su Standalone e Add-on.
+3. Stessa UX su Standalone e Add-on.  
+4. *(Lucidatura leggera, se c’è spazio)* un solo pulsante Cronologia: etichetta tipo «Cronologia (Ctrl+H)» e/o piccola scelta Testi/Percorsi — **niente** altri bottoni in UI; Svuota resta nel sottomenù.
 
 *Criterio “fatto”:* tre profili di prova persistono dopo chiusura; annunci NVDA chiari.
 
 ---
 
-### Fase C — `1.5.3` (anteprima contesto)
+### Fase C — `1.5.3` (anteprima + avvisi a fine ricerca)
 
 1. **Anteprima più ricca** in lista: 2–3 righe intorno al match, navigabili senza aprire il file.  
-2. Coerente con Spazio/F4 già presenti; non appesantire la UI.
+2. Coerente con Spazio/F4 già presenti; non appesantire la UI.  
+3. **Notifica a fine ricerca** (Standalone prima): se la finestra non è in primo piano, avviso Windows / area notifiche (utile su scansioni lunghe). I beep restano; pin alla barra applicazioni = azione utente Windows (nessun codice dedicato).
 
-*Criterio “fatto”:* anteprima leggibile con frecce; feed `[FEED]` restano aperti nel browser con Invio.
+*Criterio “fatto”:* anteprima leggibile con frecce; feed `[FEED]` restano aperti nel browser con Invio; avviso a fine ricerca anche in secondo piano (Standalone).
 
 ---
 
@@ -92,11 +90,19 @@ Se le fasi A–C bastano come pacchetto “si sente diverso”, si può fare 1.6
 
 ---
 
+## Decisioni UX (settembre 2026)
+
+- **Niente** secondo/terzo pulsante Cronologia in interfaccia: scorciatoie + menu bastano; al massimo etichetta/scelta sul pulsante esistente.  
+- **Pin barra applicazioni / Windows+N:** gestiti da Windows; RTAD non reinventa il pin.  
+- **Notifiche fine ricerca** in secondo piano: sì, ma dopo i profili (Fase C / Standalone prima).
+
+---
+
 ## Ordine di lavoro consigliato (per Cursor / Maurizio)
 
-1. Lasciar sedimentare la **1.5.0** (feedback).  
-2. Implementare e testare **solo Fase A → 1.5.1**.  
-3. Poi B → C, una release ciascuna (o unite se piccole).  
+1. ~~1.5.0 / 1.5.1~~ fatte.  
+2. **Prossima: Fase B → 1.5.2 (profili).**  
+3. Poi Fase C (anteprima + notifiche).  
 4. Media leggeri quando A–C sono solide.  
 5. Decidere insieme il momento del tag **1.6.0**.
 
@@ -110,9 +116,9 @@ Vedi `docs/AUTOMAZIONE_RILASCIO.md`.
 ## Idee in lista d’attesa (non schedule)
 
 - Migliorie export/stampa  
-- **EPUB:** fattibile in modo snello (è uno ZIP di XHTML, simile a DOCX) → buona candidata `1.5.2`/`1.5.3`  
+- **EPUB:** fattibile in modo snello (è uno ZIP di XHTML, simile a DOCX) → dopo profili  
 - **ZIP generici:** più delicati (tanti formati, archivi enormi) → più avanti, opt-in  
-- **PDF migliorato:** decompressione stream zlib senza librerie pesanti (oggi già utile su molti PDF “semplici”)  
+- **PDF migliorato:** decompressione stream zlib senza librerie pesanti  
 - OCR opt-in Standalone  
 - Progetto gemello media / Whisper (separato)  
 - Altro che emergerà dagli utenti dello store  

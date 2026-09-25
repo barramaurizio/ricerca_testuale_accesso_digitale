@@ -41,7 +41,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -108,32 +108,74 @@ def decode_email_header(raw_header):
 
 
 def get_clean_email_text(msg):
+    """Estrae solo testo/HTML dall'email; salta allegati e parti binarie (PDF, ecc.)."""
     body = ""
     body_html = ""
-    if msg.is_multipart():
-        for part in msg.walk():
-            ctype = part.get_content_type()
-            cdisp = str(part.get("Content-Disposition"))
-            if "attachment" not in cdisp:
-                payload = part.get_payload(decode=True)
-                if payload:
-                    charset = part.get_content_charset() or "utf-8"
-                    try:
-                        text_part = payload.decode(charset, errors="ignore")
-                    except Exception:
-                        text_part = payload.decode("latin1", errors="ignore")
-                    if ctype == "text/plain":
-                        body += text_part + "\n"
-                    elif ctype == "text/html":
-                        body_html += text_part + "\n"
-    else:
-        payload = msg.get_payload(decode=True)
-        if payload:
-            charset = msg.get_content_charset() or "utf-8"
-            try:
-                body = payload.decode(charset, errors="ignore")
-            except Exception:
-                body = payload.decode("latin1", errors="ignore")
+    skipped = []
+    max_bytes = 1_500_000
+
+    def _looks_binary(payload):
+        if not payload:
+            return False
+        head = payload[:8192]
+        if head.startswith(b"%PDF"):
+            return True
+        if b"\x00" in head:
+            return True
+        return False
+
+    def _consume_part(part):
+        nonlocal body, body_html
+        ctype = (part.get_content_type() or "").lower()
+        if ctype.startswith("multipart/"):
+            return
+        cdisp = str(part.get("Content-Disposition") or "").lower()
+        filename = ""
+        try:
+            filename = part.get_filename() or ""
+        except Exception:
+            filename = ""
+        label = filename or ctype
+
+        if "attachment" in cdisp:
+            skipped.append(label)
+            return
+        if ctype not in ("text/plain", "text/html"):
+            if filename or ctype.startswith(("application/", "image/", "audio/", "video/", "model/")):
+                skipped.append(label)
+            return
+
+        try:
+            payload = part.get_payload(decode=True)
+        except Exception:
+            payload = None
+        if not payload:
+            return
+        if _looks_binary(payload):
+            skipped.append(label or "binario")
+            return
+        if len(payload) > max_bytes:
+            payload = payload[:max_bytes]
+
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            text_part = payload.decode(charset, errors="ignore")
+        except Exception:
+            text_part = payload.decode("latin1", errors="ignore")
+
+        if ctype == "text/plain":
+            body += text_part + "\n"
+        else:
+            body_html += text_part + "\n"
+
+    try:
+        if msg.is_multipart():
+            for part in msg.walk():
+                _consume_part(part)
+        else:
+            _consume_part(msg)
+    except Exception:
+        pass
 
     if not body.strip() and body_html:
         body = body_html
@@ -146,7 +188,21 @@ def get_clean_email_text(msg):
     body = re.sub(r"<[^>]+>", " ", body)
     body = html.unescape(body)
     lines = [line.strip() for line in body.split("\n")]
-    return "\n".join([line for line in lines if line])
+    text = "\n".join([line for line in lines if line])
+
+    if skipped:
+        seen = set()
+        uniq = []
+        for s in skipped:
+            key = str(s).strip() or "allegato"
+            if key not in seen:
+                seen.add(key)
+                uniq.append(key)
+        note = ", ".join(uniq[:8])
+        if len(uniq) > 8:
+            note += f" (+{len(uniq) - 8})"
+        text = (text + "\n\n" if text else "") + f"[Allegati non testuali omessi: {note}]"
+    return text
 
 
 def strip_html_to_text(html_content):
@@ -362,10 +418,145 @@ def message_date_timestamp(msg, fallback=0):
         try:
             dt = parsedate_to_datetime(str(raw))
             if dt is not None:
+                if getattr(dt, "tzinfo", None) is None:
+                    return dt.timestamp()
                 return dt.timestamp()
         except Exception:
             pass
     return fallback
+
+
+def format_email_date_label(msg, fallback_ts=0):
+    """Data breve dd/mm/yyyy dall'header Date (come nei risultati Feed)."""
+    ts = message_date_timestamp(msg, fallback=fallback_ts or 0)
+    if not ts:
+        return ""
+    try:
+        return datetime.datetime.fromtimestamp(ts).strftime("%d/%m/%Y")
+    except Exception:
+        return ""
+
+
+def _format_email_viewer_text(msg):
+    subject = decode_email_header(msg.get("subject", "(Nessun oggetto)"))
+    sender = decode_email_header(msg.get("from", "(Sconosciuto)"))
+    to = decode_email_header(msg.get("to", "(Sconosciuto)"))
+    date = msg.get("date", "(Nessuna data)")
+    body = get_clean_email_text(msg)
+    full_text = (
+        f"Oggetto: {subject}\n"
+        f"Da: {sender}\n"
+        f"A: {to}\n"
+        f"Data: {date}\n"
+        f"{'-'*60}\n\n"
+        f"{body}"
+    )
+    return full_text.replace("\r\n", "\n").replace("\n", "\r\n")
+
+
+def _find_query_in_viewer_text(full_text, search_query):
+    if not search_query or not full_text:
+        return -1, 0
+    terms = search_query.split()
+    text_lower = full_text.lower()
+    for term in terms:
+        t = term.lower()
+        idx = text_lower.find(t)
+        if idx != -1:
+            return idx, len(t)
+    text_norm = normalize_search_text(full_text, True)
+    for term in normalize_search_text(search_query, True).split():
+        idx = text_norm.find(term)
+        if idx != -1:
+            return idx, len(term)
+    return -1, 0
+
+
+def load_mbox_message_by_index(file_path, msg_index, should_abort=None, on_progress=None):
+    """Carica UN solo messaggio MBOX per indice senza caricare tutta la casella in RAM.
+
+    Nota: in NVDA non c'è il modulo mailbox; scorre le righe From_ in streaming.
+    """
+    if msg_index is None or msg_index < 0:
+        raise IndexError("Indice messaggio non valido")
+
+    def _open():
+        if sys.platform.startswith("win"):
+            try:
+                import msvcrt
+                GENERIC_READ = 0x80000000
+                FILE_SHARE_READ = 0x00000001
+                FILE_SHARE_WRITE = 0x00000002
+                FILE_SHARE_DELETE = 0x00000004
+                OPEN_EXISTING = 3
+                FILE_ATTRIBUTE_NORMAL = 0x80
+                INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+                CreateFileW = ctypes.windll.kernel32.CreateFileW
+                CreateFileW.restype = ctypes.c_void_p
+                handle = CreateFileW(
+                    str(file_path),
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    None,
+                    OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL,
+                    None,
+                )
+                if handle is None or handle == INVALID_HANDLE_VALUE or handle == -1:
+                    raise OSError("CreateFile non riuscita")
+                fd = msvcrt.open_osfhandle(int(handle), os.O_RDONLY)
+                return os.fdopen(fd, "rb")
+            except Exception:
+                pass
+        return open(file_path, "rb")
+
+    def _parse(raw):
+        if not raw:
+            raise ValueError("Messaggio MBOX vuoto")
+        if raw.startswith(b"From "):
+            nl = raw.find(b"\n")
+            if nl != -1:
+                raw = raw[nl + 1 :]
+        try:
+            return email.message_from_bytes(raw, policy=policy.default)
+        except Exception:
+            return email.message_from_bytes(raw)
+
+    current = -1
+    start_pos = None
+    f = _open()
+    try:
+        while True:
+            if should_abort and should_abort():
+                raise InterruptedError("Caricamento interrotto")
+            line_start = f.tell()
+            line = f.readline()
+            if not line:
+                break
+            if line.startswith(b"From "):
+                if current == msg_index:
+                    end_pos = line_start
+                    f.seek(start_pos)
+                    return _parse(f.read(end_pos - start_pos))
+                current += 1
+                if current == msg_index:
+                    start_pos = line_start
+                if on_progress and current > 0 and current % 25000 == 0:
+                    try:
+                        on_progress(current)
+                    except Exception:
+                        pass
+        if start_pos is None:
+            raise IndexError(
+                f"Messaggio {msg_index} non trovato (trovati {current + 1} messaggi)"
+            )
+        f.seek(start_pos)
+        return _parse(f.read())
+    finally:
+        try:
+            f.close()
+        except Exception:
+            pass
 
 
 def extract_article_url_from_message(msg, body_text=""):
@@ -467,12 +658,7 @@ def _match_message_to_result(file_path, file_name, msg, msg_idx, terms, mtime, p
     article_url = extract_article_url_from_message(msg, body)
     display = subject[:60] + ("..." if len(subject) > 60 else "") if subject else file_name
     article_ts = message_date_timestamp(msg, fallback=mtime or 0)
-    date_label = ""
-    if article_ts:
-        try:
-            date_label = datetime.datetime.fromtimestamp(article_ts).strftime("%d/%m/%Y")
-        except Exception:
-            date_label = ""
+    date_label = format_email_date_label(msg, fallback_ts=mtime or 0)
     loc = "Articolo Feed"
     if date_label:
         loc = f"Articolo Feed {date_label}"
@@ -486,6 +672,7 @@ def _match_message_to_result(file_path, file_name, msg, msg_idx, terms, mtime, p
         "location_info": loc,
         "snippet": snippet,
         "article_url": article_url,
+        "viewer_text": _format_email_viewer_text(msg),
     }
 
 
@@ -737,6 +924,22 @@ def load_path_history():
     return [x for x in hist if isinstance(x, str) and x.strip()]
 
 
+VALID_SORT_TYPES = ("recent_first", "oldest_first", "name")
+
+
+def load_sort_preference():
+    raw = _load_settings_dict().get("results_sort", "recent_first")
+    return raw if raw in VALID_SORT_TYPES else "recent_first"
+
+
+def save_sort_preference(sort_type):
+    if sort_type not in VALID_SORT_TYPES:
+        return
+    data = _load_settings_dict()
+    data["results_sort"] = sort_type
+    _save_settings_dict(data)
+
+
 def _push_history_item(key, value, max_items=HISTORY_MAX):
     value = (value or "").strip()
     if not value:
@@ -880,122 +1083,197 @@ class EmlViewerFrame(wx.Frame):
         )
         self.file_path = file_path
         self.search_query = search_query
+        self._closed = False
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display.SetValue(
+            "Caricamento email in corso…\r\n"
+            "Se il messaggio ha allegati grandi, attendere qualche secondo."
+        )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
         btn_close = wx.Button(panel, label="C&hiudi (ESC)")
-        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
         hbox_btns.Add(btn_close, 0, wx.ALL, 5)
-        
+
         vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
-        
-        wx.CallAfter(self.load_email)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
 
-    def load_email(self):
+        ui.message("Caricamento email in corso.")
+        threading.Thread(target=self._load_worker, daemon=True).start()
+
+    def on_close(self, event):
+        self._closed = True
+        event.Skip()
+
+    def _load_worker(self):
+        full_text = None
+        err = None
         try:
-            with open(self.file_path, "r", encoding="utf-8", errors="ignore") as f:
-                msg = email.message_from_file(f, policy=policy.default)
-        except Exception:
             try:
-                with open(self.file_path, "r", encoding="latin1", errors="ignore") as f:
+                with open(self.file_path, "r", encoding="utf-8", errors="ignore") as f:
                     msg = email.message_from_file(f, policy=policy.default)
             except Exception:
-                self.txt_display.SetValue("Errore durante la lettura del file email.")
+                with open(self.file_path, "r", encoding="latin1", errors="ignore") as f:
+                    msg = email.message_from_file(f, policy=policy.default)
+            full_text = _format_email_viewer_text(msg)
+        except Exception:
+            err = True
+        if self._closed:
+            return
+        if err:
+            wx.CallAfter(self._apply_loaded_text, "Errore durante la lettura del file email.")
+        else:
+            wx.CallAfter(self._apply_loaded_text, full_text)
+
+    def _apply_loaded_text(self, full_text):
+        if self._closed:
+            return
+        try:
+            if not self.txt_display:
                 return
-
-        subject = msg.get("subject", "(Nessun oggetto)")
-        sender = msg.get("from", "(Sconosciuto)")
-        to = msg.get("to", "(Sconosciuto)")
-        date = msg.get("date", "(Nessuna data)")
-
-        body = ""
-        body_html = ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                content_disposition = str(part.get("Content-Disposition"))
-                if "attachment" not in content_disposition:
-                    try:
-                        if content_type == "text/plain":
-                            body += part.get_content()
-                        elif content_type == "text/html":
-                            body_html += part.get_content()
-                    except Exception:
-                        pass
+        except RuntimeError:
+            return
+        self.txt_display.SetValue(full_text or "")
+        pos, term_len = _find_query_in_viewer_text(full_text or "", self.search_query)
+        self.txt_display.SetFocus()
+        if pos != -1:
+            self.txt_display.SetSelection(pos, pos + term_len)
         else:
-            try:
-                body = msg.get_content()
-            except Exception:
-                pass
-
-        if not body.strip() and body_html:
-            body = body_html
-
-        body = re.sub(r'<style.*?>.*?</style>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
-        body = re.sub(r'<script.*?>.*?</script>', ' ', body, flags=re.IGNORECASE | re.DOTALL)
-        body = re.sub(r'<br\s*/?>', '\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'</p>', '\n\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'</div>', '\n', body, flags=re.IGNORECASE)
-        body = re.sub(r'<[^>]+>', ' ', body)
-        body = html.unescape(body)
-        
-        lines = [line.strip() for line in body.split('\n')]
-        body = '\n'.join([line for line in lines if line])
-
-        full_text = (
-            f"Oggetto: {subject}\n"
-            f"Da: {sender}\n"
-            f"A: {to}\n"
-            f"Data: {date}\n"
-            f"{'-'*60}\n\n"
-            f"{body}"
-        )
-
-        full_text = full_text.replace('\r\n', '\n').replace('\n', '\r\n')
-        self.txt_display.SetValue(full_text)
-
-        if self.search_query:
-            terms = self.search_query.split()
-            pos = -1
-            term_len = 0
-            
-            text_lower = full_text.lower()
-            for term in terms:
-                t = term.lower()
-                idx = text_lower.find(t)
-                if idx != -1:
-                    pos = idx
-                    term_len = len(t)
-                    break
-            
-            if pos == -1:
-                text_norm = normalize_search_text(full_text, True)
-                for term in normalize_search_text(self.search_query, True).split():
-                    idx = text_norm.find(term)
-                    if idx != -1:
-                        pos = idx
-                        term_len = len(term)
-                        break
-
-            self.txt_display.SetFocus()
-            if pos != -1:
-                self.txt_display.SetSelection(pos, pos + term_len)
-            else:
-                self.txt_display.SetInsertionPoint(0)
-        else:
-            self.txt_display.SetFocus()
+            self.txt_display.SetInsertionPoint(0)
+        ui.message("Email caricata.")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
-            self.Destroy()
+            self.Close()
+        else:
+            event.Skip()
+
+
+class MboxViewerFrame(wx.Frame):
+    def __init__(self, parent, mbox_file_path, msg_index, search_query, cached_text=None):
+        super(MboxViewerFrame, self).__init__(
+            parent,
+            title=f"Lettore MBOX - Messaggio {msg_index + 1}",
+            size=(800, 650),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+        self.mbox_file_path = mbox_file_path
+        self.msg_index = msg_index
+        self.search_query = search_query
+        self.cached_text = cached_text
+        self._closed = False
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        if cached_text:
+            self.txt_display.SetValue("Preparazione visualizzazione…\r\n")
+        else:
+            self.txt_display.SetValue(
+                "Caricamento messaggio in corso…\r\n"
+                "Su caselle Thunderbird molto grandi può richiedere alcuni secondi.\r\n"
+                "Puoi chiudere con ESC."
+            )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
+        if cached_text:
+            ui.message(f"Messaggio {msg_index + 1} dalla ricerca.")
+            wx.CallAfter(self._apply_loaded_text, cached_text)
+        else:
+            ui.message(f"Caricamento messaggio {msg_index + 1} dall'archivio. Attendere.")
+            threading.Thread(target=self._load_worker, daemon=True).start()
+
+    def on_close(self, event):
+        self._closed = True
+        event.Skip()
+
+    def _load_worker(self):
+        full_text = None
+        err = None
+
+        def _progress(n):
+            if self._closed:
+                return
+            wx.CallAfter(
+                self._set_status_text,
+                f"Caricamento in corso… scanditi {n} messaggi "
+                f"(destinazione {self.msg_index + 1}).\r\n"
+                "Puoi chiudere con ESC.",
+            )
+
+        try:
+            msg = load_mbox_message_by_index(
+                self.mbox_file_path,
+                self.msg_index,
+                should_abort=lambda: self._closed,
+                on_progress=_progress,
+            )
+            full_text = _format_email_viewer_text(msg)
+        except InterruptedError:
+            return
+        except Exception:
+            err = True
+        if self._closed:
+            return
+        if err:
+            wx.CallAfter(
+                self._apply_loaded_text,
+                "Errore durante la lettura del messaggio.\r\n"
+                "Riavvia la ricerca e riapri il risultato "
+                "(il testo resta in memoria e si apre subito).",
+            )
+        else:
+            wx.CallAfter(self._apply_loaded_text, full_text)
+
+    def _set_status_text(self, text):
+        if self._closed:
+            return
+        try:
+            if self.txt_display:
+                self.txt_display.SetValue(text)
+        except RuntimeError:
+            pass
+
+    def _apply_loaded_text(self, full_text):
+        if self._closed:
+            return
+        try:
+            if not self.txt_display:
+                return
+        except RuntimeError:
+            return
+        self.txt_display.SetValue(full_text or "")
+        pos, term_len = _find_query_in_viewer_text(full_text or "", self.search_query)
+        self.txt_display.SetFocus()
+        if pos != -1:
+            self.txt_display.SetSelection(pos, pos + term_len)
+        else:
+            self.txt_display.SetInsertionPoint(0)
+        ui.message("Messaggio caricato.")
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Close()
         else:
             event.Skip()
 
@@ -1015,11 +1293,10 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Cronologia ricerche: salva in locale gli ultimi testi cercati e i percorsi usati.\n"
-            "   - Pulsante Cronologia oppure Ctrl+H: riprendi un testo già cercato.\n"
-            "   - Ctrl+Shift+H: riprendi un percorso già usato.\n"
-            "   - Menu Cronologia: elenco rapido, percorsi e svuota cronologia.\n\n"
-            "• Restano attive tutte le novità della 1.5.0 (Feed RSS/Thunderbird, filtro Ctrl+F, ecc.).\n"
+            "• Lettore email/MBOX: apertura immediata dai risultati di ricerca.\n"
+            "• Allegati PDF/binari esclusi; data messaggio nei risultati MBOX.\n"
+            "• Ordinamento risultati memorizzato tra una sessione e l'altra.\n\n"
+            "• Restano attive le novità della 1.5.1 (Cronologia) e della 1.5.0 (Feed).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -1169,7 +1446,7 @@ class SearchFrame(wx.Frame):
         self.history_query_items = []
         self.last_alt_p_time = 0
         self.last_feed_raw_occurrences = 0
-        self.current_sort = "recent_first"
+        self.current_sort = load_sort_preference()
 
         self._init_menu_bar()
 
@@ -2207,6 +2484,8 @@ class SearchFrame(wx.Frame):
                             sender = decode_email_header(str(msg.get("from", "")))
                             body = get_clean_email_text(msg)
                             msg_ts = message_date_timestamp(msg, fallback=mtime)
+                            date_label = format_email_date_label(msg, fallback_ts=msg_ts)
+                            date_suffix = f" {date_label}" if date_label else ""
                             hay = f"{subject}\n{sender}\n{body}"
                             if not text_matches_terms(hay, terms):
                                 continue
@@ -2226,8 +2505,9 @@ class SearchFrame(wx.Frame):
                                 "prefix": "[MBOX]",
                                 "mtime": msg_ts,
                                 "line_number": msg_idx,
-                                "location_info": f"Msg {msg_idx + 1}",
+                                "location_info": f"Msg {msg_idx + 1}{date_suffix}",
                                 "snippet": snippet[:200],
+                                "viewer_text": _format_email_viewer_text(msg),
                             })
                             found_in_content = True
                     except Exception:
@@ -2427,7 +2707,7 @@ class SearchFrame(wx.Frame):
         self.btn_search.Enable()
         self.btn_cancel.Disable()
 
-        self.sort_and_display_matches(sort_type="recent_first")
+        self.sort_and_display_matches(sort_type=self.current_sort)
         
         if matches > 0:
             self.lst_results.SetSelection(0)
@@ -2481,6 +2761,18 @@ class SearchFrame(wx.Frame):
                     jump_to_line_in_editor(file_to_open, line_num)
                     return
                 ui.message("Collegamento articolo non disponibile.")
+                return
+
+            if prefix == "[MBOX]":
+                ui.message(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
+                viewer = MboxViewerFrame(
+                    self,
+                    file_to_open,
+                    line_num,
+                    self.current_query,
+                    cached_text=item.get("viewer_text"),
+                )
+                viewer.Show()
                 return
 
             if ext in [".docx", ".doc"]:
@@ -2549,6 +2841,7 @@ class SearchFrame(wx.Frame):
 
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)
+        save_sort_preference(sort_type)
         if sort_type == "recent_first":
             ui.message("Risultati ordinati dal più recente al meno recente.")
         elif sort_type == "oldest_first":

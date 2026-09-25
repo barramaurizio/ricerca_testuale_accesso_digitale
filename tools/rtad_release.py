@@ -262,12 +262,14 @@ def bump_doc_html(path: Path, new_version: str) -> None:
 
 
 def prepend_changelog(path: Path, new_version: str) -> None:
+    """Prepende uno stub in cima, formato Maurizio: «Novità nella Versione X.Y.Z»."""
     text = read_text(path)
-    header = f"v{new_version}\n"
-    if text.startswith(header) or text.startswith(f"v{new_version}\r"):
+    header_new = f"Novità nella Versione {new_version}"
+    # Evita doppio stub se già presente (formato nuovo o legacy vX.Y.Z)
+    if text.startswith(header_new) or text.startswith(f"v{new_version}"):
         return
     stub = (
-        f"v{new_version}\n"
+        f"{header_new}\n"
         f"- (compila qui i punti novità prima del rilascio)\n"
         f"\n"
     )

@@ -1,0 +1,68 @@
+🌟 Novità della Versione 1.5.2
+(Copia questo testo nelle release GitHub)
+
+🇮🇹 Italiano
+
+- Lettore email/MBOX: dai risultati di ricerca il messaggio si apre subito (testo già letto in scansione).
+- Niente più blocco su INBOX Thunderbird enormi: non si ricostruisce l’indice di tutta la casella all’apertura.
+- Allegati PDF e binari esclusi dal testo mostrato; a fine messaggio una nota con i nomi omessi.
+- Data del messaggio (gg/mm/aaaa) anche nei risultati MBOX e .eml, come già nei Feed.
+- Ordinamento risultati memorizzato tra una sessione e l’altra (dal più recente / meno recente / nome).
+- Add-on: i risultati MBOX si aprono nel lettore interno (non solo nell’editor).
+
+🇬🇧 English
+
+- Email/MBOX viewer: opening a search hit is instant (text already collected during scan).
+- No more freeze on huge Thunderbird INBOX: opening does not rebuild the full mailbox index.
+- PDF and binary attachments are skipped in the displayed text; a short note lists omitted names.
+- Message date (dd/mm/yyyy) also shown in MBOX and .eml results, same as Feeds.
+- Results sort order remembered between sessions (newest / oldest / name).
+- Add-on: MBOX hits open in the internal reader (not only in an external editor).
+
+---
+
+Titoli release consigliati
+
+Add-on:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.2
+Tag: v1.5.2
+Asset: ricerca_testuale_accesso_digitale-1.5.2.nvda-addon
+
+Standalone:
+Ricerca Testuale Accesso Digitale Standalone v1.5.2
+Tag: app-v1.5.2
+Asset: Setup_RicercaTestualeAccessoDigitale_v1.5.2.exe
+       RicercaTestualeAccessoDigitale_Portable_v1.5.2.exe
+
+---
+
+GitHub Desktop — Commit
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.5.2
+
+Description:
+Fix blocco lettore MBOX su email con PDF / caselle grandi.
+Apertura istantanea dai risultati, skip allegati binari, date e
+ordinamento memorizzato.
+
+---
+
+Store NVDA (addon-datastore)
+
+Form: https://github.com/nvaccess/addon-datastore/issues/new?template=registerAddon.yml
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.2/ricerca_testuale_accesso_digitale-1.5.2.nvda-addon
+Source URL: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+Publisher: Maurizio Barra
+Channel: stable
+License Name: GPL v2
+License URL: https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+Log diagnostica (prova Python)
+
+File continuo: %APPDATA%\RTAD_Standalone\rtad_debug.log
+(si accumula tra una sessione e l’altra; non si perde chiudendo l’app)
+Esporta sul Desktop: menu / comando già presente → Log_RTAD_AAAAMMGG_HHMMSS.txt

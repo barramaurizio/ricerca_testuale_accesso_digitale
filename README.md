@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.1)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.2)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,10 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.2
+- **Lettore email/MBOX più sicuro:** caricamento in secondo piano; allegati PDF/binari esclusi dal testo.
+- **Data messaggio** (gg/mm/aaaa) anche nei risultati MBOX e `.eml`.
 
 ### 🌟 Novità della Versione 1.5.1
 - **Cronologia ricerche:** ultimi testi e percorsi in locale; `Ctrl+H` / pulsante Cronologia e `Ctrl+Shift+H`; menu Cronologia.
@@ -45,6 +49,10 @@ Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro
 ## 🇬🇧 English
 
 An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
+
+### 🌟 What's New in Version 1.5.2
+- **Safer email/MBOX viewer:** background loading; PDF/binary attachments skipped in displayed text.
+- **Message date** (dd/mm/yyyy) also in MBOX and `.eml` results.
 
 ### 🌟 What's New in Version 1.5.1
 - **Search history:** recent queries and paths kept locally; `Ctrl+H` / Cronologia button and `Ctrl+Shift+H`; Cronologia menu.

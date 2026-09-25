@@ -1,3 +1,12 @@
+Novità nella Versione 1.5.2
+- Lettore EML/MBOX: caricamento in thread secondario (UI non si blocca su caselle grandi)
+- Apertura MBOX dai risultati: usa il testo già letto in ricerca (istantaneo, senza reindicizzare INBOX)
+- Fallback streaming From_ se serve rileggere il file (niente mailbox.mbox su caselle enormi)
+- Allegati PDF/binari esclusi dal testo; nota a fine messaggio con i nomi omessi
+- Data messaggio (gg/mm/aaaa) nei risultati MBOX e .eml (come nei Feed)
+- Ordinamento risultati memorizzato tra una sessione e l'altra (Standalone e Add-on)
+- Add-on: apertura MBOX nel lettore interno
+
 Novità nella Versione 1.5.1
 - Cronologia ricerche: ultimi testi e percorsi in locale
 - Ctrl+H / pulsante Cronologia: riprendi testo; Ctrl+Shift+H: riprendi percorso

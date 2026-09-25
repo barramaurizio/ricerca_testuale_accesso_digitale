@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,11 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.3
+- **PDF migliorato:** testo reale (anche ToUnicode/CID, tabellini Leghe); niente più spazzatura `endstream`/simboli.
+- **Menu:** «Copia Testo», «Copia Immagine» e «Salva Immagine...» (anche scansioni PDF); non i soli loghi.
+- **Data documento** (gg/mm/aaaa) nei risultati PDF; match «Testo PDF» / «Nome File».
 
 ### 🌟 Novità della Versione 1.5.2
 - **Lettore email/MBOX più sicuro:** caricamento in secondo piano; allegati PDF/binari esclusi dal testo.
@@ -49,6 +54,11 @@ Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro
 ## 🇬🇧 English
 
 An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
+
+### 🌟 What's New in Version 1.5.3
+- **Improved PDF:** real text (including ToUnicode/CID league sheets); no more `endstream`/symbol junk.
+- **Menu:** “Copia Testo”, “Copia Immagine” and “Salva Immagine...” (including PDF scans); not logo-only.
+- **Document date** (dd/mm/yyyy) in PDF results; “Testo PDF” / “Nome File” match labels.
 
 ### 🌟 What's New in Version 1.5.2
 - **Safer email/MBOX viewer:** background loading; PDF/binary attachments skipped in displayed text.

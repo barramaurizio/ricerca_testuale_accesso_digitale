@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.5.3
+(Testi pronti da incollare — release GitHub + datastore)
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.3
+
+Tag:
+v1.5.3
+
+Asset:
+ricerca_testuale_accesso_digitale-1.5.3.nvda-addon
+
+Descrizione (body markdown da incollare):
+
+```markdown
+## 🇮🇹 Italiano
+
+- PDF migliorato: testo reale dagli stream compressi (niente più metadati/spazzatura).
+- Supporto ToUnicode/CID (tabellini Leghe che Edge leggeva e prima risultavano vuoti).
+- Menu contestuale: **Copia Testo**, **Copia Immagine** e **Salva Immagine...** separate.
+- Copia Immagine da PDF: pagine grandi (anche scansioni ScanSnap); non i soli loghi 324×324.
+- Salva Immagine: esporta la pagina/scansione su disco a piena risoluzione (JPG/PNG/BMP).
+- Ricerca PDF più reattiva: salta gli Image XObject (niente «Non risponde» inutile).
+- Data documento (gg/mm/aaaa) nei risultati PDF; etichette «Testo PDF» / «Nome File».
+
+## 🇬🇧 English
+
+- Improved PDF: real text from compressed streams (no more metadata junk).
+- ToUnicode/CID support (league sheets Edge could read that used to copy empty).
+- Context menu: separate **Copia Testo**, **Copia Immagine** and **Salva Immagine...**.
+- Copy Image from PDF: page-sized images (including ScanSnap scans); not logo-only 324×324.
+- Save Image: export the page/scan to disk at full resolution (JPG/PNG/BMP).
+- Faster PDF search: skips Image XObjects.
+- Document date (dd/mm/yyyy) in PDF results; “Testo PDF” / “Nome File” labels.
+```
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.3
+
+Tag:
+app-v1.5.3
+
+Asset:
+Setup_RicercaTestualeAccessoDigitale_v1.5.3.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.3.exe
+
+Descrizione: stessa del body Add-on qui sopra (IT + EN).
+
+════════════════════════════════════════════════════════
+GitHub Desktop — Commit (se ancora da fare in locale)
+════════════════════════════════════════════════════════
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.5.3
+
+Description:
+PDF: testo ToUnicode/CID, Copia/Salva Immagine (anche scansioni), data nei risultati.
+
+════════════════════════════════════════════════════════
+Store NVDA (addon-datastore)
+════════════════════════════════════════════════════════
+
+Form:
+https://github.com/nvaccess/addon-datastore/issues/new?template=registerAddon.yml
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.3/ricerca_testuale_accesso_digitale-1.5.3.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Publisher: Maurizio Barra
+Channel: stable
+License Name: GPL v2
+License URL: https://www.gnu.org/licenses/gpl-2.0.html
+
+Changelog (IT, da incollare nel form se richiesto):
+- PDF: testo reale (FlateDecode + ToUnicode/CID); niente spazzatura endstream/simboli
+- Menu: Copia Testo, Copia Immagine e Salva Immagine...
+- Copia/Salva Immagine da PDF (anche scansioni); non solo loghi
+- Data documento nei risultati PDF; etichette Testo PDF / Nome File

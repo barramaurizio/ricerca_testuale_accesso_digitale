@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.2 — Guida</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.3 — Guida</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,18 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.2</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.3</h1>
     <p>Autore: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>Componente aggiuntivo per NVDA: ricerca testuale accessibile su file, cartelle e intere unità, con salto alla riga, lettura EML nativa, feed RSS/Atom e Feed Thunderbird.</p>
 
     <div class="update">
+        <strong>Novità Versione 1.5.3</strong>
+        <ul>
+            <li><strong>PDF migliorato:</strong> testo reale dagli stream compressi, anche ToUnicode/CID (tabellini Leghe); niente più spazzatura tipo <code>endstream</code>/simboli.</li>
+            <li><strong>Menu contestuale:</strong> «Copia Testo», «Copia Immagine» e «Salva Immagine...» separate (non più un solo comando misto).</li>
+            <li><strong>PDF scansionati</strong> (es. ricevute ScanSnap): Copia Testo avvisa che non c’è testo; Copia/Salva Immagine esportano la pagina grafica (non i soli loghi).</li>
+            <li><strong>Data documento</strong> (gg/mm/aaaa) nei risultati PDF; etichette «Testo PDF» / «Nome File».</li>
+        </ul>
         <strong>Novità Versione 1.5.2</strong>
         <ul>
             <li><strong>Lettore email/MBOX più sicuro:</strong> caricamento in secondo piano; allegati PDF/binari esclusi dal testo (nota a fine messaggio).</li>
@@ -44,10 +51,10 @@
     <h2>Formati supportati</h2>
     <ul>
         <li>Testo: <code>.txt</code>, <code>.log</code>, <code>.csv</code> e simili</li>
-        <li>Documenti: Word (<code>.docx</code>, <code>.doc</code>), PDF</li>
+        <li>Documenti: Word (<code>.docx</code>, <code>.doc</code>), PDF (testo e, se scansionati, pagina immagine)</li>
         <li>Posta: file <code>.eml</code> (lettura nativa) e contenitori stile mailbox / Feed Thunderbird</li>
         <li>Feed: URL RSS/Atom, file feed locali, OPML, cartelle <code>Mail\Feeds</code></li>
-        <li>Immagini: OCR di base su <code>.jpg</code>, <code>.png</code>, <code>.bmp</code></li>
+        <li>Immagini: OCR di base su <code>.jpg</code>, <code>.png</code>, <code>.bmp</code>; dal menu si possono anche copiare o salvare</li>
     </ul>
 
     <h2>Come usare i Feed RSS e Thunderbird</h2>
@@ -110,7 +117,7 @@
         <li><strong>Invio</strong> (sul campo testo): avvia subito la ricerca.</li>
         <li><strong>Invio</strong> (sui risultati): apre il file alla riga, oppure l’articolo feed nel browser.</li>
         <li><strong>Spazio / F4</strong>: anteprima vocale immediata del contesto.</li>
-        <li><strong>Tasto Applicazioni</strong>: menu contestuale del risultato.</li>
+        <li><strong>Tasto Applicazioni</strong>: menu contestuale del risultato (tra cui Copia Testo, Copia Immagine, Salva Immagine...).</li>
         <li><strong>F1</strong>: guida ai comandi (da menu Aiuto).</li>
         <li><strong>Esc</strong>: chiude la finestra.</li>
     </ul>

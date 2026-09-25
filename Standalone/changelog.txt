@@ -1,3 +1,16 @@
+Novità nella Versione 1.5.3
+- PDF migliorato: estrazione testo da stream FlateDecode (Tj/TJ), senza librerie pesanti
+- Copia Testo e Copia Immagine separate nel menu contestuale (niente pasticci misti)
+- Copia Testo PDF: testo leggibile; avviso se scansionato/protetto senza testo
+- Copia Immagine PDF: solo pagine grandi (non loghi 324×324); messaggio chiaro se c’è solo lo stemma
+- PDF testo: ToUnicode/CID (tabellini Leghe, Identity-H) oltre agli stream semplici
+- PDF testo: content stream anche oltre 512KB (tabellini densissimi che Edge legge)
+- PDF: salta Image XObject in ricerca (niente endstream/simboli; ricerca più reattiva)
+- Copia Immagine: scansioni grandi (ScanSnap) ridotte per gli appunti; messaggio chiaro se solo scansione
+- Salva Immagine...: esporta la pagina/scansione PDF (o il file immagine) su disco a piena risoluzione
+- Data documento (gg/mm/aaaa) nei risultati PDF (Creation/ModDate o data file)
+- Risultati: «Testo PDF» sul contenuto, «Nome File» solo se match sul nome
+
 Novità nella Versione 1.5.2
 - Lettore EML/MBOX: caricamento in thread secondario (UI non si blocca su caselle grandi)
 - Apertura MBOX dai risultati: usa il testo già letto in ricerca (istantaneo, senza reindicizzare INBOX)

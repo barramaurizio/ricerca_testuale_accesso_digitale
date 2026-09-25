@@ -10,6 +10,7 @@ import shutil
 import scriptHandler
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import ui
@@ -17,6 +18,7 @@ import webbrowser
 import wx
 import xml.etree.ElementTree as ET
 import zipfile
+import zlib
 import quopri
 import urllib.parse
 import urllib.request
@@ -41,7 +43,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.2"
+APP_VERSION = "1.5.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1014,16 +1016,763 @@ def extract_paragraphs_from_docx(file_path):
     except Exception:
         return []
 
+PDF_READ_MAX_BYTES = 20 * 1024 * 1024
+
+# Marcatori tipici di stream immagine / struttura PDF (non testo leggibile)
+_PDF_IMAGE_MARKERS = (
+    b"/Subtype/Image",
+    b"/Subtype /Image",
+    b"/Image/Height",
+    b"/BitsPerComponent",
+    b"/ColorSpace/DeviceRGB",
+    b"/ColorSpace /DeviceRGB",
+    b"/ColorSpace/DeviceGray",
+)
+_PDF_STRUCT_NOISE = re.compile(
+    r"(endstream|endobj|startxref|/Type\s*/XObject|/Filter\s*/FlateDecode|"
+    r"/ColorSpace|/BitsPerComponent|/Subtype\s*/Image|DeviceRGB|DeviceGray)",
+    re.IGNORECASE,
+)
+# Evita inflate lunghi SOLO se ancora sospetti; i content stream utili possono superare 512KB
+_PDF_INFLATE_MAX = 512 * 1024
+_PDF_CONTENT_INFLATE_MAX = 8 * 1024 * 1024
+_PDF_FILTER_FLATE = re.compile(
+    br"/Filter\s*(?:/\s*(?:FlateDecode|Fl)\b|\[\s*/\s*(?:FlateDecode|Fl)\b)"
+)
+_PDF_FILTER_DCT = re.compile(
+    br"/Filter\s*(?:/\s*(?:DCTDecode|DCT)\b|\[\s*/\s*(?:DCTDecode|DCT)\b)"
+)
+
+
+def _pdf_dict_has_flate(dict_blob):
+    return bool(dict_blob and _PDF_FILTER_FLATE.search(dict_blob))
+
+
+def _pdf_dict_has_dct(dict_blob):
+    return bool(dict_blob and _PDF_FILTER_DCT.search(dict_blob))
+
+
+def _pdf_dict_is_image(dict_blob):
+    if not dict_blob:
+        return False
+    if b"/Subtype" in dict_blob and b"/Image" in dict_blob:
+        return True
+    if any(m in dict_blob for m in _PDF_IMAGE_MARKERS):
+        return True
+    # Width+Height senza Font/Resources → quasi certamente immagine
+    has_wh = (b"/Width" in dict_blob or b"/W " in dict_blob) and (
+        b"/Height" in dict_blob or b"/H " in dict_blob
+    )
+    if has_wh and b"/Font" not in dict_blob and b"/Resources" not in dict_blob:
+        return True
+    return False
+
+
+def _pdf_bytes_look_like_content(data):
+    """True se lo stream sembra contenuto di pagina (operatori testo), non binario grezzo."""
+    if not data or len(data) < 4:
+        return False
+    # troppi null / byte alti → probabilmente immagine decompressa
+    sample = data[:8000]
+    nul = sample.count(b"\x00")
+    if nul > len(sample) // 10:
+        return False
+    return (
+        (b"Tj" in data)
+        or (b"TJ" in data)
+        or (b"BT" in data)
+        or (b"Tm" in data and b"(" in data)
+        or (b"'" in data and b"(" in data)
+    )
+
+
 def extract_lines_from_pdf(file_path):
+    """Estrae righe di testo da un PDF senza librerie esterne.
+
+    Decomprime solo stream di contenuto (non Image XObject), poi legge Tj/TJ.
+    I PDF solo-immagine restituiscono lista vuota (niente spazzatura endstream/Image).
+    """
     try:
         with open(file_path, "rb") as f:
-            content = f.read(4194304).decode("latin1", errors="ignore")
-            matches = re.findall(r"\((.*?)\)", content)
-            if not matches:
-                matches = re.findall(r"[A-Za-z0-9àèéìòùÀÈÉÌÒÙ\s]{3,}", content)
-            return [m.strip() for m in matches if m.strip()]
+            raw = f.read(PDF_READ_MAX_BYTES)
     except Exception:
         return []
+
+    if not raw.startswith(b"%PDF"):
+        return _pdf_fallback_crude_lines(raw)
+
+    cmap = _pdf_parse_tounicode_cmaps(raw)
+
+    pieces = []
+    pos = 0
+    while True:
+        m = re.search(br"stream\r?\n", raw[pos:])
+        if not m:
+            break
+        start = pos + m.end()
+        end = raw.find(b"endstream", start)
+        if end < 0:
+            break
+        stream = raw[start:end]
+        if stream.endswith(b"\r\n"):
+            stream = stream[:-2]
+        elif stream.endswith(b"\n") or stream.endswith(b"\r"):
+            stream = stream[:-1]
+
+        dict_start = raw.rfind(b"<<", max(pos, start - 1600), start)
+        dict_blob = raw[dict_start:start] if dict_start != -1 else b""
+
+        # Non decomprimere / interpretare stream immagine (lenti e producono spazzatura)
+        if _pdf_dict_is_image(dict_blob):
+            pos = end + 9
+            continue
+
+        is_flate = _pdf_dict_has_flate(dict_blob)
+        if is_flate:
+            # Content stream di tabellini densissimi possono superare 512KB: ok gonfiarli
+            if len(stream) > _PDF_CONTENT_INFLATE_MAX:
+                pos = end + 9
+                continue
+            data = _pdf_inflate_stream(stream)
+        else:
+            data = stream
+            if (
+                not _pdf_bytes_look_like_content(data)
+                and len(stream) <= _PDF_CONTENT_INFLATE_MAX
+            ):
+                inflated = _pdf_inflate_stream(stream)
+                if _pdf_bytes_look_like_content(inflated):
+                    data = inflated
+
+        if _pdf_bytes_look_like_content(data):
+            pieces.extend(_pdf_text_from_content_stream(data, cmap))
+        pos = end + 9
+
+    blob = " ".join(pieces)
+    blob = blob.replace("\r\n", "\n").replace("\r", "\n")
+    # toglie byte di controllo lasciati da CID non mappati
+    blob = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", blob)
+    lines = []
+    for part in blob.split("\n"):
+        part = re.sub(r"[ \t]+", " ", part).strip()
+        if not part or _pdf_looks_like_garbage(part):
+            continue
+        if len(part) <= 240:
+            lines.append(part)
+        else:
+            while part:
+                if len(part) <= 240:
+                    lines.append(part)
+                    break
+                cut = part.rfind(" ", 0, 240)
+                if cut < 40:
+                    cut = 240
+                lines.append(part[:cut].strip())
+                part = part[cut:].strip()
+
+    return lines
+
+
+def _pdf_unescape_literal_bytes(raw):
+    """Unescape PDF literal string → bytes grezzi (prima della decodifica testo)."""
+    out = bytearray()
+    i = 0
+    n = len(raw)
+    while i < n:
+        b = raw[i]
+        if b == 0x5C and i + 1 < n:
+            nxt = raw[i + 1]
+            if nxt == 0x6E:
+                out.append(0x0A)
+                i += 2
+            elif nxt == 0x72:
+                out.append(0x0D)
+                i += 2
+            elif nxt == 0x74:
+                out.append(0x09)
+                i += 2
+            elif nxt == 0x62:
+                out.append(0x08)
+                i += 2
+            elif nxt == 0x66:
+                out.append(0x0C)  # \f form-feed: spesso CID per '('
+                i += 2
+            elif nxt in (0x28, 0x29, 0x5C):
+                out.append(nxt)
+                i += 2
+            elif 0x30 <= nxt <= 0x37:
+                j = i + 1
+                octal = bytearray()
+                while j < n and len(octal) < 3 and 0x30 <= raw[j] <= 0x37:
+                    octal.append(raw[j])
+                    j += 1
+                try:
+                    out.append(int(octal.decode("ascii"), 8) & 0xFF)
+                except Exception:
+                    pass
+                i = j
+            else:
+                out.append(nxt)
+                i += 2
+        else:
+            out.append(b)
+            i += 1
+    return bytes(out)
+
+
+def _pdf_unescape_literal(raw):
+    out = _pdf_unescape_literal_bytes(raw)
+    try:
+        return out.decode("utf-8")
+    except UnicodeDecodeError:
+        return out.decode("latin1", errors="ignore")
+
+
+def _pdf_utf16_hex_to_str(hx):
+    cleaned = re.sub(br"[^0-9A-Fa-f]", b"", hx)
+    if len(cleaned) % 2:
+        cleaned = cleaned[:-1]
+    if not cleaned:
+        return ""
+    try:
+        data = bytes.fromhex(cleaned.decode("ascii"))
+    except Exception:
+        return ""
+    if len(data) >= 2:
+        try:
+            return data.decode("utf-16-be")
+        except Exception:
+            pass
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1", errors="ignore")
+
+
+def _pdf_parse_tounicode_cmaps(raw):
+    """Unisce tutte le CMap ToUnicode del PDF: codice CID (int) → carattere."""
+    merged = {}
+    pos = 0
+    while True:
+        m = re.search(br"stream\r?\n", raw[pos:])
+        if not m:
+            break
+        start = pos + m.end()
+        end = raw.find(b"endstream", start)
+        if end < 0:
+            break
+        stream = raw[start:end]
+        if stream.endswith(b"\r\n"):
+            stream = stream[:-2]
+        elif stream.endswith(b"\n") or stream.endswith(b"\r"):
+            stream = stream[:-1]
+        dict_start = raw.rfind(b"<<", max(pos, start - 1600), start)
+        dict_blob = raw[dict_start:start] if dict_start != -1 else b""
+        pos = end + 9
+        if _pdf_dict_is_image(dict_blob):
+            continue
+        if _pdf_dict_has_flate(dict_blob):
+            if len(stream) > _PDF_CONTENT_INFLATE_MAX:
+                continue
+            data = _pdf_inflate_stream(stream)
+        else:
+            data = stream
+            inflated = _pdf_inflate_stream(stream)
+            if b"beginbfchar" in inflated or b"beginbfrange" in inflated:
+                data = inflated
+        if b"beginbfchar" not in data and b"beginbfrange" not in data:
+            continue
+        cmap = {}
+        for sm in re.finditer(br"[0-9]+\s+beginbfchar(.*?)endbfchar", data, flags=re.S):
+            for src, dst in re.findall(
+                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", sm.group(1)
+            ):
+                try:
+                    cmap[int(src, 16)] = _pdf_utf16_hex_to_str(dst)
+                except Exception:
+                    continue
+        for sm in re.finditer(br"[0-9]+\s+beginbfrange(.*?)endbfrange", data, flags=re.S):
+            body = sm.group(1)
+            for a, b, arr in re.findall(
+                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[(.*?)\]", body, flags=re.S
+            ):
+                try:
+                    start_c, end_c = int(a, 16), int(b, 16)
+                except Exception:
+                    continue
+                dests = re.findall(br"<([0-9A-Fa-f]+)>", arr)
+                for i, code in enumerate(range(start_c, end_c + 1)):
+                    if i < len(dests):
+                        cmap[code] = _pdf_utf16_hex_to_str(dests[i])
+            for a, b, dst in re.findall(
+                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", body
+            ):
+                try:
+                    start_c, end_c = int(a, 16), int(b, 16)
+                    base = int(dst, 16)
+                    nbytes = max(1, len(dst) // 2)
+                except Exception:
+                    continue
+                for i, code in enumerate(range(start_c, end_c + 1)):
+                    hx = f"{base + i:0{nbytes * 2}X}".encode("ascii")
+                    cmap[code] = _pdf_utf16_hex_to_str(hx)
+        merged.update(cmap)
+    return merged
+
+
+def _pdf_decode_cid_bytes(data, cmap):
+    """Decodifica stringa a 2 byte (Identity-H / CID) con ToUnicode."""
+    if not data:
+        return ""
+    if len(data) % 2 == 1:
+        data = data[1:]
+    chars = []
+    for i in range(0, len(data) - 1, 2):
+        code = (data[i] << 8) | data[i + 1]
+        ch = cmap.get(code)
+        if ch:
+            chars.append(ch)
+        elif data[i] == 0 and 32 <= data[i + 1] < 127:
+            chars.append(chr(data[i + 1]))
+    return "".join(chars)
+
+
+def _pdf_looks_like_cid_bytes(data):
+    if not data or len(data) < 2:
+        return False
+    sample = data[: min(len(data), 200)]
+    if len(sample) < 2:
+        return False
+    nulls = sample.count(b"\x00")
+    return nulls >= max(1, len(sample) // 4)
+
+
+def _pdf_bytes_to_text(data, cmap):
+    if not data:
+        return ""
+    if cmap and (_pdf_looks_like_cid_bytes(data) or (len(data) % 2 == 0 and len(data) >= 2)):
+        # Preferisci CID se c'è CMap e lunghezza pari (tipico Identity-H)
+        if _pdf_looks_like_cid_bytes(data) or (cmap and len(data) % 2 == 0 and b"\x00" in data):
+            mapped = _pdf_decode_cid_bytes(data, cmap)
+            if mapped.strip():
+                return mapped
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1", errors="ignore")
+
+
+def _pdf_hex_to_str(hex_body, cmap=None):
+    cleaned = re.sub(br"[^0-9A-Fa-f]", b"", hex_body)
+    if len(cleaned) % 2:
+        cleaned = cleaned[:-1]
+    if not cleaned:
+        return ""
+    try:
+        data = bytes.fromhex(cleaned.decode("ascii"))
+    except Exception:
+        return ""
+    if cmap:
+        # Codici a 2 byte tipici: <0030><0044>...
+        if len(cleaned) % 4 == 0 or _pdf_looks_like_cid_bytes(data):
+            mapped = _pdf_decode_cid_bytes(data, cmap)
+            if mapped.strip():
+                return mapped
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1", errors="ignore")
+
+
+def _pdf_text_from_content_stream(data, cmap=None):
+    if cmap is None:
+        cmap = {}
+    pieces = []
+    for m in re.finditer(br"\((?:\\.|[^\\()])*\)\s*(?:Tj|'|\")", data):
+        lit = re.sub(br"\s*(?:Tj|'|\")\s*$", b"", m.group(0))
+        if lit.startswith(b"(") and lit.endswith(b")"):
+            raw_bytes = _pdf_unescape_literal_bytes(lit[1:-1])
+            pieces.append(_pdf_bytes_to_text(raw_bytes, cmap))
+    for m in re.finditer(br"<([0-9A-Fa-f\s]+)>\s*Tj", data):
+        pieces.append(_pdf_hex_to_str(m.group(1), cmap))
+    for m in re.finditer(br"\[(.*?)\]\s*TJ", data, flags=re.DOTALL):
+        arr = m.group(1)
+        parts = []
+        for sm in re.finditer(br"\((?:\\.|[^\\()])*\)|<([0-9A-Fa-f\s]+)>", arr):
+            if sm.group(0).startswith(b"("):
+                raw_bytes = _pdf_unescape_literal_bytes(sm.group(0)[1:-1])
+                parts.append(_pdf_bytes_to_text(raw_bytes, cmap))
+            else:
+                parts.append(_pdf_hex_to_str(sm.group(1) or b"", cmap))
+        if parts:
+            pieces.append("".join(parts))
+    return [p for p in pieces if p]
+
+
+def _pdf_looks_like_garbage(line: str):
+    s = line.strip()
+    if len(s) < 2:
+        return True
+    if _PDF_STRUCT_NOISE.search(s):
+        return True
+    if re.fullmatch(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        s,
+    ):
+        return True
+    if re.fullmatch(r"D:\d{8,}.*", s):
+        return True
+    if s in ("True", "False", "Standard", "it", "en", "Identity", "stream", "obj"):
+        return True
+    # poca lettera/cifra rispetto alla lunghezza → binario/simboli
+    alnum = sum(1 for c in s if c.isalnum() or c.isspace())
+    if alnum < max(3, len(s) // 2):
+        return True
+    bad = sum(1 for c in s if ord(c) < 9 or c in "\x00\ufffdþÿÎÔ")
+    if bad and bad >= max(1, len(s) // 5):
+        return True
+    return False
+
+
+def _pdf_inflate_stream(stream: bytes):
+    for wbits in (zlib.MAX_WBITS, -zlib.MAX_WBITS):
+        try:
+            return zlib.decompress(stream, wbits)
+        except Exception:
+            continue
+    return stream
+
+
+def _pdf_fallback_crude_lines(raw):
+    """Ultimo tentativo su file non-PDF o senza stream riconoscibili; molto selettivo."""
+    try:
+        content = raw.decode("latin1", errors="ignore")
+    except Exception:
+        return []
+    matches = re.findall(r"\((?:\\.|[^\\()])*\)", content)
+    lines = []
+    for m in matches:
+        inner = m[1:-1]
+        try:
+            text = _pdf_unescape_literal(inner.encode("latin1", errors="ignore"))
+        except Exception:
+            text = inner
+        text = re.sub(r"[ \t]+", " ", text).strip()
+        if text and not _pdf_looks_like_garbage(text) and len(text) >= 4:
+            if text.isdigit() and len(text) < 6:
+                continue
+            # evita frammenti PDF tecnici corti
+            if text.startswith("/") or text.endswith("obj"):
+                continue
+            lines.append(text)
+    return lines[:200]
+
+
+# Inflate consentito solo su richiesta esplicita «Copia immagine» (non in ricerca)
+_PDF_IMAGE_INFLATE_MAX = 15 * 1024 * 1024
+_PDF_IMAGE_MIN_SIDE = 48
+_PDF_IMAGE_MIN_AREA = 80 * 80
+# Sotto questa soglia = logo/icona, non «pagina» da copiare (es. stemma 324×324)
+_PDF_PAGE_IMAGE_MIN_SIDE = 400
+_PDF_PAGE_IMAGE_MIN_AREA = 400 * 400
+
+
+def _pdf_dict_int(dict_blob, *keys):
+    for key in keys:
+        m = re.search(re.escape(key) + br"\s+(\d+)", dict_blob)
+        if m:
+            try:
+                return int(m.group(1))
+            except Exception:
+                continue
+    return 0
+
+
+def _pdf_image_colorspace(dict_blob):
+    if (
+        b"DeviceGray" in dict_blob
+        or b"/CS/G" in dict_blob
+        or b"/ColorSpace/G" in dict_blob
+    ):
+        return "gray"
+    if b"DeviceCMYK" in dict_blob:
+        return "cmyk"
+    if b"DeviceRGB" in dict_blob or b"/CS/RGB" in dict_blob:
+        return "rgb"
+    if b"/ICCBased" in dict_blob:
+        return "rgb"
+    return "rgb"
+
+
+def _pdf_image_filter(dict_blob):
+    if _pdf_dict_has_dct(dict_blob):
+        return "jpeg"
+    if b"/JPXDecode" in dict_blob:
+        return "jpx"
+    if _pdf_dict_has_flate(dict_blob):
+        return "flate"
+    if b"/CCITTFaxDecode" in dict_blob:
+        return "ccitt"
+    return "raw"
+
+
+def _pdf_gray_to_rgb(data, width, height):
+    need = width * height
+    if len(data) < need:
+        return b""
+    out = bytearray(need * 3)
+    src = memoryview(data[:need])
+    j = 0
+    for i in range(need):
+        v = src[i]
+        out[j] = v
+        out[j + 1] = v
+        out[j + 2] = v
+        j += 3
+    return bytes(out)
+
+
+def _pdf_rgb_is_nearly_flat(data):
+    """True se l'immagine è quasi monocromatica (cerchio bianco, maschera, ecc.)."""
+    if not data or len(data) < 30:
+        return True
+    step = max(3, (len(data) // 4000) * 3)
+    sample = data[::step][:2000]
+    if not sample:
+        return True
+    return len(set(sample)) < 8
+
+
+def extract_images_from_pdf(file_path):
+    """Elenco immagini XObject estraibili: dict w/h/kind/data (kind: jpeg|rgb).
+
+    Usato solo da «Copia immagine», non dalla ricerca testo.
+    """
+    try:
+        with open(file_path, "rb") as f:
+            raw = f.read(PDF_READ_MAX_BYTES)
+    except Exception:
+        return []
+
+    if not raw.startswith(b"%PDF"):
+        return []
+
+    found = []
+    pos = 0
+    while True:
+        m = re.search(br"stream\r?\n", raw[pos:])
+        if not m:
+            break
+        start = pos + m.end()
+        end = raw.find(b"endstream", start)
+        if end < 0:
+            break
+        stream = raw[start:end]
+        if stream.endswith(b"\r\n"):
+            stream = stream[:-2]
+        elif stream.endswith(b"\n") or stream.endswith(b"\r"):
+            stream = stream[:-1]
+
+        dict_start = raw.rfind(b"<<", max(pos, start - 1600), start)
+        dict_blob = raw[dict_start:start] if dict_start != -1 else b""
+        pos = end + 9
+
+        if not _pdf_dict_is_image(dict_blob):
+            continue
+        # Maschere mono: non sono la pagina del tabellino
+        if b"/ImageMask" in dict_blob:
+            continue
+
+        width = _pdf_dict_int(dict_blob, b"/Width", b"/W")
+        height = _pdf_dict_int(dict_blob, b"/Height", b"/H")
+        if width < _PDF_IMAGE_MIN_SIDE or height < _PDF_IMAGE_MIN_SIDE:
+            continue
+        if width * height < _PDF_IMAGE_MIN_AREA:
+            continue
+
+        bpc = _pdf_dict_int(dict_blob, b"/BitsPerComponent") or 8
+        if bpc != 8:
+            continue
+
+        filt = _pdf_image_filter(dict_blob)
+        colorspace = _pdf_image_colorspace(dict_blob)
+        if filt == "jpx" or filt == "ccitt" or colorspace == "cmyk":
+            continue
+
+        if filt == "jpeg":
+            if not stream.startswith(b"\xff\xd8"):
+                soi = stream.find(b"\xff\xd8")
+                if soi < 0:
+                    continue
+                stream = stream[soi:]
+            found.append(
+                {"w": width, "h": height, "kind": "jpeg", "data": stream}
+            )
+            continue
+
+        if filt in ("flate", "raw"):
+            if len(stream) > _PDF_IMAGE_INFLATE_MAX:
+                continue
+            data = _pdf_inflate_stream(stream) if filt == "flate" else stream
+            if colorspace == "gray":
+                rgb = _pdf_gray_to_rgb(data, width, height)
+                if not rgb or _pdf_rgb_is_nearly_flat(rgb):
+                    continue
+                found.append({"w": width, "h": height, "kind": "rgb", "data": rgb})
+            else:
+                need = width * height * 3
+                if len(data) < need:
+                    continue
+                rgb = data[:need]
+                if _pdf_rgb_is_nearly_flat(rgb):
+                    continue
+                found.append({"w": width, "h": height, "kind": "rgb", "data": rgb})
+
+    found.sort(key=lambda im: im["w"] * im["h"], reverse=True)
+    return found
+
+
+def get_largest_pdf_image(file_path):
+    """Compat: prima immagine per area (anche logo). Preferire get_best_pdf_page_image."""
+    images = extract_images_from_pdf(file_path)
+    return images[0] if images else None
+
+
+def get_best_pdf_page_image(file_path):
+    """Immagine di pagina (non logo/icona). None se ci sono solo stemmi piccoli."""
+    images = extract_images_from_pdf(file_path)
+    for im in images:
+        if (
+            im["w"] >= _PDF_PAGE_IMAGE_MIN_SIDE
+            and im["h"] >= _PDF_PAGE_IMAGE_MIN_SIDE
+            and im["w"] * im["h"] >= _PDF_PAGE_IMAGE_MIN_AREA
+        ):
+            return im
+    return None
+
+
+# Lato max per gli appunti (scansioni ScanSnap enormi altrimenti falliscono)
+_PDF_CLIPBOARD_MAX_SIDE = 1800
+
+
+def pdf_image_record_to_wx_image(record, fit_for_clipboard=True):
+    """Converte un record di extract_images_from_pdf in wx.Image, o None."""
+    if not record:
+        return None
+    img = None
+    try:
+        if record["kind"] == "jpeg":
+            try:
+                stream = wx.MemoryInputStream(record["data"], len(record["data"]))
+                img = wx.Image(stream, wx.BITMAP_TYPE_JPEG)
+            except Exception:
+                img = None
+            if img is None or not img.IsOk():
+                # Fallback: JPEG grandi / wx capriccioso → file temporaneo
+                tmp = None
+                try:
+                    fd, tmp = tempfile.mkstemp(suffix=".jpg")
+                    os.write(fd, record["data"])
+                    os.close(fd)
+                    img = wx.Image(tmp, wx.BITMAP_TYPE_JPEG)
+                    if not img.IsOk():
+                        img = wx.Image(tmp, wx.BITMAP_TYPE_ANY)
+                finally:
+                    if tmp:
+                        try:
+                            os.unlink(tmp)
+                        except Exception:
+                            pass
+        elif record["kind"] == "rgb":
+            img = wx.Image(record["w"], record["h"], record["data"])
+        if img is not None and img.IsOk():
+            if fit_for_clipboard:
+                return _wx_image_fit_for_clipboard(img)
+            return img
+    except Exception:
+        pass
+    return None
+
+
+def _wx_image_fit_for_clipboard(img):
+    """Riduce immagini enormi così gli appunti/Windows non falliscono."""
+    try:
+        w, h = img.GetWidth(), img.GetHeight()
+        side = max(w, h)
+        if side <= _PDF_CLIPBOARD_MAX_SIDE or side <= 0:
+            return img
+        scale = _PDF_CLIPBOARD_MAX_SIDE / float(side)
+        nw = max(1, int(w * scale))
+        nh = max(1, int(h * scale))
+        scaled = img.Scale(nw, nh, wx.IMAGE_QUALITY_HIGH)
+        return scaled if scaled.IsOk() else img
+    except Exception:
+        return img
+
+
+def save_pdf_image_record_to_path(record, dest_path):
+    """Salva record immagine PDF su disco a piena risoluzione. True se ok."""
+    if not record or not dest_path:
+        return False
+    ext = os.path.splitext(dest_path)[1].lower()
+    try:
+        if record["kind"] == "jpeg" and ext in (".jpg", ".jpeg"):
+            with open(dest_path, "wb") as f:
+                f.write(record["data"])
+            return True
+        img = pdf_image_record_to_wx_image(record, fit_for_clipboard=False)
+        if img is None or not img.IsOk():
+            return False
+        if ext == ".png":
+            return bool(img.SaveFile(dest_path, wx.BITMAP_TYPE_PNG))
+        if ext in (".jpg", ".jpeg"):
+            return bool(img.SaveFile(dest_path, wx.BITMAP_TYPE_JPEG))
+        if ext == ".bmp":
+            return bool(img.SaveFile(dest_path, wx.BITMAP_TYPE_BMP))
+        # default jpeg
+        if not ext:
+            dest_path = dest_path + ".jpg"
+        return bool(img.SaveFile(dest_path, wx.BITMAP_TYPE_JPEG))
+    except Exception:
+        pass
+        return False
+
+
+def format_file_date_label(mtime):
+    if not mtime:
+        return ""
+    try:
+        return datetime.datetime.fromtimestamp(mtime).strftime("%d/%m/%Y")
+    except Exception:
+        return ""
+
+
+def pdf_info_date_timestamp(file_path, fallback=0):
+    try:
+        with open(file_path, "rb") as f:
+            head = f.read(min(PDF_READ_MAX_BYTES, 2 * 1024 * 1024))
+    except Exception:
+        return fallback
+    for key in (b"/ModDate", b"/CreationDate"):
+        idx = head.find(key)
+        if idx < 0:
+            continue
+        m = re.search(
+            br"\(D:(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?",
+            head[idx : idx + 80],
+        )
+        if not m:
+            continue
+        try:
+            y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            hh = int(m.group(4) or 0)
+            mi = int(m.group(5) or 0)
+            ss = int(m.group(6) or 0)
+            return datetime.datetime(y, mo, d, hh, mi, ss).timestamp()
+        except Exception:
+            continue
+    return fallback
+
 
 def deep_ocr_jpg_scan(file_path):
     try:
@@ -1293,10 +2042,10 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Lettore email/MBOX: apertura immediata dai risultati di ricerca.\n"
-            "• Allegati PDF/binari esclusi; data messaggio nei risultati MBOX.\n"
-            "• Ordinamento risultati memorizzato tra una sessione e l'altra.\n\n"
-            "• Restano attive le novità della 1.5.1 (Cronologia) e della 1.5.0 (Feed).\n"
+            "• PDF migliorato: testo reale da stream compressi; salta Image XObject (niente simboli).\n"
+            "• Menu: «Copia Testo» e «Copia Immagine» separate (anche da PDF scansionati).\n"
+            "• Data documento nei risultati PDF; avviso se il PDF è solo immagine.\n\n"
+            "• Restano attive le novità della 1.5.2 (MBOX, date email, ordinamento).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -2583,6 +3332,9 @@ class SearchFrame(wx.Frame):
                         except Exception:
                             pass
                 elif ext == ".pdf":
+                    pdf_ts = pdf_info_date_timestamp(file_path, fallback=mtime)
+                    date_label = format_file_date_label(pdf_ts)
+                    date_suffix = f" {date_label}" if date_label else ""
                     pdf_lines = extract_lines_from_pdf(file_path)
                     for idx, line in enumerate(pdf_lines):
                         if text_matches_terms(line, terms):
@@ -2593,12 +3345,24 @@ class SearchFrame(wx.Frame):
                                 "file_path": file_path,
                                 "file_name": file_name,
                                 "prefix": prefix,
-                                "mtime": mtime,
+                                "mtime": pdf_ts,
                                 "line_number": None,
-                                "location_info": f"Sezione {idx + 1}",
+                                "location_info": f"Testo PDF{date_suffix}",
                                 "snippet": snippet,
                             })
                             found_in_content = True
+                            break
+                    if name_matched and not found_in_content:
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": prefix,
+                            "mtime": pdf_ts,
+                            "line_number": None,
+                            "location_info": f"Nome File{date_suffix}",
+                            "snippet": f"Corrispondenza nel nome: '{file_name}'",
+                        })
+                        found_in_content = True
 
                 if name_matched and not found_in_content:
                     raw_matches.append({
@@ -2813,7 +3577,9 @@ class SearchFrame(wx.Frame):
         item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPAZIO")
         item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia / Frase con parola chiave")
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
-        item_copy_text = menu.Append(wx.ID_ANY, "Copia Tutto il Contenuto (o Immagine)")
+        item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo")
+        item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
+        item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         item_copy_to = menu.Append(wx.ID_ANY, "Invia / Copia File in un'altra cartella...")
         item_open_folder = menu.Append(wx.ID_ANY, "Apri Cartella Contenitore")
 
@@ -2828,7 +3594,9 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_content_or_image_to_clipboard(item_data), item_copy_text)
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data), item_copy_text)
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
+        self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(file_path), item_copy_to)
         self.Bind(wx.EVT_MENU, lambda e: self.open_containing_folder(file_path), item_open_folder)
 
@@ -2861,7 +3629,7 @@ class SearchFrame(wx.Frame):
             wx.TheClipboard.Close()
             ui.message("Percorso copiato negli appunti!")
 
-    def copy_content_or_image_to_clipboard(self, item_data):
+    def copy_text_to_clipboard(self, item_data):
         if isinstance(item_data, str):
             file_path = item_data
             prefix = ""
@@ -2870,6 +3638,13 @@ class SearchFrame(wx.Frame):
             file_path = item_data["file_path"]
             prefix = item_data.get("prefix", "")
         ext = os.path.splitext(file_path)[1].lower()
+
+        if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
+            ui.message(
+                "Questo risultato è un file immagine: usa «Copia Immagine». "
+                "Nessun testo estraibile qui."
+            )
+            return
 
         if prefix in ("[RSS]", "[FEED]"):
             url = item_data.get("article_url") or file_path
@@ -2881,20 +3656,8 @@ class SearchFrame(wx.Frame):
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(wx.TextDataObject(text_content))
                 wx.TheClipboard.Close()
-                ui.message("Contenuto testuale copiato negli appunti!")
+                ui.message("Testo copiato negli appunti!")
             return
-
-        if ext in [".jpg", ".jpeg", ".png", ".bmp"]:
-            try:
-                img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
-                bmp = wx.Bitmap(img)
-                if wx.TheClipboard.Open():
-                    wx.TheClipboard.SetData(wx.BitmapDataObject(bmp))
-                    wx.TheClipboard.Close()
-                    ui.message("Immagine grafica copiata negli appunti! Pronta da incollare.")
-                    return
-            except Exception:
-                pass
 
         text_content = ""
         if ext in [".docx", ".doc"]:
@@ -2903,6 +3666,20 @@ class SearchFrame(wx.Frame):
         elif ext == ".pdf":
             lines = extract_lines_from_pdf(file_path)
             text_content = "\n".join(lines)
+            if not text_content.strip():
+                if get_best_pdf_page_image(file_path):
+                    ui.message(
+                        "Questo PDF è una scansione: non c’è testo da copiare. "
+                        "Usa «Copia Immagine» per la pagina grafica."
+                    )
+                else:
+                    ui.message(
+                        "Nessun testo estraibile con il nostro lettore "
+                        "(font speciali o PDF protetto). "
+                        "Prova «Copia Immagine» oppure Apri file "
+                        "(Edge/NVDA spesso lo leggono)."
+                    )
+                return
         elif ext in [".txt", ".eml", ".log", ".csv"] or prefix == "[FEED-RIGA]":
             try:
                 with open(file_path, "rb") as f:
@@ -2924,9 +3701,167 @@ class SearchFrame(wx.Frame):
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(wx.TextDataObject(text_content))
                 wx.TheClipboard.Close()
-                ui.message("Contenuto testuale copiato negli appunti!")
+                ui.message("Testo copiato negli appunti!")
         else:
-            ui.message("Impossibile copiare il contenuto da questo formato.")
+            ui.message("Impossibile copiare il testo da questo formato.")
+
+    def copy_image_to_clipboard(self, item_data):
+        if isinstance(item_data, str):
+            file_path = item_data
+            prefix = ""
+        else:
+            file_path = item_data["file_path"]
+            prefix = item_data.get("prefix", "")
+        ext = os.path.splitext(file_path)[1].lower()
+
+        if prefix in ("[RSS]", "[FEED]", "[MBOX]", "[FEED-RIGA]"):
+            ui.message("Nessuna immagine da copiare per questo risultato.")
+            return
+
+        if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
+            try:
+                img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
+                if img.IsOk() and wx.TheClipboard.Open():
+                    wx.TheClipboard.SetData(wx.BitmapDataObject(wx.Bitmap(img)))
+                    wx.TheClipboard.Close()
+                    ui.message("Immagine copiata negli appunti!")
+                    return
+            except Exception:
+                pass
+            ui.message("Impossibile copiare l’immagine.")
+            return
+
+        if ext == ".pdf":
+            ui.message("Estrazione immagine dal PDF in corso…")
+            try:
+                record = get_best_pdf_page_image(file_path)
+                if record is None:
+                    logos = extract_images_from_pdf(file_path)
+                    if logos:
+                        top = logos[0]
+                        ui.message(
+                            f"Trovato solo logo o icona "
+                            f"({top['w']} per {top['h']} pixel), "
+                            f"non una pagina intera. "
+                            f"Prova «Copia Testo» oppure Apri file."
+                        )
+                    else:
+                        ui.message(
+                            "Nessuna pagina grafica in questo PDF "
+                            "(spesso è testo vettoriale: usa «Copia Testo» "
+                            "oppure Apri file)."
+                        )
+                    return
+                img = pdf_image_record_to_wx_image(record)
+                if img is not None and img.IsOk():
+                    bmp = wx.Bitmap(img)
+                    if bmp.IsOk() and wx.TheClipboard.Open():
+                        wx.TheClipboard.SetData(wx.BitmapDataObject(bmp))
+                        wx.TheClipboard.Close()
+                        ui.message(
+                            f"Pagina grafica copiata negli appunti "
+                            f"({img.GetWidth()} per {img.GetHeight()} pixel; "
+                            f"originale {record['w']}×{record['h']})!"
+                        )
+                        return
+            except Exception:
+                pass
+            ui.message(
+                "Impossibile copiare l’immagine da questo PDF "
+                "(file troppo grande o formato non supportato). "
+                "Puoi usare «Invia / Copia File in un'altra cartella...» "
+                "oppure Apri file."
+            )
+            return
+
+        ui.message("Nessuna immagine da copiare in questo formato.")
+
+    def save_image_to_file(self, item_data):
+        if isinstance(item_data, str):
+            file_path = item_data
+            prefix = ""
+        else:
+            file_path = item_data["file_path"]
+            prefix = item_data.get("prefix", "")
+        ext = os.path.splitext(file_path)[1].lower()
+        base_name = os.path.splitext(os.path.basename(file_path))[0] or "immagine"
+
+        if prefix in ("[RSS]", "[FEED]", "[MBOX]", "[FEED-RIGA]"):
+            ui.message("Nessuna immagine da salvare per questo risultato.")
+            return
+
+        default_dir = get_dynamic_desktop_path()
+        wildcard = (
+            "JPEG (*.jpg)|*.jpg|"
+            "PNG (*.png)|*.png|"
+            "Bitmap (*.bmp)|*.bmp|"
+            "Tutti i file (*.*)|*.*"
+        )
+
+        if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
+            dlg = wx.FileDialog(
+                self,
+                "Salva immagine",
+                defaultDir=default_dir,
+                defaultFile=os.path.basename(file_path),
+                wildcard=wildcard,
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+            )
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            dest = dlg.GetPath()
+            dlg.Destroy()
+            try:
+                shutil.copy2(file_path, dest)
+                ui.message(f"Immagine salvata in {dest}")
+            except Exception:
+                ui.message("Impossibile salvare l’immagine.")
+            return
+
+        if ext == ".pdf":
+            ui.message("Estrazione immagine dal PDF in corso…")
+            record = get_best_pdf_page_image(file_path)
+            if record is None:
+                logos = extract_images_from_pdf(file_path)
+                if logos:
+                    ui.message(
+                        "Trovato solo logo o icona, non una pagina da salvare. "
+                        "Prova «Copia Testo» oppure Apri file."
+                    )
+                else:
+                    ui.message("Nessuna pagina grafica da salvare in questo PDF.")
+                return
+            default_ext = ".jpg" if record["kind"] == "jpeg" else ".png"
+            dlg = wx.FileDialog(
+                self,
+                "Salva immagine dal PDF",
+                defaultDir=default_dir,
+                defaultFile=base_name + default_ext,
+                wildcard=wildcard,
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+            )
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            dest = dlg.GetPath()
+            dlg.Destroy()
+            if not os.path.splitext(dest)[1]:
+                dest = dest + default_ext
+            if save_pdf_image_record_to_path(record, dest):
+                ui.message(
+                    f"Immagine salvata "
+                    f"({record['w']} per {record['h']} pixel) in {dest}"
+                )
+            else:
+                ui.message("Impossibile salvare l’immagine dal PDF.")
+            return
+
+        ui.message("Nessuna immagine da salvare in questo formato.")
+
+    def copy_content_or_image_to_clipboard(self, item_data):
+        """Compatibilità: reindirizza a Copia Testo."""
+        self.copy_text_to_clipboard(item_data)
 
     def copy_file_to_destination(self, file_path):
         dlg = wx.DirDialog(

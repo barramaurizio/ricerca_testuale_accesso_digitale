@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.2 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.3 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,18 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.2</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.3</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.5.3</strong>
+        <ul>
+            <li><strong>Improved PDF:</strong> real text from compressed streams, including ToUnicode/CID (league sheets); no more <code>endstream</code>/symbol junk.</li>
+            <li><strong>Context menu:</strong> separate “Copia Testo”, “Copia Immagine” and “Salva Immagine...” (no more one mixed command).</li>
+            <li><strong>Scanned PDFs</strong> (e.g. ScanSnap receipts): Copy Text explains there is no text; Copy/Save Image export the page graphic (not logos only).</li>
+            <li><strong>Document date</strong> (dd/mm/yyyy) in PDF results; “Testo PDF” / “Nome File” labels.</li>
+        </ul>
         <strong>What's New in Version 1.5.2</strong>
         <ul>
             <li><strong>Safer email/MBOX viewer:</strong> background loading; PDF/binary attachments skipped in displayed text (note at end of message).</li>
@@ -44,10 +51,10 @@
     <h2>Supported formats</h2>
     <ul>
         <li>Text: <code>.txt</code>, <code>.log</code>, <code>.csv</code> and similar</li>
-        <li>Documents: Word (<code>.docx</code>, <code>.doc</code>), PDF</li>
+        <li>Documents: Word (<code>.docx</code>, <code>.doc</code>), PDF (text and, when scanned, page image)</li>
         <li>Mail: <code>.eml</code> files (native reading) and Thunderbird-style mailbox / Feeds containers</li>
         <li>Feeds: RSS/Atom URLs, local feed files, OPML, <code>Mail\Feeds</code> folders</li>
-        <li>Images: basic OCR on <code>.jpg</code>, <code>.png</code>, <code>.bmp</code></li>
+        <li>Images: basic OCR on <code>.jpg</code>, <code>.png</code>, <code>.bmp</code>; from the menu you can also copy or save them</li>
     </ul>
 
     <h2>How to use RSS and Thunderbird Feeds</h2>
@@ -110,7 +117,7 @@
         <li><strong>Enter</strong> (in the text field): start the search immediately.</li>
         <li><strong>Enter</strong> (on results): open the file at the line, or open the feed article in the browser.</li>
         <li><strong>Space / F4</strong>: immediate spoken preview of the context.</li>
-        <li><strong>Applications key</strong>: context menu for the selected result.</li>
+        <li><strong>Applications key</strong>: context menu for the selected result (including Copia Testo, Copia Immagine, Salva Immagine...).</li>
         <li><strong>F1</strong>: command guide (from the Help menu).</li>
         <li><strong>Escape</strong>: close the window.</li>
     </ul>

@@ -1,0 +1,66 @@
+🌟 Novità della Versione 1.5.4
+(Testi pronti da incollare — release GitHub + datastore)
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.4
+
+Tag:
+v1.5.4
+
+Asset:
+ricerca_testuale_accesso_digitale-1.5.4.nvda-addon
+
+Descrizione (body markdown da incollare):
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Profili di ricerca:** salva percorso, tipo file, estensione personalizzata, opzione feed e (opzionale) testo.
+- Menu **Profili**: Salva attuale, Carica, Gestisci (rinomina / elimina); elenco rapido.
+- Scorciatoie: **Ctrl+Shift+P** (salva), **Ctrl+Shift+L** (carica); Alt senza conflitti (T/P/N/I/S/K).
+- Se includi il testo, puoi attivare l’**avvio automatico** della ricerca all’apertura del profilo.
+- Filtri tipologici più completi: immagini (gif/webp/tif…), audio/video (m4a/flac/mov…), documenti (html/md/rtf/odt…).
+
+## 🇬🇧 English
+
+- **Search profiles:** save path, file type, custom extension, feed option and (optional) query text.
+- **Profiles** menu: Save current, Load, Manage (rename / delete); quick list.
+- Shortcuts: **Ctrl+Shift+P** (save), **Ctrl+Shift+L** (load); conflict-free Alt (T/P/N/I/S/K).
+- Optional **auto-start** search when the profile includes a query.
+- Richer type filters: images (gif/webp/tif…), audio/video (m4a/flac/mov…), documents (html/md/rtf/odt…).
+```
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.4
+
+Tag:
+app-v1.5.4
+
+Asset:
+Setup_RicercaTestualeAccessoDigitale_v1.5.4.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.4.exe
+
+Descrizione: stessa del body Add-on qui sopra (IT + EN).
+
+════════════════════════════════════════════════════════
+Store NVDA (addon-datastore)
+════════════════════════════════════════════════════════
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.4/ricerca_testuale_accesso_digitale-1.5.4.nvda-addon
+
+Channel: stable · License: GPL v2 · Publisher: Maurizio Barra
+
+Changelog:
+- Profili di ricerca (percorso, tipo file, testo opzionale, avvio automatico)
+- Menu Profili + Ctrl+Shift+P / Ctrl+Shift+L
+- Filtri tipologici più ricchi (immagini / audio-video / documenti)
+- Scorciatoie Alt senza conflitti (T/P/N/I/S/K)

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.3 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.4 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,18 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.3</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.4</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.5.4</strong>
+        <ul>
+            <li><strong>Search profiles:</strong> save path, file type, extension, feed option and (optional) query; <em>Profili</em> menu; <code>Ctrl+Shift+P</code> / <code>Ctrl+Shift+L</code>.</li>
+            <li><strong>Manage profiles:</strong> rename or delete; optional auto-start when the profile includes a query.</li>
+            <li><strong>Richer type filters:</strong> more extensions for Images (gif, webp, tif…), Audio/Video (m4a, flac, mov…) and Documents (html, md, rtf, odt…).</li>
+            <li><strong>Conflict-free Alt shortcuts:</strong> one action per key (T/P/N/I/S/K); start search with Enter in the query field.</li>
+        </ul>
         <strong>What's New in Version 1.5.3</strong>
         <ul>
             <li><strong>Improved PDF:</strong> real text from compressed streams, including ToUnicode/CID (league sheets); no more <code>endstream</code>/symbol junk.</li>
@@ -113,6 +120,8 @@
         <li><strong>Ctrl + P</strong>: quick print of listed results.</li>
         <li><strong>Ctrl + E</strong>: export results.</li>
         <li><strong>Ctrl + D</strong>: add the current path to bookmarks.</li>
+        <li><strong>Ctrl + Shift + P</strong>: save the current search profile.</li>
+        <li><strong>Ctrl + Shift + L</strong>: load a search profile.</li>
         <li><strong>Ctrl + U</strong>: check for updates (prefers the <code>.nvda-addon</code> asset from the release).</li>
         <li><strong>Enter</strong> (in the text field): start the search immediately.</li>
         <li><strong>Enter</strong> (on results): open the file at the line, or open the feed article in the browser.</li>

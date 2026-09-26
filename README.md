@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,58 +7,22 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
-### 🌟 Novità della Versione 1.5.3
-- **PDF migliorato:** testo reale (anche ToUnicode/CID, tabellini Leghe); niente più spazzatura `endstream`/simboli.
-- **Menu:** «Copia Testo», «Copia Immagine» e «Salva Immagine...» (anche scansioni PDF); non i soli loghi.
-- **Data documento** (gg/mm/aaaa) nei risultati PDF; match «Testo PDF» / «Nome File».
+### 🌟 Novità della Versione 1.5.4
 
-### 🌟 Novità della Versione 1.5.2
-- **Lettore email/MBOX più sicuro:** caricamento in secondo piano; allegati PDF/binari esclusi dal testo.
-- **Data messaggio** (gg/mm/aaaa) anche nei risultati MBOX e `.eml`.
+- **Profili di ricerca:** salva percorso, tipo file, opzioni e (opzionale) testo; menu Profili; Ctrl+Shift+P / Ctrl+Shift+L.
+- Gestisci profili: rinomina o elimina.
+- **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
+- **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
+- Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
-### 🌟 Novità della Versione 1.5.1
-- **Cronologia ricerche:** ultimi testi e percorsi in locale; `Ctrl+H` / pulsante Cronologia e `Ctrl+Shift+H`; menu Cronologia.
+### 🌟 What's New in Version 1.5.4
 
-### 🌟 Novità della Versione 1.5.0
-- **Feed RSS/Atom:** cerca in URL http(s), file locali `.rss`/`.atom`/`.xml` e elenchi OPML; più percorsi separati da `;` o `,`.
-- **Feed Thunderbird:** pulsante dedicato per individuare automaticamente le cartelle `Mail\Feeds`; ricerca a testo pulito (un risultato per articolo) e apertura del link originale nel browser.
-- **Occorrenze grezze opzionali:** casella per elencare anche le righe `[FEED-RIGA]` oltre agli articoli, con salto alla riga in editor.
-- **Ordinamento per data articolo** nei feed e nota nello stato sulle occorrenze grezze rispetto agli articoli distinti.
+- **Search profiles:** save path, file type, options and (optional) query; Profiles menu; Ctrl+Shift+P / Ctrl+Shift+L.
+- Manage profiles: rename or delete.
+- **Richer type filters:** more extensions for Images, Audio/Video and Documents (e.g. m4a, flac, webp, html, md…).
+- **Conflict-free Alt shortcuts:** one action per key (T/P/N/I/S/K); start search with Enter in the query field.
+- 1.5.3 features remain (PDF text/images, Copy/Save Image).
 
-### Caratteristiche Principali
-- **Supporto multi-formato**: Cerca in file di testo (`.txt`, `.log`, `.csv`), documenti Word (`.docx`, `.doc`), file PDF, e-mail (`.eml` con lettore nativo), feed RSS/Thunderbird e immagini con scansione OCR di base (`.jpg`, `.png`, `.bmp`).
-- **Parole chiave multiple e dialetti**: Supporta ricerche flessibili con più termini.
-- **Memoria automatica dei percorsi**: Memorizza l'ultima cartella cercata per velocizzare i flussi di lavoro.
-- **Scansione globale**: Possibilità di scansionare l'intero PC su tutte le unità attive con un solo comando.
-
-### Come trovare il testo esatto nei documenti Word
-Per i documenti di Microsoft Word, l'add-on apre il file in modo pulito e sicuro. Puoi raggiungere istantaneamente la frase esatta seguendo questa procedura:
-1. Nella lista dei risultati dell'add-on, premi il **Tasto Applicazioni** sul file Word desiderato.
-2. Seleziona **"Copia Blocco Notizia / Frase con parola chiave"**.
-3. Apri il documento Word direttamente dai risultati.
-4. Premi la combinazione di tasti **`Control + Shift + T`** per avviare la ricerca mirata.
-5. Incolla il testo copiato con **`Control + V`** e premi **Invio**.
-6. Quando la sintesi vocale annuncia il risultato e il pulsante successivo, premi il tasto **`Esc`**: il cursore si posizionerà esattamente sopra il testo cercato, pronto per la lettura (`NVDA + Freccia Giù`).
-
-*(Nota: Per chi preferisce l'apertura automatica istantanea senza passaggi manuali, è disponibile anche la versione **Standalone .exe**).*
-
-### Scorciatoie da Tastiera (Add-on NVDA)
-- `NVDA + Shift + Control + F`: Apri la finestra principale di ricerca.
-- `NVDA + Shift + Control + S`: Apri la finestra dei comandi rapidi e delle informazioni.
-- `NVDA + Shift + Control + D`: Apri la pagina per le donazioni PayPal.
-- Nella finestra: `Ctrl+F` filtra i risultati, `Alt+P` annuncia lo stato (due volte = copia), `Ctrl+U` verifica aggiornamenti, pulsante **Feed Thunderbird** per i Feed RSS locali.
-- Guida completa (IT/EN): `addon/doc/it/readme.html` e `addon/doc/en/readme.html` (anche da Gestione componenti aggiuntivi → Guida).
-
----
-
-## 🇬🇧 English
-
-An advanced text search tool designed to enhance accessibility and quick information retrieval on your computer. Available both as an **NVDA Add-on** and as a **Standalone Application (.exe)**.
-
-### 🌟 What's New in Version 1.5.3
-- **Improved PDF:** real text (including ToUnicode/CID league sheets); no more `endstream`/symbol junk.
-- **Menu:** “Copia Testo”, “Copia Immagine” and “Salva Immagine...” (including PDF scans); not logo-only.
-- **Document date** (dd/mm/yyyy) in PDF results; “Testo PDF” / “Nome File” match labels.
 
 ### 🌟 What's New in Version 1.5.2
 - **Safer email/MBOX viewer:** background loading; PDF/binary attachments skipped in displayed text.

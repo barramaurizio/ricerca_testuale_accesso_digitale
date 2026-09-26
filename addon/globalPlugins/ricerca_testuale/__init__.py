@@ -43,7 +43,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.3"
+APP_VERSION = "1.5.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -973,6 +973,154 @@ def clear_path_history():
     data["path_history"] = []
     _save_settings_dict(data)
 
+PROFILES_MAX = 20
+
+# Estensioni per filtri di ricerca (liste uniche, allineate a Standalone e Add-on)
+IMG_EXTS = (
+    ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif",
+    ".tif", ".tiff", ".webp", ".ico",
+)
+MEDIA_EXTS = (
+    ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
+    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm",
+    ".mpg", ".mpeg", ".3gp",
+)
+DOC_EXTS = (
+    ".txt", ".log", ".csv", ".md", ".rtf",
+    ".html", ".htm",
+    ".docx", ".doc", ".odt",
+    ".pdf",
+    ".eml", ".mbox", ".mbx",
+    ".rss", ".xml", ".atom", ".opml",
+)
+TEXT_LIKE_EXTS = (
+    ".txt", ".log", ".csv", ".md", ".rtf", ".html", ".htm",
+)
+
+def _filter_choice_labels():
+    return [
+        "Tutti i tipi di file",
+        "Solo Immagini (.jpg, .png, .gif, .webp, .tif, …)",
+        "Solo Audio e Video (.mp3, .m4a, .flac, .mp4, .mkv, .mov, …)",
+        "Solo Documenti (.txt, .pdf, .docx, .eml, .html, .md, …)",
+        "Estensione Personalizzata...",
+    ]
+
+FILTER_MODE_LABELS = (
+    "Tutti i tipi di file",
+    "Solo Immagini",
+    "Solo Audio e Video",
+    "Solo Documenti",
+    "Estensione personalizzata",
+)
+
+
+def load_search_profiles():
+    raw = _load_settings_dict().get("search_profiles", [])
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        if not name:
+            continue
+        try:
+            filter_mode = int(item.get("filter_mode", 0))
+        except (TypeError, ValueError):
+            filter_mode = 0
+        if filter_mode < 0 or filter_mode > 4:
+            filter_mode = 0
+        out.append(
+            {
+                "name": name,
+                "path": str(item.get("path", "") or ""),
+                "filter_mode": filter_mode,
+                "custom_ext": str(item.get("custom_ext", "") or ""),
+                "query": str(item.get("query", "") or ""),
+                "include_feed_raw": bool(item.get("include_feed_raw", False)),
+                "auto_start": bool(item.get("auto_start", False)),
+            }
+        )
+    return out[:PROFILES_MAX]
+
+
+def save_search_profiles(profiles):
+    clean = []
+    for item in profiles[:PROFILES_MAX]:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        if not name:
+            continue
+        try:
+            filter_mode = int(item.get("filter_mode", 0))
+        except (TypeError, ValueError):
+            filter_mode = 0
+        if filter_mode < 0 or filter_mode > 4:
+            filter_mode = 0
+        clean.append(
+            {
+                "name": name,
+                "path": str(item.get("path", "") or ""),
+                "filter_mode": filter_mode,
+                "custom_ext": str(item.get("custom_ext", "") or ""),
+                "query": str(item.get("query", "") or ""),
+                "include_feed_raw": bool(item.get("include_feed_raw", False)),
+                "auto_start": bool(item.get("auto_start", False)),
+            }
+        )
+    data = _load_settings_dict()
+    data["search_profiles"] = clean
+    _save_settings_dict(data)
+
+
+def upsert_search_profile(profile):
+    """Inserisce o aggiorna un profilo per nome (casefold)."""
+    profiles = load_search_profiles()
+    name_key = profile["name"].casefold()
+    replaced = False
+    for i, p in enumerate(profiles):
+        if p["name"].casefold() == name_key:
+            profiles[i] = profile
+            replaced = True
+            break
+    if not replaced:
+        profiles.insert(0, profile)
+    save_search_profiles(profiles)
+    return replaced
+
+
+def delete_search_profile(name):
+    profiles = load_search_profiles()
+    new_list = [p for p in profiles if p["name"].casefold() != name.casefold()]
+    if len(new_list) == len(profiles):
+        return False
+    save_search_profiles(new_list)
+    return True
+
+
+def rename_search_profile(old_name, new_name):
+    new_name = (new_name or "").strip()
+    if not new_name:
+        return False
+    profiles = load_search_profiles()
+    if any(p["name"].casefold() == new_name.casefold() and p["name"].casefold() != old_name.casefold() for p in profiles):
+        return False
+    for p in profiles:
+        if p["name"].casefold() == old_name.casefold():
+            p["name"] = new_name
+            save_search_profiles(profiles)
+            return True
+    return False
+
+
+def filter_mode_label(mode):
+    try:
+        return FILTER_MODE_LABELS[int(mode)]
+    except (IndexError, TypeError, ValueError):
+        return FILTER_MODE_LABELS[0]
 
 def get_dynamic_desktop_path():
     desktop_path = os.path.expanduser("~\\Desktop")
@@ -981,6 +1129,23 @@ def get_dynamic_desktop_path():
         if not os.path.exists(desktop_path):
             desktop_path = os.path.expanduser("~")
     return desktop_path
+
+
+def _announce(msg, delay_ms=280):
+    """Annuncio NVDA differito: la chiusura del menu contestuale altrimenti tronca la frase."""
+    def _say(m=msg):
+        try:
+            ui.message(m)
+        except Exception:
+            pass
+    try:
+        wx.CallLater(int(delay_ms), _say)
+    except Exception:
+        try:
+            ui.message(msg)
+        except Exception:
+            pass
+
 
 def get_real_ready_drives():
     drives = []
@@ -1845,7 +2010,7 @@ class EmlViewerFrame(wx.Frame):
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
-        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
         hbox_btns.Add(btn_close, 0, wx.ALL, 5)
 
@@ -1935,7 +2100,7 @@ class MboxViewerFrame(wx.Frame):
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
-        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
         hbox_btns.Add(btn_close, 0, wx.ALL, 5)
 
@@ -2042,10 +2207,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• PDF migliorato: testo reale da stream compressi; salta Image XObject (niente simboli).\n"
-            "• Menu: «Copia Testo» e «Copia Immagine» separate (anche da PDF scansionati).\n"
-            "• Data documento nei risultati PDF; avviso se il PDF è solo immagine.\n\n"
-            "• Restano attive le novità della 1.5.2 (MBOX, date email, ordinamento).\n"
+            "• Profili di ricerca: salva percorso, tipo file, opzioni e (opzionale) testo;\n"
+            "  menu Profili; Ctrl+Shift+P per salvare, Ctrl+Shift+L per caricare.\n"
+            "• Gestisci profili: rinomina o elimina.\n"
+            "• Filtri tipologici più ricchi: più estensioni in Immagini, Audio/Video e Documenti\n"
+            "  (es. m4a, flac, webp, html, md…).\n"
+            "• Scorciatoie Alt senza conflitti (T/P/N/I/S/K); Avvia ricerca con INVIO nel campo testo.\n\n"
+            "• Restano attive le novità 1.5.3 (PDF, Copia/Salva Immagine).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -2111,7 +2279,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
             "  - Ctrl + P : Stampa rapida dei risultati di ricerca in lista\n"
             "  - Ctrl + E : Esporta Risultati\n"
-            "  - Ctrl + D : Aggiunge percorso attuale ai Segnalibri\n"
+            "  - Ctrl + D : Aggiunge percorso attuale ai Segnalibri\n"            "  - Ctrl + Shift + P : Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L : Carica un profilo di ricerca\n"
             "  - INVIO (su campo testo) : Avvia subito la ricerca\n"
             "  - INVIO (sui risultati) : Apri file alla riga esatta, oppure articolo feed nel browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del contesto\n"
@@ -2151,7 +2319,7 @@ class ShortcutsFrame(wx.Frame):
         btn_donate.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(DONATION_URL))
         hbox_btns.Add(btn_donate, 0, wx.ALL, 5)
 
-        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
         hbox_btns.Add(btn_close, 0, wx.ALL, 5)
 
@@ -2192,6 +2360,7 @@ class SearchFrame(wx.Frame):
         self.current_query = ""
         self.live_matches_count = 0
         self.bookmark_items = []
+        self.profile_items = []
         self.history_query_items = []
         self.last_alt_p_time = 0
         self.last_feed_raw_occurrences = 0
@@ -2202,30 +2371,24 @@ class SearchFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        lbl_query = wx.StaticText(panel, label="&Testo o frase da cercare (supporta più termini e dialetti):")
+        lbl_query = wx.StaticText(panel, label="Testo o frase da cercare (supporta più termini e dialetti):")
         vbox.Add(lbl_query, 0, wx.ALL, 5)
         hbox_query = wx.BoxSizer(wx.HORIZONTAL)
         self.txt_query = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.txt_query.Bind(wx.EVT_TEXT_ENTER, lambda e: self.start_search_thread())
         hbox_query.Add(self.txt_query, 1, wx.EXPAND | wx.ALL, 5)
-        btn_query_hist = wx.Button(panel, label="Cronolo&gia")
+        btn_query_hist = wx.Button(panel, label="Cronologia")
         btn_query_hist.Bind(wx.EVT_BUTTON, self.on_recall_query_history)
         hbox_query.Add(btn_query_hist, 0, wx.ALL, 5)
         vbox.Add(hbox_query, 0, wx.EXPAND)
 
         hbox_filter = wx.BoxSizer(wx.HORIZONTAL)
         vbox_filter_choice = wx.BoxSizer(wx.VERTICAL)
-        lbl_filter = wx.StaticText(panel, label="T&ipo di file da cercare:")
+        lbl_filter = wx.StaticText(panel, label="Tipo di file da cercare:")
         vbox_filter_choice.Add(lbl_filter, 0, wx.ALL, 5)
         self.combo_filter = wx.Choice(
             panel,
-            choices=[
-                "Tutti i tipi di file",
-                "Solo Immagini (.jpg, .png, .jpeg, .bmp)",
-                "Solo Audio e Video (.mp4, .mp3, .mkv, .avi, .wav)",
-                "Solo Documenti (.txt, .docx, .doc, .pdf, .eml, .log, .csv)",
-                "Estensione Personalizzata...",
-            ],
+            choices=_filter_choice_labels(),
         )
         self.combo_filter.SetSelection(0)
         self.combo_filter.Bind(wx.EVT_CHOICE, self.on_filter_changed)
@@ -2241,14 +2404,14 @@ class SearchFrame(wx.Frame):
         hbox_filter.Add(self.vbox_custom_ext, 1, wx.EXPAND)
         vbox.Add(hbox_filter, 0, wx.EXPAND)
 
-        lbl_path = wx.StaticText(panel, label="&Percorso di ricerca (Memoria automatica o inserisci link Feed RSS):")
+        lbl_path = wx.StaticText(panel, label="Percorso di ricerca (Memoria automatica o inserisci link Feed RSS):")
         vbox.Add(lbl_path, 0, wx.ALL, 5)
 
         hbox_path = wx.BoxSizer(wx.HORIZONTAL)
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
 
-        btn_browse = wx.Button(panel, label="S&foglia...")
+        btn_browse = wx.Button(panel, label="Sfoglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
 
@@ -2256,20 +2419,20 @@ class SearchFrame(wx.Frame):
         btn_all_pc.Bind(wx.EVT_BUTTON, self.on_search_all_pc)
         hbox_path.Add(btn_all_pc, 0, wx.ALL, 5)
 
-        btn_tb_feeds = wx.Button(panel, label="Feed &Thunderbird")
+        btn_tb_feeds = wx.Button(panel, label="Feed Thunderbird")
         btn_tb_feeds.Bind(wx.EVT_BUTTON, self.on_detect_thunderbird_feeds)
         hbox_path.Add(btn_tb_feeds, 0, wx.ALL, 5)
         vbox.Add(hbox_path, 0, wx.EXPAND)
 
         self.chk_feed_raw = wx.CheckBox(
             panel,
-            label="Nei feed, elenca anche le &occorrenze grezze (oltre agli articoli)",
+            label="Nei feed, elenca anche le occorrenze grezze (oltre agli articoli)",
         )
         self.chk_feed_raw.SetValue(False)
         vbox.Add(self.chk_feed_raw, 0, wx.ALL, 5)
 
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
-        self.btn_search = wx.Button(panel, label="&Avvia Ricerca")
+        self.btn_search = wx.Button(panel, label="Avvia Ricerca")
         self.btn_search.Bind(wx.EVT_BUTTON, lambda e: self.start_search_thread())
         hbox_actions.Add(self.btn_search, 0, wx.ALL, 5)
 
@@ -2286,11 +2449,11 @@ class SearchFrame(wx.Frame):
         btn_progress_now.Bind(wx.EVT_BUTTON, lambda e: self.announce_progress())
         hbox_actions.Add(btn_progress_now, 0, wx.ALL, 5)
 
-        btn_copy_status = wx.Button(panel, label="Copia S&tato")
+        btn_copy_status = wx.Button(panel, label="Copia Stato")
         btn_copy_status.Bind(wx.EVT_BUTTON, lambda e: self.copy_status_to_clipboard())
         hbox_actions.Add(btn_copy_status, 0, wx.ALL, 5)
 
-        btn_screenshot = wx.Button(panel, label="Cattura Sc&hermo (Alt+K)")
+        btn_screenshot = wx.Button(panel, label="Cattura Schermo (Alt+K)")
         btn_screenshot.Bind(wx.EVT_BUTTON, self.on_take_screenshot)
         hbox_actions.Add(btn_screenshot, 0, wx.ALL, 5)
 
@@ -2313,7 +2476,7 @@ class SearchFrame(wx.Frame):
         self.gauge = wx.Gauge(panel, range=100)
         vbox.Add(self.gauge, 0, wx.EXPAND | wx.ALL, 5)
 
-        lbl_filter_res = wx.StaticText(panel, label="&Filtra i risultati nella lista (Ctrl+F):")
+        lbl_filter_res = wx.StaticText(panel, label="Filtra i risultati nella lista (Ctrl+F):")
         vbox.Add(lbl_filter_res, 0, wx.ALL, 5)
         self.txt_filter = wx.TextCtrl(panel)
         self.txt_filter.Bind(wx.EVT_TEXT, self.on_filter_text)
@@ -2321,7 +2484,7 @@ class SearchFrame(wx.Frame):
 
         lbl_results = wx.StaticText(
             panel,
-            label="&Risultati trovati (INVIO per riga esatta, SPAZIO/F4 anteprima audio, APPLICAZIONI opzioni):",
+            label="Risultati trovati (INVIO per riga esatta, SPAZIO/F4 anteprima audio, APPLICAZIONI opzioni):",
         )
         vbox.Add(lbl_results, 0, wx.ALL, 5)
         self.lst_results = wx.ListBox(panel, style=wx.LB_SINGLE)
@@ -2331,27 +2494,27 @@ class SearchFrame(wx.Frame):
         vbox.Add(self.lst_results, 1, wx.EXPAND | wx.ALL, 5)
 
         hbox_bottom = wx.BoxSizer(wx.HORIZONTAL)
-        btn_open = wx.Button(panel, label="&Apri File (Alla Riga)")
+        btn_open = wx.Button(panel, label="Apri File (Alla Riga)")
         btn_open.Bind(wx.EVT_BUTTON, self.on_open_file_event)
         hbox_bottom.Add(btn_open, 0, wx.ALL, 5)
 
-        btn_preview = wx.Button(panel, label="Anteprima &Voce (F4)")
+        btn_preview = wx.Button(panel, label="Anteprima Voce (F4)")
         btn_preview.Bind(wx.EVT_BUTTON, lambda e: self.speak_selected_preview())
         hbox_bottom.Add(btn_preview, 0, wx.ALL, 5)
         
-        btn_export = wx.Button(panel, label="&Esporta Risultati...")
+        btn_export = wx.Button(panel, label="Esporta Risultati...")
         btn_export.Bind(wx.EVT_BUTTON, self.on_export_results)
         hbox_bottom.Add(btn_export, 0, wx.ALL, 5)
         
-        btn_print = wx.Button(panel, label="Stam&pa Risultati...")
+        btn_print = wx.Button(panel, label="Stampa Risultati...")
         btn_print.Bind(wx.EVT_BUTTON, self.on_print_results)
         hbox_bottom.Add(btn_print, 0, wx.ALL, 5)
 
-        btn_github = wx.Button(panel, label="Pagina &GitHub")
+        btn_github = wx.Button(panel, label="Pagina GitHub")
         btn_github.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(GITHUB_URL))
         hbox_bottom.Add(btn_github, 0, wx.ALL, 5)
 
-        btn_close = wx.Button(panel, label="C&hiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, self.on_close)
         hbox_bottom.Add(btn_close, 0, wx.ALL, 5)
 
@@ -2529,7 +2692,7 @@ class SearchFrame(wx.Frame):
         item_clear_queries = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia &testi")
         item_clear_paths = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia p&ercorsi")
         self.history_menu.AppendSeparator()
-        menubar.Append(self.history_menu, "Cro&nologia")
+        menubar.Append(self.history_menu, "&Cronologia")
 
         self.Bind(wx.EVT_MENU, self.on_recall_query_history, item_hist_query)
         self.Bind(wx.EVT_MENU, self.on_recall_path_history, item_hist_path)
@@ -2537,10 +2700,29 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_clear_path_history, item_clear_paths)
         self.update_history_menu()
 
+        # Menu Profili
+        self.profiles_menu = wx.Menu()
+        item_save_profile = self.profiles_menu.Append(
+            wx.ID_ANY, "Salva profilo &attuale...\tCtrl+Shift+P"
+        )
+        item_load_profile = self.profiles_menu.Append(
+            wx.ID_ANY, "&Carica profilo...\tCtrl+Shift+L"
+        )
+        item_manage_profiles = self.profiles_menu.Append(
+            wx.ID_ANY, "&Gestisci profili..."
+        )
+        self.profiles_menu.AppendSeparator()
+        menubar.Append(self.profiles_menu, "P&rofili")
+
+        self.Bind(wx.EVT_MENU, self.on_save_search_profile, item_save_profile)
+        self.Bind(wx.EVT_MENU, self.on_load_search_profile_dialog, item_load_profile)
+        self.Bind(wx.EVT_MENU, self.on_manage_search_profiles, item_manage_profiles)
+        self.update_profiles_menu()
+
         # Menu Strumenti
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...	Ctrl+U")
-        menubar.Append(tools_menu, "&Strumenti")
+        menubar.Append(tools_menu, "Stru&menti")
 
         # Menu Aiuto
         help_menu = wx.Menu()
@@ -2552,7 +2734,7 @@ class SearchFrame(wx.Frame):
         help_menu.AppendSeparator()
         item_diag = help_menu.Append(wx.ID_ANY, "Esporta Info &Diagnostica sul Desktop")
         item_feedback = help_menu.Append(wx.ID_ANY, "Segnala un Problema / Invia &Feedback")
-        menubar.Append(help_menu, "&Aiuto")
+        menubar.Append(help_menu, "Aiuto")
 
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self.on_export_results, item_export)
@@ -2670,6 +2852,219 @@ class SearchFrame(wx.Frame):
             return
         clear_path_history()
         wx.CallLater(200, lambda: ui.message("Cronologia percorsi svuotata."))
+
+
+    def update_profiles_menu(self):
+        for item_id in self.profile_items:
+            self.profiles_menu.Remove(item_id)
+        self.profile_items.clear()
+        for profile in load_search_profiles():
+            label = profile["name"]
+            if profile.get("query"):
+                label = f"{label}  [con testo]"
+            item = self.profiles_menu.Append(wx.ID_ANY, label)
+            self.profile_items.append(item.GetId())
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=profile: self.apply_search_profile(p),
+                item,
+            )
+
+    def _collect_current_profile_fields(self):
+        path = self.txt_path.GetValue().strip()
+        filter_mode = self.combo_filter.GetSelection()
+        if filter_mode < 0:
+            filter_mode = 0
+        custom_ext = self.txt_custom_ext.GetValue().strip()
+        if custom_ext and not custom_ext.startswith("."):
+            custom_ext = "." + custom_ext
+        return {
+            "path": path,
+            "filter_mode": filter_mode,
+            "custom_ext": custom_ext if filter_mode == 4 else "",
+            "include_feed_raw": bool(self.chk_feed_raw.GetValue()),
+            "query": self.txt_query.GetValue().strip(),
+        }
+
+    def on_save_search_profile(self, event=None):
+        fields = self._collect_current_profile_fields()
+        if not fields["path"] and fields["filter_mode"] == 0 and not fields["query"]:
+            _announce(
+                "Imposta almeno un percorso o un testo di ricerca prima di salvare un profilo."
+            )
+            return
+        dlg = wx.TextEntryDialog(
+            self,
+            "Nome del profilo (es. Documenti Desktop, Feed Thunderbird):",
+            "Salva profilo di ricerca",
+            "",
+        )
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+        name = dlg.GetValue().strip()
+        dlg.Destroy()
+        if not name:
+            _announce("Nome profilo non valido.")
+            return
+
+        include_query = False
+        auto_start = False
+        if fields["query"]:
+            ask = wx.MessageDialog(
+                self,
+                f"Includere anche il testo di ricerca attuale?\n«{fields['query']}»",
+                "Testo nel profilo",
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+            )
+            include_query = ask.ShowModal() == wx.ID_YES
+            ask.Destroy()
+            if include_query:
+                ask2 = wx.MessageDialog(
+                    self,
+                    "All'apertura di questo profilo, avviare subito la ricerca?",
+                    "Avvio automatico",
+                    wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+                )
+                auto_start = ask2.ShowModal() == wx.ID_YES
+                ask2.Destroy()
+
+        profile = {
+            "name": name,
+            "path": fields["path"],
+            "filter_mode": fields["filter_mode"],
+            "custom_ext": fields["custom_ext"],
+            "query": fields["query"] if include_query else "",
+            "include_feed_raw": fields["include_feed_raw"],
+            "auto_start": bool(auto_start and include_query),
+        }
+        replaced = upsert_search_profile(profile)
+        self.update_profiles_menu()
+        if replaced:
+            _announce(f"Profilo aggiornato: {name}.")
+        else:
+            _announce(f"Profilo salvato: {name}.")
+
+    def on_load_search_profile_dialog(self, event=None):
+        profiles = load_search_profiles()
+        if not profiles:
+            _announce("Nessun profilo di ricerca salvato.")
+            return
+        names = []
+        for p in profiles:
+            extra = []
+            extra.append(filter_mode_label(p["filter_mode"]))
+            if p.get("query"):
+                extra.append("con testo")
+            if p.get("auto_start"):
+                extra.append("avvio automatico")
+            names.append(f"{p['name']} — {', '.join(extra)}")
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona il profilo da caricare:",
+            "Carica profilo di ricerca",
+            names,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            idx = dlg.GetSelection()
+            if 0 <= idx < len(profiles):
+                self.apply_search_profile(profiles[idx])
+        dlg.Destroy()
+
+    def apply_search_profile(self, profile, announce=True):
+        path = profile.get("path", "") or ""
+        self.txt_path.SetValue(path)
+        if path:
+            try:
+                save_last_path(path)
+            except Exception:
+                pass
+        mode = int(profile.get("filter_mode", 0) or 0)
+        if mode < 0 or mode > 4:
+            mode = 0
+        self.combo_filter.SetSelection(mode)
+        custom = profile.get("custom_ext", "") or ""
+        self.txt_custom_ext.SetValue(custom)
+        self.txt_custom_ext.Enable(mode == 4)
+        self.chk_feed_raw.SetValue(bool(profile.get("include_feed_raw", False)))
+        query = profile.get("query", "") or ""
+        if query:
+            self.txt_query.SetValue(query)
+        if announce:
+            bits = [f"Profilo caricato: {profile.get('name', '')}"]
+            bits.append(filter_mode_label(mode))
+            if path:
+                bits.append(f"percorso {path}")
+            if query:
+                bits.append(f"testo {query}")
+            _announce(". ".join(bits) + ".")
+        if profile.get("auto_start") and query:
+            wx.CallLater(350, self.start_search_thread)
+
+    def on_manage_search_profiles(self, event=None):
+        profiles = load_search_profiles()
+        if not profiles:
+            _announce("Nessun profilo di ricerca salvato.")
+            return
+        names = [p["name"] for p in profiles]
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Seleziona un profilo, poi scegli Rinomina o Elimina:",
+            "Gestisci profili",
+            names,
+        )
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+        sel_name = dlg.GetStringSelection()
+        dlg.Destroy()
+        if not sel_name:
+            return
+        action = wx.SingleChoiceDialog(
+            self,
+            f"Azione per «{sel_name}»:",
+            "Gestisci profilo",
+            ["Rinomina", "Elimina"],
+        )
+        if action.ShowModal() != wx.ID_OK:
+            action.Destroy()
+            return
+        choice = action.GetStringSelection()
+        action.Destroy()
+        if choice == "Elimina":
+            confirm = wx.MessageDialog(
+                self,
+                f"Eliminare il profilo «{sel_name}»?",
+                "Conferma eliminazione",
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            )
+            if confirm.ShowModal() == wx.ID_YES:
+                if delete_search_profile(sel_name):
+                    self.update_profiles_menu()
+                    _announce(f"Profilo eliminato: {sel_name}.")
+                else:
+                    _announce("Impossibile eliminare il profilo.")
+            confirm.Destroy()
+        elif choice == "Rinomina":
+            rename_dlg = wx.TextEntryDialog(
+                self,
+                "Nuovo nome del profilo:",
+                "Rinomina profilo",
+                sel_name,
+            )
+            if rename_dlg.ShowModal() == wx.ID_OK:
+                new_name = rename_dlg.GetValue().strip()
+                if not new_name:
+                    _announce("Nome non valido.")
+                elif rename_search_profile(sel_name, new_name):
+                    self.update_profiles_menu()
+                    _announce(f"Profilo rinominato in {new_name}.")
+                else:
+                    _announce(
+                        "Impossibile rinominare: nome già in uso o non trovato."
+                    )
+            rename_dlg.Destroy()
+
 
     def update_history_menu(self):
         for item_id in self.history_query_items:
@@ -2798,6 +3193,12 @@ class SearchFrame(wx.Frame):
             return
         elif key == wx.WXK_F1:
             self.show_shortcuts_dialog()
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("P"), ord("p")):
+            self.on_save_search_profile(None)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("L"), ord("l")):
+            self.on_load_search_profile_dialog(None)
             return
         elif ctrl and key in (ord("P"), ord("p")):
             self.on_print_results(None)
@@ -3072,12 +3473,9 @@ class SearchFrame(wx.Frame):
 
         norm_query = normalize_search_text(query)
         terms = norm_query.split()
-        img_exts = [".jpg", ".jpeg", ".png", ".bmp"]
-        media_exts = [".mp4", ".mp3", ".mkv", ".avi", ".wav"]
-        doc_exts = [
-            ".txt", ".eml", ".log", ".csv", ".docx", ".doc", ".pdf",
-            ".mbox", ".mbx", ".rss", ".xml", ".atom", ".opml",
-        ]
+        img_exts = list(IMG_EXTS)
+        media_exts = list(MEDIA_EXTS)
+        doc_exts = list(DOC_EXTS)
         feed_file_exts = {".rss", ".xml", ".atom"}
 
         file_list = []
@@ -3262,7 +3660,7 @@ class SearchFrame(wx.Frame):
                     except Exception:
                         pass
 
-                elif ext in [".txt", ".eml", ".log", ".csv", custom_ext]:
+                elif ext in TEXT_LIKE_EXTS or ext == ".eml" or ext == custom_ext:
                     try:
                         with open(file_path, "rb") as f:
                             raw_data = f.read()
@@ -3611,23 +4009,23 @@ class SearchFrame(wx.Frame):
         self.sort_and_display_matches(sort_type)
         save_sort_preference(sort_type)
         if sort_type == "recent_first":
-            ui.message("Risultati ordinati dal più recente al meno recente.")
+            _announce("Risultati ordinati dal più recente al meno recente.")
         elif sort_type == "oldest_first":
-            ui.message("Risultati ordinati dal meno recente al più recente.")
+            _announce("Risultati ordinati dal meno recente al più recente.")
         elif sort_type == "name":
-            ui.message("Risultati ordinati alfabeticamente per nome.")
+            _announce("Risultati ordinati alfabeticamente per nome.")
 
     def copy_snippet_to_clipboard(self, snippet):
         if wx.TheClipboard.Open():
             wx.TheClipboard.SetData(wx.TextDataObject(snippet))
             wx.TheClipboard.Close()
-            ui.message("Blocco notizia / frase copiata negli appunti!")
+            _announce("Blocco notizia / frase copiata negli appunti!")
 
     def copy_path_to_clipboard(self, file_path):
         if wx.TheClipboard.Open():
             wx.TheClipboard.SetData(wx.TextDataObject(file_path))
             wx.TheClipboard.Close()
-            ui.message("Percorso copiato negli appunti!")
+            _announce("Percorso copiato negli appunti!")
 
     def copy_text_to_clipboard(self, item_data):
         if isinstance(item_data, str):
@@ -3640,8 +4038,8 @@ class SearchFrame(wx.Frame):
         ext = os.path.splitext(file_path)[1].lower()
 
         if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
-            ui.message(
-                "Questo risultato è un file immagine: usa «Copia Immagine». "
+            _announce(
+                "Questo risultato è un file immagine: usa Copia Immagine. "
                 "Nessun testo estraibile qui."
             )
             return
@@ -3656,7 +4054,7 @@ class SearchFrame(wx.Frame):
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(wx.TextDataObject(text_content))
                 wx.TheClipboard.Close()
-                ui.message("Testo copiato negli appunti!")
+                _announce("Testo copiato negli appunti!")
             return
 
         text_content = ""
@@ -3668,16 +4066,14 @@ class SearchFrame(wx.Frame):
             text_content = "\n".join(lines)
             if not text_content.strip():
                 if get_best_pdf_page_image(file_path):
-                    ui.message(
+                    _announce(
                         "Questo PDF è una scansione: non c’è testo da copiare. "
-                        "Usa «Copia Immagine» per la pagina grafica."
+                        "Usa Copia Immagine o Salva Immagine."
                     )
                 else:
-                    ui.message(
-                        "Nessun testo estraibile con il nostro lettore "
-                        "(font speciali o PDF protetto). "
-                        "Prova «Copia Immagine» oppure Apri file "
-                        "(Edge/NVDA spesso lo leggono)."
+                    _announce(
+                        "Nessun testo estraibile da questo PDF. "
+                        "Prova Copia Immagine oppure Apri file."
                     )
                 return
         elif ext in [".txt", ".eml", ".log", ".csv"] or prefix == "[FEED-RIGA]":
@@ -3701,9 +4097,9 @@ class SearchFrame(wx.Frame):
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(wx.TextDataObject(text_content))
                 wx.TheClipboard.Close()
-                ui.message("Testo copiato negli appunti!")
+                _announce("Testo copiato negli appunti!")
         else:
-            ui.message("Impossibile copiare il testo da questo formato.")
+            _announce("Impossibile copiare il testo da questo formato.")
 
     def copy_image_to_clipboard(self, item_data):
         if isinstance(item_data, str):
@@ -3715,7 +4111,7 @@ class SearchFrame(wx.Frame):
         ext = os.path.splitext(file_path)[1].lower()
 
         if prefix in ("[RSS]", "[FEED]", "[MBOX]", "[FEED-RIGA]"):
-            ui.message("Nessuna immagine da copiare per questo risultato.")
+            _announce("Nessuna immagine da copiare per questo risultato.")
             return
 
         if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
@@ -3724,32 +4120,30 @@ class SearchFrame(wx.Frame):
                 if img.IsOk() and wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.BitmapDataObject(wx.Bitmap(img)))
                     wx.TheClipboard.Close()
-                    ui.message("Immagine copiata negli appunti!")
+                    _announce("Immagine copiata negli appunti!")
                     return
             except Exception:
                 pass
-            ui.message("Impossibile copiare l’immagine.")
+            _announce("Impossibile copiare l’immagine.")
             return
 
         if ext == ".pdf":
-            ui.message("Estrazione immagine dal PDF in corso…")
             try:
                 record = get_best_pdf_page_image(file_path)
                 if record is None:
                     logos = extract_images_from_pdf(file_path)
                     if logos:
                         top = logos[0]
-                        ui.message(
+                        _announce(
                             f"Trovato solo logo o icona "
                             f"({top['w']} per {top['h']} pixel), "
                             f"non una pagina intera. "
-                            f"Prova «Copia Testo» oppure Apri file."
+                            f"Prova Copia Testo oppure Apri file."
                         )
                     else:
-                        ui.message(
-                            "Nessuna pagina grafica in questo PDF "
-                            "(spesso è testo vettoriale: usa «Copia Testo» "
-                            "oppure Apri file)."
+                        _announce(
+                            "Nessuna pagina grafica in questo PDF. "
+                            "Prova Copia Testo oppure Apri file."
                         )
                     return
                 img = pdf_image_record_to_wx_image(record)
@@ -3758,23 +4152,21 @@ class SearchFrame(wx.Frame):
                     if bmp.IsOk() and wx.TheClipboard.Open():
                         wx.TheClipboard.SetData(wx.BitmapDataObject(bmp))
                         wx.TheClipboard.Close()
-                        ui.message(
-                            f"Pagina grafica copiata negli appunti "
-                            f"({img.GetWidth()} per {img.GetHeight()} pixel; "
-                            f"originale {record['w']}×{record['h']})!"
+                        _announce(
+                            f"Pagina grafica copiata negli appunti, "
+                            f"{img.GetWidth()} per {img.GetHeight()} pixel. "
+                            f"Originale {record['w']} per {record['h']}."
                         )
                         return
             except Exception:
                 pass
-            ui.message(
-                "Impossibile copiare l’immagine da questo PDF "
-                "(file troppo grande o formato non supportato). "
-                "Puoi usare «Invia / Copia File in un'altra cartella...» "
-                "oppure Apri file."
+            _announce(
+                "Impossibile copiare l’immagine da questo PDF. "
+                "Puoi usare Copia File altrove oppure Apri file."
             )
             return
 
-        ui.message("Nessuna immagine da copiare in questo formato.")
+        _announce("Nessuna immagine da copiare in questo formato.")
 
     def save_image_to_file(self, item_data):
         if isinstance(item_data, str):
@@ -3787,7 +4179,7 @@ class SearchFrame(wx.Frame):
         base_name = os.path.splitext(os.path.basename(file_path))[0] or "immagine"
 
         if prefix in ("[RSS]", "[FEED]", "[MBOX]", "[FEED-RIGA]"):
-            ui.message("Nessuna immagine da salvare per questo risultato.")
+            _announce("Nessuna immagine da salvare per questo risultato.")
             return
 
         default_dir = get_dynamic_desktop_path()
@@ -3814,23 +4206,22 @@ class SearchFrame(wx.Frame):
             dlg.Destroy()
             try:
                 shutil.copy2(file_path, dest)
-                ui.message(f"Immagine salvata in {dest}")
+                _announce(f"Immagine salvata in {dest}")
             except Exception:
-                ui.message("Impossibile salvare l’immagine.")
+                _announce("Impossibile salvare l’immagine.")
             return
 
         if ext == ".pdf":
-            ui.message("Estrazione immagine dal PDF in corso…")
             record = get_best_pdf_page_image(file_path)
             if record is None:
                 logos = extract_images_from_pdf(file_path)
                 if logos:
-                    ui.message(
+                    _announce(
                         "Trovato solo logo o icona, non una pagina da salvare. "
-                        "Prova «Copia Testo» oppure Apri file."
+                        "Prova Copia Testo oppure Apri file."
                     )
                 else:
-                    ui.message("Nessuna pagina grafica da salvare in questo PDF.")
+                    _announce("Nessuna pagina grafica da salvare in questo PDF.")
                 return
             default_ext = ".jpg" if record["kind"] == "jpeg" else ".png"
             dlg = wx.FileDialog(
@@ -3849,15 +4240,15 @@ class SearchFrame(wx.Frame):
             if not os.path.splitext(dest)[1]:
                 dest = dest + default_ext
             if save_pdf_image_record_to_path(record, dest):
-                ui.message(
-                    f"Immagine salvata "
-                    f"({record['w']} per {record['h']} pixel) in {dest}"
+                _announce(
+                    f"Immagine salvata, "
+                    f"{record['w']} per {record['h']} pixel, in {dest}"
                 )
             else:
-                ui.message("Impossibile salvare l’immagine dal PDF.")
+                _announce("Impossibile salvare l’immagine dal PDF.")
             return
 
-        ui.message("Nessuna immagine da salvare in questo formato.")
+        _announce("Nessuna immagine da salvare in questo formato.")
 
     def copy_content_or_image_to_clipboard(self, item_data):
         """Compatibilità: reindirizza a Copia Testo."""
@@ -3873,17 +4264,17 @@ class SearchFrame(wx.Frame):
             dest_dir = dlg.GetPath()
             try:
                 shutil.copy(file_path, dest_dir)
-                ui.message(f"File copiato con successo in {dest_dir}!")
+                _announce(f"File copiato con successo in {dest_dir}!")
             except Exception:
-                ui.message("Impossibile copiare il file nella destinazione.")
+                _announce("Impossibile copiare il file nella destinazione.")
         dlg.Destroy()
 
     def open_containing_folder(self, file_path):
         try:
             subprocess.Popen(f'explorer /select,"{file_path}"')
-            ui.message("Apertura cartella contenitore in corso...")
+            _announce("Apertura cartella contenitore in corso...")
         except Exception:
-            ui.message("Impossibile aprire la cartella contenitore.")
+            _announce("Impossibile aprire la cartella contenitore.")
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):

@@ -1,3 +1,11 @@
+Novità nella Versione 1.5.4
+- Filtri: più estensioni per Immagini (gif/webp/tif…), Audio/Video (m4a/flac/mov…) e Documenti (html/md/rtf/odt…)
+- Scorciatoie Alt senza conflitti: solo T/P/N/I/S/K documentate; Avvia con INVIO nel campo testo
+- Profili di ricerca: salva percorso, tipo file, estensione, opzione feed e (opzionale) testo
+- Menu Profili: Salva / Carica / Gestisci (rinomina ed elimina); elenco rapido
+- Ctrl+Shift+P salva profilo attuale; Ctrl+Shift+L carica un profilo
+- Opzione avvio automatico se il profilo include il testo di ricerca
+
 Novità nella Versione 1.5.3
 - PDF migliorato: estrazione testo da stream FlateDecode (Tj/TJ), senza librerie pesanti
 - Copia Testo e Copia Immagine separate nel menu contestuale (niente pasticci misti)

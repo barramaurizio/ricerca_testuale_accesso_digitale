@@ -15,8 +15,6 @@ Stato: piano di lavoro (niente date di calendario: solo ordine e criteri)
 
 **Come alla 1.4.x → 1.5.0:** si resta su `1.5.x` finché gli arricchimenti sono utili ma non “salto di prodotto”. Il numero `1.6` segnala un pacchetto sostanzioso (come i feed nella 1.5).
 
-**Prima della 1.5.1:** qualche giorno di uso reale della 1.5.0 (store + utenti), poi rilascio piccolo. Non serve aspettare mesi; serve feedback, non frettolosità.
-
 Regola Zero invariata: **Standalone → Add-on → compile → due tag** (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store se serve.
 
 ---
@@ -24,10 +22,11 @@ Regola Zero invariata: **Standalone → Add-on → compile → due tag** (`vX.Y.
 ## Cosa NON entrare nel nucleo (per ora)
 
 - Whisper / trascrizione ML su audio-video in massa  
-- OCR pesante bundlato nell’Add-on NVDA  
-- Scansione “tutto il PC” con motori lenti  
+- OCR pesante bundlato nell’Add-on NVDA (Tesseract/EasyOCR shippato nel pacchetto)  
+- Scansione “tutto il PC” con motori lenti (OCR/vision) senza opt-in  
+- Ricerca semantica oggetti/scene nel default (lupo, spiaggia, …) — pista Standalone opt-in o gemello “media”
 
-Queste idee restano valide come **pista separata** (opzionale Standalone, o progetto gemello “media”), non come default RTAD.
+Queste idee restano valide come **pista separata**, non come default RTAD.
 
 ---
 
@@ -35,93 +34,103 @@ Queste idee restano valide come **pista separata** (opzionale Standalone, o prog
 
 ### Fase A — `1.5.1` (cronologia) — FATTA ✅
 
-Obiettivo: rilascio piccolo, rischio basso, subito testabile.
+### Fase B — `1.5.2` (lettore email sicuro + date) — FATTA ✅
 
-1. Cronologia ricerche (testi + percorsi), Ctrl+H / Ctrl+Shift+H, menu, Add-on allineato.  
-2. Accessibilità: placeholder «Ricerca in corso…»; stato con Tab/Alt+S/S.  
-3. Release + datastore completati; tool automazione rilascio in repo.
+### Fase C — `1.5.3` (PDF migliorato) — FATTA ✅
 
----
+PDF testo (FlateDecode + ToUnicode/CID), Copia Testo / Copia Immagine / Salva Immagine, data documento, avvisi accessibili.
 
-### Fase B — `1.5.2` (profili di ricerca) — PROSSIMA
+### Fase D — `1.5.4` (profili di ricerca) — IMPLEMENTATA (da provare / rilasciare)
 
-1. **Profili salvati** (es. «solo Feed Thunderbird», «solo EML», «cartella X + parole Y»).  
-2. Scorciatoia o menu per caricare/salvare/eliminare.  
-3. Stessa UX su Standalone e Add-on.  
-4. *(Lucidatura leggera, se c’è spazio)* un solo pulsante Cronologia: etichetta tipo «Cronologia (Ctrl+H)» e/o piccola scelta Testi/Percorsi — **niente** altri bottoni in UI; Svuota resta nel sottomenù.
+Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spesso.
 
-*Criterio “fatto”:* tre profili di prova persistono dopo chiusura; annunci NVDA chiari.
+**Cosa salva un profilo**
 
----
+1. Nome leggibile (es. «Documenti Desktop», «Feed TB», «PDF fatture»).  
+2. Percorso (cartella, unità, URL feed, o «tutto il PC» se era impostato così).  
+3. Tipo di file (combo: tutti / immagini / media / documenti / estensione personalizzata).  
+4. Estensione personalizzata (se attiva).  
+5. Opzione feed grezzi (checkbox occorrenze grezze).  
+6. Testo di ricerca: **opzionale** (chiedere in salvataggio se includerlo).  
+7. Avvio automatico: se c’è testo salvato, opzione «all’apertura del profilo avvia subito la ricerca».
 
-### Fase C — `1.5.3` (anteprima + avvisi a fine ricerca)
+**UX (Standalone = Add-on)**
 
-1. **Anteprima più ricca** in lista: 2–3 righe intorno al match, navigabili senza aprire il file.  
-2. Coerente con Spazio/F4 già presenti; non appesantire la UI.  
-3. **Notifica a fine ricerca** (Standalone prima): se la finestra non è in primo piano, avviso Windows / area notifiche (utile su scansioni lunghe). I beep restano; pin alla barra applicazioni = azione utente Windows (nessun codice dedicato).
+- Menu **Profili**: Salva attuale, Carica / elenco rapido, Gestisci (elimina / rinomina).  
+- Scorciatoia: **Ctrl+Shift+P** = salva profilo attuale; elenco anche da menu.  
+- Stesso stile accessibile di Segnalibri/Cronologia (dialoghi semplici, `ui.message` / sintesi differita nell’Add-on).  
+- Max ~20 profili; persistenza in `settings.json`.
 
-*Criterio “fatto”:* anteprima leggibile con frecce; feed `[FEED]` restano aperti nel browser con Invio; avviso a fine ricerca anche in secondo piano (Standalone).
+*Criterio “fatto”:* creo «Documenti Desktop», chiudo e riapro, carico il profilo → percorso + filtro ripristinati; se avevo salvato anche il testo e l’auto-avvio, la ricerca parte.
 
----
+### Fase E — `1.5.5` (voce Standalone)
 
-### Fase D — lucidatura export/stampa (solo se serve, anche dentro una 1.5.x)
+1. Velocità (e tono se semplice) SAPI5; menu + scorciatoie; persistenza.  
+2. Solo Standalone (Add-on = voce NVDA).  
+3. Eventuale scelta voce tra token SAPI (spesso include OneCore).
 
-Già esistono: non reinventare. Eventuale HTML accessibile / meno rumore / più contesto. Priorità bassa.
+### Fase F — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
----
+### Fase G — OCR testo in immagini / PDF scansione (`1.5.6` o ingresso `1.6`)
 
-### Fase E — media “leggeri” (candidato tardo `1.5.x` oppure pezzo della `1.6`)
+**Priorità alta dopo voce** (accordo settembre 2026).
 
-Senza Whisper:
+1. **Opt-in** esplicito: «Includi testo nelle immagini (OCR)».  
+2. Motore: **Windows.Media.Ocr** (niente pacchetto pesante).  
+3. Target: `.jpg/.png/.…` e pagine grafiche PDF (già estraibili).  
+4. Cache testo OCR per file (hash + mtime) per non ripetere lavoro.  
+5. Standalone prima → Add-on con lo stesso OCR di sistema.  
+6. Messaggi chiari su qualità / assenza testo.
 
-1. Cercare anche **file collegati**: `.srt`, `.vtt`, `.txt` accanto a audio/video.  
-2. Metadati utili già presenti (dove economici).  
-3. Sempre **opt-in** o limitati al percorso scelto — mai default su tutto il disco.
+**Non in questa fase:** ricerca per oggetti/scene («foto con un lupo»). Quella è vision/captioning → modulo opt-in successivo o gemello.
 
-OCR vero (Windows OCR / Tesseract esterno): solo **opzionale Standalone**, mai bundlato nell’Add-on, mai su “tutto il PC”.
+### Fase H — EPUB + ZIP opt-in (`1.5.x` / pezzo di `1.6`)
 
----
+Ordine consigliato: **dopo OCR di base** (o in parallelo snello se OCR slitta).
 
-### Fase F — `1.6.0` (salto sostanzioso)
+| Formato | Perché | Note |
+|---------|--------|------|
+| **EPUB** | Lettori assidui e studenti | ZIP+XHTML interno; testo ricercabile come documenti. Serve qualche file di prova. |
+| **ZIP / archivi** | Cercare dentro senza scompattare a mano | **Sempre opt-in** (lento, molti file); depth limit; niente autocompilazione di tutto il PC. |
 
-Quando almeno **due** tra B/C/E (o un modulo media opt-in solido) sono stabili e allineati sui gemelli, si raggruppa in **1.6.0** con note di rilascio che spiegano il salto (come i feed in 1.5).
+### Fase I — `1.6.0` (salto sostanzioso)
 
-Se le fasi A–C bastano come pacchetto “si sente diverso”, si può fare 1.6 già lì; se ogni pezzo esce da solo, si resta su 1.5.1 / .2 / .3 e si salta dopo.
+Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o OCR + vision leggera), si valuta il salto.
+
+**Candidati vision (dopo OCR testo):** caption/tag opzionale sul risultato selezionato; ricerca semantica solo se feedback la chiedono e resta opt-in Standalone.
 
 ---
 
 ## Decisioni UX (settembre 2026)
 
-- **Niente** secondo/terzo pulsante Cronologia in interfaccia: scorciatoie + menu bastano; al massimo etichetta/scelta sul pulsante esistente.  
-- **Pin barra applicazioni / Windows+N:** gestiti da Windows; RTAD non reinventa il pin.  
-- **Notifiche fine ricerca** in secondo piano: sì, ma dopo i profili (Fase C / Standalone prima).
+- **Niente** secondo/terzo pulsante Cronologia in interfaccia.  
+- **Pin / Windows+N:** gestiti da Windows.  
+- **Notifiche fine ricerca:** dopo i profili.  
+- **Log lunghi:** ultime 30–40 righe bastano.  
+- **Voce:** solo Standalone; OneCore via token SAPI prima di API native.  
+- **PDF 1.5.3:** rilasciato.  
+- **Profili** = `1.5.4`; **voce** = `1.5.5`; **OCR** = dopo voce.  
+- **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
+- **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
 ---
 
-## Ordine di lavoro consigliato (per Cursor / Maurizio)
+## Ordine di lavoro
 
-1. ~~1.5.0 / 1.5.1~~ fatte.  
-2. **Prossima: Fase B → 1.5.2 (profili).**  
-3. Poi Fase C (anteprima + notifiche).  
-4. Media leggeri quando A–C sono solide.  
-5. Decidere insieme il momento del tag **1.6.0**.
-
-Per ogni fase: prototipo Standalone → porting Add-on →  
-`python tools\rtad_release.py bump X.Y.Z` (allinea numeri + `.nvda-addon`) →  
-test tastiera/NVDA → `compila.bat` → GitHub Desktop → release → (store se Add-on).  
-Vedi `docs/AUTOMAZIONE_RILASCIO.md`.
+1. ~~1.5.0 / 1.5.1 / 1.5.2 / 1.5.3~~ fatte.  
+2. **1.5.4 profili** — implementata; prova + release.  
+3. **1.5.5 voce Standalone.**  
+4. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
+5. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
+6. Decidere insieme **1.6.0** (e eventuale vision leggera).
 
 ---
 
-## Idee in lista d’attesa (non schedule)
+## Idee in lista d’attesa
 
-- Migliorie export/stampa  
-- **EPUB:** fattibile in modo snello (è uno ZIP di XHTML, simile a DOCX) → dopo profili  
-- **ZIP generici:** più delicati (tanti formati, archivi enormi) → più avanti, opt-in  
-- **PDF migliorato:** decompressione stream zlib senza librerie pesanti  
-- OCR opt-in Standalone  
-- Progetto gemello media / Whisper (separato)  
-- Altro che emergerà dagli utenti dello store  
+- Caption/tag visuali opt-in Standalone; ricerca semantica scene  
+- Media/Whisper gemello; export/stampa extra; API OneCore native  
+- Feedback esterni → aggiornano priorità qui  
 
 ---
 

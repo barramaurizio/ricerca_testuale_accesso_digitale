@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.4 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.5 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,20 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.4</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.5</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.5.5</strong>
+        <ul>
+            <li><strong>Stability / anti-freeze:</strong> fewer “Not responding” freezes on large folders and awkward PDF/DOC; PDF inflate hard cap; soft timeout only for stuck files; legacy OLE .doc skips useless ZipFile — without limiting normal searches.</li>
+            <li><strong>Date on every result</strong> (dd/mm/yyyy): txt, Word, media, images, file name… same style as email and PDF.</li>
+            <li>Very large files (&gt; ~40 MB): match on name; lighter Alt+S/progress; logs the file being scanned.</li>
+            <li><strong>Bundled feedparser:</strong> RSS/Atom search works in NVDA (no “module not installed” message).</li>
+            <li><strong>.eml and MBOX</strong> aligned with Standalone: one result per message (not every raw line).</li>
+            <li>1.5.4 profiles and filters remain.</li>
+        </ul>
         <strong>What's New in Version 1.5.4</strong>
         <ul>
             <li><strong>Search profiles:</strong> save path, file type, extension, feed option and (optional) query; <em>Profili</em> menu; <code>Ctrl+Shift+P</code> / <code>Ctrl+Shift+L</code>.</li>

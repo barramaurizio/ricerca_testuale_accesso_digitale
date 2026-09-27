@@ -40,7 +40,7 @@ Queste idee restano valide come **pista separata**, non come default RTAD.
 
 PDF testo (FlateDecode + ToUnicode/CID), Copia Testo / Copia Immagine / Salva Immagine, data documento, avvisi accessibili.
 
-### Fase D — `1.5.4` (profili di ricerca) — IMPLEMENTATA (da provare / rilasciare)
+### Fase D — `1.5.4` (profili di ricerca) — FATTA ✅
 
 Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spesso.
 
@@ -63,15 +63,26 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 *Criterio “fatto”:* creo «Documenti Desktop», chiudo e riapro, carico il profilo → percorso + filtro ripristinati; se avevo salvato anche il testo e l’auto-avvio, la ricerca parte.
 
-### Fase E — `1.5.5` (voce Standalone)
+### Fase E — `1.5.5` (stabilità ricerca / anti-freeze + date) — FATTA ✅
+
+1. Limite lettura contenuti per file enormi; indicizzazione visibile.  
+2. Sintesi avanzamento alleggerita; Alt+S / clipboard più sicuri.  
+3. Coda sintesi Standalone (niente Speak concorrenti).  
+4. Tetto inflate PDF + timeout soft per file + skip ZipFile su `.doc` OLE — senza ridurre le ricerche normali.  
+5. Estrazione PDF lineare (niente regex/GIL su brochure tipo `La_Torino_del_Gusto.pdf`).  
+6. **Data (gg/mm/aaaa) su tutti i risultati** (txt, Word, media, immagini, nome file…), come già per email e PDF.  
+7. Add-on: **feedparser vendored** (RSS in NVDA senza pip).  
+8. Add-on: **`.eml`/MBOX allineati allo Standalone** (un hit per messaggio → stessa conta risultati).
+
+### Fase F — `1.5.6` (voce Standalone)
 
 1. Velocità (e tono se semplice) SAPI5; menu + scorciatoie; persistenza.  
 2. Solo Standalone (Add-on = voce NVDA).  
 3. Eventuale scelta voce tra token SAPI (spesso include OneCore).
 
-### Fase F — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
+### Fase G — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
-### Fase G — OCR testo in immagini / PDF scansione (`1.5.6` o ingresso `1.6`)
+### Fase H — OCR testo in immagini / PDF scansione (`1.5.7` o ingresso `1.6`)
 
 **Priorità alta dopo voce** (accordo settembre 2026).
 
@@ -84,7 +95,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 **Non in questa fase:** ricerca per oggetti/scene («foto con un lupo»). Quella è vision/captioning → modulo opt-in successivo o gemello.
 
-### Fase H — EPUB + ZIP opt-in (`1.5.x` / pezzo di `1.6`)
+### Fase I — EPUB + ZIP opt-in (`1.5.x` / pezzo di `1.6`)
 
 Ordine consigliato: **dopo OCR di base** (o in parallelo snello se OCR slitta).
 
@@ -93,7 +104,7 @@ Ordine consigliato: **dopo OCR di base** (o in parallelo snello se OCR slitta).
 | **EPUB** | Lettori assidui e studenti | ZIP+XHTML interno; testo ricercabile come documenti. Serve qualche file di prova. |
 | **ZIP / archivi** | Cercare dentro senza scompattare a mano | **Sempre opt-in** (lento, molti file); depth limit; niente autocompilazione di tutto il PC. |
 
-### Fase I — `1.6.0` (salto sostanzioso)
+### Fase J — `1.6.0` (salto sostanzioso)
 
 Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o OCR + vision leggera), si valuta il salto.
 
@@ -109,7 +120,7 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** solo Standalone; OneCore via token SAPI prima di API native.  
 - **PDF 1.5.3:** rilasciato.  
-- **Profili** = `1.5.4`; **voce** = `1.5.5`; **OCR** = dopo voce.  
+- **Profili** = `1.5.4`; **voce** = `1.5.6`; **OCR** = dopo voce.  
 - **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
@@ -118,11 +129,12 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 ## Ordine di lavoro
 
 1. ~~1.5.0 / 1.5.1 / 1.5.2 / 1.5.3~~ fatte.  
-2. **1.5.4 profili** — implementata; prova + release.  
-3. **1.5.5 voce Standalone.**  
-4. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
-5. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
-6. Decidere insieme **1.6.0** (e eventuale vision leggera).
+2. ~~1.5.4 profili~~ fatta.  
+3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
+4. **1.5.6 voce Standalone.**  
+5. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
+6. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
+7. Decidere insieme **1.6.0** (e eventuale vision leggera).
 
 ---
 

@@ -1,0 +1,78 @@
+🌟 Novità della Versione 1.5.5
+(Testi pronti da incollare — release GitHub + datastore)
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.5
+
+Tag:
+v1.5.5
+
+Asset:
+ricerca_testuale_accesso_digitale-1.5.5.nvda-addon
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Stabilità / anti-blocco:** ridotti i blocchi «Non risponde» su cartelle grandi e PDF/DOC difficili (es. dischi esterni), **senza ridurre** le ricerche normali.
+- Tetto alla decompressione PDF; timeout soft solo sui file che si bloccano; i `.doc` OLE legacy non passano più da ZipFile inutile (resta la ricerca nel testo).
+- PDF brochure/scansioni: estrazione testo **lineare** (evita blocchi tipo `La_Torino_del_Gusto.pdf`).
+- **Data (gg/mm/aaaa) su tutti i risultati:** txt, Word, media, immagini, nome file… come già per email e PDF.
+- File molto grandi (> ~40 MB): si cerca nel **nome**, senza caricare tutto il contenuto in memoria.
+- Avanzamento: annunci automatici solo a 25/50/75%; **Alt+P** per lo stato completo; **Alt+S** più sicuro.
+- Stato «Indicizzazione cartelle…» prima della scansione dei contenuti; log del file in scansione.
+- **feedparser incluso** nell’Add-on: ricerca RSS/Atom anche in NVDA (niente messaggio «modulo non installato»).
+- **Parità risultati email:** `.eml` e MBOX come nello Standalone (un risultato per messaggio, non ogni riga grezza).
+
+## 🇬🇧 English
+
+- **Stability / anti-freeze:** fewer “Not responding” freezes on large folders and awkward PDF/DOC files (e.g. external drives), **without limiting** normal searches.
+- Hard cap on PDF inflate; soft timeout only for stuck files; legacy OLE `.doc` skips useless ZipFile (binary text scan remains).
+- Brochure/scan PDFs: **linear** text extraction (avoids hangs like `La_Torino_del_Gusto.pdf`).
+- **Date (dd/mm/yyyy) on every result:** txt, Word, media, images, file name… same as email and PDF.
+- Very large files (> ~40 MB): match on **file name** without loading full content into memory.
+- Progress: automatic announcements only at 25/50/75%; **Alt+P** for full status; safer **Alt+S**.
+- Status shows “Indexing folders…” before content scan; logs the file being scanned.
+- **Bundled feedparser** in the Add-on: RSS/Atom search works in NVDA (no “module not installed” message).
+- **Email result parity:** `.eml` and MBOX match Standalone (one result per message, not every raw line).
+```
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.5
+
+Tag:
+app-v1.5.5
+
+Asset:
+Setup_RicercaTestualeAccessoDigitale_v1.5.5.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.5.exe
+
+Descrizione: stessa della colonna Add-on (stabilità / anti-blocco).
+
+════════════════════════════════════════════════════════
+ADD-ON DATASTORE (campi)
+════════════════════════════════════════════════════════
+
+Name: Ricerca Testuale Accesso Digitale
+Version: 1.5.5
+Publisher: Maurizio Barra (Accesso Digitale)
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.5/ricerca_testuale_accesso_digitale-1.5.5.nvda-addon
+
+Summary IT:
+Stabilità anti-blocco; feedparser incluso; risultati .eml/MBOX allineati allo Standalone.
+
+Summary EN:
+Anti-freeze stability; bundled feedparser; .eml/MBOX results aligned with Standalone.
+
+Homepage: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+License: GPL v2

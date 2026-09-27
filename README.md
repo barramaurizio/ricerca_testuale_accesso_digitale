@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,6 +7,15 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.5.5
+
+- **Stabilità / anti-blocco:** niente «Non risponde» su cartelle grandi e PDF/DOC difficili (es. G:\), **senza ridurre** le ricerche normali.
+- Tetto decompressione PDF; timeout soft solo sui file che si bloccano; `.doc` OLE senza ZipFile inutile.
+- **Data (gg/mm/aaaa) su tutti i risultati:** txt, Word, media, immagini, nome file… come già per email e PDF.
+- File molto grandi (> ~40 MB): ricerca sul **nome**; Alt+S/avanzamento più leggeri; indicizzazione cartelle visibile.
+- Add-on: **feedparser incluso** (RSS/Atom in NVDA); **`.eml`/MBOX** come nello Standalone (un risultato per messaggio).
+- Restano i **profili** e i filtri della 1.5.4.
+
 ### 🌟 Novità della Versione 1.5.4
 
 - **Profili di ricerca:** salva percorso, tipo file, opzioni e (opzionale) testo; menu Profili; Ctrl+Shift+P / Ctrl+Shift+L.
@@ -14,6 +23,15 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.5.5
+
+- **Stability / anti-freeze:** no “Not responding” on large folders or awkward PDF/DOC (e.g. external drives), **without limiting** normal searches.
+- PDF inflate hard cap; soft timeout only for stuck files; legacy OLE `.doc` skips useless ZipFile.
+- **Date (dd/mm/yyyy) on every result:** txt, Word, media, images, file name… same as email and PDF.
+- Very large files (> ~40 MB): match on **name**; lighter Alt+S/progress; visible folder indexing.
+- Add-on: **bundled feedparser** (RSS/Atom in NVDA); **`.eml`/MBOX** match Standalone (one result per message).
+- 1.5.4 profiles and filters remain.
 
 ### 🌟 What's New in Version 1.5.4
 

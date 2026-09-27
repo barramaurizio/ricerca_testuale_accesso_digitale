@@ -1,3 +1,12 @@
+Novità nella Versione 1.5.5
+- Stabilità / anti-blocco: evita «Non risponde» su cartelle grandi e PDF/DOC difficili (es. G:\), senza ridurre le ricerche normali
+- Tetto decompressione PDF (anti zip-bomb); timeout soft solo sul file bloccato; .doc OLE senza ZipFile inutile
+- PDF brochure/scansioni: estrazione testo lineare (niente regex che bloccano il GIL, es. La_Torino_del_Gusto.pdf)
+- Data (gg/mm/aaaa) su tutti i risultati: txt, Word, media, immagini, nome file… (come già per email e PDF)
+- Non legge per intero file oltre ~40 MB (resta la ricerca sul nome file)
+- Annunci automatici di avanzamento ridotti (25/50/75%); Alt+P resta completo
+- Alt+S più sicuro; indicizzazione cartelle visibile; log del file in scansione
+
 Novità nella Versione 1.5.4
 - Filtri: più estensioni per Immagini (gif/webp/tif…), Audio/Video (m4a/flac/mov…) e Documenti (html/md/rtf/odt…)
 - Scorciatoie Alt senza conflitti: solo T/P/N/I/S/K documentate; Avvia con INVIO nel campo testo
@@ -31,17 +40,3 @@ Novità nella Versione 1.5.2
 Novità nella Versione 1.5.1
 - Cronologia ricerche: ultimi testi e percorsi in locale
 - Ctrl+H / pulsante Cronologia: riprendi testo; Ctrl+Shift+H: riprendi percorso
-- Menu Cronologia (elenco rapido + svuota)
-- Accessibilità: placeholder «Ricerca in corso...» in lista Add-on; stato avanzamento con Tab/Alt+S/S; aggiornamento ogni 5%
-
-Novità nella Versione 1.5.0
-- Feed RSS/Atom (URL, .rss/.atom/.xml, OPML) e pulsante Feed Thunderbird
-- Un risultato per articolo + data articolo; occorrenze grezze opzionali [FEED-RIGA]
-- Esclusione indici .msf; lettura con Thunderbird aperto
-- Filtro risultati Ctrl+F; guida/novità aggiornate
-- Build: feedparser in PyInstaller (--hidden-import=feedparser)
-
-Novità della Versione 1.4.6:
-- Integrazione ottimizzata per lo Stop Vocale istantaneo (tasto Control).
-- Apertura Cartella Mirata: Esplora risorse ora punta direttamente al file trovato.
-- Estrazione Testo Potenziata per file di testo (Risolto bug codifica UTF-16).

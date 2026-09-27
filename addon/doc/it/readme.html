@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.4 — Guida</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.5 — Guida</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,20 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.4</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.5</h1>
     <p>Autore: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>Componente aggiuntivo per NVDA: ricerca testuale accessibile su file, cartelle e intere unità, con salto alla riga, lettura EML nativa, feed RSS/Atom e Feed Thunderbird.</p>
 
     <div class="update">
+        <strong>Novità Versione 1.5.5</strong>
+        <ul>
+            <li><strong>Stabilità / anti-blocco:</strong> meno «Non risponde» su cartelle grandi e PDF/DOC difficili; tetto inflate PDF; timeout soft solo sui file bloccati; .doc OLE senza ZipFile inutile — senza ridurre le ricerche normali.</li>
+            <li><strong>Data su tutti i risultati</strong> (gg/mm/aaaa): txt, Word, media, immagini, nome file… come già per email e PDF.</li>
+            <li>File enormi (&gt; ~40 MB): ricerca sul nome; Alt+S/avanzamento più leggeri; log del file in scansione.</li>
+            <li><strong>feedparser incluso:</strong> ricerca RSS/Atom anche in NVDA (niente messaggio «modulo non installato»).</li>
+            <li><strong>.eml e MBOX</strong> allineati allo Standalone: un risultato per messaggio (non ogni riga grezza).</li>
+            <li>Restano profili e filtri della 1.5.4.</li>
+        </ul>
         <strong>Novità Versione 1.5.4</strong>
         <ul>
             <li><strong>Profili di ricerca:</strong> salva percorso, tipo file, estensione, opzione feed e (opzionale) testo; menu <em>Profili</em>; <code>Ctrl+Shift+P</code> / <code>Ctrl+Shift+L</code>.</li>

@@ -35,6 +35,11 @@ try:
 except ImportError:
     tones = None
 
+# feedparser vendored in lib/ (NVDA non lo include): RSS/Atom senza pip esterno
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+
 try:
     import feedparser
 except ImportError:
@@ -43,7 +48,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.4"
+APP_VERSION = "1.5.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -997,6 +1002,65 @@ TEXT_LIKE_EXTS = (
     ".txt", ".log", ".csv", ".md", ".rtf", ".html", ".htm",
 )
 
+
+MAX_CONTENT_SCAN_BYTES = 40 * 1024 * 1024  # 40 MB
+FILE_CONTENT_SOFT_TIMEOUT_SEC = 12
+MAX_EML_READ_BYTES = 12 * 1024 * 1024
+MAX_DOCX_XML_BYTES = 25 * 1024 * 1024
+_OLE_MAGIC = b"\xD0\xCF\x11\xE0"
+_ZIP_LOCAL_MAGIC = b"PK\x03\x04"
+_ZIP_EMPTY_MAGIC = b"PK\x05\x06"
+
+
+def safe_file_size(path):
+    try:
+        return os.path.getsize(path)
+    except Exception:
+        return -1
+
+
+def content_scan_allowed(path, max_bytes=MAX_CONTENT_SCAN_BYTES):
+    sz = safe_file_size(path)
+    if sz < 0:
+        return False
+    return sz <= max_bytes
+
+
+def _read_file_magic(path, n=8):
+    try:
+        with open(path, "rb") as f:
+            return f.read(n)
+    except Exception:
+        return b""
+
+
+def _is_ooxml_zip_magic(magic):
+    return magic.startswith(_ZIP_LOCAL_MAGIC) or magic.startswith(_ZIP_EMPTY_MAGIC)
+
+
+def _is_ole_compound_magic(magic):
+    return magic.startswith(_OLE_MAGIC)
+
+
+def run_with_timeout(fn, timeout_sec, default=None):
+    box = {"result": default, "exc": None}
+
+    def _worker():
+        try:
+            box["result"] = fn()
+        except Exception as exc:
+            box["exc"] = exc
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    t.join(timeout_sec)
+    if t.is_alive():
+        return default, True
+    if box["exc"] is not None:
+        raise box["exc"]
+    return box["result"], False
+
+
 def _filter_choice_labels():
     return [
         "Tutti i tipi di file",
@@ -1165,9 +1229,23 @@ def get_real_ready_drives():
     return drives
 
 def extract_paragraphs_from_docx(file_path):
+    """Estrae paragrafi da DOCX/OOXML. I .doc OLE non sono ZIP: restituisce [] subito."""
     try:
+        magic = _read_file_magic(file_path, 4)
+        if _is_ole_compound_magic(magic):
+            return []
+        if not _is_ooxml_zip_magic(magic):
+            return []
         with zipfile.ZipFile(file_path) as z:
+            try:
+                info = z.getinfo("word/document.xml")
+            except KeyError:
+                return []
+            if info.file_size > MAX_DOCX_XML_BYTES:
+                return []
             xml_content = z.read("word/document.xml")
+            if len(xml_content) > MAX_DOCX_XML_BYTES:
+                xml_content = xml_content[:MAX_DOCX_XML_BYTES]
             tree = ET.fromstring(xml_content)
             paragraphs = []
             for p in tree.iter():
@@ -1198,6 +1276,12 @@ _PDF_STRUCT_NOISE = re.compile(
     r"/ColorSpace|/BitsPerComponent|/Subtype\s*/Image|DeviceRGB|DeviceGray)",
     re.IGNORECASE,
 )
+# Cap testo da parsare per stream (anti regex/GIL su PDF brochure/scansioni)
+_PDF_TEXT_PARSE_MAX = 1 * 1024 * 1024
+# Max stream content da esaminare in una sola ricerca
+_PDF_MAX_CONTENT_STREAMS = 120
+# Non tentare inflate “a caso” su stream non-Flate enormi
+_PDF_GUESS_INFLATE_MAX = 256 * 1024
 # Evita inflate lunghi SOLO se ancora sospetti; i content stream utili possono superare 512KB
 _PDF_INFLATE_MAX = 512 * 1024
 _PDF_CONTENT_INFLATE_MAX = 8 * 1024 * 1024
@@ -1233,7 +1317,7 @@ def _pdf_dict_is_image(dict_blob):
     return False
 
 
-def _pdf_bytes_look_like_content(data):
+def _pdf_bytes_look_like_content(data: bytes) -> bool:
     """True se lo stream sembra contenuto di pagina (operatori testo), non binario grezzo."""
     if not data or len(data) < 4:
         return False
@@ -1242,39 +1326,61 @@ def _pdf_bytes_look_like_content(data):
     nul = sample.count(b"\x00")
     if nul > len(sample) // 10:
         return False
-    return (
+    has_text_op = (
         (b"Tj" in data)
         or (b"TJ" in data)
-        or (b"BT" in data)
-        or (b"Tm" in data and b"(" in data)
         or (b"'" in data and b"(" in data)
     )
+    if not has_text_op:
+        return False
+    # BT…ET alza la confidenza; senza, solo stream piccoli (evita brochure/binari)
+    if b"BT" in data and b"ET" in data:
+        return True
+    return len(data) <= 64 * 1024
 
 
-def extract_lines_from_pdf(file_path):
+def extract_lines_from_pdf(file_path, deadline=None):
     """Estrae righe di testo da un PDF senza librerie esterne.
 
     Decomprime solo stream di contenuto (non Image XObject), poi legge Tj/TJ.
     I PDF solo-immagine restituiscono lista vuota (niente spazzatura endstream/Image).
     """
+    if deadline is None:
+        deadline = time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_SEC
     try:
         with open(file_path, "rb") as f:
             raw = f.read(PDF_READ_MAX_BYTES)
-    except Exception:
+    except Exception as e:
+        logging.debug(f"Errore lettura PDF {file_path}: {e}")
         return []
 
     if not raw.startswith(b"%PDF"):
         return _pdf_fallback_crude_lines(raw)
 
-    cmap = _pdf_parse_tounicode_cmaps(raw)
+    cmap = _pdf_parse_tounicode_cmaps(raw, deadline=deadline)
 
     pieces = []
     pos = 0
+    stream_count = 0
+    content_used = 0
     while True:
-        m = re.search(br"stream\r?\n", raw[pos:])
-        if not m:
+        if time.monotonic() > deadline:
+            logging.warning(f"PDF interrotto per tempo massimo: {file_path}")
             break
-        start = pos + m.end()
+        if content_used >= _PDF_MAX_CONTENT_STREAMS:
+            break
+        # find senza regex su tutto il residuo (più sicuro su brochure enormi)
+        m_at = raw.find(b"stream", pos)
+        if m_at < 0:
+            break
+        after = m_at + 6
+        if after + 1 < len(raw) and raw[after:after + 2] == b"\r\n":
+            start = after + 2
+        elif after < len(raw) and raw[after:after + 1] in (b"\n", b"\r"):
+            start = after + 1
+        else:
+            pos = after
+            continue
         end = raw.find(b"endstream", start)
         if end < 0:
             break
@@ -1287,14 +1393,12 @@ def extract_lines_from_pdf(file_path):
         dict_start = raw.rfind(b"<<", max(pos, start - 1600), start)
         dict_blob = raw[dict_start:start] if dict_start != -1 else b""
 
-        # Non decomprimere / interpretare stream immagine (lenti e producono spazzatura)
         if _pdf_dict_is_image(dict_blob):
             pos = end + 9
             continue
 
         is_flate = _pdf_dict_has_flate(dict_blob)
         if is_flate:
-            # Content stream di tabellini densissimi possono superare 512KB: ok gonfiarli
             if len(stream) > _PDF_CONTENT_INFLATE_MAX:
                 pos = end + 9
                 continue
@@ -1303,19 +1407,24 @@ def extract_lines_from_pdf(file_path):
             data = stream
             if (
                 not _pdf_bytes_look_like_content(data)
-                and len(stream) <= _PDF_CONTENT_INFLATE_MAX
+                and len(stream) <= _PDF_GUESS_INFLATE_MAX
             ):
                 inflated = _pdf_inflate_stream(stream)
                 if _pdf_bytes_look_like_content(inflated):
                     data = inflated
 
         if _pdf_bytes_look_like_content(data):
-            pieces.extend(_pdf_text_from_content_stream(data, cmap))
+            pieces.extend(
+                _pdf_text_from_content_stream(data, cmap, deadline=deadline)
+            )
+            content_used += 1
+        stream_count += 1
+        if stream_count % 4 == 0:
+            time.sleep(0)
         pos = end + 9
 
     blob = " ".join(pieces)
     blob = blob.replace("\r\n", "\n").replace("\r", "\n")
-    # toglie byte di controllo lasciati da CID non mappati
     blob = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", blob)
     lines = []
     for part in blob.split("\n"):
@@ -1414,11 +1523,13 @@ def _pdf_utf16_hex_to_str(hx):
         return data.decode("latin1", errors="ignore")
 
 
-def _pdf_parse_tounicode_cmaps(raw):
+def _pdf_parse_tounicode_cmaps(raw, deadline=None):
     """Unisce tutte le CMap ToUnicode del PDF: codice CID (int) → carattere."""
     merged = {}
     pos = 0
     while True:
+        if deadline is not None and time.monotonic() > deadline:
+            break
         m = re.search(br"stream\r?\n", raw[pos:])
         if not m:
             break
@@ -1442,9 +1553,14 @@ def _pdf_parse_tounicode_cmaps(raw):
             data = _pdf_inflate_stream(stream)
         else:
             data = stream
-            inflated = _pdf_inflate_stream(stream)
-            if b"beginbfchar" in inflated or b"beginbfrange" in inflated:
-                data = inflated
+            if (
+                b"beginbfchar" not in stream
+                and b"beginbfrange" not in stream
+                and len(stream) <= _PDF_GUESS_INFLATE_MAX
+            ):
+                inflated = _pdf_inflate_stream(stream)
+                if b"beginbfchar" in inflated or b"beginbfrange" in inflated:
+                    data = inflated
         if b"beginbfchar" not in data and b"beginbfrange" not in data:
             continue
         cmap = {}
@@ -1549,28 +1665,126 @@ def _pdf_hex_to_str(hex_body, cmap=None):
         return data.decode("latin1", errors="ignore")
 
 
-def _pdf_text_from_content_stream(data, cmap=None):
+def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None) -> list:
+    """Estrae stringhe Tj/TJ con scansione lineare (niente regex catastrofiche sul binario)."""
     if cmap is None:
         cmap = {}
+    if not data:
+        return []
+    if len(data) > _PDF_TEXT_PARSE_MAX:
+        data = data[:_PDF_TEXT_PARSE_MAX]
     pieces = []
-    for m in re.finditer(br"\((?:\\.|[^\\()])*\)\s*(?:Tj|'|\")", data):
-        lit = re.sub(br"\s*(?:Tj|'|\")\s*$", b"", m.group(0))
-        if lit.startswith(b"(") and lit.endswith(b")"):
-            raw_bytes = _pdf_unescape_literal_bytes(lit[1:-1])
-            pieces.append(_pdf_bytes_to_text(raw_bytes, cmap))
-    for m in re.finditer(br"<([0-9A-Fa-f\s]+)>\s*Tj", data):
-        pieces.append(_pdf_hex_to_str(m.group(1), cmap))
-    for m in re.finditer(br"\[(.*?)\]\s*TJ", data, flags=re.DOTALL):
-        arr = m.group(1)
-        parts = []
-        for sm in re.finditer(br"\((?:\\.|[^\\()])*\)|<([0-9A-Fa-f\s]+)>", arr):
-            if sm.group(0).startswith(b"("):
-                raw_bytes = _pdf_unescape_literal_bytes(sm.group(0)[1:-1])
-                parts.append(_pdf_bytes_to_text(raw_bytes, cmap))
-            else:
-                parts.append(_pdf_hex_to_str(sm.group(1) or b"", cmap))
-        if parts:
-            pieces.append("".join(parts))
+    n = len(data)
+    i = 0
+
+    def _read_literal(start_paren):
+        """Legge (...) bilanciato con escape; restituisce (bytes_interni, indice_dopo_chiusura)."""
+        j = start_paren + 1
+        out = bytearray()
+        while j < n:
+            b = data[j]
+            if b == 0x5C and j + 1 < n:  # backslash
+                out.append(data[j + 1])
+                j += 2
+                continue
+            if b == 0x29:  # )
+                return bytes(out), j + 1
+            out.append(b)
+            j += 1
+            if len(out) > 8192:
+                return bytes(out), j
+        return bytes(out), j
+
+    def _skip_ws(j):
+        while j < n and data[j] in b" \t\r\n\f\0":
+            j += 1
+        return j
+
+    while i < n:
+        if deadline is not None and (i & 0xFFFF) == 0 and time.monotonic() > deadline:
+            break
+        b = data[i]
+        if b == 0x28:  # (
+            lit, j = _read_literal(i)
+            k = _skip_ws(j)
+            if k + 1 < n and data[k:k + 2] == b"Tj":
+                pieces.append(_pdf_bytes_to_text(lit, cmap))
+                i = k + 2
+                continue
+            if k < n and data[k:k + 1] in (b"'", b'"'):
+                pieces.append(_pdf_bytes_to_text(lit, cmap))
+                i = k + 1
+                continue
+            i = j
+            continue
+        if b == 0x3C:  # < hex >
+            j = i + 1
+            hx = bytearray()
+            while j < n and data[j] != 0x3E:
+                c = data[j]
+                if (0x30 <= c <= 0x39) or (0x41 <= c <= 0x46) or (0x61 <= c <= 0x66) or c in b" \t\r\n":
+                    hx.append(c)
+                    j += 1
+                    if len(hx) > 16384:
+                        break
+                else:
+                    break
+            if j < n and data[j] == 0x3E:
+                j += 1
+                k = _skip_ws(j)
+                if k + 1 < n and data[k:k + 2] == b"Tj":
+                    pieces.append(_pdf_hex_to_str(bytes(hx), cmap))
+                    i = k + 2
+                    continue
+            i += 1
+            continue
+        if b == 0x5B:  # [ ... ] TJ
+            j = i + 1
+            parts = []
+            depth = 1
+            while j < n and depth:
+                if deadline is not None and (j & 0xFFFF) == 0 and time.monotonic() > deadline:
+                    depth = 0
+                    break
+                if data[j] == 0x28:  # (
+                    lit, j2 = _read_literal(j)
+                    parts.append(_pdf_bytes_to_text(lit, cmap))
+                    j = j2
+                    continue
+                if data[j] == 0x3C:  # <
+                    j2 = j + 1
+                    hx = bytearray()
+                    while j2 < n and data[j2] != 0x3E:
+                        c = data[j2]
+                        if (0x30 <= c <= 0x39) or (0x41 <= c <= 0x46) or (0x61 <= c <= 0x66) or c in b" \t\r\n":
+                            hx.append(c)
+                            j2 += 1
+                            if len(hx) > 16384:
+                                break
+                        else:
+                            break
+                    if j2 < n and data[j2] == 0x3E:
+                        parts.append(_pdf_hex_to_str(bytes(hx), cmap))
+                        j = j2 + 1
+                        continue
+                if data[j] == 0x5B:
+                    depth += 1
+                elif data[j] == 0x5D:
+                    depth -= 1
+                    if depth == 0:
+                        j += 1
+                        break
+                j += 1
+                if j - i > _PDF_TEXT_PARSE_MAX:
+                    break
+            k = _skip_ws(j)
+            if k + 1 < n and data[k:k + 2] == b"TJ" and parts:
+                pieces.append("".join(parts))
+                i = k + 2
+                continue
+            i += 1
+            continue
+        i += 1
     return [p for p in pieces if p]
 
 
@@ -1599,10 +1813,27 @@ def _pdf_looks_like_garbage(line: str):
     return False
 
 
-def _pdf_inflate_stream(stream: bytes):
+def _pdf_inflate_stream(stream: bytes, max_out: int = None):
+    """Decomprime FlateDecode con tetto di uscita (anti zip-bomb / «Non risponde»)."""
+    if max_out is None:
+        max_out = _PDF_CONTENT_INFLATE_MAX
+    if not stream:
+        return b""
     for wbits in (zlib.MAX_WBITS, -zlib.MAX_WBITS):
         try:
-            return zlib.decompress(stream, wbits)
+            dec = zlib.decompressobj(wbits)
+            out = dec.decompress(stream, max_out)
+            if len(out) >= max_out:
+                return out
+            try:
+                tail = dec.flush()
+            except Exception:
+                tail = b""
+            if tail:
+                remain = max_out - len(out)
+                if remain > 0:
+                    out += tail[:remain]
+            return out
         except Exception:
             continue
     return stream
@@ -1778,7 +2009,11 @@ def extract_images_from_pdf(file_path):
         if filt in ("flate", "raw"):
             if len(stream) > _PDF_IMAGE_INFLATE_MAX:
                 continue
-            data = _pdf_inflate_stream(stream) if filt == "flate" else stream
+            data = (
+                _pdf_inflate_stream(stream, max_out=_PDF_IMAGE_INFLATE_MAX)
+                if filt == "flate"
+                else stream
+            )
             if colorspace == "gray":
                 rgb = _pdf_gray_to_rgb(data, width, height)
                 if not rgb or _pdf_rgb_is_nearly_flat(rgb):
@@ -2207,13 +2442,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Profili di ricerca: salva percorso, tipo file, opzioni e (opzionale) testo;\n"
-            "  menu Profili; Ctrl+Shift+P per salvare, Ctrl+Shift+L per caricare.\n"
-            "• Gestisci profili: rinomina o elimina.\n"
-            "• Filtri tipologici più ricchi: più estensioni in Immagini, Audio/Video e Documenti\n"
-            "  (es. m4a, flac, webp, html, md…).\n"
-            "• Scorciatoie Alt senza conflitti (T/P/N/I/S/K); Avvia ricerca con INVIO nel campo testo.\n\n"
-            "• Restano attive le novità 1.5.3 (PDF, Copia/Salva Immagine).\n"
+            "• Stabilità / anti-blocco: niente «Non risponde» su cartelle grandi e PDF/DOC\n"
+            "  difficili (G:\\ ecc.), senza limitare le ricerche normali.\n"
+            "• Tetto inflate PDF; timeout soft solo sui file bloccati; .doc OLE senza ZipFile.\n"
+            "• Data (gg/mm/aaaa) su tutti i risultati: txt, Word, media, immagini, nome file…\n"
+            "  (come già per email e PDF).\n"
+            "• File enormi: ricerca sul nome; Alt+S/avanzamento più leggeri.\n"
+            "• Restano profili e filtri della 1.5.4.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3133,11 +3368,16 @@ class SearchFrame(wx.Frame):
                 f"Stato: {self.txt_status_progress.GetValue()} "
                 f"Risultati in lista filtrata: {found}."
             )
-        if wx.TheClipboard.Open():
-            wx.TheClipboard.SetData(wx.TextDataObject(msg))
-            wx.TheClipboard.Close()
-            ui.message("Stato copiato negli appunti.")
-        else:
+        try:
+            if wx.TheClipboard.Open():
+                try:
+                    wx.TheClipboard.SetData(wx.TextDataObject(msg))
+                finally:
+                    wx.TheClipboard.Close()
+                ui.message("Stato copiato negli appunti.")
+            else:
+                ui.message("Impossibile copiare negli appunti.")
+        except Exception:
             ui.message("Impossibile copiare negli appunti.")
 
     def focus_status_progress(self, event=None):
@@ -3145,9 +3385,9 @@ class SearchFrame(wx.Frame):
             self.txt_status_progress.SetFocus()
             self.txt_status_progress.SetInsertionPoint(0)
             msg = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
-            ui.message(msg)
+            wx.CallLater(50, ui.message, msg)
         except Exception:
-            ui.message("Impossibile raggiungere lo stato di avanzamento.")
+            wx.CallLater(50, ui.message, "Impossibile raggiungere lo stato di avanzamento.")
 
     def announce_progress(self):
         current_time = time.time()
@@ -3481,6 +3721,12 @@ class SearchFrame(wx.Frame):
         file_list = []
         rss_sources = []
         opml_files = []
+        walked_dirs = 0
+
+        wx.CallAfter(
+            self.txt_status_progress.SetValue,
+            "Indicizzazione cartelle in corso… (Alt+P per lo stato)",
+        )
 
         for folder in targets:
             if self._stop_search:
@@ -3508,6 +3754,12 @@ class SearchFrame(wx.Frame):
                 root_lower = root.lower()
                 if any(ign in root_lower for ign in ignored):
                     continue
+                walked_dirs += 1
+                if walked_dirs == 1 or walked_dirs % 25 == 0:
+                    wx.CallAfter(
+                        self.txt_status_progress.SetValue,
+                        f"Indicizzazione… {walked_dirs} cartelle, {len(file_list)} file in coda",
+                    )
 
                 for file in files:
                     ext = os.path.splitext(file)[1].lower()
@@ -3539,6 +3791,10 @@ class SearchFrame(wx.Frame):
                 if url not in rss_sources:
                     rss_sources.append(url)
 
+        wx.CallAfter(
+            self.txt_status_progress.SetValue,
+            f"Scansione contenuti: {len(file_list)} file…",
+        )
         work_units = len(file_list) + len(rss_sources)
         if work_units <= 0:
             work_units = 1
@@ -3591,12 +3847,23 @@ class SearchFrame(wx.Frame):
                 mtime = os.path.getmtime(file_path)
             except Exception:
                 mtime = 0
+            file_date_label = format_file_date_label(mtime)
+            file_date_suffix = f" {file_date_label}" if file_date_label else ""
 
             try:
                 name_matched = text_matches_terms(file_name, terms)
                 found_in_content = False
+                allow_content = content_scan_allowed(file_path)
+                if not allow_content and not name_matched:
+                    bump_progress()
+                    continue
+                if not allow_content:
+                    logging.debug(
+                        f"File troppo grande per scansione contenuto "
+                        f"({safe_file_size(file_path)} byte): {file_path}"
+                    )
 
-                if ext in img_exts:
+                if ext in img_exts and allow_content:
                     img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
                     if all(term in img_text for term in terms):
                         raw_matches.append({
@@ -3605,12 +3872,12 @@ class SearchFrame(wx.Frame):
                             "prefix": "[IMG-TEXT]",
                             "mtime": mtime,
                             "line_number": None,
-                            "location_info": "Testo visivo",
+                            "location_info": f"Testo visivo{file_date_suffix}",
                             "snippet": f"Trovato testo visivo contenente '{query}'.",
                         })
                         found_in_content = True
 
-                elif is_feed:
+                elif is_feed and allow_content:
                     if is_thunderbird_junk_file(file_path):
                         bump_progress()
                         continue
@@ -3622,7 +3889,8 @@ class SearchFrame(wx.Frame):
                         raw_matches.extend(feed_hits)
                         found_in_content = True
 
-                elif ext in [".mbox", ".mbx"] or (is_thunderbird_mail_container(file_path) and not is_feed):
+                elif allow_content and (ext in [".mbox", ".mbx"] or (is_thunderbird_mail_container(file_path) and not is_feed)):
+                    # Come Standalone: un risultato per messaggio (prima riga body o intestazione)
                     try:
                         for msg_idx, msg in iter_mbox_like_messages(file_path, prefer_from_split=True):
                             if self._stop_search:
@@ -3633,34 +3901,112 @@ class SearchFrame(wx.Frame):
                             msg_ts = message_date_timestamp(msg, fallback=mtime)
                             date_label = format_email_date_label(msg, fallback_ts=msg_ts)
                             date_suffix = f" {date_label}" if date_label else ""
-                            hay = f"{subject}\n{sender}\n{body}"
-                            if not text_matches_terms(hay, terms):
-                                continue
-                            snippet = ""
+                            msg_found = False
                             if body:
-                                for line in body.split("\n"):
+                                lines = body.split("\n")
+                                for line_idx, line in enumerate(lines):
                                     if text_matches_terms(line, terms):
-                                        snippet = line.strip()
+                                        start_i = max(0, line_idx - 1)
+                                        end_i = min(len(lines), line_idx + 2)
+                                        snip = " ".join(
+                                            [l.strip() for l in lines[start_i:end_i]]
+                                        ).strip()
+                                        raw_matches.append({
+                                            "file_path": file_path,
+                                            "file_name": file_name,
+                                            "prefix": "[MBOX]",
+                                            "mtime": msg_ts,
+                                            "line_number": msg_idx,
+                                            "location_info": f"Testo Msg {msg_idx + 1}{date_suffix}",
+                                            "snippet": snip[:200],
+                                            "viewer_text": _format_email_viewer_text(msg),
+                                        })
+                                        found_in_content = True
+                                        msg_found = True
                                         break
-                                if not snippet:
-                                    snippet = " ".join(body.split())[:200]
-                            if not snippet:
-                                snippet = f"{subject} — {sender}".strip(" —")
+                            if not msg_found and (
+                                text_matches_terms(subject, terms)
+                                or text_matches_terms(sender, terms)
+                            ):
+                                raw_matches.append({
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "prefix": "[MBOX]",
+                                    "mtime": msg_ts,
+                                    "line_number": msg_idx,
+                                    "location_info": f"Oggetto Msg {msg_idx + 1}{date_suffix}",
+                                    "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                                    "viewer_text": _format_email_viewer_text(msg),
+                                })
+                                found_in_content = True
+                    except Exception:
+                        pass
+
+                elif ext == ".eml" and allow_content:
+                    # Come Standalone: parse email, un risultato per file (non ogni riga grezza)
+                    try:
+                        try:
+                            with open(file_path, "rb") as f:
+                                raw_eml = f.read(MAX_EML_READ_BYTES)
+                            try:
+                                msg = email.message_from_bytes(raw_eml, policy=policy.default)
+                            except Exception:
+                                msg = email.message_from_string(
+                                    raw_eml.decode("utf-8", errors="ignore"),
+                                    policy=policy.default,
+                                )
+                        except Exception:
+                            with open(file_path, "r", encoding="latin1", errors="ignore") as f:
+                                msg = email.message_from_file(f, policy=policy.default)
+
+                        subject = decode_email_header(str(msg.get("subject", "")))
+                        sender = decode_email_header(str(msg.get("from", "")))
+                        body = get_clean_email_text(msg)
+                        msg_ts = message_date_timestamp(msg, fallback=mtime)
+                        date_label = format_email_date_label(msg, fallback_ts=msg_ts)
+                        date_suffix = f" {date_label}" if date_label else ""
+
+                        if body:
+                            lines = body.split("\n")
+                            for line_idx, line in enumerate(lines):
+                                if text_matches_terms(line, terms):
+                                    start_i = max(0, line_idx - 1)
+                                    end_i = min(len(lines), line_idx + 2)
+                                    snippet = " ".join(
+                                        [l.strip() for l in lines[start_i:end_i]]
+                                    ).strip()
+                                    raw_matches.append({
+                                        "file_path": file_path,
+                                        "file_name": file_name,
+                                        "prefix": prefix,
+                                        "mtime": msg_ts,
+                                        "line_number": line_idx + 1,
+                                        "location_info": f"Testo Email{date_suffix}",
+                                        "snippet": snippet,
+                                        "viewer_text": _format_email_viewer_text(msg),
+                                    })
+                                    found_in_content = True
+                                    break
+
+                        if not found_in_content and (
+                            text_matches_terms(subject, terms)
+                            or text_matches_terms(sender, terms)
+                        ):
                             raw_matches.append({
                                 "file_path": file_path,
                                 "file_name": file_name,
-                                "prefix": "[MBOX]",
+                                "prefix": prefix,
                                 "mtime": msg_ts,
-                                "line_number": msg_idx,
-                                "location_info": f"Msg {msg_idx + 1}{date_suffix}",
-                                "snippet": snippet[:200],
+                                "line_number": 1,
+                                "location_info": f"Intestazione Email{date_suffix}",
+                                "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
                                 "viewer_text": _format_email_viewer_text(msg),
                             })
                             found_in_content = True
                     except Exception:
                         pass
 
-                elif ext in TEXT_LIKE_EXTS or ext == ".eml" or ext == custom_ext:
+                elif (ext in TEXT_LIKE_EXTS or ext == custom_ext) and allow_content:
                     try:
                         with open(file_path, "rb") as f:
                             raw_data = f.read()
@@ -3674,26 +4020,33 @@ class SearchFrame(wx.Frame):
                         text_data = text_data.replace("\x00", "")
                         lines = text_data.split("\n")
                         for idx, line in enumerate(lines):
-                            cleaned_line = clean_eml_text(line) if ext == ".eml" else line
-                            if text_matches_terms(cleaned_line, terms):
+                            if text_matches_terms(line, terms):
                                 start_i = max(0, idx - 2)
                                 end_i = min(len(lines), idx + 3)
-                                raw_snip = "".join(lines[start_i:end_i]).strip()
-                                snippet = clean_eml_text(raw_snip) if ext == ".eml" else raw_snip
+                                snippet = "".join(lines[start_i:end_i]).strip()
                                 raw_matches.append({
                                     "file_path": file_path,
                                     "file_name": file_name,
                                     "prefix": prefix,
                                     "mtime": mtime,
                                     "line_number": idx + 1,
-                                    "location_info": f"Riga {idx + 1}",
+                                    "location_info": f"Riga {idx + 1}{file_date_suffix}",
                                     "snippet": snippet,
                                 })
                                 found_in_content = True
                     except Exception:
                         pass
-                elif ext in [".docx", ".doc"]:
-                    paragraphs = extract_paragraphs_from_docx(file_path)
+                elif ext in [".docx", ".doc"] and allow_content:
+                    magic = _read_file_magic(file_path, 4)
+                    paragraphs = []
+                    if ext == ".docx" or _is_ooxml_zip_magic(magic):
+                        paragraphs, timed_out = run_with_timeout(
+                            lambda: extract_paragraphs_from_docx(file_path),
+                            FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                            default=[],
+                        )
+                        if timed_out:
+                            paragraphs = []
                     found_doc = False
                     for idx, p_text in enumerate(paragraphs):
                         if text_matches_terms(p_text, terms):
@@ -3708,7 +4061,7 @@ class SearchFrame(wx.Frame):
                                 "mtime": mtime,
                                 "line_number": None,
                                 "paragraph_index": idx + 1,
-                                "location_info": f"Paragrafo {idx + 1}",
+                                "location_info": f"Paragrafo {idx + 1}{file_date_suffix}",
                                 "snippet": snippet,
                             })
                             found_in_content = True
@@ -3723,17 +4076,29 @@ class SearchFrame(wx.Frame):
                                         "prefix": prefix,
                                         "mtime": mtime,
                                         "line_number": None,
-                                        "location_info": "Documento Word",
+                                        "location_info": f"Documento Word{file_date_suffix}",
                                         "snippet": f"Trovato testo nel file Word: '{query}'.",
                                     })
                                     found_in_content = True
                         except Exception:
                             pass
-                elif ext == ".pdf":
-                    pdf_ts = pdf_info_date_timestamp(file_path, fallback=mtime)
+                elif ext == ".pdf" and allow_content:
+                    def _pdf_job():
+                        ts = pdf_info_date_timestamp(file_path, fallback=mtime)
+                        lines = extract_lines_from_pdf(file_path)
+                        return ts, lines
+
+                    pdf_result, timed_out = run_with_timeout(
+                        _pdf_job,
+                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                        default=(mtime, []),
+                    )
+                    if timed_out:
+                        pdf_ts, pdf_lines = mtime, []
+                    else:
+                        pdf_ts, pdf_lines = pdf_result
                     date_label = format_file_date_label(pdf_ts)
                     date_suffix = f" {date_label}" if date_label else ""
-                    pdf_lines = extract_lines_from_pdf(file_path)
                     for idx, line in enumerate(pdf_lines):
                         if text_matches_terms(line, terms):
                             start_i = max(0, idx - 1)
@@ -3769,7 +4134,7 @@ class SearchFrame(wx.Frame):
                         "prefix": prefix,
                         "mtime": mtime,
                         "line_number": None,
-                        "location_info": "Nome File",
+                        "location_info": f"Nome File{file_date_suffix}",
                         "snippet": f"Corrispondenza nel nome: '{file_name}'",
                     })
 
@@ -3777,6 +4142,8 @@ class SearchFrame(wx.Frame):
                 pass
 
             bump_progress()
+            if units_done % 5 == 0:
+                time.sleep(0)
 
         self.current_matches = raw_matches
         self.last_feed_raw_occurrences = feed_raw_total
@@ -3816,11 +4183,12 @@ class SearchFrame(wx.Frame):
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
 
-    def update_progress(self, percent, current, total, matches):
+    def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
         text = f"Avanzamento: {percent}% ({current}/{total} elementi, {matches} risultati)"
         self.txt_status_progress.SetValue(text)
-        ui.message(f"Ricerca al {percent} percento")
+        if announce or percent in (25, 50, 75):
+            ui.message(f"Ricerca al {percent} percento")
 
     def finish_search(self, matches):
         self.gauge.SetValue(100)

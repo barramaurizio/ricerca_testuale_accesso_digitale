@@ -1,0 +1,81 @@
+🌟 Novità della Versione 1.5.6
+(Testi pronti da incollare — release GitHub + datastore)
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.6
+
+Tag:
+v1.5.6
+
+Asset:
+ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Posta completa anche su caselle grandi:** Inbox/Sent Thunderbird (e MBOX) oltre ~40 MB non vengono più saltate.
+- Scansione **in streaming** (messaggio per messaggio): niente caricamento di tutta la casella in RAM, niente freeze.
+- **Fix ricette recenti:** i messaggi con allegati PDF grandi non vengono più saltati; tetto singolo messaggio rimosso (streaming).
+- **Allegati PDF nelle email:** cerca nome e testo; riconosciuti anche come `octet-stream` / magic `%PDF`.
+- Tetto ~40 MB solo per DOC/testi “pesanti”; **posta senza tetto di dimensione casella** (streaming; un tetto 2 GB saltava in silenzio INBOX/Tutti i messaggi Gmail); **PDF fino a ~80 MB** (lettura 40 MB, timeout soft 20 s).
+- **Filtro estensione `.pdf`:** include anche le caselle Thunderbird e i file `.eml`, cercando negli allegati PDF (prima solo i file `.pdf` sparsi su disco).
+- **Salva/Apri allegato PDF:** dai risultati posta, Apri e «Salva allegato PDF…» usano il PDF estratto, non l’intera casella INBOX.
+- PDF: ordinamento per **data file** (ricezione); match anche su testo spezzato / ricerca grezza nei byte.
+- Meno rumore in lista: esclusi WinSxS, cache Cursor/VS Code e log interni RTAD.
+- Nello stato finale: messaggi posta esaminati, hit allegati PDF, eventuale nota su file non-posta saltati per dimensione.
+- Restano stabilità 1.5.5, feedparser incluso, date e profili.
+
+## 🇬🇧 English
+
+- **Complete mail search on large mailboxes:** Thunderbird Inbox/Sent (and MBOX) over ~40 MB are no longer skipped.
+- **Streaming** scan (message by message): no loading the whole mailbox into RAM, no freeze.
+- **Recent prescriptions fix:** messages with large PDF attachments are no longer silently skipped; per-message size limit removed (streaming).
+- **PDF attachments in email:** name + text search; also `octet-stream` / `%PDF` magic.
+- ~40 MB cap for heavy DOC/text only; **no size cap on mailboxes** (streaming; a 2 GB cap was silently skipping large Gmail INBOX/All Mail); **PDFs up to ~80 MB**.
+- **Custom `.pdf` filter:** also includes Thunderbird mailboxes and `.eml` files, searching PDF attachments (previously only loose `.pdf` files on disk).
+- **Save/Open PDF attachment:** from mail results, Open and “Save PDF attachment…” use the extracted PDF, not the whole INBOX file.
+- Less result noise: WinSxS, Cursor/VS Code caches and RTAD internal logs excluded.
+- Final status reports mail messages scanned and PDF attachment hits.
+- 1.5.5 stability, bundled feedparser, dates and profiles remain.
+```
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.6
+
+Tag:
+app-v1.5.6
+
+Asset:
+Setup_RicercaTestualeAccessoDigitale_v1.5.6.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.6.exe
+
+Descrizione: stessa della colonna Add-on (posta completa / streaming / allegati ricette).
+
+════════════════════════════════════════════════════════
+ADD-ON DATASTORE (campi)
+════════════════════════════════════════════════════════
+
+Name: Ricerca Testuale Accesso Digitale
+Version: 1.5.6
+Publisher: Maurizio Barra (Accesso Digitale)
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.6/ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
+
+Summary IT:
+Caselle Thunderbird grandi ricercabili per intero; anche messaggi con allegati PDF (ricette) non più saltati.
+
+Summary EN:
+Large Thunderbird mailboxes fully searchable; messages with PDF attachments (prescriptions) no longer skipped.
+
+Homepage: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+License: GPL v2

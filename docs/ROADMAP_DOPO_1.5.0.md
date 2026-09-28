@@ -74,7 +74,15 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 7. Add-on: **feedparser vendored** (RSS in NVDA senza pip).  
 8. Add-on: **`.eml`/MBOX allineati allo Standalone** (un hit per messaggio → stessa conta risultati).
 
-### Fase F — `1.5.6` (voce Standalone)
+### Fase F — `1.5.6` (completezza posta / caselle grandi + allegati ricette) — PRONTA AL RILASCIO
+
+1. Caselle Thunderbird/MBOX **senza tetto di dimensione** (streaming messaggio per messaggio).  
+2. Fix critico: un tetto ~2 GB saltava in silenzio INBOX/Tutti i messaggi Gmail.  
+3. Messaggi singoli con PDF grandi **non più saltati**; tetto singolo messaggio rimosso.  
+4. Allegati PDF (anche octet-stream / `%PDF`); filtro `.pdf` include anche caselle/.eml.  
+5. **Apri / Salva allegato PDF** estratto (non l’intera INBOX); meno rumore (WinSxS, Cursor, log RTAD).
+
+### Fase F2 — `1.5.7` (voce Standalone)
 
 1. Velocità (e tono se semplice) SAPI5; menu + scorciatoie; persistenza.  
 2. Solo Standalone (Add-on = voce NVDA).  
@@ -82,7 +90,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 ### Fase G — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
-### Fase H — OCR testo in immagini / PDF scansione (`1.5.7` o ingresso `1.6`)
+### Fase H — OCR testo in immagini / PDF scansione (`1.5.8` o ingresso `1.6`)
 
 **Priorità alta dopo voce** (accordo settembre 2026).
 
@@ -120,7 +128,7 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** solo Standalone; OneCore via token SAPI prima di API native.  
 - **PDF 1.5.3:** rilasciato.  
-- **Profili** = `1.5.4`; **voce** = `1.5.6`; **OCR** = dopo voce.  
+- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = dopo voce.
 - **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
@@ -131,10 +139,11 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 1. ~~1.5.0 / 1.5.1 / 1.5.2 / 1.5.3~~ fatte.  
 2. ~~1.5.4 profili~~ fatta.  
 3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
-4. **1.5.6 voce Standalone.**  
-5. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
-6. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
-7. Decidere insieme **1.6.0** (e eventuale vision leggera).
+4. ~~**1.5.6 completezza posta**~~ pronta al rilascio (caselle grandi + allegati PDF + Apri/Salva PDF).  
+5. **1.5.7 voce Standalone.**  
+6. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
+7. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
+8. Decidere insieme **1.6.0** (e eventuale vision leggera).
 
 ---
 

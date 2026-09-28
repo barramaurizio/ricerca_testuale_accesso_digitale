@@ -1,3 +1,20 @@
+Novità nella Versione 1.5.6
+- Posta completa: caselle Thunderbird/MBOX senza tetto di dimensione (streaming messaggio per messaggio)
+- Scansione MBOX in streaming (messaggio per messaggio): niente RAM piena, niente freeze sulle caselle grandi
+- Fix ricette: messaggi con allegati PDF grandi non più saltati; **tetto singolo messaggio posta rimosso** (streaming sicuro)
+- Se un allegato PDF è dichiarato ma non scaricato in locale (IMAP): conteggio nello stato + match sul nome file
+- Allegati PDF anche come octet-stream / senza estensione (magic %PDF); ricerca nome + testo grezzo + estrazione
+- Tetto ~40 MB solo per DOC/testi pesanti (anti-blocco); **posta senza tetto di dimensione casella** (streaming); PDF fino a ~80 MB
+- Fix critico: un tetto ~2 GB saltava in silenzio le caselle Gmail principali (INBOX / Tutti i messaggi) oltre 2 GB
+- Filtro estensione .pdf: include anche caselle Thunderbird/.eml e cerca negli allegati PDF (prima solo file .pdf su disco)
+- Allegato PDF da posta: «Apri» apre il PDF estratto (non l'INBOX da giga); menu «Salva allegato PDF…» / «Copia allegato PDF altrove…»
+- PDF: lettura fino a 40 MB di file, timeout soft 20 s, match anche se i termini sono spezzati su più righe
+- Se la dimensione file non è leggibile (OneDrive / path lungo → -1): si tenta comunque la lettura
+- PDF su disco: anche ricerca grezza nei byte se l'estrattore non trova testo
+- Meno rumore: esclusi WinSxS/System32/SysWOW64, cache Cursor/VS Code, log RTAD
+- PDF: ordinamento per data file (ricezione); in etichetta anche data documento se diversa
+- Stato finale: messaggi posta esaminati + hit allegati PDF + stub non scaricati
+
 Novità nella Versione 1.5.5
 - Stabilità / anti-blocco: evita «Non risponde» su cartelle grandi e PDF/DOC difficili (es. G:\), senza ridurre le ricerche normali
 - Tetto decompressione PDF (anti zip-bomb); timeout soft solo sul file bloccato; .doc OLE senza ZipFile inutile
@@ -6,6 +23,8 @@ Novità nella Versione 1.5.5
 - Non legge per intero file oltre ~40 MB (resta la ricerca sul nome file)
 - Annunci automatici di avanzamento ridotti (25/50/75%); Alt+P resta completo
 - Alt+S più sicuro; indicizzazione cartelle visibile; log del file in scansione
+- Add-on: feedparser incluso (niente più «modulo non installato» / ricerca RSS assente in NVDA)
+- Add-on: .eml e MBOX allineati allo Standalone (un risultato per messaggio, non una riga grezza per hit)
 
 Novità nella Versione 1.5.4
 - Filtri: più estensioni per Immagini (gif/webp/tif…), Audio/Video (m4a/flac/mov…) e Documenti (html/md/rtf/odt…)

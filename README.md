@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.6
+
+- **Posta completa:** caselle Thunderbird/MBOX senza tetto di dimensione (streaming); anche messaggi con allegati PDF grandi.
+- Filtro **`.pdf`**: include caselle posta/.eml e cerca negli allegati; **Apri/Salva allegato PDF** (non l’INBOX intera).
+- Meno rumore: esclusi WinSxS, cache Cursor e log RTAD; stato con messaggi posta e hit allegati.
+- Tetto ~40 MB per DOC/testi; **PDF ~80 MB**. Restano stabilità 1.5.5, feedparser, date e profili.
 
 ### 🌟 Novità della Versione 1.5.5
 
@@ -23,6 +30,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.5.6
+
+- **Complete mail search:** Thunderbird/MBOX with no mailbox size cap (streaming); large PDF-attachment messages included.
+- **`.pdf` filter:** also scans mailboxes/.eml for PDF attachments; **Open/Save extracted PDF** (not the whole INBOX).
+- Less noise: WinSxS, Cursor caches and RTAD logs excluded; status reports mail messages and attachment hits.
+- ~40 MB for DOC/text; **PDF ~80 MB**. 1.5.5 stability, feedparser, dates and profiles remain.
 
 ### 🌟 What's New in Version 1.5.5
 

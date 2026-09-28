@@ -37,7 +37,7 @@ except ImportError:
     feedparser = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.5"
+APP_VERSION = "1.5.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -264,10 +264,21 @@ _speech_thread_started = False
 _speech_thread_lock = threading.Lock()
 _nvda_client = None
 
-# Evita di leggere in RAM file enormi (blocco UI / «Non risponde» su dischi esterni)
-MAX_CONTENT_SCAN_BYTES = 40 * 1024 * 1024  # 40 MB
-# Budget soft per singolo file (PDF/DOCX/EML): non riduce le ricerche normali, evita blocchi
+# Evita di leggere in RAM file enormi (blocco UI / «Non risponde» su dischi esterni).
+# Non si applica alle caselle di posta: quelle si scansionano in streaming (vedi sotto).
+MAX_CONTENT_SCAN_BYTES = 40 * 1024 * 1024  # 40 MB — DOC/testo generico
+MAX_PDF_SCAN_BYTES = 80 * 1024 * 1024  # 80 MB — PDF (spesso brochure/ricette)
+# Caselle Thunderbird / MBOX: nessun tetto di dimensione file.
+# La scansione è in streaming (un messaggio alla volta): un INBOX da 5–10 GB
+# resta ricercabile. Un tetto (es. 2 GB) saltava in silenzio le caselle Gmail
+# principali (INBOX / Tutti i messaggi) con tutte le ricette recenti.
+MAX_MAILBOX_SCAN_BYTES = 0  # 0 = illimitato per i contenitori posta
+# 0 = nessun tetto sul singolo messaggio (legge tutto; un messaggio alla volta in streaming).
+# Prima 12 MB poi 80 MB: i PDF ricette in base64 venivano tagliati/saltati.
+MAX_SINGLE_MBOX_MSG_BYTES = 0
+# Budget soft per singolo file: non riduce le ricerche normali, evita blocchi
 FILE_CONTENT_SOFT_TIMEOUT_SEC = 12
+FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC = 20  # PDF lineari: un po' più di tempo senza bloccare l'UI
 # Cap lettura .eml in ricerca (allegati grandi restano esclusi da get_clean_email_text)
 MAX_EML_READ_BYTES = 12 * 1024 * 1024
 # Cap dimensione word/document.xml decompressa
@@ -428,12 +439,42 @@ def safe_file_size(path):
         return -1
 
 
-def content_scan_allowed(path, max_bytes=MAX_CONTENT_SCAN_BYTES):
-    """False se il file è troppo grande da leggere per intero in ricerca."""
+def is_email_mailbox_path(path):
+    """True per .eml/.mbox/.mbx e contenitori posta Thunderbird (non indici .msf)."""
+    if not path:
+        return False
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".eml", ".mbox", ".mbx"):
+        return True
+    return is_thunderbird_mail_container(path)
+
+
+def content_scan_allowed(path, max_bytes=None):
+    """False se il file è troppo grande da leggere per intero in ricerca.
+
+    Le caselle di posta non hanno tetto: la scansione è in streaming
+    (un messaggio alla volta), così Inbox/Sent/Tutti i messaggi da vari GB
+    restano ricercabili. Un tetto fisso (es. 2 GB) escludeva in silenzio
+    le caselle Gmail più grandi — proprio dove stanno le ricette recenti.
+
+    I PDF hanno un tetto dedicato (più alto del generico) perché molte ricette
+    e brochure superano i 40 MB pur restando gestibili in estrazione lineare.
+
+    Se la dimensione non è leggibile (sz < 0: OneDrive non idratato, path lungo,
+    file bloccato), si tenta comunque la lettura: meglio un open che fallisce
+    in modo controllato che saltare silenziosamente contenuto utile.
+    """
+    if is_email_mailbox_path(path):
+        return True
     sz = safe_file_size(path)
     if sz < 0:
-        return False
-    return sz <= max_bytes
+        return True
+    if max_bytes is not None:
+        return sz <= max_bytes
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".pdf":
+        return sz <= MAX_PDF_SCAN_BYTES
+    return sz <= MAX_CONTENT_SCAN_BYTES
 
 
 def _read_file_magic(path, n=8):
@@ -493,6 +534,8 @@ def decode_email_header(raw_header):
 
 # Limite per parte MIME testuale: evita di gonfiare la UI con PDF/binari decodificati per errore.
 MAX_EMAIL_TEXT_PART_BYTES = 1_500_000
+# Allegati PDF nelle email (ricette ecc.): cerca testo/nome senza caricare PDF enormi
+MAX_EMAIL_PDF_ATTACH_BYTES = 20 * 1024 * 1024
 
 
 def _payload_looks_binary(payload):
@@ -505,6 +548,218 @@ def _payload_looks_binary(payload):
     if b"\x00" in head:
         return True
     return False
+
+
+def iter_pdf_attachments(msg, max_bytes=MAX_EMAIL_PDF_ATTACH_BYTES):
+    """Yield (filename, pdf_bytes, meta) dagli allegati PDF di un messaggio email.
+
+    meta flags:
+      - empty: True se l'allegato è dichiarato ma senza corpo (tipico IMAP non scaricato)
+      - external: path locale se X-Mozilla-External-Attachment-URL punta a un file
+
+    Riconosce anche application/octet-stream / senza nome se il payload inizia con %PDF.
+    """
+    try:
+        parts = msg.walk() if msg.is_multipart() else [msg]
+    except Exception:
+        return
+    for part in parts:
+        try:
+            if part.is_multipart():
+                continue
+        except Exception:
+            pass
+        try:
+            ctype = (part.get_content_type() or "").lower()
+        except Exception:
+            ctype = ""
+        filename = ""
+        try:
+            filename = part.get_filename() or ""
+        except Exception:
+            filename = ""
+        if not filename:
+            try:
+                cd = part.get("Content-Disposition") or ""
+                m = re.search(r'filename\*?=(?:UTF-8\'\')?"?([^";\r\n]+)"?', str(cd), re.I)
+                if m:
+                    filename = m.group(1).strip()
+            except Exception:
+                pass
+        try:
+            fname = decode_email_header(str(filename)) if filename else ""
+        except Exception:
+            fname = str(filename or "")
+        low_name = fname.lower()
+        is_pdf = ctype == "application/pdf" or low_name.endswith(".pdf")
+
+        # Thunderbird a volte stacca l'allegato su disco
+        external_path = ""
+        try:
+            ext_url = part.get("X-Mozilla-External-Attachment-URL") or ""
+            ext_url = str(ext_url).strip()
+            if ext_url.lower().startswith("file:"):
+                # file:///C:/path or file://localhost/C:/path
+                from urllib.parse import unquote, urlparse
+                parsed = urlparse(ext_url)
+                external_path = unquote(parsed.path or "")
+                if external_path.startswith("/") and len(external_path) > 2 and external_path[2] == ":":
+                    # /C:/Users/... → C:/Users/...
+                    external_path = external_path[1:]
+                external_path = external_path.replace("/", "\\")
+        except Exception:
+            external_path = ""
+
+        payload = None
+        try:
+            payload = part.get_payload(decode=True)
+        except Exception:
+            payload = None
+        if not payload:
+            # Fallback: payload grezzo base64/qp non decodificato dal parser
+            try:
+                raw_pl = part.get_payload(decode=False)
+                if isinstance(raw_pl, list):
+                    raw_pl = None
+                if isinstance(raw_pl, str) and raw_pl.strip():
+                    import base64 as _b64
+                    cte = (part.get("Content-Transfer-Encoding") or "").lower()
+                    if "base64" in cte:
+                        payload = _b64.b64decode(re.sub(r"\s+", "", raw_pl), validate=False)
+                    elif "quoted-printable" in cte:
+                        import quopri
+                        payload = quopri.decodestring(raw_pl.encode("latin1", errors="ignore"))
+                    else:
+                        payload = raw_pl.encode("latin1", errors="ignore")
+            except Exception:
+                payload = None
+
+        if external_path and (not payload or len(payload) < 8):
+            try:
+                if os.path.isfile(external_path):
+                    with open(external_path, "rb") as ef:
+                        payload = ef.read(max_bytes if max_bytes else MAX_EMAIL_PDF_ATTACH_BYTES)
+                    if payload and not is_pdf and payload[:5] == b"%PDF-":
+                        is_pdf = True
+                    if payload:
+                        yield (fname or os.path.basename(external_path) or "allegato.pdf"), payload, {
+                            "empty": False,
+                            "external": external_path,
+                        }
+                        continue
+            except Exception:
+                pass
+
+        if not is_pdf and payload and payload[:5] == b"%PDF-":
+            is_pdf = True
+            if not fname:
+                fname = "allegato.pdf"
+        if not is_pdf:
+            continue
+
+        if not payload:
+            # Dichiarato PDF ma corpo assente: messaggio IMAP non scaricato offline
+            yield (fname or "allegato.pdf"), b"", {"empty": True, "external": external_path or ""}
+            continue
+        if len(payload) > max_bytes:
+            payload = payload[:max_bytes]
+        yield (fname or "allegato.pdf"), payload, {"empty": False, "external": ""}
+
+
+def iter_pdf_attachments_compat(msg, max_bytes=MAX_EMAIL_PDF_ATTACH_BYTES):
+    """Compat: yield (filename, pdf_bytes) saltando gli stub vuoti."""
+    for fname, payload, meta in iter_pdf_attachments(msg, max_bytes=max_bytes):
+        if meta.get("empty"):
+            continue
+        if not payload:
+            continue
+        yield fname, payload
+
+
+def match_pdf_attachment_hit(terms, att_name, pdf_raw, deadline=None):
+    """Restituisce (snippet, via) se l'allegato PDF corrisponde ai termini, altrimenti None.
+
+    Ordine: nome allegato → ricerca grezza veloce nei byte → estrazione testo PDF.
+    La ricerca grezza trova «prescrizione»/«cardura» anche quando l'estrattore Tj/TJ fallisce.
+    """
+    if text_matches_terms(att_name, terms):
+        return f"Allegato: {att_name}", "nome allegato"
+    # Grezza veloce (latin1) su tutto il PDF: copre molti PDF «difficili» e gli OCR embedded
+    try:
+        raw_txt = pdf_raw.decode("latin1", errors="ignore")
+        if text_matches_terms(raw_txt, terms):
+            # prova a estrarre uno snippet leggibile intorno al primo termine
+            n = normalize_search_text(raw_txt, False)
+            pos = -1
+            term0 = terms[0] if terms else ""
+            if term0:
+                pos = n.find(term0)
+            if pos >= 0:
+                a = max(0, pos - 40)
+                b = min(len(raw_txt), pos + 80)
+                snip = " ".join(raw_txt[a:b].split())
+            else:
+                snip = att_name or "allegato.pdf"
+            return snip[:200], "testo allegato"
+    except Exception:
+        pass
+    lines = extract_lines_from_pdf_bytes(
+        pdf_raw,
+        deadline=deadline,
+        source_label=att_name or "allegato.pdf",
+    )
+    if not lines:
+        return None
+    for idx, line in enumerate(lines):
+        if text_matches_terms(line, terms):
+            start_i = max(0, idx - 1)
+            end_i = min(len(lines), idx + 2)
+            snip = " ".join(lines[start_i:end_i]).strip()
+            return (snip[:200] or att_name), "testo allegato"
+    hay = "\n".join(lines)
+    if text_matches_terms(hay, terms):
+        snippet = ""
+        for line in lines:
+            if any(t in normalize_search_text(line, False) for t in terms):
+                snippet = line.strip()
+                break
+        if not snippet:
+            snippet = " ".join(hay.split())[:200]
+        return snippet[:200], "testo allegato"
+    return None
+
+
+_att_pdf_cache_seq = 0
+
+
+def cache_extracted_pdf_attachment(pdf_raw, att_name, key_hint=""):
+    """Scrive l'allegato PDF in %TEMP%\\rtad_pdf_attachments\\ e restituisce il path.
+
+    Così «Apri» / «Copia File altrove» usano il PDF piccolo, non l'intera casella INBOX.
+    """
+    global _att_pdf_cache_seq
+    if not pdf_raw:
+        return ""
+    try:
+        base = os.path.join(tempfile.gettempdir(), "rtad_pdf_attachments")
+        os.makedirs(base, exist_ok=True)
+        safe = os.path.basename(att_name or "allegato.pdf")
+        safe = "".join(c if c.isalnum() or c in "._- " else "_" for c in safe).strip()
+        if not safe:
+            safe = "allegato.pdf"
+        if not safe.lower().endswith(".pdf"):
+            safe += ".pdf"
+        stem, ext = os.path.splitext(safe)
+        _att_pdf_cache_seq += 1
+        hint = "".join(c if c.isalnum() else "" for c in str(key_hint))[-8:]
+        out_name = f"{stem}_{_att_pdf_cache_seq:05d}_{hint or 'att'}{ext or '.pdf'}"
+        out_path = os.path.join(base, out_name)
+        with open(out_path, "wb") as f:
+            f.write(pdf_raw)
+        return out_path
+    except Exception as e:
+        logging.debug(f"Cache allegato PDF fallita: {e}")
+        return ""
 
 
 def format_email_date_label(msg, fallback_ts=0):
@@ -735,6 +990,43 @@ def find_thunderbird_feeds_dirs():
     return unique
 
 
+def is_rtad_noise_file(path):
+    """File/cartelle di rumore: log interni, cache editor, WinSxS (riempiono i risultati)."""
+    if not path:
+        return False
+    name = os.path.basename(path).lower()
+    if name == "rtad_debug.log" or name == "rtad_activity.log":
+        return True
+    if name.startswith("log_rtad_") and name.endswith(".txt"):
+        return True
+    low = path.replace("/", "\\").lower()
+    if "\\rtad_standalone\\" in low and name.endswith((".log", ".txt")):
+        return True
+    if "\\ricercatestualeaccessodigitale\\" in low and name.endswith((".log", ".txt")):
+        return True
+    if "\\rtad_data\\" in low and name.endswith((".log", ".txt")):
+        return True
+    # Cache/log di Cursor/VS Code e indici IndexedDB
+    if "\\appdata\\roaming\\cursor\\" in low:
+        return True
+    if "\\appdata\\roaming\\code\\" in low:
+        return True
+    if "indexeddb" in low and name.endswith(".log"):
+        return True
+    # Componenti Windows: migliaia di license.rtf irrilevanti
+    if "\\windows\\winsxs\\" in low:
+        return True
+    if "\\windows\\installer\\" in low:
+        return True
+    if "\\windows\\servicing\\" in low:
+        return True
+    if "\\windows\\system32\\" in low or "\\windows\\syswow64\\" in low:
+        return True
+    if name == "license.rtf":
+        return True
+    return False
+
+
 def is_thunderbird_junk_file(path):
     """Indici/database Thunderbird da non scansionare (.msf, sqlite, ecc.)."""
     if not path:
@@ -826,35 +1118,105 @@ def _parse_messages_from_bytes(data):
         idx += 1
 
 
-def iter_mbox_like_messages(file_path, prefer_from_split=False):
-    """Yield (index, email.message) from mailbox.mbox and/or From-line split.
+def _iter_mbox_from_lines_streaming(file_path, should_abort=None, max_msg_bytes=None):
+    """Yield (index, message) scorrendo From_ senza caricare tutta la casella in RAM.
 
-    Per i Feed Thunderbird prefer_from_split=True: lo split su From_ è più
-    affidabile dei file in Mail\\Feeds rispetto a mailbox.mbox.
+    Messaggi oltre max_msg_bytes: si leggono comunque i primi max_msg_bytes
+    (testata + inizio allegati), così le ricette grandi non spariscono del tutto.
+    Prima (tetto 12 MB) quei messaggi venivano saltati in silenzio.
     """
-    data = None
-    try:
-        data = read_file_bytes_shared(file_path)
-    except Exception as e:
-        logging.debug(f"Lettura binaria fallita {file_path}: {e}")
+    if max_msg_bytes is None:
+        max_msg_bytes = MAX_SINGLE_MBOX_MSG_BYTES
+    f = open_shared_binary(file_path)
+    current = -1
+    start_pos = None
+    skipped_oversized = 0
 
-    if prefer_from_split and data:
-        yielded = False
-        for item in _parse_messages_from_bytes(data):
+    def _emit(msg_idx, start, end):
+        nonlocal skipped_oversized
+        size = end - start
+        if size <= 0:
+            return None
+        read_size = size
+        if max_msg_bytes > 0 and size > max_msg_bytes:
+            read_size = max_msg_bytes
+            skipped_oversized += 1
+            logging.info(
+                f"Messaggio MBOX {msg_idx + 1} grande ({size} byte) in {file_path}: "
+                f"lettura primi {read_size} byte."
+            )
+        cur = f.tell()
+        f.seek(start)
+        raw = f.read(read_size)
+        f.seek(cur)
+        if not raw:
+            return None
+        try:
+            return _parse_mbox_raw_message(raw)
+        except Exception:
+            return None
+
+    try:
+        while True:
+            if should_abort and should_abort():
+                break
+            line_start = f.tell()
+            line = f.readline()
+            if not line:
+                if start_pos is not None and current >= 0:
+                    end_pos = line_start
+                    msg = _emit(current, start_pos, end_pos)
+                    if msg is not None:
+                        yield current, msg
+                break
+            if line.startswith(b"From "):
+                if start_pos is not None and current >= 0:
+                    msg = _emit(current, start_pos, line_start)
+                    if msg is not None:
+                        yield current, msg
+                current += 1
+                start_pos = line_start
+    finally:
+        try:
+            f.close()
+        except Exception:
+            pass
+        if skipped_oversized:
+            logging.info(
+                f"Casella {file_path}: {skipped_oversized} messaggi oltre "
+                f"{max_msg_bytes} byte (letti in forma troncata)."
+            )
+
+
+def iter_mbox_like_messages(file_path, prefer_from_split=False, should_abort=None):
+    """Yield (index, email.message) from mailbox — streaming su From_ (anche file enormi).
+
+    prefer_from_split è mantenuto per compatibilità API (Feed Thunderbird).
+    should_abort: callable → True per interrompere la scansione.
+    """
+    yielded = False
+    try:
+        for item in _iter_mbox_from_lines_streaming(file_path, should_abort=should_abort):
             yielded = True
             yield item
-        if yielded:
-            return
+    except Exception as e:
+        logging.debug(f"Streaming From_ fallito su {file_path}: {e}")
+    if yielded:
+        return
 
+    # Fallback: mailbox.mbox solo se lo streaming non ha trovato messaggi (file piccoli/atipici)
+    sz = safe_file_size(file_path)
+    if sz > MAX_CONTENT_SCAN_BYTES:
+        return
     mb = None
     try:
         mb = mailbox.mbox(file_path)
         count = 0
         for msg in mb:
+            if should_abort and should_abort():
+                break
             yield count, msg
             count += 1
-        if count > 0:
-            return
     except Exception as e:
         logging.debug(f"mailbox.mbox fallito su {file_path}: {e}")
     finally:
@@ -863,10 +1225,6 @@ def iter_mbox_like_messages(file_path, prefer_from_split=False):
                 mb.close()
         except Exception:
             pass
-
-    if data and not prefer_from_split:
-        for item in _parse_messages_from_bytes(data):
-            yield item
 
 
 def _match_message_to_result(file_path, file_name, msg, msg_idx, terms, mtime, prefix="[FEED]"):
@@ -1104,12 +1462,12 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.5.5</strong></p>
+        <p><strong>Novit&agrave; Versione 1.5.6</strong></p>
         <ul>
-            <li><strong>Stabilit&agrave; / anti-blocco:</strong> meno «Non risponde» su cartelle grandi e PDF/DOC difficili; tetto inflate PDF; timeout soft solo sui file bloccati; .doc OLE senza ZipFile inutile — ricerche normali complete.</li>
-            <li><strong>Data su tutti i risultati</strong> (gg/mm/aaaa): txt, Word, media, immagini, nome file… come già per email e PDF.</li>
-            <li>File enormi (&gt; ~40 MB): ricerca sul nome; Alt+S/avanzamento pi&ugrave; leggeri; log del file in scansione.</li>
-            <li>Restano profili e filtri della 1.5.4.</li>
+            <li><strong>Posta completa:</strong> caselle Thunderbird/MBOX senza tetto di dimensione (streaming); un tetto ~2 GB saltava in silenzio le INBOX Gmail principali.</li>
+            <li>Messaggi con allegati PDF grandi non pi&ugrave; esclusi; filtro <code>.pdf</code> include caselle; <strong>Apri/Salva allegato PDF</strong> estratto.</li>
+            <li>Meno rumore: esclusi WinSxS, cache Cursor e log RTAD. Stato con conteggio messaggi posta e hit allegati.</li>
+            <li>Restano stabilit&agrave; 1.5.5, date, profili e filtri.</li>
         </ul>
         <p><code>F7</code>: attiva/disattiva sintesi &middot; <code>CONTROL</code>: zittisce subito la lettura.</p>
     </div>
@@ -1489,7 +1847,7 @@ def extract_paragraphs_from_docx(file_path):
         logging.debug(f"Errore estrazione testo DOCX {file_path}: {e}")
         return []
 
-PDF_READ_MAX_BYTES = 20 * 1024 * 1024
+PDF_READ_MAX_BYTES = 40 * 1024 * 1024
 
 # Marcatori tipici di stream immagine / struttura PDF (non testo leggibile)
 _PDF_IMAGE_MARKERS = (
@@ -1571,20 +1929,29 @@ def _pdf_bytes_look_like_content(data: bytes) -> bool:
 
 
 def extract_lines_from_pdf(file_path, deadline=None):
-    """Estrae righe di testo da un PDF senza librerie esterne.
-
-    Decomprime solo stream di contenuto (non Image XObject), poi legge Tj/TJ.
-    I PDF solo-immagine restituiscono lista vuota (niente spazzatura endstream/Image).
-    """
+    """Estrae righe di testo da un PDF senza librerie esterne."""
     if deadline is None:
-        deadline = time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_SEC
+        deadline = time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC
     try:
         with open(file_path, "rb") as f:
             raw = f.read(PDF_READ_MAX_BYTES)
     except Exception as e:
         logging.debug(f"Errore lettura PDF {file_path}: {e}")
         return []
+    return extract_lines_from_pdf_bytes(raw, deadline=deadline, source_label=file_path)
 
+
+def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
+    """Estrae righe di testo da byte PDF (file o allegato email).
+
+    Decomprime solo stream di contenuto (non Image XObject), poi legge Tj/TJ.
+    I PDF solo-immagine restituiscono lista vuota.
+    """
+    if deadline is None:
+        deadline = time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC
+    if not raw:
+        return []
+    label = source_label or "pdf-bytes"
     if not raw.startswith(b"%PDF"):
         return _pdf_fallback_crude_lines(raw)
 
@@ -1596,11 +1963,10 @@ def extract_lines_from_pdf(file_path, deadline=None):
     content_used = 0
     while True:
         if time.monotonic() > deadline:
-            logging.warning(f"PDF interrotto per tempo massimo: {file_path}")
+            logging.warning(f"PDF interrotto per tempo massimo: {label}")
             break
         if content_used >= _PDF_MAX_CONTENT_STREAMS:
             break
-        # find senza regex su tutto il residuo (più sicuro su brochure enormi)
         m_at = raw.find(b"stream", pos)
         if m_at < 0:
             break
@@ -2795,18 +3161,20 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Stabilità / anti-blocco: niente «Non risponde» su cartelle grandi e PDF/DOC\n"
-            "  difficili (G:\\ ecc.), senza limitare le ricerche normali.\n"
-            "• Tetto inflate PDF; timeout soft solo sui file bloccati; .doc OLE senza ZipFile.\n"
-            "• Data (gg/mm/aaaa) su tutti i risultati: txt, Word, media, immagini, nome file…\n"
-            "  (come già per email e PDF).\n"
-            "• File enormi: ricerca sul nome; Alt+S/avanzamento più leggeri.\n"
-            "• Restano profili e filtri della 1.5.4.\n"
+            "• Posta completa: caselle grandi senza tetto (streaming); anche\n"
+            "  messaggi con allegati PDF (ricette).\n"
+            "• Filtro .pdf: include caselle posta; Apri/Salva allegato PDF\n"
+            "  estratto (non l'intera INBOX).\n"
+            "• Se Thunderbird non ha scaricato l'allegato in locale, lo\n"
+            "  segnala nello stato (apri il messaggio e ripeti la ricerca).\n"
+            "• Allegati PDF anche come octet-stream / magic %PDF.\n"
+            "• Meno rumore (WinSxS/System32, Cursor, log RTAD).\n"
+            "• Restano stabilità 1.5.5, date, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
 
-        lbl_info = wx.StaticText(panel, label="Leggi la novità dell'ultimo aggiornamento:")
+        lbl_info = wx.StaticText(panel, label="Leggi le novità dell'ultimo aggiornamento:")
         vbox.Add(lbl_info, 0, wx.ALL, 8)
 
         self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
@@ -4077,13 +4445,28 @@ class MainWindow(wx.Frame):
 
     def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False):
         raw_matches = []
-        ignored = ["$recycle.bin", "system volume information", "appdata\\local\\temp"]
+        ignored = [
+            "$recycle.bin",
+            "system volume information",
+            "appdata\\local\\temp",
+            "appdata\\roaming\\rtad_standalone",
+            "appdata\\roaming\\cursor",
+            "appdata\\roaming\\code",
+            "rtad_data",
+            "\\windows\\winsxs",
+            "\\windows\\installer",
+            "\\windows\\servicing",
+            "\\windows\\logs",
+            "\\windows\\panther",
+        ]
         norm_query = normalize_search_text(query)
         terms = norm_query.split()
         img_exts = list(IMG_EXTS)
         media_exts = list(MEDIA_EXTS)
         doc_exts = list(DOC_EXTS)
         feed_file_exts = {".rss", ".xml", ".atom"}
+        # Estensione personalizzata .pdf: scansiona anche allegati nelle caselle posta
+        mail_pdf_only = filter_mode == 4 and custom_ext == ".pdf"
 
         file_list = []
         rss_sources = []
@@ -4106,6 +4489,8 @@ class MainWindow(wx.Frame):
                 continue
             if os.path.isfile(folder):
                 ext = os.path.splitext(folder)[1].lower()
+                if is_rtad_noise_file(folder):
+                    continue
                 if ext == ".opml":
                     opml_files.append(os.path.normpath(folder))
                 elif ext in feed_file_exts:
@@ -4117,6 +4502,11 @@ class MainWindow(wx.Frame):
             for root, dirs, files in os.walk(folder):
                 if self._stop_search:
                     break
+                # Potatura anticipata: non scendere in cartelle di rumore (WinSxS, cache editor, …)
+                dirs[:] = [
+                    d for d in dirs
+                    if not any(ign in os.path.join(root, d).lower() for ign in ignored)
+                ]
                 if any(ign in root.lower() for ign in ignored):
                     continue
                 walked_dirs += 1
@@ -4130,7 +4520,15 @@ class MainWindow(wx.Frame):
                     full = os.path.normpath(os.path.join(root, file))
                     if is_thunderbird_junk_file(full):
                         continue
+                    if is_rtad_noise_file(full):
+                        continue
                     is_tb = is_thunderbird_mail_container(full)
+                    # Filtro .pdf: le caselle posta/.eml/.mbox non hanno estensione .pdf,
+                    # ma contengono allegati PDF — includile comunque.
+                    mail_for_pdf = (
+                        custom_ext == ".pdf"
+                        and (is_tb or ext in (".eml", ".mbox", ".mbx"))
+                    )
 
                     if filter_mode == 1 and ext not in img_exts:
                         continue
@@ -4138,7 +4536,7 @@ class MainWindow(wx.Frame):
                         continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                         continue
-                    elif filter_mode == 4 and ext != custom_ext:
+                    elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
                         continue
 
                     if ext == ".opml":
@@ -4166,6 +4564,11 @@ class MainWindow(wx.Frame):
         units_done = 0
         last_spoken_percent = -1
         feed_raw_total = 0
+        skipped_large_files = 0
+        mail_messages_scanned = 0
+        pdf_attachment_hits = 0
+        pdf_attachment_empty = 0
+        pdf_attachment_seen = 0
 
         def bump_progress():
             nonlocal units_done, last_spoken_percent
@@ -4233,10 +4636,17 @@ class MainWindow(wx.Frame):
                 allow_content = content_scan_allowed(file_path)
                 if not allow_content and not name_matched:
                     # Solo nome: file troppo grande, salta lettura contenuto
+                    # (le caselle di posta non arrivano qui: content_scan_allowed=True)
+                    skipped_large_files += 1
+                    logging.info(
+                        f"File troppo grande per scansione contenuto "
+                        f"({safe_file_size(file_path)} byte): {file_path}"
+                    )
                     bump_progress()
                     continue
                 if not allow_content:
-                    logging.debug(
+                    skipped_large_files += 1
+                    logging.info(
                         f"File troppo grande per scansione contenuto "
                         f"({safe_file_size(file_path)} byte): {file_path}"
                     )
@@ -4265,55 +4675,128 @@ class MainWindow(wx.Frame):
                         found_in_content = True
 
                 elif is_mbox and allow_content:
-                    mb = None
+                    # Streaming From_: anche Inbox/Sent da centinaia di MB (niente tetto 40 MB)
+                    box_msgs = 0
+                    box_hits = 0
+                    box_pdf_hits = 0
+                    box_pdf_empty = 0
+                    box_pdf_seen = 0
+                    logging.info(
+                        f"Casella posta: inizio scansione "
+                        f"({safe_file_size(file_path)} byte): {file_path}"
+                    )
                     try:
-                        mb = mailbox.mbox(file_path)
-                        for msg_idx, msg in enumerate(mb):
+                        for msg_idx, msg in iter_mbox_like_messages(
+                            file_path,
+                            prefer_from_split=True,
+                            should_abort=lambda: self._stop_search,
+                        ):
                             if self._stop_search:
                                 break
+                            mail_messages_scanned += 1
+                            box_msgs += 1
                             subject = decode_email_header(str(msg.get("subject", "")))
                             sender = decode_email_header(str(msg.get("from", "")))
-                            body = get_clean_email_text(msg)
                             msg_ts = message_date_timestamp(msg, fallback=mtime)
                             msg_found = False
                             date_label = format_email_date_label(msg, fallback_ts=msg_ts)
                             date_suffix = f" {date_label}" if date_label else ""
-                            if body:
-                                lines = body.split("\n")
-                                for line_idx, line in enumerate(lines):
-                                    if text_matches_terms(line, terms):
-                                        start_i = max(0, line_idx - 1)
-                                        end_i = min(len(lines), line_idx + 2)
-                                        snip = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
-                                        raw_matches.append({
-                                            "file_path": file_path, "file_name": file_name,
-                                            "prefix": "[MBOX]", "mtime": msg_ts,
-                                            "line_number": msg_idx, "paragraph_index": None,
-                                            "location_info": f"Testo Msg {msg_idx + 1}{date_suffix}",
-                                            "snippet": snip,
-                                            "viewer_text": _format_email_viewer_text(msg),
-                                        })
-                                        found_in_content = True
-                                        msg_found = True
+                            # Con filtro solo .pdf: non cercare in corpo/oggetto, solo allegati PDF
+                            if not mail_pdf_only:
+                                body = get_clean_email_text(msg)
+                                if body:
+                                    lines = body.split("\n")
+                                    for line_idx, line in enumerate(lines):
+                                        if text_matches_terms(line, terms):
+                                            start_i = max(0, line_idx - 1)
+                                            end_i = min(len(lines), line_idx + 2)
+                                            snip = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                                            raw_matches.append({
+                                                "file_path": file_path, "file_name": file_name,
+                                                "prefix": "[MBOX]", "mtime": msg_ts,
+                                                "line_number": msg_idx, "paragraph_index": None,
+                                                "location_info": f"Testo Msg {msg_idx + 1}{date_suffix}",
+                                                "snippet": snip,
+                                                "viewer_text": _format_email_viewer_text(msg),
+                                            })
+                                            found_in_content = True
+                                            msg_found = True
+                                            box_hits += 1
+                                            break
+                                if not msg_found and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
+                                    raw_matches.append({
+                                        "file_path": file_path, "file_name": file_name,
+                                        "prefix": "[MBOX]", "mtime": msg_ts,
+                                        "line_number": msg_idx, "paragraph_index": None,
+                                        "location_info": f"Oggetto Msg {msg_idx + 1}{date_suffix}",
+                                        "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                                        "viewer_text": _format_email_viewer_text(msg),
+                                    })
+                                    found_in_content = True
+                                    msg_found = True
+                                    box_hits += 1
+                            # Allegati PDF: anche stub vuoti (IMAP non scaricato) → match sul nome;
+                            # payload esterno Thunderbird; altrimenti testo grezzo/estratto.
+                            if not msg_found:
+                                for att_name, pdf_raw, att_meta in iter_pdf_attachments(msg):
+                                    if self._stop_search:
                                         break
-                            if not msg_found and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
-                                raw_matches.append({
-                                    "file_path": file_path, "file_name": file_name,
-                                    "prefix": "[MBOX]", "mtime": msg_ts,
-                                    "line_number": msg_idx, "paragraph_index": None,
-                                    "location_info": f"Oggetto Msg {msg_idx + 1}{date_suffix}",
-                                    "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
-                                    "viewer_text": _format_email_viewer_text(msg),
-                                })
-                                found_in_content = True
+                                    box_pdf_seen += 1
+                                    pdf_attachment_seen += 1
+                                    if att_meta.get("empty"):
+                                        pdf_attachment_empty += 1
+                                        box_pdf_empty += 1
+                                        if text_matches_terms(att_name, terms):
+                                            raw_matches.append({
+                                                "file_path": file_path, "file_name": file_name,
+                                                "prefix": "[MBOX]", "mtime": msg_ts,
+                                                "line_number": msg_idx, "paragraph_index": None,
+                                                "location_info": f"Allegato PDF (non scaricato) Msg {msg_idx + 1}{date_suffix}",
+                                                "snippet": f"nome allegato (corpo assente in locale): {att_name}",
+                                                "viewer_text": _format_email_viewer_text(msg),
+                                            })
+                                            found_in_content = True
+                                            msg_found = True
+                                            pdf_attachment_hits += 1
+                                            box_pdf_hits += 1
+                                            box_hits += 1
+                                            break
+                                        continue
+                                    hit = match_pdf_attachment_hit(
+                                        terms,
+                                        att_name,
+                                        pdf_raw,
+                                        deadline=time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC,
+                                    )
+                                    if not hit:
+                                        continue
+                                    snip, via = hit
+                                    cached_pdf = cache_extracted_pdf_attachment(
+                                        pdf_raw, att_name, f"{file_name}-{msg_idx}"
+                                    )
+                                    raw_matches.append({
+                                        "file_path": file_path, "file_name": file_name,
+                                        "prefix": "[MBOX]", "mtime": msg_ts,
+                                        "line_number": msg_idx, "paragraph_index": None,
+                                        "location_info": f"Allegato PDF Msg {msg_idx + 1}{date_suffix}",
+                                        "snippet": f"{via}: {snip}",
+                                        "viewer_text": _format_email_viewer_text(msg),
+                                        "attachment_name": att_name or "allegato.pdf",
+                                        "attachment_export_path": cached_pdf,
+                                    })
+                                    found_in_content = True
+                                    msg_found = True
+                                    pdf_attachment_hits += 1
+                                    box_pdf_hits += 1
+                                    box_hits += 1
+                                    break
                     except Exception as e:
                         logging.debug(f"Errore lettura MBOX {file_path}: {e}")
-                    finally:
-                        try:
-                            if mb:
-                                mb.close()
-                        except Exception:
-                            pass
+                    logging.info(
+                        f"Casella posta: fine {file_name} | messaggi={box_msgs} "
+                        f"hit={box_hits} pdf_visti={box_pdf_seen} "
+                        f"pdf_hit={box_pdf_hits} pdf_vuoti={box_pdf_empty} | {file_path}"
+                    )
 
                 elif ext == ".eml" and allow_content:
                     logging.debug(f"Scansione contenuto: {file_path}")
@@ -4333,34 +4816,75 @@ class MainWindow(wx.Frame):
 
                     subject = decode_email_header(str(msg.get("subject", "")))
                     sender = decode_email_header(str(msg.get("from", "")))
-                    body = get_clean_email_text(msg)
                     msg_ts = message_date_timestamp(msg, fallback=mtime)
                     date_label = format_email_date_label(msg, fallback_ts=msg_ts)
                     date_suffix = f" {date_label}" if date_label else ""
 
-                    if body:
-                        lines = body.split("\n")
-                        for line_idx, line in enumerate(lines):
-                            if text_matches_terms(line, terms):
-                                start_i = max(0, line_idx - 1)
-                                end_i = min(len(lines), line_idx + 2)
-                                snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
-                                raw_matches.append({
-                                    "file_path": file_path, "file_name": file_name, "prefix": prefix,
-                                    "mtime": msg_ts, "line_number": line_idx + 1, "paragraph_index": None,
-                                    "location_info": f"Testo Email{date_suffix}", "snippet": snippet,
-                                })
-                                found_in_content = True
-                                break
+                    if not mail_pdf_only:
+                        body = get_clean_email_text(msg)
+                        if body:
+                            lines = body.split("\n")
+                            for line_idx, line in enumerate(lines):
+                                if text_matches_terms(line, terms):
+                                    start_i = max(0, line_idx - 1)
+                                    end_i = min(len(lines), line_idx + 2)
+                                    snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                                    raw_matches.append({
+                                        "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                        "mtime": msg_ts, "line_number": line_idx + 1, "paragraph_index": None,
+                                        "location_info": f"Testo Email{date_suffix}", "snippet": snippet,
+                                    })
+                                    found_in_content = True
+                                    break
 
-                    if not found_in_content and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
-                        raw_matches.append({
-                            "file_path": file_path, "file_name": file_name, "prefix": prefix,
-                            "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
-                            "location_info": f"Intestazione Email{date_suffix}",
-                            "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
-                        })
-                        found_in_content = True
+                        if not found_in_content and (text_matches_terms(subject, terms) or text_matches_terms(sender, terms)):
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
+                                "location_info": f"Intestazione Email{date_suffix}",
+                                "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                            })
+                            found_in_content = True
+
+                    if not found_in_content:
+                        for att_name, pdf_raw, att_meta in iter_pdf_attachments(msg):
+                            pdf_attachment_seen += 1
+                            if att_meta.get("empty"):
+                                pdf_attachment_empty += 1
+                                if text_matches_terms(att_name, terms):
+                                    raw_matches.append({
+                                        "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                        "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
+                                        "location_info": f"Allegato PDF (non scaricato) Email{date_suffix}",
+                                        "snippet": f"nome allegato (corpo assente in locale): {att_name}",
+                                    })
+                                    found_in_content = True
+                                    pdf_attachment_hits += 1
+                                    break
+                                continue
+                            hit = match_pdf_attachment_hit(
+                                terms,
+                                att_name,
+                                pdf_raw,
+                                deadline=time.monotonic() + FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC,
+                            )
+                            if not hit:
+                                continue
+                            snip, via = hit
+                            cached_pdf = cache_extracted_pdf_attachment(
+                                pdf_raw, att_name, f"{file_name}-eml"
+                            )
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
+                                "location_info": f"Allegato PDF Email{date_suffix}",
+                                "snippet": f"{via}: {snip}",
+                                "attachment_name": att_name or "allegato.pdf",
+                                "attachment_export_path": cached_pdf,
+                            })
+                            found_in_content = True
+                            pdf_attachment_hits += 1
+                            break
 
                 elif (ext in TEXT_LIKE_EXTS or ext == custom_ext) and allow_content:
                     with open(file_path, "rb") as f:
@@ -4431,38 +4955,97 @@ class MainWindow(wx.Frame):
                         pass
 
                     def _pdf_job():
-                        ts = pdf_info_date_timestamp(file_path, fallback=mtime)
+                        ts = pdf_info_date_timestamp(file_path, fallback=0)
                         lines = extract_lines_from_pdf(file_path)
                         return ts, lines
 
                     pdf_result, timed_out = run_with_timeout(
                         _pdf_job,
-                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
-                        default=(mtime, []),
+                        FILE_CONTENT_SOFT_TIMEOUT_PDF_SEC,
+                        default=(0, []),
                     )
                     if timed_out:
                         logging.warning(f"Timeout estrazione PDF, salto contenuto: {file_path}")
-                        pdf_ts, pdf_lines = mtime, []
+                        pdf_doc_ts, pdf_lines = 0, []
                     else:
-                        pdf_ts, pdf_lines = pdf_result
-                    date_label = format_file_date_label(pdf_ts)
-                    date_suffix = f" {date_label}" if date_label else ""
+                        pdf_doc_ts, pdf_lines = pdf_result
+                    # Ordinamento: data FILE (ricezione/salvataggio). Etichetta: file + eventuale data documento
+                    sort_ts = mtime or pdf_doc_ts or 0
+                    doc_label = format_file_date_label(pdf_doc_ts) if pdf_doc_ts else ""
+                    file_label = format_file_date_label(mtime) if mtime else ""
+                    if file_label and doc_label and file_label != doc_label:
+                        date_suffix = f" file {file_label} (doc {doc_label})"
+                    elif file_label:
+                        date_suffix = f" {file_label}"
+                    elif doc_label:
+                        date_suffix = f" {doc_label}"
+                    else:
+                        date_suffix = ""
+                    pdf_hit = False
                     for idx, line in enumerate(pdf_lines):
                         if text_matches_terms(line, terms):
                             start_i, end_i = max(0, idx - 1), min(len(pdf_lines), idx + 2)
                             snippet = " ".join(pdf_lines[start_i:end_i])
                             raw_matches.append({
                                 "file_path": file_path, "file_name": file_name, "prefix": prefix,
-                                "mtime": pdf_ts, "line_number": None, "paragraph_index": idx + 1,
+                                "mtime": sort_ts, "line_number": None, "paragraph_index": idx + 1,
                                 "location_info": f"Testo PDF{date_suffix}",
                                 "snippet": snippet,
                             })
                             found_in_content = True
+                            pdf_hit = True
                             break
+                    # Fallback: termini spezzati su più «righe» PDF → cerca nel testo intero
+                    if not pdf_hit and pdf_lines:
+                        hay = "\n".join(pdf_lines)
+                        if text_matches_terms(hay, terms):
+                            snippet = ""
+                            for line in pdf_lines:
+                                if any(t in normalize_search_text(line, False) for t in terms):
+                                    snippet = line.strip()
+                                    break
+                            if not snippet:
+                                snippet = " ".join(hay.split())[:200]
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                "mtime": sort_ts, "line_number": None, "paragraph_index": 1,
+                                "location_info": f"Testo PDF{date_suffix}",
+                                "snippet": snippet[:200],
+                            })
+                            found_in_content = True
+                            pdf_hit = True
+                    if not pdf_hit and not pdf_lines and allow_content:
+                        logging.debug(
+                            f"PDF senza testo estraibile (scansione/protetto?): {file_path}"
+                        )
+                        # Fallback grezzo: molti PDF «immagine» o con font strani hanno comunque
+                        # le stringhe ASCII nel file (OCR embedded, metadata, testo compresso male)
+                        try:
+                            with open(file_path, "rb") as f:
+                                raw_pdf = f.read(PDF_READ_MAX_BYTES)
+                            raw_txt = raw_pdf.decode("latin1", errors="ignore")
+                            if text_matches_terms(raw_txt, terms):
+                                n = normalize_search_text(raw_txt, False)
+                                pos = n.find(terms[0]) if terms else -1
+                                if pos >= 0:
+                                    a, b = max(0, pos - 40), min(len(raw_txt), pos + 80)
+                                    snip = " ".join(raw_txt[a:b].split())
+                                else:
+                                    snip = file_name
+                                raw_matches.append({
+                                    "file_path": file_path, "file_name": file_name, "prefix": prefix,
+                                    "mtime": sort_ts, "line_number": None, "paragraph_index": 1,
+                                    "location_info": f"Testo PDF{date_suffix}",
+                                    "snippet": snip[:200],
+                                })
+                                found_in_content = True
+                                pdf_hit = True
+                        except Exception:
+                            pass
                     if name_matched and not found_in_content:
                         raw_matches.append({
                             "file_path": file_path, "file_name": file_name, "prefix": prefix,
-                            "mtime": pdf_ts, "line_number": None, "paragraph_index": None,
+                            "mtime": sort_ts, "line_number": None, "paragraph_index": None,
                             "location_info": f"Nome File{date_suffix}",
                             "snippet": f"Corrispondenza: '{file_name}'",
                         })
@@ -4486,6 +5069,12 @@ class MainWindow(wx.Frame):
 
         self.current_matches = raw_matches
         self.last_feed_raw_occurrences = feed_raw_total
+        self.last_skipped_large_files = skipped_large_files
+        self.last_mail_messages_scanned = mail_messages_scanned
+        self.last_pdf_attachment_hits = pdf_attachment_hits
+        self.last_pdf_attachment_empty = pdf_attachment_empty
+        self.last_pdf_attachment_seen = pdf_attachment_seen
+        self.last_mail_pdf_only = mail_pdf_only
         wx.CallAfter(self.finish_search, len(raw_matches))
 
     def on_filter_text(self, event):
@@ -4521,7 +5110,7 @@ class MainWindow(wx.Frame):
 
     def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
-        text = f"Avanzamento: {percent}% ({current}/{total} elementi, {matches} risultati)"
+        text = f"Avanzamento: {percent}% ({current}/{total} file, {matches} risultati)"
         self.txt_status_progress.SetValue(text)
         # Annuncio automatico solo a 25/50/75: evita coda sintesi e UI «Non risponde»
         if announce or percent in (25, 50, 75):
@@ -4545,6 +5134,11 @@ class MainWindow(wx.Frame):
         self.gauge.SetValue(100)
         self.current_percent = 100
         feed_raw = getattr(self, "last_feed_raw_occurrences", 0) or 0
+        skipped_large = getattr(self, "last_skipped_large_files", 0) or 0
+        mail_msgs = getattr(self, "last_mail_messages_scanned", 0) or 0
+        pdf_att_hits = getattr(self, "last_pdf_attachment_hits", 0) or 0
+        pdf_att_empty = getattr(self, "last_pdf_attachment_empty", 0) or 0
+        pdf_att_seen = getattr(self, "last_pdf_attachment_seen", 0) or 0
         feed_note = ""
         feed_speak = ""
         if feed_raw > 0 and feed_raw != matches:
@@ -4556,21 +5150,51 @@ class MainWindow(wx.Frame):
                 f" Nei feed sono {matches} articoli. "
                 f"Nel testo grezzo la parola compare circa {feed_raw} volte."
             )
+        large_note = ""
+        if skipped_large > 0:
+            large_note = (
+                f" Saltati {skipped_large} file non-posta oltre ~40 MB "
+                f"(ricerca solo sul nome; le caselle di posta restano complete)."
+            )
+        mail_note = ""
+        if mail_msgs > 0:
+            if getattr(self, "last_mail_pdf_only", False):
+                mail_note = (
+                    f" Messaggi posta esaminati: {mail_msgs} "
+                    f"(filtro PDF: solo allegati PDF nelle caselle, non corpo/oggetto)."
+                )
+            else:
+                mail_note = (
+                    f" Messaggi posta esaminati: {mail_msgs} "
+                    f"(un risultato per messaggio che contiene il testo, non una riga per ogni occorrenza)."
+                )
+            if pdf_att_seen > 0 or pdf_att_hits > 0 or pdf_att_empty > 0:
+                mail_note += (
+                    f" Allegati PDF visti: {pdf_att_seen}, hit: {pdf_att_hits}."
+                )
+            if pdf_att_empty > 0:
+                mail_note += (
+                    f" Dichiarati ma non scaricati in locale: {pdf_att_empty} "
+                    f"(apri il messaggio in Thunderbird, poi ripeti)."
+                )
 
         if self._stop_search:
             text = (
-                f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} elementi). "
-                f"Salvati {matches} risultati.{feed_note}"
+                f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
+                f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}"
             )
             speak_accessible(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
         else:
             text = (
-                f"Ricerca completata: 100% ({self.scanned_count} elementi). "
-                f"Trovati {matches} risultati.{feed_note}"
+                f"Ricerca completata: 100% ({self.scanned_count} file). "
+                f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}"
             )
             logging.info(
-                f"Ricerca completata. Elementi esaminati: {self.scanned_count}. "
-                f"Risultati: {matches}. Occorrenze grezze feed: {feed_raw}."
+                f"Ricerca completata. File esaminati: {self.scanned_count}. "
+                f"Messaggi posta: {mail_msgs}. Allegati PDF visti: {pdf_att_seen}, "
+                f"hit: {pdf_att_hits}, stub vuoti: {pdf_att_empty}. "
+                f"Risultati: {matches}. Occorrenze grezze feed: {feed_raw}. "
+                f"File grandi saltati (non posta): {skipped_large}."
             )
             speak_accessible(f"Completata. Trovati {matches} risultati.{feed_speak}")
         self.txt_status_progress.SetValue(text)
@@ -4635,6 +5259,16 @@ class MainWindow(wx.Frame):
                 return
 
             if item.get("prefix") == "[MBOX]":
+                att_path = item.get("attachment_export_path") or ""
+                if att_path and os.path.isfile(att_path):
+                    att_label = item.get("attachment_name") or os.path.basename(att_path)
+                    try:
+                        ctypes.windll.shell32.ShellExecuteW(None, "open", att_path, None, None, 1)
+                        speak_accessible(f"Apertura allegato PDF: {att_label}")
+                    except Exception as e:
+                        logging.error(f"Errore apertura allegato PDF {att_path}: {e}")
+                        speak_accessible("Errore apertura allegato PDF.")
+                    return
                 speak_accessible(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
                 viewer = MboxViewerFrame(
                     self,
@@ -4645,6 +5279,18 @@ class MainWindow(wx.Frame):
                 )
                 viewer.Show()
                 return
+
+            if ext == ".eml" and item.get("attachment_export_path"):
+                att_path = item.get("attachment_export_path") or ""
+                if att_path and os.path.isfile(att_path):
+                    att_label = item.get("attachment_name") or os.path.basename(att_path)
+                    try:
+                        ctypes.windll.shell32.ShellExecuteW(None, "open", att_path, None, None, 1)
+                        speak_accessible(f"Apertura allegato PDF: {att_label}")
+                    except Exception as e:
+                        logging.error(f"Errore apertura allegato PDF {att_path}: {e}")
+                        speak_accessible("Errore apertura allegato PDF.")
+                    return
 
             if ext in [".docx", ".doc"]:
                 para_idx = item.get("paragraph_index")
@@ -4678,13 +5324,25 @@ class MainWindow(wx.Frame):
 
         menu = wx.Menu()
         item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta) / Browser\tRETURN")
+        att_path = item_data.get("attachment_export_path") or ""
+        has_att = bool(att_path and os.path.isfile(att_path))
+        item_open_msg = None
+        item_save_att = None
+        if has_att:
+            att_label = item_data.get("attachment_name") or os.path.basename(att_path)
+            item_open.SetItemLabel(f"Apri allegato PDF ({att_label})")
+            item_open_msg = menu.Append(wx.ID_ANY, "Apri messaggio posta (testo)")
+            item_save_att = menu.Append(wx.ID_ANY, "Salva allegato PDF...")
         item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPACE")
         item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia")
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
         item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo")
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
-        item_copy_to = menu.Append(wx.ID_ANY, "Copia File altrove...")
+        if has_att:
+            item_copy_to = menu.Append(wx.ID_ANY, "Copia allegato PDF altrove...")
+        else:
+            item_copy_to = menu.Append(wx.ID_ANY, "Copia File altrove...")
         item_open_folder = menu.Append(wx.ID_ANY, "Apri Cartella")
 
         menu.AppendSeparator()
@@ -4695,13 +5353,20 @@ class MainWindow(wx.Frame):
         menu.AppendSubMenu(sort_submenu, "Ordinamento")
 
         self.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
+        if item_open_msg is not None:
+            self.Bind(wx.EVT_MENU, lambda e: self.open_selected_mail_message(), item_open_msg)
+        if item_save_att is not None:
+            self.Bind(wx.EVT_MENU, lambda e: self.save_attachment_pdf(item_data), item_save_att)
         self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(file_path), item_copy_to)
+        if has_att:
+            self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(att_path), item_copy_to)
+        else:
+            self.Bind(wx.EVT_MENU, lambda e: self.copy_file_to_destination(file_path), item_copy_to)
         self.Bind(wx.EVT_MENU, lambda e: self.open_containing_folder(file_path), item_open_folder)
         self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("recent_first"), item_sort_recent)
         self.Bind(wx.EVT_MENU, lambda e: self.change_sort_order("oldest_first"), item_sort_oldest)
@@ -4715,6 +5380,58 @@ class MainWindow(wx.Frame):
         if sort_type == "recent_first": speak_accessible("Ordinati dal più recente.")
         elif sort_type == "oldest_first": speak_accessible("Ordinati dal meno recente.")
         elif sort_type == "name": speak_accessible("Ordinati alfabeticamente.")
+
+    def open_selected_mail_message(self):
+        """Apre il testo del messaggio posta (non l'allegato PDF)."""
+        sel = self.lst_results.GetSelection()
+        if sel == wx.NOT_FOUND or sel not in self.file_map:
+            return
+        item = self.file_map[sel]
+        file_to_open = item["file_path"]
+        line_num = item.get("line_number")
+        prefix = item.get("prefix", "")
+        if prefix == "[MBOX]":
+            speak_accessible(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
+            viewer = MboxViewerFrame(
+                self,
+                file_to_open,
+                line_num,
+                self.current_query,
+                cached_text=item.get("viewer_text"),
+            )
+            viewer.Show()
+            return
+        if os.path.splitext(file_to_open)[1].lower() == ".eml":
+            speak_accessible(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
+            viewer = EmlViewerFrame(self, file_to_open, self.current_query)
+            viewer.Show()
+
+    def save_attachment_pdf(self, item_data):
+        """Salva l'allegato PDF estratto in una cartella scelta dall'utente."""
+        att_path = (item_data or {}).get("attachment_export_path") or ""
+        if not att_path or not os.path.isfile(att_path):
+            speak_accessible("Allegato PDF non disponibile per questo risultato.")
+            return
+        default_name = item_data.get("attachment_name") or os.path.basename(att_path)
+        if not str(default_name).lower().endswith(".pdf"):
+            default_name = f"{default_name}.pdf"
+        dlg = wx.FileDialog(
+            self,
+            "Salva allegato PDF",
+            defaultDir=os.path.expanduser("~\\Desktop"),
+            defaultFile=default_name,
+            wildcard="PDF (*.pdf)|*.pdf",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            dest = dlg.GetPath()
+            try:
+                shutil.copy2(att_path, dest)
+                speak_accessible(f"Allegato PDF salvato: {os.path.basename(dest)}")
+            except Exception as e:
+                logging.error(f"Errore salvataggio allegato PDF: {e}")
+                speak_accessible("Errore nel salvataggio dell'allegato PDF.")
+        dlg.Destroy()
 
     def copy_snippet_to_clipboard(self, snippet):
         if wx.TheClipboard.Open():

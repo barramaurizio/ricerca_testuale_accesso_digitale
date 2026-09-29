@@ -3,6 +3,16 @@
 Obiettivo: snellire i passaggi **ripetitivi** (numeri di versione, pacchetto Add-on, testi pronti).  
 Restano **sempre manuali**: codice delle novità, test, compile `.exe`, GitHub Desktop, Release Web, store NVDA.
 
+## Ordine campi Web (per NVDA — non invertire)
+
+Quando compili le note di rilascio e quando incolli nei form:
+
+**GitHub «Draft new release»:** Tag → Titolo → Descrizione → Asset(s)
+
+**NVDA Add-on DataStore:** Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+Lo stesso ordine è in ogni `docs/NOTE_RILASCIO_*.txt` (dal template `notes`) e nell’output di `summary`.
+
 ## Cosa può fare lo script
 
 | Comando | Effetto |

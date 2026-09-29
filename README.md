@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.7
+
+- **Voce Standalone:** velocità SAPI (Ctrl++ / Ctrl+-), tono, scelta voce (anche OneCore), menu Voce, salvataggio.
+- Annunci RTAD con SAPI regolabile (oppure NVDA). **F7** Mute persistente.
+- **Add-on gemello:** Mute annunci RTAD (F7); velocità/voce = impostazioni NVDA.
+- Restano posta completa 1.5.6, date, profili e filtri.
 
 ### 🌟 Novità della Versione 1.5.6
 
@@ -30,6 +37,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.5.7
+
+- **Standalone voice:** SAPI rate (Ctrl++ / Ctrl+-), pitch, voice picker (incl. OneCore), Voice menu, persistence.
+- RTAD announcements via adjustable SAPI (or NVDA). **F7** persistent Mute.
+- **Twin Add-on:** Mute RTAD announcements (F7); rate/voice = NVDA settings.
+- 1.5.6 complete mail search, dates, profiles and filters remain.
 
 ### 🌟 What's New in Version 1.5.6
 

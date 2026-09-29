@@ -281,57 +281,94 @@ def write_notes_template(version: str) -> Path:
     notes_dir.mkdir(exist_ok=True)
     path = notes_dir / f"NOTE_RILASCIO_{version}.txt"
     body = f"""🌟 Novità della Versione {version}
-(Copia questo testo nelle release GitHub — completa i bullet con le novità reali)
+(Testi pronti da incollare — ordine = campi Web con NVDA)
 
-🇮🇹 Italiano
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v{version}
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v{version}
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
 
 - (punto 1)
 - (punto 2)
 - (punto 3)
 
-🇬🇧 English
+## 🇬🇧 English
 
 - (point 1)
 - (point 2)
 - (point 3)
+```
 
----
+Asset(s):
+ricerca_testuale_accesso_digitale-{version}.nvda-addon
 
-Titoli release consigliati
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
 
-Add-on:
-Ricerca Testuale Accesso Digitale - NVDA Add-on v{version}
-Tag: v{version}
-Asset: ricerca_testuale_accesso_digitale-{version}.nvda-addon
+Tag:
+app-v{version}
 
-Standalone:
+Titolo:
 Ricerca Testuale Accesso Digitale Standalone v{version}
-Tag: app-v{version}
-Asset: Setup_RicercaTestualeAccessoDigitale_v{version}.exe
-       RicercaTestualeAccessoDigitale_Portable_v{version}.exe
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v{version}.exe
+RicercaTestualeAccessoDigitale_Portable_v{version}.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+(una riga sulle novità)
+
+Summary EN:
+(one-line summary)
+
+Download URL:
+{GITHUB_REPO}/releases/download/v{version}/ricerca_testuale_accesso_digitale-{version}.nvda-addon
+
+Source URL:
+{GITHUB_REPO}
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
 
 ---
 
-GitHub Desktop — Commit
+GitHub Desktop — Commit (opzionale, non è Draft Release)
 
 Summary:
 Aggiornamento Standalone e Add-on alla v{version}
 
 Description:
 (scrivi 2-4 righe sulle novità)
-
----
-
-Store NVDA (addon-datastore)
-
-Form: {DATASTORE_FORM}
-Download URL:
-{GITHUB_REPO}/releases/download/v{version}/ricerca_testuale_accesso_digitale-{version}.nvda-addon
-Source URL: {GITHUB_REPO}
-Publisher: Maurizio Barra
-Channel: stable
-License Name: GPL v2
-License URL: https://www.gnu.org/licenses/gpl-2.0.html
 """
     write_text(path, body)
     return path
@@ -453,21 +490,27 @@ def cmd_summary(args: argparse.Namespace) -> None:
     print("Commit GitHub Desktop")
     print(f"  Summary: Aggiornamento Standalone e Add-on alla v{version}")
     print("  Description: (2-4 righe dalle note)\n")
-    print("Release Add-on")
+    print("Release Add-on (ordine Web: Tag → Titolo → Descrizione → Asset)")
     print(f"  Tag: v{version}")
-    print(f"  Title: Ricerca Testuale Accesso Digitale - NVDA Add-on v{version}")
+    print(f"  Titolo: Ricerca Testuale Accesso Digitale - NVDA Add-on v{version}")
+    print("  Descrizione: (da NOTE_RILASCIO)")
     print(f"  Asset: ricerca_testuale_accesso_digitale-{version}.nvda-addon\n")
-    print("Release Standalone")
+    print("Release Standalone (ordine Web: Tag → Titolo → Descrizione → Asset)")
     print(f"  Tag: app-v{version}")
-    print(f"  Title: Ricerca Testuale Accesso Digitale Standalone v{version}")
+    print(f"  Titolo: Ricerca Testuale Accesso Digitale Standalone v{version}")
+    print("  Descrizione: (stessa della release Add-on)")
     print(f"  Asset: Setup_RicercaTestualeAccessoDigitale_v{version}.exe")
     print(f"         RicercaTestualeAccessoDigitale_Portable_v{version}.exe\n")
-    print("Datastore")
-    print(f"  Form: {DATASTORE_FORM}")
+    print("DataStore (ordine Web: Summary → Download URL → Source URL → Nome → License → License URL)")
+    print("  Summary IT/EN: (da NOTE_RILASCIO)")
     print(
         f"  Download URL: {GITHUB_REPO}/releases/download/v{version}/"
         f"ricerca_testuale_accesso_digitale-{version}.nvda-addon"
     )
+    print(f"  Source URL: {GITHUB_REPO}")
+    print("  Nome e cognome: Maurizio Barra")
+    print("  License: GPL v2")
+    print("  License URL: https://www.gnu.org/licenses/gpl-2.0.html")
     notes = ROOT / "docs" / f"NOTE_RILASCIO_{version}.txt"
     if notes.exists():
         print(f"\nTesto novità: {notes}")

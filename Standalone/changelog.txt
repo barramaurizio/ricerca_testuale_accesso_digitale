@@ -1,3 +1,9 @@
+Novità nella Versione 1.5.7
+- Voce Standalone: velocità SAPI (Ctrl++ / Ctrl+-), tono, scelta voce (token SAPI / OneCore), menu Voce, persistenza in settings
+- Annunci RTAD preferiscono SAPI regolabile; opzione per usare NVDA se presente
+- F7 Mute sintesi (persistente). Add-on gemello: Mute solo annunci RTAD (velocità/voce = NVDA)
+- Restano posta completa 1.5.6, date, profili e filtri
+
 Novità nella Versione 1.5.6
 - Posta completa: caselle Thunderbird/MBOX senza tetto di dimensione (streaming messaggio per messaggio)
 - Scansione MBOX in streaming (messaggio per messaggio): niente RAM piena, niente freeze sulle caselle grandi

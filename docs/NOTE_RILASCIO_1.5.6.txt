@@ -1,18 +1,21 @@
 🌟 Novità della Versione 1.5.6
-(Testi pronti da incollare — release GitHub + datastore)
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
 
 ════════════════════════════════════════════════════════
 ADD-ON — Release GitHub
 ════════════════════════════════════════════════════════
 
-Titolo:
-Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.6
-
 Tag:
 v1.5.6
 
-Asset:
-ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.6
 
 Descrizione:
 
@@ -45,31 +48,29 @@ Descrizione:
 - 1.5.5 stability, bundled feedparser, dates and profiles remain.
 ```
 
+Asset(s):
+ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
+
 ════════════════════════════════════════════════════════
 STANDALONE — Release GitHub
 ════════════════════════════════════════════════════════
 
-Titolo:
-Ricerca Testuale Accesso Digitale Standalone v1.5.6
-
 Tag:
 app-v1.5.6
 
-Asset:
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.6
+
+Descrizione:
+stessa della release Add-on (posta completa / streaming / allegati ricette).
+
+Asset(s):
 Setup_RicercaTestualeAccessoDigitale_v1.5.6.exe
 RicercaTestualeAccessoDigitale_Portable_v1.5.6.exe
 
-Descrizione: stessa della colonna Add-on (posta completa / streaming / allegati ricette).
-
 ════════════════════════════════════════════════════════
-ADD-ON DATASTORE (campi)
+ADD-ON — NVDA DataStore (ordine campi Web)
 ════════════════════════════════════════════════════════
-
-Name: Ricerca Testuale Accesso Digitale
-Version: 1.5.6
-Publisher: Maurizio Barra (Accesso Digitale)
-Source URL:
-https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.6/ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
 
 Summary IT:
 Caselle Thunderbird grandi ricercabili per intero; anche messaggi con allegati PDF (ricette) non più saltati.
@@ -77,5 +78,17 @@ Caselle Thunderbird grandi ricercabili per intero; anche messaggi con allegati P
 Summary EN:
 Large Thunderbird mailboxes fully searchable; messages with PDF attachments (prescriptions) no longer skipped.
 
-Homepage: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
-License: GPL v2
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.6/ricerca_testuale_accesso_digitale-1.5.6.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html

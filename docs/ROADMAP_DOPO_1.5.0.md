@@ -74,7 +74,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 7. Add-on: **feedparser vendored** (RSS in NVDA senza pip).  
 8. Add-on: **`.eml`/MBOX allineati allo Standalone** (un hit per messaggio → stessa conta risultati).
 
-### Fase F — `1.5.6` (completezza posta / caselle grandi + allegati ricette) — PRONTA AL RILASCIO
+### Fase F — `1.5.6` (completezza posta / caselle grandi + allegati ricette) — FATTA
 
 1. Caselle Thunderbird/MBOX **senza tetto di dimensione** (streaming messaggio per messaggio).  
 2. Fix critico: un tetto ~2 GB saltava in silenzio INBOX/Tutti i messaggi Gmail.  
@@ -82,11 +82,11 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 4. Allegati PDF (anche octet-stream / `%PDF`); filtro `.pdf` include anche caselle/.eml.  
 5. **Apri / Salva allegato PDF** estratto (non l’intera INBOX); meno rumore (WinSxS, Cursor, log RTAD).
 
-### Fase F2 — `1.5.7` (voce Standalone)
+### Fase F2 — `1.5.7` (voce Standalone + Mute gemello Add-on) — FATTA
 
-1. Velocità (e tono se semplice) SAPI5; menu + scorciatoie; persistenza.  
-2. Solo Standalone (Add-on = voce NVDA).  
-3. Eventuale scelta voce tra token SAPI (spesso include OneCore).
+1. Velocità (e tono) SAPI5; menu + scorciatoie; persistenza.  
+2. Standalone: SAPI regolabile (OneCore via token); opzione NVDA.  
+3. Add-on gemello: Mute F7 + menu Voce (velocità/voce = NVDA, niente SAPI parallela).
 
 ### Fase G — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
@@ -126,7 +126,7 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Pin / Windows+N:** gestiti da Windows.  
 - **Notifiche fine ricerca:** dopo i profili.  
 - **Log lunghi:** ultime 30–40 righe bastano.  
-- **Voce:** solo Standalone; OneCore via token SAPI prima di API native.  
+- **Voce:** Standalone = SAPI regolabile (OneCore via token); Add-on = Mute + NVDA per rate/voice.  
 - **PDF 1.5.3:** rilasciato.  
 - **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = dopo voce.
 - **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
@@ -139,8 +139,8 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 1. ~~1.5.0 / 1.5.1 / 1.5.2 / 1.5.3~~ fatte.  
 2. ~~1.5.4 profili~~ fatta.  
 3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
-4. ~~**1.5.6 completezza posta**~~ pronta al rilascio (caselle grandi + allegati PDF + Apri/Salva PDF).  
-5. **1.5.7 voce Standalone.**  
+4. ~~**1.5.6 completezza posta**~~ fatta (caselle grandi + allegati PDF + Apri/Salva PDF).  
+5. ~~**1.5.7 voce Standalone + Mute gemello Add-on**~~ fatta.  
 6. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
 7. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
 8. Decidere insieme **1.6.0** (e eventuale vision leggera).

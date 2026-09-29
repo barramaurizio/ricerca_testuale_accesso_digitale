@@ -37,7 +37,7 @@ except ImportError:
     feedparser = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.6"
+APP_VERSION = "1.5.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -264,6 +264,16 @@ _speech_thread_started = False
 _speech_thread_lock = threading.Lock()
 _nvda_client = None
 
+# Impostazioni voce Standalone (SAPI). Rate/Pitch tipici SAPI: -10 … +10.
+SAPI_RATE_MIN, SAPI_RATE_MAX = -10, 10
+SAPI_PITCH_MIN, SAPI_PITCH_MAX = -10, 10
+_speech_rate = 0
+_speech_pitch = 0
+_speech_voice_id = ""  # token Id SAPI; vuoto = voce predefinita
+# True = annunci RTAD via SAPI (velocità/voce regolabili); False = NVDA se presente, poi SAPI
+_speech_use_sapi = True
+_speech_settings_loaded = False
+
 # Evita di leggere in RAM file enormi (blocco UI / «Non risponde» su dischi esterni).
 # Non si applica alle caselle di posta: quelle si scansionano in streaming (vedi sotto).
 MAX_CONTENT_SCAN_BYTES = 40 * 1024 * 1024  # 40 MB — DOC/testo generico
@@ -323,6 +333,113 @@ def get_sapi_voice():
     return _sapi_voice if _sapi_voice is not False else None
 
 
+def load_speech_settings():
+    """Carica velocità/tono/voce/motore da settings.json (una volta + su richiesta)."""
+    global _speech_rate, _speech_pitch, _speech_voice_id, _speech_use_sapi
+    global _speech_active, _speech_settings_loaded
+    data = _load_settings_dict()
+    try:
+        rate = int(data.get("speech_rate", 0))
+    except Exception:
+        rate = 0
+    try:
+        pitch = int(data.get("speech_pitch", 0))
+    except Exception:
+        pitch = 0
+    _speech_rate = max(SAPI_RATE_MIN, min(SAPI_RATE_MAX, rate))
+    _speech_pitch = max(SAPI_PITCH_MIN, min(SAPI_PITCH_MAX, pitch))
+    _speech_voice_id = str(data.get("speech_voice_id", "") or "")
+    if "speech_use_sapi" in data:
+        _speech_use_sapi = bool(data.get("speech_use_sapi"))
+    else:
+        _speech_use_sapi = True
+    if "speech_active" in data:
+        _speech_active = bool(data.get("speech_active"))
+    _speech_settings_loaded = True
+    apply_sapi_voice_settings(get_sapi_voice())
+
+
+def save_speech_settings():
+    data = _load_settings_dict()
+    data["speech_rate"] = int(_speech_rate)
+    data["speech_pitch"] = int(_speech_pitch)
+    data["speech_voice_id"] = str(_speech_voice_id or "")
+    data["speech_use_sapi"] = bool(_speech_use_sapi)
+    data["speech_active"] = bool(_speech_active)
+    _save_settings_dict(data)
+
+
+def list_sapi_voices():
+    """Elenco voci SAPI: [{id, name}, …]."""
+    v = get_sapi_voice()
+    if not v:
+        return []
+    out = []
+    try:
+        tokens = v.GetVoices()
+        for i in range(int(tokens.Count)):
+            tok = tokens.Item(i)
+            try:
+                out.append({"id": str(tok.Id), "name": str(tok.GetDescription())})
+            except Exception:
+                continue
+    except Exception as e:
+        logging.debug(f"Elenco voci SAPI fallito: {e}")
+    return out
+
+
+def apply_sapi_voice_settings(voice=None):
+    """Applica rate e token voce all'oggetto SpVoice (pitch via markup in Speak)."""
+    v = voice if voice is not None else get_sapi_voice()
+    if not v:
+        return False
+    try:
+        v.Rate = int(_speech_rate)
+    except Exception:
+        pass
+    if _speech_voice_id:
+        try:
+            tokens = v.GetVoices()
+            for i in range(int(tokens.Count)):
+                tok = tokens.Item(i)
+                if str(tok.Id) == str(_speech_voice_id):
+                    v.Voice = tok
+                    break
+        except Exception as e:
+            logging.debug(f"Impostazione voce SAPI fallita: {e}")
+    return True
+
+
+def _sapi_speak_text(text):
+    """Parla con SAPI applicando rate/voce/pitch."""
+    v = get_sapi_voice()
+    if not v:
+        return False
+    apply_sapi_voice_settings(v)
+    payload = str(text)
+    pitch = int(_speech_pitch)
+    if pitch != 0:
+        # Markup SAPI: pitch absmiddle -10…+10
+        safe = (
+            payload.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+        payload = f'<pitch absmiddle="{pitch}">{safe}</pitch>'
+    try:
+        flags = 3  # SVSFlagsAsync | SVSFPurgeBeforeSpeak
+        if pitch != 0:
+            flags = 1 | 2 | 8  # + SVSFIsXML
+        v.Speak(payload, flags)
+        return True
+    except Exception:
+        try:
+            v.Speak(str(text), 3)
+            return True
+        except Exception:
+            return False
+
+
 def _speech_loop():
     """Un solo worker: evita Speak/NVDA concorrenti che bloccano la UI."""
     import queue as _q
@@ -352,21 +469,20 @@ def _speech_loop():
             elif kind == "speak":
                 text = payload
                 spoken = False
-                client = _get_nvda_client()
-                if client is not None:
-                    try:
-                        client.nvdaController_cancelSpeech()
-                        if client.nvdaController_speakText(str(text)) == 0:
-                            spoken = True
-                    except Exception:
-                        pass
+                prefer_sapi = bool(_speech_use_sapi)
+                if prefer_sapi:
+                    spoken = _sapi_speak_text(text)
                 if not spoken:
-                    v = get_sapi_voice()
-                    if v:
+                    client = _get_nvda_client()
+                    if client is not None:
                         try:
-                            v.Speak(str(text), 3)
+                            client.nvdaController_cancelSpeech()
+                            if client.nvdaController_speakText(str(text)) == 0:
+                                spoken = True
                         except Exception:
                             pass
+                if not spoken and not prefer_sapi:
+                    spoken = _sapi_speak_text(text)
         except Exception:
             pass
         finally:
@@ -408,6 +524,11 @@ def stop_accessible_speech():
 
 def speak_accessible(text, force=False):
     global _speech_active
+    if not _speech_settings_loaded:
+        try:
+            load_speech_settings()
+        except Exception:
+            pass
     if not _speech_active and not force:
         return
     if not text:
@@ -430,6 +551,52 @@ def speak_accessible(text, force=False):
                 pass
     except Exception:
         pass
+
+
+def set_speech_rate(delta=0, absolute=None):
+    """Regola velocità SAPI; restituisce il nuovo valore."""
+    global _speech_rate
+    if absolute is not None:
+        _speech_rate = int(absolute)
+    else:
+        _speech_rate = int(_speech_rate) + int(delta)
+    _speech_rate = max(SAPI_RATE_MIN, min(SAPI_RATE_MAX, _speech_rate))
+    apply_sapi_voice_settings()
+    save_speech_settings()
+    return _speech_rate
+
+
+def set_speech_pitch(delta=0, absolute=None):
+    global _speech_pitch
+    if absolute is not None:
+        _speech_pitch = int(absolute)
+    else:
+        _speech_pitch = int(_speech_pitch) + int(delta)
+    _speech_pitch = max(SAPI_PITCH_MIN, min(SAPI_PITCH_MAX, _speech_pitch))
+    save_speech_settings()
+    return _speech_pitch
+
+
+def set_speech_voice_id(voice_id):
+    global _speech_voice_id
+    _speech_voice_id = str(voice_id or "")
+    apply_sapi_voice_settings()
+    save_speech_settings()
+
+
+def set_speech_use_sapi(enabled):
+    global _speech_use_sapi
+    _speech_use_sapi = bool(enabled)
+    save_speech_settings()
+
+
+def speech_rate_label(rate=None):
+    r = _speech_rate if rate is None else rate
+    if r == 0:
+        return "normale"
+    if r > 0:
+        return f"più veloce ({r})"
+    return f"più lenta ({r})"
 
 
 def safe_file_size(path):
@@ -1462,14 +1629,14 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.5.6</strong></p>
+        <p><strong>Novit&agrave; Versione 1.5.7</strong></p>
         <ul>
-            <li><strong>Posta completa:</strong> caselle Thunderbird/MBOX senza tetto di dimensione (streaming); un tetto ~2 GB saltava in silenzio le INBOX Gmail principali.</li>
-            <li>Messaggi con allegati PDF grandi non pi&ugrave; esclusi; filtro <code>.pdf</code> include caselle; <strong>Apri/Salva allegato PDF</strong> estratto.</li>
-            <li>Meno rumore: esclusi WinSxS, cache Cursor e log RTAD. Stato con conteggio messaggi posta e hit allegati.</li>
-            <li>Restano stabilit&agrave; 1.5.5, date, profili e filtri.</li>
+            <li><strong>Voce Standalone:</strong> velocit&agrave; (Ctrl++ / Ctrl+-), tono, scelta voce SAPI (anche OneCore), menu Voce, salvataggio.</li>
+            <li>Annunci RTAD con SAPI regolabile (oppure NVDA se preferisci).</li>
+            <li><code>F7</code> Mute sintesi (persistente). Add-on gemello: Mute annunci RTAD; velocit&agrave;/voce = NVDA.</li>
+            <li>Restano posta completa 1.5.6, date, profili e filtri.</li>
         </ul>
-        <p><code>F7</code>: attiva/disattiva sintesi &middot; <code>CONTROL</code>: zittisce subito la lettura.</p>
+        <p><code>F7</code>: Mute &middot; <code>Ctrl++</code> / <code>Ctrl+-</code>: velocit&agrave; &middot; <code>Ctrl+Shift+V</code>: voce SAPI &middot; <code>CONTROL</code>: zittisce subito.</p>
     </div>
     <h2>Formati supportati</h2>
     <ul>
@@ -1501,6 +1668,11 @@ def create_html_help_file():
         <li><code>Ctrl + Shift + P</code>: Salva profilo di ricerca attuale.</li>
         <li><code>Ctrl + Shift + L</code>: Carica un profilo di ricerca.</li>
         <li><code>SPAZIO</code> / <code>F4</code>: anteprima vocale del contesto.</li>
+        <li><code>F7</code>: attiva / disattiva sintesi vocale (Mute).</li>
+        <li><code>Ctrl + +</code> / <code>Ctrl + -</code>: velocit&agrave; sintesi pi&ugrave; rapida / pi&ugrave; lenta.</li>
+        <li><code>Ctrl + Shift + V</code>: scegli voce SAPI.</li>
+        <li>Menu <code>Voce</code>: tono, prova voce, motore SAPI/NVDA.</li>
+        <li><code>CONTROL</code>: zittisce all'istante la lettura in corso.</li>
         <li><code>INVIO</code> sui risultati: apre file alla riga o articolo feed nel browser.</li>
         <li><code>Tasto APPLICAZIONI</code> / <code>Shift + F10</code>: menu contestuale.</li>
         <li><code>F1</code>: apre questa guida nel browser.</li>
@@ -3161,15 +3333,12 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Posta completa: caselle grandi senza tetto (streaming); anche\n"
-            "  messaggi con allegati PDF (ricette).\n"
-            "• Filtro .pdf: include caselle posta; Apri/Salva allegato PDF\n"
-            "  estratto (non l'intera INBOX).\n"
-            "• Se Thunderbird non ha scaricato l'allegato in locale, lo\n"
-            "  segnala nello stato (apri il messaggio e ripeti la ricerca).\n"
-            "• Allegati PDF anche come octet-stream / magic %PDF.\n"
-            "• Meno rumore (WinSxS/System32, Cursor, log RTAD).\n"
-            "• Restano stabilità 1.5.5, date, profili e filtri.\n"
+            "• Voce Standalone: velocità (Ctrl++ / Ctrl+-), tono, scelta\n"
+            "  voce SAPI (anche OneCore se presente), menu Voce, salvataggio.\n"
+            "• Annunci RTAD con SAPI regolabile (oppure NVDA se preferisci).\n"
+            "• F7 Mute sintesi (persistente). Add-on gemello: Mute annunci\n"
+            "  RTAD + menu Voce (velocità/voce = impostazioni NVDA).\n"
+            "• Restano posta completa 1.5.6, date, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3231,6 +3400,9 @@ class ShortcutsFrame(wx.Frame):
             "  - INVIO : Avvia ricerca, apri file alla riga esatta o apri articolo nel Browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
             "  - F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
+            "  - Ctrl + + / Ctrl + - : velocità sintesi più rapida / più lenta\n"
+            "  - Ctrl + Shift + V : scegli voce SAPI\n"
+            "  - Menu Voce : tono, prova voce, motore SAPI/NVDA\n"
             "  - CONTROL : Zittisce all'istante la lettura in corso\n"
             "  - Pulsante Feed Thunderbird : rileva le cartelle Feeds di Thunderbird\n"
             "  - Supporto OPML / RSS locale : file .opml, .rss, .atom, .xml nel percorso\n"
@@ -3302,6 +3474,10 @@ class MainWindow(wx.Frame):
         self.last_alt_p_time = 0
         self.current_sort = load_sort_preference()
         self.last_feed_raw_occurrences = 0
+        try:
+            load_speech_settings()
+        except Exception:
+            pass
 
         self._init_menu_bar()
 
@@ -3500,6 +3676,42 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_load_search_profile_dialog, item_load_profile)
         self.Bind(wx.EVT_MENU, self.on_manage_search_profiles, item_manage_profiles)
         self.update_profiles_menu()
+
+        # Menu Voce (Standalone: SAPI velocità/voce; mute condiviso come concetto)
+        voice_menu = wx.Menu()
+        item_toggle_speech = voice_menu.Append(
+            wx.ID_ANY, "Attiva / Disattiva sintesi (Mute)\tF7"
+        )
+        voice_menu.AppendSeparator()
+        item_rate_up = voice_menu.Append(wx.ID_ANY, "Velocità &più rapida\tCtrl++")
+        item_rate_down = voice_menu.Append(wx.ID_ANY, "Velocità più &lenta\tCtrl+-")
+        item_rate_reset = voice_menu.Append(wx.ID_ANY, "Velocità &normale")
+        voice_menu.AppendSeparator()
+        item_pitch_up = voice_menu.Append(wx.ID_ANY, "Tono più &alto")
+        item_pitch_down = voice_menu.Append(wx.ID_ANY, "Tono più &basso")
+        item_pitch_reset = voice_menu.Append(wx.ID_ANY, "Tono n&ormale")
+        voice_menu.AppendSeparator()
+        item_choose_voice = voice_menu.Append(
+            wx.ID_ANY, "Scegli &voce SAPI...\tCtrl+Shift+V"
+        )
+        item_test_voice = voice_menu.Append(wx.ID_ANY, "&Prova voce")
+        voice_menu.AppendSeparator()
+        self.item_engine_sapi = voice_menu.AppendCheckItem(
+            wx.ID_ANY, "Annunci RTAD con &SAPI (velocità/voce regolabili)"
+        )
+        self.item_engine_sapi.Check(bool(_speech_use_sapi))
+        menubar.Append(voice_menu, "&Voce")
+
+        self.Bind(wx.EVT_MENU, self.on_toggle_speech, item_toggle_speech)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_rate(+1), item_rate_up)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_rate(-1), item_rate_down)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_rate(0, reset=True), item_rate_reset)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_pitch(+1), item_pitch_up)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_pitch(-1), item_pitch_down)
+        self.Bind(wx.EVT_MENU, lambda e: self.on_speech_pitch(0, reset=True), item_pitch_reset)
+        self.Bind(wx.EVT_MENU, self.on_choose_sapi_voice, item_choose_voice)
+        self.Bind(wx.EVT_MENU, self.on_test_sapi_voice, item_test_voice)
+        self.Bind(wx.EVT_MENU, self.on_toggle_speech_engine, self.item_engine_sapi)
 
         # Menu Strumenti
         tools_menu = wx.Menu()
@@ -4072,6 +4284,15 @@ class MainWindow(wx.Frame):
         elif key == wx.WXK_F7:
             self.on_toggle_speech()
             return
+        elif ctrl and key in (ord("="), ord("+"), wx.WXK_NUMPAD_ADD):
+            self.on_speech_rate(+1)
+            return
+        elif ctrl and key in (ord("-"), wx.WXK_NUMPAD_SUBTRACT):
+            self.on_speech_rate(-1)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("V"), ord("v")):
+            self.on_choose_sapi_voice()
+            return
         elif key == wx.WXK_SHIFT:
             event.Skip()
             return
@@ -4107,10 +4328,107 @@ class MainWindow(wx.Frame):
         global _speech_active
         stop_accessible_speech()
         _speech_active = not _speech_active
+        try:
+            save_speech_settings()
+        except Exception:
+            pass
         if _speech_active:
             speak_accessible("Sintesi vocale attivata", force=True)
         else:
             speak_accessible("Sintesi vocale disattivata", force=True)
+
+    def on_speech_rate(self, delta, reset=False):
+        if reset:
+            rate = set_speech_rate(absolute=0)
+        else:
+            rate = set_speech_rate(delta=delta)
+        speak_accessible(
+            f"Velocità {speech_rate_label(rate)}. Valore {rate} su scala da {SAPI_RATE_MIN} a {SAPI_RATE_MAX}.",
+            force=True,
+        )
+
+    def on_speech_pitch(self, delta, reset=False):
+        if reset:
+            pitch = set_speech_pitch(absolute=0)
+        else:
+            pitch = set_speech_pitch(delta=delta)
+        if pitch == 0:
+            label = "normale"
+        elif pitch > 0:
+            label = f"più alto ({pitch})"
+        else:
+            label = f"più basso ({pitch})"
+        speak_accessible(f"Tono {label}.", force=True)
+
+    def on_toggle_speech_engine(self, evt=None):
+        enabled = True
+        try:
+            if self.item_engine_sapi:
+                enabled = bool(self.item_engine_sapi.IsChecked())
+        except Exception:
+            enabled = not _speech_use_sapi
+        set_speech_use_sapi(enabled)
+        if enabled:
+            speak_accessible(
+                "Annunci RTAD con SAPI: velocità e voce regolabili da questo menu.",
+                force=True,
+            )
+        else:
+            speak_accessible(
+                "Annunci: NVDA se attivo, altrimenti SAPI. "
+                "La velocità del menu Voce vale solo per SAPI.",
+                force=True,
+            )
+
+    def on_test_sapi_voice(self, evt=None):
+        set_speech_use_sapi(True)
+        try:
+            if self.item_engine_sapi:
+                self.item_engine_sapi.Check(True)
+        except Exception:
+            pass
+        speak_accessible(
+            f"Prova voce. Velocità {speech_rate_label()}. "
+            f"Ricerca Testuale Accesso Digitale versione {APP_VERSION}.",
+            force=True,
+        )
+
+    def on_choose_sapi_voice(self, evt=None):
+        voices = list_sapi_voices()
+        if not voices:
+            speak_accessible("Nessuna voce SAPI disponibile su questo computer.", force=True)
+            return
+        names = [v["name"] for v in voices]
+        # Preseleziona voce corrente
+        sel = 0
+        if _speech_voice_id:
+            for i, v in enumerate(voices):
+                if v["id"] == _speech_voice_id:
+                    sel = i
+                    break
+        dlg = wx.SingleChoiceDialog(
+            self,
+            "Scegli la voce SAPI per gli annunci RTAD "
+            "(OneCore compare qui se installata come token SAPI):",
+            "Voce SAPI",
+            names,
+        )
+        try:
+            dlg.SetSelection(sel)
+        except Exception:
+            pass
+        if dlg.ShowModal() == wx.ID_OK:
+            idx = dlg.GetSelection()
+            if 0 <= idx < len(voices):
+                set_speech_voice_id(voices[idx]["id"])
+                set_speech_use_sapi(True)
+                try:
+                    if self.item_engine_sapi:
+                        self.item_engine_sapi.Check(True)
+                except Exception:
+                    pass
+                speak_accessible(f"Voce impostata: {voices[idx]['name']}.", force=True)
+        dlg.Destroy()
 
     def on_close(self, event):
         self._stop_search = True
@@ -4284,6 +4602,9 @@ class MainWindow(wx.Frame):
                 "INVIO : Avvia ricerca o apri file alla riga esatta\n"
                 "SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
                 "F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
+                "Ctrl + + / Ctrl + - : velocità sintesi\n"
+                "Ctrl + Shift + V : scegli voce SAPI\n"
+                "Menu Voce : tono, prova voce, motore SAPI/NVDA\n"
                 "CONTROL : Zittisce all'istante la lettura in corso\n"
                 "Tasto APPLICAZIONI : Menu contestuale completo\n"
                 "F1 : Apri la Guida HTML nel Browser\n"

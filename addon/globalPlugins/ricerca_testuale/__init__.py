@@ -48,7 +48,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.6"
+APP_VERSION = "1.5.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -62,6 +62,10 @@ if not os.path.exists(CONFIG_DIR):
     except Exception:
         pass
 CONFIG_FILE = os.path.join(CONFIG_DIR, "rtad_settings.json")
+
+# Mute annunci RTAD (gemello di F7 Standalone). Voce/velocità = NVDA.
+_rtad_speech_active = True
+_rtad_speech_settings_loaded = False
 
 
 def normalize_search_text(txt, remove_accents=False):
@@ -1563,6 +1567,8 @@ def get_dynamic_desktop_path():
 def _announce(msg, delay_ms=280):
     """Annuncio NVDA differito: la chiusura del menu contestuale altrimenti tronca la frase."""
     def _say(m=msg):
+        if not _rtad_speech_active:
+            return
         try:
             ui.message(m)
         except Exception:
@@ -1571,9 +1577,39 @@ def _announce(msg, delay_ms=280):
         wx.CallLater(int(delay_ms), _say)
     except Exception:
         try:
-            ui.message(msg)
+            if _rtad_speech_active:
+                ui.message(msg)
         except Exception:
             pass
+
+
+def load_rtad_speech_settings():
+    global _rtad_speech_active, _rtad_speech_settings_loaded
+    data = _load_settings_dict()
+    if "speech_active" in data:
+        _rtad_speech_active = bool(data.get("speech_active"))
+    _rtad_speech_settings_loaded = True
+
+
+def save_rtad_speech_settings():
+    data = _load_settings_dict()
+    data["speech_active"] = bool(_rtad_speech_active)
+    _save_settings_dict(data)
+
+
+def rtad_speak(msg, force=False):
+    """Annuncio RTAD rispettando Mute F7 (voce/velocità restano di NVDA)."""
+    if not _rtad_speech_settings_loaded:
+        try:
+            load_rtad_speech_settings()
+        except Exception:
+            pass
+    if not _rtad_speech_active and not force:
+        return
+    try:
+        ui.message(str(msg))
+    except Exception:
+        pass
 
 
 def get_real_ready_drives():
@@ -2626,7 +2662,7 @@ class EmlViewerFrame(wx.Frame):
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
-        ui.message("Caricamento email in corso.")
+        rtad_speak("Caricamento email in corso.")
         threading.Thread(target=self._load_worker, daemon=True).start()
 
     def on_close(self, event):
@@ -2668,7 +2704,7 @@ class EmlViewerFrame(wx.Frame):
             self.txt_display.SetSelection(pos, pos + term_len)
         else:
             self.txt_display.SetInsertionPoint(0)
-        ui.message("Email caricata.")
+        rtad_speak("Email caricata.")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -2717,10 +2753,10 @@ class MboxViewerFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
         if cached_text:
-            ui.message(f"Messaggio {msg_index + 1} dalla ricerca.")
+            rtad_speak(f"Messaggio {msg_index + 1} dalla ricerca.")
             wx.CallAfter(self._apply_loaded_text, cached_text)
         else:
-            ui.message(f"Caricamento messaggio {msg_index + 1} dall'archivio. Attendere.")
+            rtad_speak(f"Caricamento messaggio {msg_index + 1} dall'archivio. Attendere.")
             threading.Thread(target=self._load_worker, daemon=True).start()
 
     def on_close(self, event):
@@ -2789,7 +2825,7 @@ class MboxViewerFrame(wx.Frame):
             self.txt_display.SetSelection(pos, pos + term_len)
         else:
             self.txt_display.SetInsertionPoint(0)
-        ui.message("Messaggio caricato.")
+        rtad_speak("Messaggio caricato.")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -2813,15 +2849,12 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Posta completa: caselle grandi senza tetto (streaming); anche\n"
-            "  messaggi con allegati PDF (ricette).\n"
-            "• Filtro .pdf: include caselle posta; Apri/Salva allegato PDF\n"
-            "  estratto (non l'intera INBOX).\n"
-            "• Se Thunderbird non ha scaricato l'allegato in locale, lo\n"
-            "  segnala nello stato (apri il messaggio e ripeti la ricerca).\n"
-            "• Allegati PDF anche come octet-stream / magic %PDF.\n"
-            "• Meno rumore (WinSxS/System32, Cursor, log RTAD).\n"
-            "• Restano stabilità 1.5.5, feedparser, date, profili e filtri.\n"
+            "• Menu Voce: Mute annunci RTAD (F7), persistente.\n"
+            "  Velocità e voce restano quelle di NVDA (nessuna SAPI\n"
+            "  parallela nell'Add-on).\n"
+            "• Gemello dello Standalone 1.5.7: stesso concetto Mute,\n"
+            "  motore diverso (NVDA qui, SAPI regolabile lì).\n"
+            "• Restano posta completa 1.5.6, feedparser, date, profili.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -2843,7 +2876,7 @@ class WhatsNewFrame(wx.Frame):
         self.txt_display.SetFocus()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         
-        ui.message("Finestra delle novità aperta. Usa le frecce per leggere.")
+        rtad_speak("Finestra delle novità aperta. Usa le frecce per leggere.")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -2891,6 +2924,8 @@ class ShortcutsFrame(wx.Frame):
             "  - INVIO (su campo testo) : Avvia subito la ricerca\n"
             "  - INVIO (sui risultati) : Apri file alla riga esatta, oppure articolo feed nel browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del contesto\n"
+            "  - F7 : Attiva / Disattiva annunci RTAD (Mute)\n"
+            "  - Menu Voce : Mute RTAD (velocità/voce = impostazioni NVDA)\n"
             "  - Tasto APPLICAZIONI : Menu contestuale del file selezionato\n"
             "  - ESC : Chiudi la finestra\n\n"
             "Feed RSS e Thunderbird:\n"
@@ -2941,7 +2976,7 @@ class ShortcutsFrame(wx.Frame):
         if wx.TheClipboard.Open():
             wx.TheClipboard.SetData(wx.TextDataObject(self.text_content))
             wx.TheClipboard.Close()
-            ui.message("Testo dei comandi copiato negli appunti!")
+            rtad_speak("Testo dei comandi copiato negli appunti!")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -2973,6 +3008,10 @@ class SearchFrame(wx.Frame):
         self.last_alt_p_time = 0
         self.last_feed_raw_occurrences = 0
         self.current_sort = load_sort_preference()
+        try:
+            load_rtad_speech_settings()
+        except Exception:
+            pass
 
         self._init_menu_bar()
 
@@ -3158,9 +3197,9 @@ class SearchFrame(wx.Frame):
             )
             url = f"mailto:{EMAIL_DESTINATARIO}?subject={subject}&body={body}"
             webbrowser.open(url)
-            ui.message("Apertura client di posta per la segnalazione...")
+            rtad_speak("Apertura client di posta per la segnalazione...")
         except Exception:
-            ui.message("Impossibile aprire il programma di posta.")
+            rtad_speak("Impossibile aprire il programma di posta.")
 
     def on_export_diagnostic(self, event):
         try:
@@ -3180,14 +3219,14 @@ class SearchFrame(wx.Frame):
             )
             with open(dest, "w", encoding="utf-8") as f:
                 f.write(content)
-            ui.message("Scheda diagnostica esportata sul Desktop.")
+            rtad_speak("Scheda diagnostica esportata sul Desktop.")
             wx.MessageBox(
                 f"File salvato:\n{dest}",
                 "Esportazione riuscita",
                 wx.OK | wx.ICON_INFORMATION,
             )
         except Exception:
-            ui.message("Errore nell'esportazione della scheda diagnostica.")
+            rtad_speak("Errore nell'esportazione della scheda diagnostica.")
 
     def on_print_guide(self, event):
         try:
@@ -3204,6 +3243,7 @@ class SearchFrame(wx.Frame):
                 "Alt+S / S : Campo stato avanzamento\n"
                 "Ctrl+U : Verifica aggiornamenti\n"
                 "Ctrl+E / Ctrl+P / Ctrl+D : Esporta / Stampa / Segnalibro\n"
+                "F7 : Mute annunci RTAD (velocità/voce = NVDA)\n"
             )
             temp = os.path.join(CONFIG_DIR, "stampa_guida_addon.txt")
             with open(temp, "w", encoding="utf-8") as f:
@@ -3212,15 +3252,15 @@ class SearchFrame(wx.Frame):
             if not os.path.exists(notepad):
                 notepad = "notepad.exe"
             subprocess.Popen([notepad, "/p", temp])
-            ui.message("Guida inviata alla stampante predefinita.")
+            rtad_speak("Guida inviata alla stampante predefinita.")
         except Exception:
-            ui.message("Impossibile stampare la guida.")
+            rtad_speak("Impossibile stampare la guida.")
 
     def on_check_updates(self, event=None, silent=False):
         def _check():
             try:
                 if not silent:
-                    wx.CallAfter(ui.message, "Verifica aggiornamenti in corso...")
+                    wx.CallAfter(rtad_speak, "Verifica aggiornamenti in corso...")
                 req = urllib.request.Request(
                     GITHUB_API_LATEST,
                     headers={"User-Agent": "RTAD-Addon-Updater"},
@@ -3231,7 +3271,7 @@ class SearchFrame(wx.Frame):
                 html_url = data.get("html_url", GITHUB_URL)
                 if not latest_tag:
                     if not silent:
-                        wx.CallAfter(ui.message, "Nessuna informazione di versione online.")
+                        wx.CallAfter(rtad_speak, "Nessuna informazione di versione online.")
                     return
                 try:
                     v_online = [int(x) for x in latest_tag.split(".")]
@@ -3257,16 +3297,16 @@ class SearchFrame(wx.Frame):
                         )
                         if dlg.ShowModal() == wx.ID_YES:
                             webbrowser.open(addon_url or html_url)
-                            ui.message("Apertura pagina download aggiornamento...")
+                            rtad_speak("Apertura pagina download aggiornamento...")
                         dlg.Destroy()
 
                     wx.CallAfter(_prompt)
                 else:
                     if not silent:
-                        wx.CallAfter(ui.message, "Versione aggiornata.")
+                        wx.CallAfter(rtad_speak, "Versione aggiornata.")
             except Exception:
                 if not silent:
-                    wx.CallAfter(ui.message, "Impossibile verificare la connessione.")
+                    wx.CallAfter(rtad_speak, "Impossibile verificare la connessione.")
 
         threading.Thread(target=_check, daemon=True).start()
 
@@ -3327,18 +3367,32 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_manage_search_profiles, item_manage_profiles)
         self.update_profiles_menu()
 
+        # Menu Voce (Add-on: Mute RTAD; velocità/voce = NVDA)
+        voice_menu = wx.Menu()
+        item_toggle_speech = voice_menu.Append(
+            wx.ID_ANY, "Attiva / Disattiva annunci RTAD (Mute)\tF7"
+        )
+        voice_menu.AppendSeparator()
+        item_voice_help = voice_menu.Append(
+            wx.ID_ANY, "Velocità e voce: usa le impostazioni &NVDA..."
+        )
+        menubar.Append(voice_menu, "&Voce")
+
+        self.Bind(wx.EVT_MENU, self.on_toggle_rtad_speech, item_toggle_speech)
+        self.Bind(wx.EVT_MENU, self.on_nvda_voice_help, item_voice_help)
+
         # Menu Strumenti
         tools_menu = wx.Menu()
-        item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...	Ctrl+U")
+        item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...\tCtrl+U")
         menubar.Append(tools_menu, "Stru&menti")
 
         # Menu Aiuto
         help_menu = wx.Menu()
         item_whatsnew = help_menu.Append(wx.ID_ANY, "&Novità della Versione")
-        item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi	F1")
+        item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
-        item_info = help_menu.Append(wx.ID_ANY, "&Info Versione	Alt+I")
+        item_info = help_menu.Append(wx.ID_ANY, "&Info Versione\tAlt+I")
         help_menu.AppendSeparator()
         item_diag = help_menu.Append(wx.ID_ANY, "Esporta Info &Diagnostica sul Desktop")
         item_feedback = help_menu.Append(wx.ID_ANY, "Segnala un Problema / Invia &Feedback")
@@ -3360,21 +3414,21 @@ class SearchFrame(wx.Frame):
     def on_add_bookmark(self, event=None):
         path = self.txt_path.GetValue().strip()
         if not path:
-            wx.CallLater(200, lambda: ui.message("Nessun percorso da salvare."))
+            wx.CallLater(200, lambda: rtad_speak("Nessun percorso da salvare."))
             return
         bms = load_bookmarks()
         if path not in bms:
             bms.append(path)
             save_bookmarks(bms)
             self.update_bookmarks_menu()
-            wx.CallLater(200, lambda: ui.message("Percorso salvato nei segnalibri."))
+            wx.CallLater(200, lambda: rtad_speak("Percorso salvato nei segnalibri."))
         else:
-            wx.CallLater(200, lambda: ui.message("Percorso già presente nei segnalibri."))
+            wx.CallLater(200, lambda: rtad_speak("Percorso già presente nei segnalibri."))
 
     def on_manage_bookmarks(self, event=None):
         bms = load_bookmarks()
         if not bms:
-            wx.CallLater(200, lambda: ui.message("Nessun segnalibro salvato."))
+            wx.CallLater(200, lambda: rtad_speak("Nessun segnalibro salvato."))
             return
         dlg = wx.SingleChoiceDialog(self, "Seleziona il segnalibro da ELIMINARE:", "Gestione Segnalibri", bms)
         if dlg.ShowModal() == wx.ID_OK:
@@ -3383,13 +3437,13 @@ class SearchFrame(wx.Frame):
                 bms.remove(sel)
                 save_bookmarks(bms)
                 self.update_bookmarks_menu()
-                wx.CallLater(200, lambda: ui.message("Segnalibro eliminato correttamente."))
+                wx.CallLater(200, lambda: rtad_speak("Segnalibro eliminato correttamente."))
         dlg.Destroy()
 
     def on_select_bookmark(self, path):
         self.txt_path.SetValue(path)
         save_last_path(path)
-        wx.CallLater(200, lambda: ui.message(f"Segnalibro caricato: {path}"))
+        wx.CallLater(200, lambda: rtad_speak(f"Segnalibro caricato: {path}"))
 
     def update_bookmarks_menu(self):
         for item_id in self.bookmark_items:
@@ -3405,7 +3459,7 @@ class SearchFrame(wx.Frame):
     def on_recall_query_history(self, event=None):
         hist = load_query_history()
         if not hist:
-            wx.CallLater(200, lambda: ui.message("Nessun testo nella cronologia."))
+            wx.CallLater(200, lambda: rtad_speak("Nessun testo nella cronologia."))
             return
         dlg = wx.SingleChoiceDialog(
             self,
@@ -3422,7 +3476,7 @@ class SearchFrame(wx.Frame):
     def on_recall_path_history(self, event=None):
         hist = load_path_history()
         if not hist:
-            wx.CallLater(200, lambda: ui.message("Nessun percorso nella cronologia."))
+            wx.CallLater(200, lambda: rtad_speak("Nessun percorso nella cronologia."))
             return
         dlg = wx.SingleChoiceDialog(
             self,
@@ -3437,29 +3491,29 @@ class SearchFrame(wx.Frame):
                 save_last_path(sel)
                 self.txt_path.SetFocus()
                 self.txt_path.SetInsertionPointEnd()
-                wx.CallLater(200, lambda: ui.message(f"Percorso ripreso: {sel}"))
+                wx.CallLater(200, lambda: rtad_speak(f"Percorso ripreso: {sel}"))
         dlg.Destroy()
 
     def on_apply_history_query(self, query):
         self.txt_query.SetValue(query)
         self.txt_query.SetFocus()
         self.txt_query.SetInsertionPointEnd()
-        wx.CallLater(200, lambda: ui.message(f"Testo ripreso: {query}"))
+        wx.CallLater(200, lambda: rtad_speak(f"Testo ripreso: {query}"))
 
     def on_clear_query_history(self, event=None):
         if not load_query_history():
-            wx.CallLater(200, lambda: ui.message("La cronologia testi è già vuota."))
+            wx.CallLater(200, lambda: rtad_speak("La cronologia testi è già vuota."))
             return
         clear_query_history()
         self.update_history_menu()
-        wx.CallLater(200, lambda: ui.message("Cronologia testi svuotata."))
+        wx.CallLater(200, lambda: rtad_speak("Cronologia testi svuotata."))
 
     def on_clear_path_history(self, event=None):
         if not load_path_history():
-            wx.CallLater(200, lambda: ui.message("La cronologia percorsi è già vuota."))
+            wx.CallLater(200, lambda: rtad_speak("La cronologia percorsi è già vuota."))
             return
         clear_path_history()
-        wx.CallLater(200, lambda: ui.message("Cronologia percorsi svuotata."))
+        wx.CallLater(200, lambda: rtad_speak("Cronologia percorsi svuotata."))
 
 
     def update_profiles_menu(self):
@@ -3691,11 +3745,37 @@ class SearchFrame(wx.Frame):
         if not self.btn_search.IsEnabled():
             self._stop_search = True
             self.btn_cancel.Disable()
-            ui.message("Ricerca interrotta dall'utente. Salvataggio risultati parziali in corso...")
+            rtad_speak("Ricerca interrotta dall'utente. Salvataggio risultati parziali in corso...")
+
+    def on_toggle_rtad_speech(self, evt=None):
+        global _rtad_speech_active
+        _rtad_speech_active = not _rtad_speech_active
+        try:
+            save_rtad_speech_settings()
+        except Exception:
+            pass
+        if _rtad_speech_active:
+            rtad_speak("Annunci RTAD attivati.", force=True)
+        else:
+            rtad_speak("Annunci RTAD disattivati.", force=True)
+
+    def on_nvda_voice_help(self, evt=None):
+        msg = (
+            "Nell'Add-on la velocità e la voce sono quelle di NVDA.\n\n"
+            "Apri le impostazioni NVDA (NVDA+N → Preferenze → Impostazioni → "
+            "Voce) per regolare voce, velocità e tono.\n\n"
+            "Il menu Voce di RTAD controlla solo il Mute (F7) degli annunci "
+            "dell'Add-on. Nello Standalone trovi invece SAPI regolabile."
+        )
+        rtad_speak(
+            "Velocità e voce: usa le impostazioni NVDA. F7 muta solo gli annunci RTAD.",
+            force=True,
+        )
+        wx.MessageBox(msg, "Voce e NVDA", wx.OK | wx.ICON_INFORMATION)
 
     def on_show_info(self, event):
         msg = f"{APP_TITLE}\nVersione: {APP_VERSION}\nAutore: Maurizio Barra\nLicenza: GPL v2"
-        ui.message(f"Versione installata {APP_VERSION}. Autore Maurizio Barra.")
+        rtad_speak(f"Versione installata {APP_VERSION}. Autore Maurizio Barra.")
         wx.MessageBox(msg, "Informazioni Versione", wx.OK | wx.ICON_INFORMATION)
 
     def on_filter_changed(self, event):
@@ -3707,13 +3787,13 @@ class SearchFrame(wx.Frame):
         drives_str = ";".join(drives)
         self.txt_path.SetValue(drives_str)
         save_last_path(drives_str)
-        ui.message(f"Tutto il PC impostato: {len(drives)} unità attive. Premi Invio per avviare.")
+        rtad_speak(f"Tutto il PC impostato: {len(drives)} unità attive. Premi Invio per avviare.")
         self.btn_search.SetFocus()
 
     def on_detect_thunderbird_feeds(self, event):
         dirs = find_thunderbird_feeds_dirs()
         if not dirs:
-            ui.message(
+            rtad_speak(
                 "Nessuna cartella Feed Thunderbird trovata. "
                 "Verifica che Thunderbird sia installato e che esistano i Feed RSS nel profilo."
             )
@@ -3722,7 +3802,7 @@ class SearchFrame(wx.Frame):
         self.txt_path.SetValue(joined)
         save_last_path(joined)
         n = len(dirs)
-        ui.message(
+        rtad_speak(
             f"Trovate {n} cartelle Feed Thunderbird. Percorso aggiornato. "
             "Inserisci la parola da cercare e premi Avvia Ricerca."
         )
@@ -3747,20 +3827,20 @@ class SearchFrame(wx.Frame):
                     wx.TheClipboard.SetData(wx.TextDataObject(msg))
                 finally:
                     wx.TheClipboard.Close()
-                ui.message("Stato copiato negli appunti.")
+                rtad_speak("Stato copiato negli appunti.")
             else:
-                ui.message("Impossibile copiare negli appunti.")
+                rtad_speak("Impossibile copiare negli appunti.")
         except Exception:
-            ui.message("Impossibile copiare negli appunti.")
+            rtad_speak("Impossibile copiare negli appunti.")
 
     def focus_status_progress(self, event=None):
         try:
             self.txt_status_progress.SetFocus()
             self.txt_status_progress.SetInsertionPoint(0)
             msg = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
-            wx.CallLater(50, ui.message, msg)
+            wx.CallLater(50, rtad_speak, msg)
         except Exception:
-            wx.CallLater(50, ui.message, "Impossibile raggiungere lo stato di avanzamento.")
+            wx.CallLater(50, rtad_speak, "Impossibile raggiungere lo stato di avanzamento.")
 
     def announce_progress(self):
         current_time = time.time()
@@ -3781,7 +3861,7 @@ class SearchFrame(wx.Frame):
                 f"Stato: {self.txt_status_progress.GetValue()}. "
                 f"Risultati in lista: {found}."
             )
-        ui.message(msg)
+        rtad_speak(msg)
 
     def on_filter_text(self, event):
         self.update_list_display()
@@ -3793,7 +3873,7 @@ class SearchFrame(wx.Frame):
         
         if ctrl and key in (ord("F"), ord("f")):
             self.txt_filter.SetFocus()
-            ui.message("Filtra risultati")
+            rtad_speak("Filtra risultati")
             return
         elif ctrl and key in (ord("H"), ord("h")) and event.ShiftDown():
             self.on_recall_path_history()
@@ -3806,6 +3886,9 @@ class SearchFrame(wx.Frame):
             return
         elif key == wx.WXK_F1:
             self.show_shortcuts_dialog()
+            return
+        elif key == wx.WXK_F7:
+            self.on_toggle_rtad_speech()
             return
         elif ctrl and event.ShiftDown() and key in (ord("P"), ord("p")):
             self.on_save_search_profile(None)
@@ -3869,7 +3952,7 @@ class SearchFrame(wx.Frame):
             selected_path = dlg.GetPath()
             self.txt_path.SetValue(selected_path)
             save_last_path(selected_path)
-            ui.message(f"Percorso impostato: {selected_path}.")
+            rtad_speak(f"Percorso impostato: {selected_path}.")
         dlg.Destroy()
 
     def on_take_screenshot(self, event):
@@ -3890,13 +3973,13 @@ class SearchFrame(wx.Frame):
             filename = f"Screenshot_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             full_path = os.path.join(pictures_dir, filename)
             bmp.SaveFile(full_path, wx.BITMAP_TYPE_PNG)
-            ui.message("Screenshot salvato con successo in Catture di schermata.")
+            rtad_speak("Screenshot salvato con successo in Catture di schermata.")
         except Exception:
-            ui.message("Impossibile salvare lo screenshot.")
+            rtad_speak("Impossibile salvare lo screenshot.")
 
     def on_export_results(self, event):
         if not self.current_matches:
-            ui.message("Nessun risultato da esportare.")
+            rtad_speak("Nessun risultato da esportare.")
             return
 
         wildcard_filters = "File di Testo (*.txt)|*.txt|Pagina Web HTML (*.html)|*.html|File CSV per Tabelle (*.csv)|*.csv"
@@ -3948,15 +4031,15 @@ class SearchFrame(wx.Frame):
                                 f.write(f"    Estratto: {item['snippet']}\n")
                             f.write("-" * 50 + "\n")
                 
-                ui.message("Risultati esportati con successo nel formato scelto.")
+                rtad_speak("Risultati esportati con successo nel formato scelto.")
             except Exception:
-                ui.message("Errore durante l'esportazione dei risultati.")
+                rtad_speak("Errore durante l'esportazione dei risultati.")
         dlg.Destroy()
 
     def on_print_results(self, event):
         total_matches = len(self.current_matches)
         if total_matches == 0:
-            ui.message("Nessun risultato da stampare.")
+            rtad_speak("Nessun risultato da stampare.")
             return
 
         dlg = wx.TextEntryDialog(
@@ -3999,14 +4082,14 @@ class SearchFrame(wx.Frame):
                 subprocess.Popen([notepad_path, "/p", temp_print_path])
                 
                 if limit == total_matches:
-                    ui.message("Inviati tutti i risultati alla stampante predefinita.")
+                    rtad_speak("Inviati tutti i risultati alla stampante predefinita.")
                 else:
-                    ui.message(f"Inviati i primi {limit} risultati alla stampante predefinita.")
+                    rtad_speak(f"Inviati i primi {limit} risultati alla stampante predefinita.")
             except Exception:
-                ui.message("Impossibile stampare. Assicurati di avere una stampante configurata.")
+                rtad_speak("Impossibile stampare. Assicurati di avere una stampante configurata.")
         else:
             dlg.Destroy()
-            ui.message("Stampa annullata.")
+            rtad_speak("Stampa annullata.")
 
 
     def speak_selected_preview(self):
@@ -4016,9 +4099,9 @@ class SearchFrame(wx.Frame):
             snippet = item.get("snippet", "")
             loc = item.get("location_info", "")
             if snippet:
-                ui.message(f"{loc}: {snippet}")
+                rtad_speak(f"{loc}: {snippet}")
             else:
-                ui.message(f"{item['file_name']} - Nessuna anteprima di testo disponibile.")
+                rtad_speak(f"{item['file_name']} - Nessuna anteprima di testo disponibile.")
 
     def start_search_thread(self):
         query = self.txt_query.GetValue().strip()
@@ -4030,7 +4113,7 @@ class SearchFrame(wx.Frame):
         include_feed_raw = bool(self.chk_feed_raw.GetValue())
 
         if not query:
-            ui.message("Inserire un testo da cercare.")
+            rtad_speak("Inserire un testo da cercare.")
             return
 
         self._stop_search = False
@@ -4059,7 +4142,7 @@ class SearchFrame(wx.Frame):
         self.btn_search.Disable()
         self.btn_cancel.Enable()
 
-        ui.message(f"Ricerca avviata per '{query}'.")
+        rtad_speak(f"Ricerca avviata per '{query}'.")
         
         # --- INIZIO EARCONS NVDA (Avvio) ---
         if tones:
@@ -4226,7 +4309,7 @@ class SearchFrame(wx.Frame):
                 if not missing_feedparser_announced:
                     missing_feedparser_announced = True
                     wx.CallAfter(
-                        ui.message,
+                        rtad_speak,
                         "Modulo feedparser non installato: ricerca RSS non disponibile.",
                     )
                 bump_progress()
@@ -4770,7 +4853,7 @@ class SearchFrame(wx.Frame):
         text = f"Avanzamento: {percent}% ({current}/{total} file, {matches} risultati)"
         self.txt_status_progress.SetValue(text)
         if announce or percent in (25, 50, 75):
-            ui.message(f"Ricerca al {percent} percento")
+            rtad_speak(f"Ricerca al {percent} percento")
 
     def finish_search(self, matches):
         self.gauge.SetValue(100)
@@ -4825,7 +4908,7 @@ class SearchFrame(wx.Frame):
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
                 f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}"
             )
-            ui.message(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
+            rtad_speak(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
             if tones:
                 try:
                     wx.CallLater(100, lambda: tones.beep(400, 300))
@@ -4836,7 +4919,7 @@ class SearchFrame(wx.Frame):
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
                 f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}"
             )
-            ui.message(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.{feed_speak}")
+            rtad_speak(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.{feed_speak}")
             if tones:
                 try:
                     if matches > 0:
@@ -4885,26 +4968,26 @@ class SearchFrame(wx.Frame):
 
             if prefix == "[FEED-RIGA]":
                 if line_num:
-                    ui.message(f"Apertura alla riga {line_num} nel file feed")
+                    rtad_speak(f"Apertura alla riga {line_num} nel file feed")
                     jump_to_line_in_editor(file_to_open, line_num)
                 else:
-                    ui.message("Riga non disponibile.")
+                    rtad_speak("Riga non disponibile.")
                 return
 
             if prefix in ("[RSS]", "[FEED]"):
                 url = item.get("article_url") or file_to_open
                 if url and (str(url).startswith("http://") or str(url).startswith("https://")):
-                    ui.message(
+                    rtad_speak(
                         "Apertura articolo nel browser. "
                         "Se compare un banner sui cookie, accettarlo per leggere la notizia."
                     )
                     webbrowser.open(url)
                     return
                 if prefix == "[FEED]" and line_num:
-                    ui.message(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
+                    rtad_speak(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
                     jump_to_line_in_editor(file_to_open, line_num)
                     return
-                ui.message("Collegamento articolo non disponibile.")
+                rtad_speak("Collegamento articolo non disponibile.")
                 return
 
             if prefix == "[MBOX]":
@@ -4913,11 +4996,11 @@ class SearchFrame(wx.Frame):
                     att_label = item.get("attachment_name") or os.path.basename(att_path)
                     try:
                         ctypes.windll.shell32.ShellExecuteW(None, "open", att_path, None, None, 1)
-                        ui.message(f"Apertura allegato PDF: {att_label}")
+                        rtad_speak(f"Apertura allegato PDF: {att_label}")
                     except Exception:
-                        ui.message("Errore apertura allegato PDF.")
+                        rtad_speak("Errore apertura allegato PDF.")
                     return
-                ui.message(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
+                rtad_speak(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
                 viewer = MboxViewerFrame(
                     self,
                     file_to_open,
@@ -4934,13 +5017,13 @@ class SearchFrame(wx.Frame):
                     att_label = item.get("attachment_name") or os.path.basename(att_path)
                     try:
                         ctypes.windll.shell32.ShellExecuteW(None, "open", att_path, None, None, 1)
-                        ui.message(f"Apertura allegato PDF: {att_label}")
+                        rtad_speak(f"Apertura allegato PDF: {att_label}")
                     except Exception:
-                        ui.message("Errore apertura allegato PDF.")
+                        rtad_speak("Errore apertura allegato PDF.")
                     return
 
             if ext in [".docx", ".doc"]:
-                ui.message(f"Apertura file Word: {os.path.basename(file_to_open)}")
+                rtad_speak(f"Apertura file Word: {os.path.basename(file_to_open)}")
                 try:
                     ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
                 except Exception:
@@ -4948,20 +5031,20 @@ class SearchFrame(wx.Frame):
                 return
             
             if ext == ".eml":
-                ui.message(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
+                rtad_speak(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
                 viewer = EmlViewerFrame(self, file_to_open, self.current_query)
                 viewer.Show()
                 return
 
             if line_num:
-                ui.message(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
+                rtad_speak(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
                 jump_to_line_in_editor(file_to_open, line_num)
             else:
                 try:
                     ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
-                    ui.message(f"Apertura file: {os.path.basename(file_to_open)}")
+                    rtad_speak(f"Apertura file: {os.path.basename(file_to_open)}")
                 except Exception:
-                    ui.message("Impossibile aprire il file selezionato.")
+                    rtad_speak("Impossibile aprire il file selezionato.")
 
     def on_context_menu(self, event):
         sel = self.lst_results.GetSelection()
@@ -5046,7 +5129,7 @@ class SearchFrame(wx.Frame):
         line_num = item.get("line_number")
         prefix = item.get("prefix", "")
         if prefix == "[MBOX]":
-            ui.message(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
+            rtad_speak(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
             viewer = MboxViewerFrame(
                 self,
                 file_to_open,
@@ -5057,7 +5140,7 @@ class SearchFrame(wx.Frame):
             viewer.Show()
             return
         if os.path.splitext(file_to_open)[1].lower() == ".eml":
-            ui.message(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
+            rtad_speak(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
             viewer = EmlViewerFrame(self, file_to_open, self.current_query)
             viewer.Show()
 
@@ -5361,7 +5444,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         try:
             wx.CallAfter(self.open_search_window)
         except Exception as e:
-            ui.message(f"Errore avvio ricerca: {e}")
+            rtad_speak(f"Errore avvio ricerca: {e}")
 
     @scriptHandler.script(
         description="Mostra la finestra dei comandi rapidi",
@@ -5372,7 +5455,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         try:
             wx.CallAfter(self.show_shortcuts_dialog)
         except Exception as e:
-            ui.message(f"Errore apertura comandi: {e}")
+            rtad_speak(f"Errore apertura comandi: {e}")
 
     @scriptHandler.script(
         description="Apri la pagina delle Donazioni PayPal",
@@ -5381,7 +5464,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     )
     def script_openDonation(self, gesture):
         webbrowser.open(DONATION_URL)
-        ui.message("Apertura pagina donazioni...")
+        rtad_speak("Apertura pagina donazioni...")
 
     def open_search_window(self):
         try:
@@ -5392,7 +5475,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             if check_first_run_update():
                 wx.CallLater(600, frame.show_whats_new_dialog)
         except Exception as e:
-            ui.message(f"Impossibile aprire la finestra di ricerca: {e}")
+            rtad_speak(f"Impossibile aprire la finestra di ricerca: {e}")
 
     def show_shortcuts_dialog(self):
         try:
@@ -5400,4 +5483,4 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             frame.Show()
             frame.Raise()
         except Exception as e:
-            ui.message(f"Impossibile aprire i comandi: {e}")
+            rtad_speak(f"Impossibile aprire i comandi: {e}")

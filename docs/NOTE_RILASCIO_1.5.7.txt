@@ -1,0 +1,146 @@
+🌟 Novità della Versione 1.5.7
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+COMUNE (Add-on + Standalone)
+════════════════════════════════════════════════════════
+
+- Mute annunci RTAD con F7 (persistente).
+- Menu Voce in entrambe le edizioni.
+- Restano posta completa 1.5.6, date, profili e filtri.
+
+════════════════════════════════════════════════════════
+SOLO STANDALONE
+════════════════════════════════════════════════════════
+
+- Velocità SAPI (Ctrl++ / Ctrl+-), tono, scelta voce (token SAPI / OneCore).
+- Annunci RTAD con SAPI regolabile; opzione per preferire NVDA se presente.
+- Persistenza in settings.json (rate, pitch, voice_id, use_sapi, speech_active).
+
+════════════════════════════════════════════════════════
+SOLO ADD-ON
+════════════════════════════════════════════════════════
+
+- Mute solo gli annunci RTAD (ui.message); velocità e voce = impostazioni NVDA.
+- Nessuna SAPI parallela (evita doppia sintesi con NVDA).
+- Voce → «Velocità e voce: usa le impostazioni NVDA…».
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.5.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+### Comune
+- **F7 Mute** annunci RTAD (persistente) e menu **Voce**.
+- Restano posta completa 1.5.6, date, profili e filtri.
+
+### Solo Add-on
+- Velocità e voce restano quelle di **NVDA** (nessuna SAPI parallela).
+- Mute silenzia solo gli annunci dell’Add-on, non NVDA intero.
+
+### Solo Standalone (stessa release gemella)
+- Velocità/tono/voce SAPI regolabili; annunci preferiscono SAPI o NVDA.
+
+## 🇬🇧 English
+
+### Shared
+- **F7 Mute** for RTAD announcements (persistent) and **Voice** menu.
+- 1.5.6 complete mail search, dates, profiles and filters remain.
+
+### Add-on only
+- Rate and voice stay with **NVDA** (no parallel SAPI).
+- Mute silences Add-on announcements only, not all of NVDA.
+
+### Standalone only (twin release)
+- Adjustable SAPI rate/pitch/voice; announcements prefer SAPI or NVDA.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.5.7.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.5.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+### Comune
+- **F7 Mute** sintesi RTAD (persistente) e menu **Voce**.
+- Restano posta completa 1.5.6, date, profili e filtri.
+
+### Solo Standalone
+- **Velocità SAPI** (Ctrl++ / Ctrl+-), tono, scelta voce (anche OneCore).
+- Annunci RTAD con SAPI regolabile; opzione per usare NVDA se presente.
+- Impostazioni salvate (rate, pitch, voce, motore, mute).
+
+### Solo Add-on (release gemella)
+- Mute annunci RTAD; velocità/voce = impostazioni NVDA.
+
+## 🇬🇧 English
+
+### Shared
+- **F7 Mute** for RTAD speech (persistent) and **Voice** menu.
+- 1.5.6 complete mail search, dates, profiles and filters remain.
+
+### Standalone only
+- **SAPI rate** (Ctrl++ / Ctrl+-), pitch, voice picker (incl. OneCore).
+- RTAD announcements via adjustable SAPI, or NVDA if preferred.
+- Settings persisted (rate, pitch, voice, engine, mute).
+
+### Add-on only (twin release)
+- Mute RTAD announcements; rate/voice = NVDA settings.
+```
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.5.7.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.7.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Mute F7 per gli annunci RTAD; velocità e voce restano di NVDA. Menu Voce.
+
+Summary EN:
+F7 Mute for RTAD announcements; rate and voice stay with NVDA. Voice menu.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.7/ricerca_testuale_accesso_digitale-1.5.7.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html

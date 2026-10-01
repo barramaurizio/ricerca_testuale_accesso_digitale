@@ -41,8 +41,18 @@ try:
 except ImportError:
     rtad_ocr = None
 
+try:
+    import rtad_guida_pratica
+except ImportError:
+    rtad_guida_pratica = None
+
+try:
+    import rtad_epub
+except ImportError:
+    rtad_epub = None
+
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.8"
+APP_VERSION = "1.5.9"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -97,6 +107,16 @@ def normalize_search_text(txt, remove_accents=False):
         nfkd = unicodedata.normalize('NFKD', txt)
         return "".join([c for c in nfkd if not unicodedata.combining(c)]).lower()
     return txt.lower()
+
+def normalize_search_targets(target_input):
+    """Spezza percorsi multipli e toglie virgolette / spazi (incolla da Esplora risorse)."""
+    out = []
+    for t in re.split(r"[;,]", target_input or ""):
+        t = (t or "").strip().strip('"').strip("'").strip()
+        if t:
+            out.append(os.path.expandvars(t))
+    return out
+
 
 def text_matches_terms(text, terms):
     if not text or not terms:
@@ -1641,19 +1661,17 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.5.8</strong></p>
+        <p><strong>Novit&agrave; Versione 1.5.9</strong></p>
         <ul>
-            <li><strong>OCR opt-in</strong> (spento di default): testo in immagini e PDF scansionati.</li>
-            <li>Motori: <strong>Windows.Media.Ocr</strong> (predefinito) oppure <strong>EasyOCR</strong> opzionale (<code>requirements-ocr-easy.txt</code>).</li>
-            <li>Preprocess + match fuzzy; sinonimi birthday&harr;compleanno; cache e profili.</li>
-            <li>Menu contestuale: <strong>Copia Testo pulito</strong> e <strong>Copia OCR completo</strong>.</li>
-            <li>OCR senza parola chiave: attiva OCR, lascia vuoto il testo, Avvia.</li>
+            <li><strong>Guida pratica</strong> (menu Aiuto): linguaggio semplice; aggiornata a ogni release.</li>
+            <li>Ricerca nei libri <strong>EPUB</strong> (<code>.epub</code>), risultati <code>[EPUB]</code>.</li>
+            <li>Restano OCR 1.5.8, voce 1.5.7, posta 1.5.6, profili e filtri.</li>
         </ul>
-        <p><code>F7</code>: Mute &middot; OCR: casella + Motore OCR &middot; <code>Ctrl++</code>/<code>Ctrl+-</code>: velocit&agrave; voce.</p>
+        <p><code>F7</code>: Mute &middot; OCR: casella + Motore OCR &middot; Aiuto &rarr; Guida pratica.</p>
     </div>
     <h2>Formati supportati</h2>
     <ul>
-        <li>Testo (<code>.txt</code>, <code>.log</code>, <code>.csv</code>), Word, PDF, EML/MBOX, Feed RSS/Atom/Thunderbird, immagini con OCR di base.</li>
+        <li>Testo (<code>.txt</code>, <code>.log</code>, <code>.csv</code>), Word, PDF, EPUB, EML/MBOX, Feed RSS/Atom/Thunderbird, immagini con OCR di base.</li>
     </ul>
     <h2>Feed RSS e Thunderbird</h2>
     <ul>
@@ -1849,6 +1867,7 @@ DOC_EXTS = (
     ".html", ".htm",
     ".docx", ".doc", ".odt",
     ".pdf",
+    ".epub",
     ".eml", ".mbox", ".mbx",
     ".rss", ".xml", ".atom", ".opml",
 )
@@ -1861,7 +1880,7 @@ def _filter_choice_labels():
         "Tutti i tipi di file",
         "Solo Immagini (.jpg, .png, .gif, .webp, .tif, …)",
         "Solo Audio e Video (.mp3, .m4a, .flac, .mp4, .mkv, .mov, …)",
-        "Solo Documenti (.txt, .pdf, .docx, .eml, .html, .md, …)",
+        "Solo Documenti (.txt, .pdf, .docx, .epub, .eml, .html, .md, …)",
         "Estensione Personalizzata...",
     ]
 
@@ -3426,17 +3445,10 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• OCR opt-in (spento di default):\n"
-            "  - Windows.Media.Ocr (predefinito, già incluso)\n"
-            "  - EasyOCR (opzionale, meglio su scritte stilizzate)\n"
-            "• Menu «Motore OCR»; preferenza e profili.\n"
-            "• Preprocess + match fuzzy (es. BIRTHDAY stilizzato).\n"
-            "• Copia Testo pulito / Copia OCR completo dai risultati immagine.\n"
-            "• OCR completo senza parola chiave: attiva OCR, lascia vuoto il testo, Avvia.\n"
-            "• EasyOCR: pip install -r requirements-ocr-easy.txt\n"
-            "  (modelli al primo uso; Internet una volta).\n"
-            "• In futuro: Azure/Google con chiave personale.\n"
-            "• Restano voce 1.5.7, posta 1.5.6, profili e filtri.\n"
+            "• Guida pratica (menu Aiuto): spiega il programma in linguaggio\n"
+            "  semplice; a ogni versione le novità sono aggiornate lì.\n"
+            "• Ricerca nei libri EPUB (.epub): testo dei capitoli, risultati [EPUB].\n"
+            "• Restano OCR 1.5.8, voce 1.5.7, posta 1.5.6, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3465,6 +3477,68 @@ class WhatsNewFrame(wx.Frame):
             self.Destroy()
         else:
             event.Skip()
+
+
+class PracticalGuideFrame(wx.Frame):
+    """Guida in linguaggio semplice (parallela alla guida tecnica F1)."""
+
+    def __init__(self, parent):
+        title = (
+            rtad_guida_pratica.get_guide_title()
+            if rtad_guida_pratica is not None
+            else "Guida pratica"
+        )
+        super(PracticalGuideFrame, self).__init__(
+            parent,
+            title=title,
+            size=(760, 560),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        if rtad_guida_pratica is not None:
+            text_content = rtad_guida_pratica.get_guide_text()
+        else:
+            text_content = (
+                "Guida pratica non disponibile in questa build.\n"
+                "Usa Aiuto → Guida ai Comandi (F1)."
+            )
+
+        lbl_info = wx.StaticText(
+            panel,
+            label="Guida semplice per conoscere il programma. Le frecce scorrono il testo.",
+        )
+        vbox.Add(lbl_info, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(
+            panel,
+            value=text_content,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+        )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        speak_accessible(
+            "Guida pratica aperta. Usa le frecce per leggere. Esc per chiudere."
+        )
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
 
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
@@ -3744,7 +3818,7 @@ class MainWindow(wx.Frame):
         btn_preview.Bind(wx.EVT_BUTTON, lambda e: self.speak_selected_preview())
         hbox_bottom.Add(btn_preview, 0, wx.ALL, 5)
 
-        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi")
         btn_close.Bind(wx.EVT_BUTTON, self.on_close)
         hbox_bottom.Add(btn_close, 0, wx.ALL, 5)
 
@@ -3865,6 +3939,9 @@ class MainWindow(wx.Frame):
         # Menu Aiuto
         help_menu = wx.Menu()
         item_whatsnew = help_menu.Append(wx.ID_ANY, "&Novità della Versione")
+        item_practical = help_menu.Append(
+            wx.ID_ANY, "Guida &pratica (per avvicinarsi al programma)"
+        )
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
@@ -3882,6 +3959,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_check_updates, item_update)
         self.Bind(wx.EVT_MENU, self.on_toggle_escape_closes, self.item_escape_closes)
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
+        self.Bind(wx.EVT_MENU, lambda e: self.show_practical_guide_dialog(), item_practical)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_REPO_URL), item_github)
@@ -4385,6 +4463,11 @@ class MainWindow(wx.Frame):
 
     def show_whats_new_dialog(self):
         dlg = WhatsNewFrame(self)
+        dlg.Show()
+        dlg.Raise()
+
+    def show_practical_guide_dialog(self):
+        dlg = PracticalGuideFrame(self)
         dlg.Show()
         dlg.Raise()
 
@@ -5082,7 +5165,7 @@ class MainWindow(wx.Frame):
         threading.Thread(target=lambda: winsound.Beep(800, 150), daemon=True).start()
         # --- FINE FEEDBACK ACUSTICO ---
 
-        targets = [t.strip() for t in re.split(r'[;,]', target_input) if t.strip()]
+        targets = normalize_search_targets(target_input)
         threading.Thread(
             target=self.run_search,
             args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr),
@@ -5125,6 +5208,7 @@ class MainWindow(wx.Frame):
             "Indicizzazione cartelle in corso… (Alt+P per lo stato)",
         )
 
+        missing_targets = []
         for folder in targets:
             if self._stop_search:
                 break
@@ -5133,6 +5217,8 @@ class MainWindow(wx.Frame):
                 continue
 
             if not os.path.exists(folder):
+                missing_targets.append(folder)
+                logging.warning(f"Percorso non trovato, saltato: {folder}")
                 continue
             if os.path.isfile(folder):
                 ext = os.path.splitext(folder)[1].lower()
@@ -5639,6 +5725,29 @@ class MainWindow(wx.Frame):
                                 })
                                 found_in_content = True
 
+                elif ext == ".epub" and allow_content and rtad_epub is not None:
+                    logging.debug(f"Scansione EPUB: {file_path}")
+                    paragraphs, timed_out = run_with_timeout(
+                        lambda: rtad_epub.extract_paragraphs_from_epub(file_path),
+                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                        default=[],
+                    )
+                    if timed_out:
+                        logging.warning(f"Timeout estrazione EPUB, salto contenuto: {file_path}")
+                        paragraphs = []
+                    for idx, p_text in enumerate(paragraphs):
+                        if text_matches_terms(p_text, terms):
+                            start_i, end_i = max(0, idx - 1), min(len(paragraphs), idx + 2)
+                            snippet = " \n".join(paragraphs[start_i:end_i])
+                            raw_matches.append({
+                                "file_path": file_path, "file_name": file_name, "prefix": "[EPUB]",
+                                "mtime": mtime, "line_number": None, "paragraph_index": idx + 1,
+                                "location_info": f"Testo EPUB{file_date_suffix}",
+                                "snippet": snippet,
+                            })
+                            found_in_content = True
+                            break
+
                 elif ext == ".pdf" and allow_content:
                     logging.info(f"Scansione PDF: {file_path}")
                     try:
@@ -5928,12 +6037,18 @@ class MainWindow(wx.Frame):
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
                 f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
             )
+            if self.scanned_count == 0 and missing_targets:
+                text += (
+                    " Nessun percorso valido trovato: controlla che la cartella o il file "
+                    "esistano (senza virgolette nel campo percorso)."
+                )
             logging.info(
                 f"Ricerca completata. File esaminati: {self.scanned_count}. "
                 f"Messaggi posta: {mail_msgs}. Allegati PDF visti: {pdf_att_seen}, "
                 f"hit: {pdf_att_hits}, stub vuoti: {pdf_att_empty}. "
                 f"Risultati: {matches}. Occorrenze grezze feed: {feed_raw}. "
                 f"File grandi saltati (non posta): {skipped_large}. OCR: {ocr_stats}."
+                f" Percorsi mancanti: {missing_targets}."
             )
             speak_accessible(f"Completata. Trovati {matches} risultati.{feed_speak}")
         self.txt_status_progress.SetValue(text)

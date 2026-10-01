@@ -90,36 +90,17 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 ### Fase G — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
-### Fase H — OCR testo in immagini / PDF scansione (`1.5.8`, pronta al rilascio; ultima live = `1.5.7`) — FATTA
+### Fase H — OCR testo in immagini / PDF scansione (`1.5.8`) — FATTA / PUBBLICATA
 
 ### Fase H2 — EasyOCR + polish OCR (nella `1.5.8`) — FATTA
 
-1. Motore selezionabile: Windows (default) | EasyOCR (pip opzionale).  
-2. Preferenza `ocr_engine` + menu UI; cache per motore.  
-3. Preprocess + match fuzzy / alias BIRTHDAY; anti falsi positivi.  
-4. **Copia Testo** da risultato `[IMG-OCR]` / `[PDF-OCR]`.  
-5. Evoluzione successiva: Azure/Google con **chiave personale** (non a carico dell’autore).  
-6. Standalone: `requirements-ocr-easy.txt`. Add-on: Windows primario.
+### Fase H3 — Guida pratica + EPUB (`1.5.9`, in corso; ultima live = `1.5.8`)
 
-1. **Opt-in** esplicito: casella OCR sotto i feed; preferenza + profili `include_ocr`.  
-2. Motore: **Windows.Media.Ocr** (winrt o PowerShell; niente Tesseract).  
-3. Target: immagini (JPG/PNG/TIFF/WebP/…) e PDF scansionati (pagine immagine).  
-4. Cache in `ocr_cache/` (hash path+size+mtime + motore); contatori nello stato.  
-5. Gemello Standalone + Add-on (`rtad_ocr.py`).  
-6. Risultati `[IMG-OCR]` / `[PDF-OCR]` con snippet; messaggi se OCR assente.
+1. **Guida pratica** (menu Aiuto): linguaggio semplice; sezione «Novità recenti» aggiornata a ogni release.  
+2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
+3. ZIP opt-in → release successiva.
 
-**Non in questa fase:** ricerca per oggetti/scene («foto con un lupo»). Quella è vision/captioning → modulo opt-in successivo o gemello.  
-**Polish successivo:** TIFF multipagina avanzato; OCR allegati mail vuoti.  
-**Regola versione:** ultima pubblicata = `1.5.7` → lavoro corrente = `1.5.8` finché non è rilasciata; **non** saltare a `1.5.9`.
-
-### Fase I — EPUB + ZIP opt-in (`1.5.x` / pezzo di `1.6`)
-
-Ordine consigliato: **dopo OCR di base** (o in parallelo snello se OCR slitta).
-
-| Formato | Perché | Note |
-|---------|--------|------|
-| **EPUB** | Lettori assidui e studenti | ZIP+XHTML interno; testo ricercabile come documenti. Serve qualche file di prova. |
-| **ZIP / archivi** | Cercare dentro senza scompattare a mano | **Sempre opt-in** (lento, molti file); depth limit; niente autocompilazione di tutto il PC. |
+**Regola versione:** ultima pubblicata = `1.5.8` → lavoro corrente = `1.5.9`; **non** saltare avanti senza chiudere questa.
 
 ### Fase J — `1.6.0` (salto sostanzioso)
 
@@ -137,8 +118,8 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** Standalone = SAPI regolabile (OneCore via token); Add-on = Mute + NVDA per rate/voice.  
 - **PDF 1.5.3:** rilasciato.  
-- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = `1.5.8`.
-- **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
+- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
+- **ZIP opt-in:** dopo 1.5.9 (o pezzo `1.6`).  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
 ---
@@ -150,8 +131,8 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
 4. ~~**1.5.6 completezza posta**~~ fatta (caselle grandi + allegati PDF + Apri/Salva PDF).  
 5. ~~**1.5.7 voce Standalone + Mute gemello Add-on**~~ fatta.  
-6. ~~**1.5.8 OCR**~~ **pronta al rilascio** (Windows + EasyOCR, fuzzy, Copia Testo pulito/completo) — ultima live = `1.5.7`.  
-7. Anteprima / notifiche; **EPUB**; **ZIP opt-in**; polish OCR residuo (TIFF, allegati).  
+6. ~~**1.5.8 OCR**~~ **pubblicata**.  
+7. **1.5.9** guida pratica + EPUB (in corso); poi ZIP opt-in / anteprima.  
 8. Decidere insieme **1.6.0** (e eventuale vision leggera).
 
 ---

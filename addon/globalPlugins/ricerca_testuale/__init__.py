@@ -50,10 +50,20 @@ try:
 except ImportError:
     rtad_ocr = None
 
+try:
+    import rtad_guida_pratica
+except ImportError:
+    rtad_guida_pratica = None
+
+try:
+    import rtad_epub
+except ImportError:
+    rtad_epub = None
+
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.8"
+APP_VERSION = "1.5.9"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -93,6 +103,16 @@ def normalize_search_text(txt, remove_accents=False):
         nfkd = unicodedata.normalize('NFKD', txt)
         return "".join([c for c in nfkd if not unicodedata.combining(c)]).lower()
     return txt.lower()
+
+def normalize_search_targets(target_input):
+    """Spezza percorsi multipli e toglie virgolette / spazi (incolla da Esplora risorse)."""
+    out = []
+    for t in re.split(r"[;,]", target_input or ""):
+        t = (t or "").strip().strip('"').strip("'").strip()
+        if t:
+            out.append(os.path.expandvars(t))
+    return out
+
 
 def text_matches_terms(text, terms):
     if not text or not terms:
@@ -1155,6 +1175,7 @@ DOC_EXTS = (
     ".html", ".htm",
     ".docx", ".doc", ".odt",
     ".pdf",
+    ".epub",
     ".eml", ".mbox", ".mbx",
     ".rss", ".xml", ".atom", ".opml",
 )
@@ -1447,7 +1468,7 @@ def _filter_choice_labels():
         "Tutti i tipi di file",
         "Solo Immagini (.jpg, .png, .gif, .webp, .tif, …)",
         "Solo Audio e Video (.mp3, .m4a, .flac, .mp4, .mkv, .mov, …)",
-        "Solo Documenti (.txt, .pdf, .docx, .eml, .html, .md, …)",
+        "Solo Documenti (.txt, .pdf, .docx, .epub, .eml, .html, .md, …)",
         "Estensione Personalizzata...",
     ]
 
@@ -2940,15 +2961,10 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• OCR opt-in (spento di default):\n"
-            "  - Windows.Media.Ocr (predefinito)\n"
-            "  - EasyOCR (opzionale, se importabile)\n"
-            "• Motore OCR; preprocess + match fuzzy; Copia Testo pulito / OCR completo.\n"
-            "• OCR completo senza parola chiave: attiva OCR e Avvia a testo vuoto.\n"
-            "• Nell'Add-on di solito resta Windows OCR;\n"
-            "  EasyOCR è più semplice da usare nella Standalone.\n"
-            "• In futuro: Azure/Google con chiave personale.\n"
-            "• Restano Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
+            "• Guida pratica (menu Aiuto): linguaggio semplice per avvicinarsi\n"
+            "  al programma; le novità di ogni versione sono aggiornate lì.\n"
+            "• Ricerca nei libri EPUB (.epub): risultati [EPUB].\n"
+            "• Restano OCR 1.5.8, Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -2977,6 +2993,68 @@ class WhatsNewFrame(wx.Frame):
             self.Destroy()
         else:
             event.Skip()
+
+
+class PracticalGuideFrame(wx.Frame):
+    """Guida in linguaggio semplice (parallela alla guida tecnica F1)."""
+
+    def __init__(self, parent):
+        title = (
+            rtad_guida_pratica.get_guide_title()
+            if rtad_guida_pratica is not None
+            else "Guida pratica"
+        )
+        super(PracticalGuideFrame, self).__init__(
+            parent,
+            title=title,
+            size=(760, 560),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        if rtad_guida_pratica is not None:
+            text_content = rtad_guida_pratica.get_guide_text()
+        else:
+            text_content = (
+                "Guida pratica non disponibile in questa build.\n"
+                "Usa Aiuto → Guida ai Comandi (F1)."
+            )
+
+        lbl_info = wx.StaticText(
+            panel,
+            label="Guida semplice per conoscere il programma. Le frecce scorrono il testo.",
+        )
+        vbox.Add(lbl_info, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(
+            panel,
+            value=text_content,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+        )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Destroy())
+        hbox_btns.Add(btn_close, 0, wx.ALL, 5)
+        vbox.Add(hbox_btns, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        rtad_speak(
+            "Guida pratica aperta. Usa le frecce per leggere. Esc per chiudere."
+        )
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Destroy()
+        else:
+            event.Skip()
+
 
 class ShortcutsFrame(wx.Frame):
     def __init__(self, parent):
@@ -3291,7 +3369,7 @@ class SearchFrame(wx.Frame):
         btn_github.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(GITHUB_URL))
         hbox_bottom.Add(btn_github, 0, wx.ALL, 5)
 
-        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close = wx.Button(panel, label="Chiudi")
         btn_close.Bind(wx.EVT_BUTTON, self.on_close)
         hbox_bottom.Add(btn_close, 0, wx.ALL, 5)
 
@@ -3302,6 +3380,11 @@ class SearchFrame(wx.Frame):
 
     def show_whats_new_dialog(self):
         dlg = WhatsNewFrame(self)
+        dlg.Show()
+        dlg.Raise()
+
+    def show_practical_guide_dialog(self):
+        dlg = PracticalGuideFrame(self)
         dlg.Show()
         dlg.Raise()
 
@@ -3527,6 +3610,9 @@ class SearchFrame(wx.Frame):
         # Menu Aiuto
         help_menu = wx.Menu()
         item_whatsnew = help_menu.Append(wx.ID_ANY, "&Novità della Versione")
+        item_practical = help_menu.Append(
+            wx.ID_ANY, "Guida &pratica (per avvicinarsi al programma)"
+        )
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
@@ -3543,6 +3629,7 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_check_updates, item_update)
         self.Bind(wx.EVT_MENU, self.on_toggle_escape_closes, self.item_escape_closes)
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
+        self.Bind(wx.EVT_MENU, lambda e: self.show_practical_guide_dialog(), item_practical)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_URL), item_github)
@@ -4453,7 +4540,7 @@ class SearchFrame(wx.Frame):
                 pass
         # --- FINE EARCONS ---
 
-        targets = [t.strip() for t in re.split(r"[;,]", target_input) if t.strip()]
+        targets = normalize_search_targets(target_input)
         threading.Thread(
             target=self.run_search,
             args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr),
@@ -4497,6 +4584,7 @@ class SearchFrame(wx.Frame):
             "Indicizzazione cartelle in corso… (Alt+P per lo stato)",
         )
 
+        missing_targets = []
         for folder in targets:
             if self._stop_search:
                 break
@@ -4505,6 +4593,7 @@ class SearchFrame(wx.Frame):
                 continue
 
             if not os.path.exists(folder):
+                missing_targets.append(folder)
                 continue
 
             if os.path.isfile(folder):
@@ -5027,6 +5116,31 @@ class SearchFrame(wx.Frame):
                                     found_in_content = True
                         except Exception:
                             pass
+                elif ext == ".epub" and allow_content and rtad_epub is not None:
+                    paragraphs, timed_out = run_with_timeout(
+                        lambda: rtad_epub.extract_paragraphs_from_epub(file_path),
+                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                        default=[],
+                    )
+                    if timed_out:
+                        paragraphs = []
+                    for idx, p_text in enumerate(paragraphs):
+                        if text_matches_terms(p_text, terms):
+                            start_i = max(0, idx - 1)
+                            end_i = min(len(paragraphs), idx + 2)
+                            snippet = " \n".join(paragraphs[start_i:end_i])
+                            raw_matches.append({
+                                "file_path": file_path,
+                                "file_name": file_name,
+                                "prefix": "[EPUB]",
+                                "mtime": mtime,
+                                "line_number": None,
+                                "paragraph_index": idx + 1,
+                                "location_info": f"Testo EPUB{file_date_suffix}",
+                                "snippet": snippet,
+                            })
+                            found_in_content = True
+                            break
                 elif ext == ".pdf" and allow_content:
                     def _pdf_job():
                         ts = pdf_info_date_timestamp(file_path, fallback=0)
@@ -5311,6 +5425,11 @@ class SearchFrame(wx.Frame):
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
                 f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
             )
+            if self.scanned_count == 0 and missing_targets:
+                text += (
+                    " Nessun percorso valido trovato: controlla che la cartella o il file "
+                    "esistano (senza virgolette nel campo percorso)."
+                )
             rtad_speak(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.{feed_speak}")
             if tones:
                 try:

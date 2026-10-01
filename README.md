@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.8)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.9)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.5.9
+
+*(In corso — ultima pubblicata: **1.5.8**.)*
+
+- **Guida pratica** (menu Aiuto): linguaggio semplice; a ogni release le novità sono aggiornate lì, in parallelo alla guida tecnica.
+- Ricerca nei libri **EPUB** (`.epub`), risultati `[EPUB]`; nel filtro Documenti.
+- Restano OCR 1.5.8, voce 1.5.7, posta 1.5.6, date, profili.
+
 ### 🌟 Novità della Versione 1.5.8
 
-*(Pronta al rilascio — ultima pubblicata: **1.5.7**.)*
+*(Pubblicata.)*
 
 - **OCR opt-in:** testo in immagini e PDF scansionati; risultati `[IMG-OCR]` / `[PDF-OCR]`; cache e profili.
 - Motori: **Windows.Media.Ocr** (predefinito) oppure **EasyOCR** opzionale (Standalone consigliata per EasyOCR).
@@ -47,9 +55,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.5.9
+
+*(In progress — last published: **1.5.8**.)*
+
+- **Practical guide** (Help menu): plain language; each release updates the simple “what’s new” there, alongside the technical guide.
+- Search inside **EPUB** books (`.epub`), `[EPUB]` results; included in Documents filter.
+- 1.5.8 OCR, 1.5.7 voice, 1.5.6 mail, dates and profiles remain.
+
 ### 🌟 What's New in Version 1.5.8
 
-*(Ready for release — last published: **1.5.7**.)*
+*(Published.)*
 
 - **Opt-in OCR:** text in images and scanned PDFs; `[IMG-OCR]` / `[PDF-OCR]`; cache and profiles.
 - Engines: **Windows.Media.Ocr** (default) or optional **EasyOCR** (Standalone recommended for EasyOCR).

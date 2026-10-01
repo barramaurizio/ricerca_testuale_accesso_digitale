@@ -1,3 +1,10 @@
+Novità nella Versione 1.5.9
+(In corso — ultima pubblicata: 1.5.8)
+- Guida pratica (menu Aiuto): linguaggio semplice per avvicinarsi al programma; a ogni release la sezione «Novità recenti» si aggiorna in parallelo alla guida tecnica
+- Ricerca nei libri EPUB (.epub): testo dei capitoli, risultati [EPUB]; incluso nel filtro Documenti
+- Pulsante Chiudi (finestra principale) senza «ESC» nell’etichetta — Esc resta per annullare / finestre secondarie
+- Restano OCR 1.5.8, voce/Mute 1.5.7, posta 1.5.6, profili e filtri
+
 Novità nella Versione 1.5.8
 (Pronta al rilascio — ultima pubblicata: 1.5.7)
 - OCR opt-in: casella «Includi testo in immagini e PDF scansionati» (spento di default)
@@ -15,71 +22,3 @@ Novità nella Versione 1.5.8
 - EasyOCR Standalone: pip install -r requirements-ocr-easy.txt (modelli al primo uso)
 - Futuro (non in 1.5.8): Azure/Google con chiave personale dell’utente
 - Restano voce 1.5.7, posta 1.5.6, date, profili e filtri
-
-Novità nella Versione 1.5.7
-- Voce Standalone: velocità SAPI (Ctrl++ / Ctrl+-), tono, scelta voce (token SAPI / OneCore), menu Voce, persistenza in settings
-- Annunci RTAD preferiscono SAPI regolabile; opzione per usare NVDA se presente
-- F7 Mute sintesi (persistente). Add-on gemello: Mute solo annunci RTAD (velocità/voce = NVDA)
-- Restano posta completa 1.5.6, date, profili e filtri
-
-Novità nella Versione 1.5.6
-- Posta completa: caselle Thunderbird/MBOX senza tetto di dimensione (streaming messaggio per messaggio)
-- Scansione MBOX in streaming (messaggio per messaggio): niente RAM piena, niente freeze sulle caselle grandi
-- Fix ricette: messaggi con allegati PDF grandi non più saltati; **tetto singolo messaggio posta rimosso** (streaming sicuro)
-- Se un allegato PDF è dichiarato ma non scaricato in locale (IMAP): conteggio nello stato + match sul nome file
-- Allegati PDF anche come octet-stream / senza estensione (magic %PDF); ricerca nome + testo grezzo + estrazione
-- Tetto ~40 MB solo per DOC/testi pesanti (anti-blocco); **posta senza tetto di dimensione casella** (streaming); PDF fino a ~80 MB
-- Fix critico: un tetto ~2 GB saltava in silenzio le caselle Gmail principali (INBOX / Tutti i messaggi) oltre 2 GB
-- Filtro estensione .pdf: include anche caselle Thunderbird/.eml e cerca negli allegati PDF (prima solo file .pdf su disco)
-- Allegato PDF da posta: «Apri» apre il PDF estratto (non l'INBOX da giga); menu «Salva allegato PDF…» / «Copia allegato PDF altrove…»
-- PDF: lettura fino a 40 MB di file, timeout soft 20 s, match anche se i termini sono spezzati su più righe
-- Se la dimensione file non è leggibile (OneDrive / path lungo → -1): si tenta comunque la lettura
-- PDF su disco: anche ricerca grezza nei byte se l'estrattore non trova testo
-- Meno rumore: esclusi WinSxS/System32/SysWOW64, cache Cursor/VS Code, log RTAD
-- PDF: ordinamento per data file (ricezione); in etichetta anche data documento se diversa
-- Stato finale: messaggi posta esaminati + hit allegati PDF + stub non scaricati
-
-Novità nella Versione 1.5.5
-- Stabilità / anti-blocco: evita «Non risponde» su cartelle grandi e PDF/DOC difficili (es. G:\), senza ridurre le ricerche normali
-- Tetto decompressione PDF (anti zip-bomb); timeout soft solo sul file bloccato; .doc OLE senza ZipFile inutile
-- PDF brochure/scansioni: estrazione testo lineare (niente regex che bloccano il GIL, es. La_Torino_del_Gusto.pdf)
-- Data (gg/mm/aaaa) su tutti i risultati: txt, Word, media, immagini, nome file… (come già per email e PDF)
-- Non legge per intero file oltre ~40 MB (resta la ricerca sul nome file)
-- Annunci automatici di avanzamento ridotti (25/50/75%); Alt+P resta completo
-- Alt+S più sicuro; indicizzazione cartelle visibile; log del file in scansione
-- Add-on: feedparser incluso (niente più «modulo non installato» / ricerca RSS assente in NVDA)
-- Add-on: .eml e MBOX allineati allo Standalone (un risultato per messaggio, non una riga grezza per hit)
-
-Novità nella Versione 1.5.4
-- Filtri: più estensioni per Immagini (gif/webp/tif…), Audio/Video (m4a/flac/mov…) e Documenti (html/md/rtf/odt…)
-- Scorciatoie Alt senza conflitti: solo T/P/N/I/S/K documentate; Avvia con INVIO nel campo testo
-- Profili di ricerca: salva percorso, tipo file, estensione, opzione feed e (opzionale) testo
-- Menu Profili: Salva / Carica / Gestisci (rinomina ed elimina); elenco rapido
-- Ctrl+Shift+P salva profilo attuale; Ctrl+Shift+L carica un profilo
-- Opzione avvio automatico se il profilo include il testo di ricerca
-
-Novità nella Versione 1.5.3
-- PDF migliorato: estrazione testo da stream FlateDecode (Tj/TJ), senza librerie pesanti
-- Copia Testo e Copia Immagine separate nel menu contestuale (niente pasticci misti)
-- Copia Testo PDF: testo leggibile; avviso se scansionato/protetto senza testo
-- Copia Immagine PDF: solo pagine grandi (non loghi 324×324); messaggio chiaro se c’è solo lo stemma
-- PDF testo: ToUnicode/CID (tabellini Leghe, Identity-H) oltre agli stream semplici
-- PDF testo: content stream anche oltre 512KB (tabellini densissimi che Edge legge)
-- PDF: salta Image XObject in ricerca (niente endstream/simboli; ricerca più reattiva)
-- Copia Immagine: scansioni grandi (ScanSnap) ridotte per gli appunti; messaggio chiaro se solo scansione
-- Salva Immagine...: esporta la pagina/scansione PDF (o il file immagine) su disco a piena risoluzione
-- Data documento (gg/mm/aaaa) nei risultati PDF (Creation/ModDate o data file)
-- Risultati: «Testo PDF» sul contenuto, «Nome File» solo se match sul nome
-
-Novità nella Versione 1.5.2
-- Lettore EML/MBOX: caricamento in thread secondario (UI non si blocca su caselle grandi)
-- Apertura MBOX dai risultati: usa il testo già letto in ricerca (istantaneo, senza reindicizzare INBOX)
-- Fallback streaming From_ se serve rileggere il file (niente mailbox.mbox su caselle enormi)
-- Allegati PDF/binari esclusi dal testo; nota a fine messaggio con i nomi omessi
-- Data messaggio (gg/mm/aaaa) nei risultati MBOX e .eml (come nei Feed)
-- Ordinamento risultati memorizzato tra una sessione e l'altra (Standalone e Add-on)
-- Add-on: apertura MBOX nel lettore interno
-
-Novità nella Versione 1.5.1
-- Cronologia ricerche: ultimi testi e percorsi in locale
-- Ctrl+H / pulsante Cronologia: riprendi testo; Ctrl+Shift+H: riprendi percorso

@@ -90,18 +90,27 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 ### Fase G — anteprima + avvisi a fine ricerca (`1.5.x` successiva)
 
-### Fase H — OCR testo in immagini / PDF scansione (`1.5.8` o ingresso `1.6`)
+### Fase H — OCR testo in immagini / PDF scansione (`1.5.8`, pronta al rilascio; ultima live = `1.5.7`) — FATTA
 
-**Priorità alta dopo voce** (accordo settembre 2026).
+### Fase H2 — EasyOCR + polish OCR (nella `1.5.8`) — FATTA
 
-1. **Opt-in** esplicito: «Includi testo nelle immagini (OCR)».  
-2. Motore: **Windows.Media.Ocr** (niente pacchetto pesante).  
-3. Target: `.jpg/.png/.…` e pagine grafiche PDF (già estraibili).  
-4. Cache testo OCR per file (hash + mtime) per non ripetere lavoro.  
-5. Standalone prima → Add-on con lo stesso OCR di sistema.  
-6. Messaggi chiari su qualità / assenza testo.
+1. Motore selezionabile: Windows (default) | EasyOCR (pip opzionale).  
+2. Preferenza `ocr_engine` + menu UI; cache per motore.  
+3. Preprocess + match fuzzy / alias BIRTHDAY; anti falsi positivi.  
+4. **Copia Testo** da risultato `[IMG-OCR]` / `[PDF-OCR]`.  
+5. Evoluzione successiva: Azure/Google con **chiave personale** (non a carico dell’autore).  
+6. Standalone: `requirements-ocr-easy.txt`. Add-on: Windows primario.
 
-**Non in questa fase:** ricerca per oggetti/scene («foto con un lupo»). Quella è vision/captioning → modulo opt-in successivo o gemello.
+1. **Opt-in** esplicito: casella OCR sotto i feed; preferenza + profili `include_ocr`.  
+2. Motore: **Windows.Media.Ocr** (winrt o PowerShell; niente Tesseract).  
+3. Target: immagini (JPG/PNG/TIFF/WebP/…) e PDF scansionati (pagine immagine).  
+4. Cache in `ocr_cache/` (hash path+size+mtime + motore); contatori nello stato.  
+5. Gemello Standalone + Add-on (`rtad_ocr.py`).  
+6. Risultati `[IMG-OCR]` / `[PDF-OCR]` con snippet; messaggi se OCR assente.
+
+**Non in questa fase:** ricerca per oggetti/scene («foto con un lupo»). Quella è vision/captioning → modulo opt-in successivo o gemello.  
+**Polish successivo:** TIFF multipagina avanzato; OCR allegati mail vuoti.  
+**Regola versione:** ultima pubblicata = `1.5.7` → lavoro corrente = `1.5.8` finché non è rilasciata; **non** saltare a `1.5.9`.
 
 ### Fase I — EPUB + ZIP opt-in (`1.5.x` / pezzo di `1.6`)
 
@@ -128,7 +137,7 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** Standalone = SAPI regolabile (OneCore via token); Add-on = Mute + NVDA per rate/voice.  
 - **PDF 1.5.3:** rilasciato.  
-- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = dopo voce.
+- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = `1.5.8`.
 - **EPUB/ZIP:** dopo OCR (o pezzo `1.6`); ZIP sempre opt-in.  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
@@ -141,8 +150,8 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
 4. ~~**1.5.6 completezza posta**~~ fatta (caselle grandi + allegati PDF + Apri/Salva PDF).  
 5. ~~**1.5.7 voce Standalone + Mute gemello Add-on**~~ fatta.  
-6. **OCR** (immagini + PDF scansione, opt-in, Windows OCR).  
-7. Anteprima / notifiche; **EPUB**; **ZIP opt-in**.  
+6. ~~**1.5.8 OCR**~~ **pronta al rilascio** (Windows + EasyOCR, fuzzy, Copia Testo pulito/completo) — ultima live = `1.5.7`.  
+7. Anteprima / notifiche; **EPUB**; **ZIP opt-in**; polish OCR residuo (TIFF, allegati).  
 8. Decidere insieme **1.6.0** (e eventuale vision leggera).
 
 ---

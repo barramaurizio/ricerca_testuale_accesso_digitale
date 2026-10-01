@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.5.7 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.5.8 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,18 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.5.7</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.5.8</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.5.8</strong>
+        <ul>
+            <li><strong>Opt-in OCR</strong> (off by default): text in images and scanned PDFs; <code>[IMG-OCR]</code> / <code>[PDF-OCR]</code>; cache and profiles.</li>
+            <li>Engines: <strong>Windows.Media.Ocr</strong> (default, practical path on the Add-on) or <strong>EasyOCR</strong> if already importable in NVDA (for EasyOCR tests prefer Standalone).</li>
+            <li>Preprocess + fuzzy match; birthday↔compleanno synonyms; <strong>Copy clean text</strong> / <strong>Copy full OCR</strong>.</li>
+            <li>OCR without a query: enable OCR, leave the text empty, Start. 1.5.7 Mute and 1.5.6 mail remain.</li>
+        </ul>
         <strong>What's New in Version 1.5.7</strong>
         <ul>
             <li><strong>Voice menu</strong> and <strong>F7 Mute</strong> for RTAD announcements (persistent).</li>
@@ -84,7 +91,7 @@
         <li>Documents: Word (<code>.docx</code>, <code>.doc</code>), PDF (text and, when scanned, page image)</li>
         <li>Mail: <code>.eml</code> files (native reading) and Thunderbird-style mailbox / Feeds containers</li>
         <li>Feeds: RSS/Atom URLs, local feed files, OPML, <code>Mail\Feeds</code> folders</li>
-        <li>Images: basic OCR on <code>.jpg</code>, <code>.png</code>, <code>.bmp</code>; from the menu you can also copy or save them</li>
+        <li>Images and scanned PDFs: with the OCR checkbox (opt-in) text becomes searchable; OCR engine picker; menu offers clean/full OCR copy and Copy/Save Image</li>
     </ul>
 
     <h2>How to use RSS and Thunderbird Feeds</h2>
@@ -151,7 +158,8 @@
         <li><strong>Space / F4</strong>: immediate spoken preview of the context.</li>
         <li><strong>F7</strong>: toggle RTAD announcements (Mute).</li>
         <li><strong>Voice menu</strong>: Mute RTAD; rate/voice = NVDA settings.</li>
-        <li><strong>Applications key</strong>: context menu for the selected result (including Copia Testo, Copia Immagine, Salva Immagine...).</li>
+        <li><strong>OCR</strong>: checkbox under feeds (opt-in; slower) + Motore OCR list (Windows default; EasyOCR if available).</li>
+        <li><strong>Applications key</strong>: context menu (Copy clean text, Copy full OCR, Copy/Save Image...).</li>
         <li><strong>F1</strong>: command guide (from the Help menu).</li>
         <li><strong>Escape</strong>: close the window.</li>
     </ul>

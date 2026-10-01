@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.8)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,15 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.5.8
+
+*(Pronta al rilascio — ultima pubblicata: **1.5.7**.)*
+
+- **OCR opt-in:** testo in immagini e PDF scansionati; risultati `[IMG-OCR]` / `[PDF-OCR]`; cache e profili.
+- Motori: **Windows.Media.Ocr** (predefinito) oppure **EasyOCR** opzionale (Standalone consigliata per EasyOCR).
+- Preprocess + match fuzzy; sinonimi birthday↔compleanno; **Copia Testo pulito** / **Copia OCR completo**.
+- OCR senza parola chiave (OCR attivo + testo vuoto → Avvia). Restano voce 1.5.7, posta 1.5.6, date, profili.
 
 ### 🌟 Novità della Versione 1.5.7
 
@@ -37,6 +46,15 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.5.8
+
+*(Ready for release — last published: **1.5.7**.)*
+
+- **Opt-in OCR:** text in images and scanned PDFs; `[IMG-OCR]` / `[PDF-OCR]`; cache and profiles.
+- Engines: **Windows.Media.Ocr** (default) or optional **EasyOCR** (Standalone recommended for EasyOCR).
+- Preprocess + fuzzy match; birthday↔compleanno synonyms; **Copy clean text** / **Copy full OCR**.
+- OCR without a query (OCR on + empty text → Start). 1.5.7 voice, 1.5.6 mail, dates, profiles remain.
 
 ### 🌟 What's New in Version 1.5.7
 

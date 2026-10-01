@@ -1,0 +1,11 @@
+# OCR opzionale EasyOCR (Standalone)
+# Installazione (nella stessa Python usata per avviare RTAD):
+#   pip install -r requirements-ocr-easy.txt
+#
+# Al primo uso EasyOCR scarica i modelli (~100+ MB): serve Internet una volta.
+# Poi in RTAD: attiva OCR → Motore OCR → EasyOCR.
+#
+# Nota: torch/EasyOCR sono pesanti; non sono nel pacchetto base.
+# L'Add-on NVDA resta su Windows OCR di default (EasyOCR solo se importabile).
+
+easyocr>=1.7.1

@@ -1,3 +1,21 @@
+Novità nella Versione 1.5.8
+(Pronta al rilascio — ultima pubblicata: 1.5.7)
+- OCR opt-in: casella «Includi testo in immagini e PDF scansionati» (spento di default)
+- Motori: Windows.Media.Ocr (predefinito) oppure EasyOCR opzionale (scritte stilizzate)
+- Menu / elenco «Motore OCR»; preferenze e profili: include_ocr, ocr_engine
+- Immagini JPG/PNG/TIFF/WebP/BMP/GIF… → [IMG-OCR]; PDF scansionati → [PDF-OCR]
+- Preprocess (contrasto, stripe, ritagli, rotazioni) + match fuzzy / confusabili / alias BIRTHDAY
+- Sinonimi OCR: cercando «birthday» trova anche «compleanno» (e viceversa) nel testo immagine
+- Ritaglio destro «clean» + rotazioni per BIRTHDAY verticale; se EasyOCR non matcha, completa con Windows
+- Copia Testo OCR: «Copia Testo pulito» (HAPPY/BIRTHDAY+nome) e «Copia OCR completo» (tutto, canzone inclusa)
+- OCR completo senza parola chiave: attiva OCR, lascia vuoto il testo, Avvia → elenco immagini con Copia/Salva
+- Scelta della migliore variante OCR (meno «zuppe» di caratteri su documenti)
+- Anti falsi positivi (es. tribunale); Copia Testo dal risultato OCR (testo riconosciuto)
+- Cache OCR per motore; contatori nello stato; gemello Standalone + Add-on
+- EasyOCR Standalone: pip install -r requirements-ocr-easy.txt (modelli al primo uso)
+- Futuro (non in 1.5.8): Azure/Google con chiave personale dell’utente
+- Restano voce 1.5.7, posta 1.5.6, date, profili e filtri
+
 Novità nella Versione 1.5.7
 - Voce Standalone: velocità SAPI (Ctrl++ / Ctrl+-), tono, scelta voce (token SAPI / OneCore), menu Voce, persistenza in settings
 - Annunci RTAD preferiscono SAPI regolabile; opzione per usare NVDA se presente

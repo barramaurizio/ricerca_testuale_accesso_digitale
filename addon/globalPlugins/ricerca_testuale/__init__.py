@@ -45,10 +45,15 @@ try:
 except ImportError:
     feedparser = None
 
+try:
+    import rtad_ocr
+except ImportError:
+    rtad_ocr = None
+
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.7"
+APP_VERSION = "1.5.8"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -62,6 +67,13 @@ if not os.path.exists(CONFIG_DIR):
     except Exception:
         pass
 CONFIG_FILE = os.path.join(CONFIG_DIR, "rtad_settings.json")
+
+OCR_CACHE_DIR = os.path.join(CONFIG_DIR, "ocr_cache")
+if rtad_ocr is not None:
+    try:
+        rtad_ocr.configure(OCR_CACHE_DIR)
+    except Exception:
+        pass
 
 # Mute annunci RTAD (gemello di F7 Standalone). Voce/velocità = NVDA.
 _rtad_speech_active = True
@@ -1473,6 +1485,7 @@ def load_search_profiles():
                 "custom_ext": str(item.get("custom_ext", "") or ""),
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
+                "include_ocr": bool(item.get("include_ocr", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
         )
@@ -1501,6 +1514,7 @@ def save_search_profiles(profiles):
                 "custom_ext": str(item.get("custom_ext", "") or ""),
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
+                "include_ocr": bool(item.get("include_ocr", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
         )
@@ -2582,6 +2596,7 @@ def pdf_info_date_timestamp(file_path, fallback=0):
 
 
 def deep_ocr_jpg_scan(file_path):
+    """Legacy: byte grezzi (non OCR). Preferire rtad_ocr.ocr_image_file."""
     try:
         with open(file_path, "rb") as f:
             header = f.read(4194304)
@@ -2590,6 +2605,82 @@ def deep_ocr_jpg_scan(file_path):
             return " ".join(words)
     except Exception:
         return ""
+
+
+def ocr_text_from_pdf_file(file_path, should_abort=None):
+    """OCR sulle immagini pagina di un PDF (solo se il motore è disponibile)."""
+    if rtad_ocr is None:
+        return ""
+    try:
+        images = extract_images_from_pdf(file_path)
+    except Exception:
+        return ""
+    if not images:
+        return ""
+    pages = []
+    for im in images:
+        try:
+            if (
+                im.get("w", 0) >= _PDF_PAGE_IMAGE_MIN_SIDE
+                and im.get("h", 0) >= _PDF_PAGE_IMAGE_MIN_SIDE
+                and im.get("w", 0) * im.get("h", 0) >= _PDF_PAGE_IMAGE_MIN_AREA
+            ):
+                pages.append(im)
+        except Exception:
+            continue
+    if not pages:
+        pages = images[: rtad_ocr.MAX_OCR_PDF_PAGES]
+    return rtad_ocr.ocr_pdf_image_records(
+        pages,
+        max_pages=rtad_ocr.MAX_OCR_PDF_PAGES,
+        should_abort=should_abort,
+    )
+
+
+def load_include_ocr_preference():
+    data = _load_settings_dict()
+    return bool(data.get("include_ocr", False))
+
+
+def save_include_ocr_preference(enabled):
+    data = _load_settings_dict()
+    data["include_ocr"] = bool(enabled)
+    _save_settings_dict(data)
+
+
+def load_ocr_engine_preference():
+    """'windows' (default) oppure 'easyocr'."""
+    data = _load_settings_dict()
+    eng = str(data.get("ocr_engine", "windows") or "windows").strip().lower()
+    if eng not in ("windows", "easyocr"):
+        eng = "windows"
+    return eng
+
+
+def save_ocr_engine_preference(engine):
+    eng = str(engine or "windows").strip().lower()
+    if eng not in ("windows", "easyocr"):
+        eng = "windows"
+    data = _load_settings_dict()
+    data["ocr_engine"] = eng
+    _save_settings_dict(data)
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_engine_preference(eng)
+        except Exception:
+            pass
+
+
+def load_escape_closes_preference():
+    """False di default: Esc non chiude la finestra principale (solo annulla ricerca)."""
+    data = _load_settings_dict()
+    return bool(data.get("escape_closes_app", False))
+
+
+def save_escape_closes_preference(enabled):
+    data = _load_settings_dict()
+    data["escape_closes_app"] = bool(enabled)
+    _save_settings_dict(data)
 
 def jump_to_line_in_editor(file_path, line_number):
     def _jump_worker():
@@ -2849,12 +2940,15 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Menu Voce: Mute annunci RTAD (F7), persistente.\n"
-            "  Velocità e voce restano quelle di NVDA (nessuna SAPI\n"
-            "  parallela nell'Add-on).\n"
-            "• Gemello dello Standalone 1.5.7: stesso concetto Mute,\n"
-            "  motore diverso (NVDA qui, SAPI regolabile lì).\n"
-            "• Restano posta completa 1.5.6, feedparser, date, profili.\n"
+            "• OCR opt-in (spento di default):\n"
+            "  - Windows.Media.Ocr (predefinito)\n"
+            "  - EasyOCR (opzionale, se importabile)\n"
+            "• Motore OCR; preprocess + match fuzzy; Copia Testo pulito / OCR completo.\n"
+            "• OCR completo senza parola chiave: attiva OCR e Avvia a testo vuoto.\n"
+            "• Nell'Add-on di solito resta Windows OCR;\n"
+            "  EasyOCR è più semplice da usare nella Standalone.\n"
+            "• In futuro: Azure/Google con chiave personale.\n"
+            "• Restano Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3077,6 +3171,42 @@ class SearchFrame(wx.Frame):
         )
         self.chk_feed_raw.SetValue(False)
         vbox.Add(self.chk_feed_raw, 0, wx.ALL, 5)
+
+        self.chk_ocr = wx.CheckBox(
+            panel,
+            label="Includi testo in immagini e PDF scansionati (OCR, più lento)",
+        )
+        try:
+            self.chk_ocr.SetValue(load_include_ocr_preference())
+        except Exception:
+            self.chk_ocr.SetValue(False)
+        self.chk_ocr.Bind(wx.EVT_CHECKBOX, self.on_ocr_checkbox)
+        vbox.Add(self.chk_ocr, 0, wx.ALL, 5)
+
+        hbox_ocr_eng = wx.BoxSizer(wx.HORIZONTAL)
+        lbl_ocr_eng = wx.StaticText(panel, label="Motore OCR:")
+        hbox_ocr_eng.Add(lbl_ocr_eng, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        self.choice_ocr_engine = wx.Choice(
+            panel,
+            choices=[
+                "Windows (predefinito, incluso)",
+                "EasyOCR (opzionale, se installato nell'ambiente Python)",
+            ],
+        )
+        self.choice_ocr_engine.SetName("Motore OCR")
+        try:
+            eng = load_ocr_engine_preference()
+        except Exception:
+            eng = "windows"
+        self.choice_ocr_engine.SetSelection(1 if eng == "easyocr" else 0)
+        if rtad_ocr is not None:
+            try:
+                rtad_ocr.set_engine_preference(eng)
+            except Exception:
+                pass
+        self.choice_ocr_engine.Bind(wx.EVT_CHOICE, self.on_ocr_engine_choice)
+        hbox_ocr_eng.Add(self.choice_ocr_engine, 1, wx.EXPAND)
+        vbox.Add(hbox_ocr_eng, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_search = wx.Button(panel, label="Avvia Ricerca")
@@ -3384,6 +3514,14 @@ class SearchFrame(wx.Frame):
         # Menu Strumenti
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...\tCtrl+U")
+        tools_menu.AppendSeparator()
+        self.item_escape_closes = tools_menu.AppendCheckItem(
+            wx.ID_ANY, "Esc chiude l'&applicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
+        )
+        try:
+            self.item_escape_closes.Check(load_escape_closes_preference())
+        except Exception:
+            self.item_escape_closes.Check(False)
         menubar.Append(tools_menu, "Stru&menti")
 
         # Menu Aiuto
@@ -3403,6 +3541,7 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_print_results, item_print)
         self.Bind(wx.EVT_MENU, self.on_close, item_exit)
         self.Bind(wx.EVT_MENU, self.on_check_updates, item_update)
+        self.Bind(wx.EVT_MENU, self.on_toggle_escape_closes, self.item_escape_closes)
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
@@ -3545,8 +3684,103 @@ class SearchFrame(wx.Frame):
             "filter_mode": filter_mode,
             "custom_ext": custom_ext if filter_mode == 4 else "",
             "include_feed_raw": bool(self.chk_feed_raw.GetValue()),
+            "include_ocr": bool(self.chk_ocr.GetValue()),
+            "ocr_engine": (
+                "easyocr"
+                if getattr(self, "choice_ocr_engine", None)
+                and self.choice_ocr_engine.GetSelection() == 1
+                else "windows"
+            ),
             "query": self.txt_query.GetValue().strip(),
         }
+
+    def on_ocr_engine_choice(self, event=None):
+        eng = (
+            "easyocr"
+            if self.choice_ocr_engine.GetSelection() == 1
+            else "windows"
+        )
+        try:
+            save_ocr_engine_preference(eng)
+        except Exception:
+            pass
+        if rtad_ocr is None:
+            rtad_speak("Modulo OCR non disponibile.", force=True)
+            return
+        try:
+            rtad_ocr.set_engine_preference(eng)
+            msg = rtad_ocr.engine_status_message()
+        except Exception as e:
+            msg = f"Impossibile impostare il motore OCR: {e}"
+        rtad_speak(msg, force=True)
+
+    def on_ocr_checkbox(self, event=None):
+        enabled = bool(self.chk_ocr.GetValue())
+        try:
+            save_include_ocr_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            if rtad_ocr is None:
+                rtad_speak("Modulo OCR non disponibile in questa build.", force=True)
+                try:
+                    self.chk_ocr.SetValue(False)
+                    save_include_ocr_preference(False)
+                except Exception:
+                    pass
+                return
+            try:
+                eng = (
+                    "easyocr"
+                    if self.choice_ocr_engine.GetSelection() == 1
+                    else "windows"
+                )
+                rtad_ocr.set_engine_preference(eng)
+                save_ocr_engine_preference(eng)
+            except Exception:
+                pass
+            ok = False
+            try:
+                ok = bool(rtad_ocr.engine_available(force_recheck=True))
+            except Exception:
+                ok = False
+            if not ok:
+                rtad_speak(rtad_ocr.engine_status_message(), force=True)
+            else:
+                try:
+                    status = rtad_ocr.engine_status_message()
+                except Exception:
+                    status = ""
+                rtad_speak(
+                    "OCR attivato: cercherà il testo dentro immagini e PDF scansionati. "
+                    "Può richiedere più tempo. "
+                    + (status or ""),
+                    force=True,
+                )
+        else:
+            rtad_speak("OCR disattivato: solo nomi file e documenti con testo.", force=True)
+
+    def on_toggle_escape_closes(self, event=None):
+        enabled = False
+        try:
+            enabled = bool(self.item_escape_closes.IsChecked())
+        except Exception:
+            enabled = not load_escape_closes_preference()
+        try:
+            save_escape_closes_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            rtad_speak(
+                "Esc chiude l'applicazione. Durante la ricerca Esc annulla comunque.",
+                force=True,
+            )
+        else:
+            rtad_speak(
+                "Esc non chiude più l'applicazione: usa Alt+F4, Ctrl+Q o Chiudi. "
+                "Durante la ricerca Esc annulla solo la scansione.",
+                force=True,
+            )
 
     def on_save_search_profile(self, event=None):
         fields = self._collect_current_profile_fields()
@@ -3598,6 +3832,8 @@ class SearchFrame(wx.Frame):
             "custom_ext": fields["custom_ext"],
             "query": fields["query"] if include_query else "",
             "include_feed_raw": fields["include_feed_raw"],
+            "include_ocr": fields["include_ocr"],
+            "ocr_engine": fields.get("ocr_engine", "windows"),
             "auto_start": bool(auto_start and include_query),
         }
         replaced = upsert_search_profile(profile)
@@ -3649,6 +3885,20 @@ class SearchFrame(wx.Frame):
         self.txt_custom_ext.SetValue(custom)
         self.txt_custom_ext.Enable(mode == 4)
         self.chk_feed_raw.SetValue(bool(profile.get("include_feed_raw", False)))
+        ocr_on = bool(profile.get("include_ocr", False))
+        self.chk_ocr.SetValue(ocr_on)
+        try:
+            save_include_ocr_preference(ocr_on)
+        except Exception:
+            pass
+        eng = str(profile.get("ocr_engine", "windows") or "windows").strip().lower()
+        if eng not in ("windows", "easyocr"):
+            eng = "windows"
+        try:
+            self.choice_ocr_engine.SetSelection(1 if eng == "easyocr" else 0)
+            save_ocr_engine_preference(eng)
+        except Exception:
+            pass
         query = profile.get("query", "") or ""
         if query:
             self.txt_query.SetValue(query)
@@ -3659,6 +3909,8 @@ class SearchFrame(wx.Frame):
                 bits.append(f"percorso {path}")
             if query:
                 bits.append(f"testo {query}")
+            if ocr_on:
+                bits.append("OCR attivo")
             _announce(". ".join(bits) + ".")
         if profile.get("auto_start") and query:
             wx.CallLater(350, self.start_search_thread)
@@ -3919,6 +4171,9 @@ class SearchFrame(wx.Frame):
             return
         elif key in (ord("S"), ord("s")) and not ctrl and not alt and not event.ShiftDown():
             focus = wx.Window.FindFocus()
+            if isinstance(focus, (wx.CheckBox, wx.Choice, wx.ComboBox, wx.RadioButton)):
+                event.Skip()
+                return
             text_ctrls = (self.txt_query, self.txt_path, self.txt_custom_ext, self.txt_filter)
             if focus not in text_ctrls and not isinstance(focus, wx.TextCtrl):
                 self.focus_status_progress()
@@ -3932,8 +4187,22 @@ class SearchFrame(wx.Frame):
             self.on_show_info(None)
             return
         elif key == wx.WXK_ESCAPE:
+            if not self.btn_search.IsEnabled():
+                self.on_cancel_search(None)
+                return
+            if load_escape_closes_preference():
+                self._stop_search = True
+                self.Destroy()
+                return
+            rtad_speak(
+                "Esc non chiude l'applicazione. Usa Alt+F4, Ctrl+Q oppure Chiudi. "
+                "Opzione in Strumenti se preferisci Esc per uscire.",
+                force=True,
+            )
+            return
+        elif alt and key == wx.WXK_F4:
             self._stop_search = True
-            self.Destroy()
+            self.Close()
             return
         else:
             event.Skip()
@@ -4111,19 +4380,43 @@ class SearchFrame(wx.Frame):
         if not custom_ext.startswith(".") and custom_ext:
             custom_ext = "." + custom_ext
         include_feed_raw = bool(self.chk_feed_raw.GetValue())
+        include_ocr = bool(self.chk_ocr.GetValue())
+        try:
+            save_include_ocr_preference(include_ocr)
+        except Exception:
+            pass
+        try:
+            eng = (
+                "easyocr"
+                if self.choice_ocr_engine.GetSelection() == 1
+                else "windows"
+            )
+            save_ocr_engine_preference(eng)
+        except Exception:
+            pass
 
         if not query:
-            rtad_speak("Inserire un testo da cercare.")
-            return
+            if include_ocr:
+                rtad_speak(
+                    "Nessun testo di ricerca: OCR completo sulle immagini del percorso. "
+                    "Poi puoi usare Copia Testo o Salva Immagine sul risultato."
+                )
+            else:
+                rtad_speak(
+                    "Inserire un testo da cercare, oppure attiva OCR per leggere "
+                    "tutte le immagini senza parola chiave."
+                )
+                return
 
         self._stop_search = False
-        self.current_query = query
+        self.current_query = query or "(OCR completo)"
         self.current_percent = 0
         self.scanned_count = 0
         self.live_matches_count = 0
         self.last_feed_raw_occurrences = 0
         save_last_path(target_input)
-        add_query_to_history(query)
+        if query:
+            add_query_to_history(query)
         add_path_to_history(target_input)
         self.update_history_menu()
 
@@ -4137,12 +4430,20 @@ class SearchFrame(wx.Frame):
         self.file_map.clear()
         self.current_matches = []
         self.gauge.SetValue(0)
-        self.txt_status_progress.SetValue("Ricerca in corso: 0%...")
+        if include_ocr and not query:
+            self.txt_status_progress.SetValue("OCR completo sulle immagini: 0%...")
+        else:
+            self.txt_status_progress.SetValue("Ricerca in corso: 0%...")
         
         self.btn_search.Disable()
         self.btn_cancel.Enable()
 
-        rtad_speak(f"Ricerca avviata per '{query}'.")
+        if include_ocr and not query:
+            rtad_speak("OCR completo avviato sulle immagini.")
+        elif include_ocr:
+            rtad_speak(f"Ricerca avviata per '{query}', con OCR.")
+        else:
+            rtad_speak(f"Ricerca avviata per '{query}'.")
         
         # --- INIZIO EARCONS NVDA (Avvio) ---
         if tones:
@@ -4155,11 +4456,11 @@ class SearchFrame(wx.Frame):
         targets = [t.strip() for t in re.split(r"[;,]", target_input) if t.strip()]
         threading.Thread(
             target=self.run_search,
-            args=(query, targets, filter_mode, custom_ext, include_feed_raw),
+            args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr),
             daemon=True,
         ).start()
 
-    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False):
+    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False, include_ocr=False):
         raw_matches = []
         ignored = [
             "$recycle.bin",
@@ -4176,8 +4477,9 @@ class SearchFrame(wx.Frame):
             "\\windows\\panther",
         ]
 
-        norm_query = normalize_search_text(query)
-        terms = norm_query.split()
+        norm_query = normalize_search_text(query) if query else ""
+        terms = norm_query.split() if norm_query else []
+        ocr_dump_all = bool(include_ocr and not terms)
         img_exts = list(IMG_EXTS)
         media_exts = list(MEDIA_EXTS)
         doc_exts = list(DOC_EXTS)
@@ -4251,6 +4553,8 @@ class SearchFrame(wx.Frame):
 
                     if filter_mode == 1 and ext not in img_exts:
                         continue
+                    elif ocr_dump_all and ext not in img_exts:
+                        continue
                     elif filter_mode == 2 and ext not in media_exts:
                         continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
@@ -4287,6 +4591,12 @@ class SearchFrame(wx.Frame):
         pdf_attachment_hits = 0
         pdf_attachment_empty = 0
         pdf_attachment_seen = 0
+        if rtad_ocr is not None:
+            try:
+                rtad_ocr.reset_stats()
+            except Exception:
+                pass
+        ocr_unavailable_announced = False
 
         def bump_progress():
             nonlocal units_done, last_spoken_percent
@@ -4357,18 +4667,52 @@ class SearchFrame(wx.Frame):
                     )
 
                 if ext in img_exts and allow_content:
-                    img_text = normalize_search_text(deep_ocr_jpg_scan(file_path))
-                    if all(term in img_text for term in terms):
-                        raw_matches.append({
-                            "file_path": file_path,
-                            "file_name": file_name,
-                            "prefix": "[IMG-TEXT]",
-                            "mtime": mtime,
-                            "line_number": None,
-                            "location_info": f"Testo visivo{file_date_suffix}",
-                            "snippet": f"Trovato testo visivo contenente '{query}'.",
-                        })
-                        found_in_content = True
+                    if include_ocr and rtad_ocr is not None:
+                        if not rtad_ocr.engine_available():
+                            if not ocr_unavailable_announced:
+                                ocr_unavailable_announced = True
+                                wx.CallAfter(
+                                    rtad_speak,
+                                    rtad_ocr.engine_status_message(),
+                                )
+                        else:
+                            img_text = rtad_ocr.ocr_image_file(
+                                file_path,
+                                should_abort=lambda: self._stop_search,
+                                hint_terms=terms or None,
+                            )
+                            ocr_match = False
+                            if ocr_dump_all:
+                                ocr_match = bool((img_text or "").strip())
+                            else:
+                                try:
+                                    ocr_match = rtad_ocr.ocr_text_matches_terms(img_text, terms)
+                                except Exception:
+                                    ocr_match = text_matches_terms(img_text, terms)
+                            if ocr_match:
+                                if ocr_dump_all:
+                                    try:
+                                        snip = rtad_ocr.ocr_text_for_clipboard(img_text) or img_text
+                                    except Exception:
+                                        snip = img_text
+                                    snip = " ".join((snip or "").split())[:200] or file_name
+                                else:
+                                    snip = rtad_ocr.snippet_from_ocr_text(img_text, terms) or query
+                                raw_matches.append({
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "prefix": "[IMG-OCR]",
+                                    "mtime": mtime,
+                                    "line_number": None,
+                                    "location_info": (
+                                        f"OCR completo{file_date_suffix}"
+                                        if ocr_dump_all
+                                        else f"Testo OCR{file_date_suffix}"
+                                    ),
+                                    "snippet": snip,
+                                    "ocr_text": img_text,
+                                })
+                                found_in_content = True
 
                 elif is_feed and allow_content:
                     if is_thunderbird_junk_file(file_path):
@@ -4774,6 +5118,41 @@ class SearchFrame(wx.Frame):
                                 pdf_hit = True
                         except Exception:
                             pass
+                    if (
+                        include_ocr
+                        and not pdf_hit
+                        and allow_content
+                        and rtad_ocr is not None
+                        and (not pdf_lines or len("".join(pdf_lines).strip()) < 40)
+                    ):
+                        if rtad_ocr.engine_available():
+                            ocr_txt = ocr_text_from_pdf_file(
+                                file_path,
+                                should_abort=lambda: self._stop_search,
+                            )
+                            if text_matches_terms(ocr_txt, terms) or (
+                                hasattr(rtad_ocr, "ocr_text_matches_terms")
+                                and rtad_ocr.ocr_text_matches_terms(ocr_txt, terms)
+                            ):
+                                snip = rtad_ocr.snippet_from_ocr_text(ocr_txt, terms) or query
+                                raw_matches.append({
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "prefix": "[PDF-OCR]",
+                                    "mtime": sort_ts,
+                                    "line_number": None,
+                                    "location_info": f"Testo OCR PDF{date_suffix}",
+                                    "snippet": snip,
+                                    "ocr_text": ocr_txt,
+                                })
+                                found_in_content = True
+                                pdf_hit = True
+                        elif not ocr_unavailable_announced:
+                            ocr_unavailable_announced = True
+                            wx.CallAfter(
+                                rtad_speak,
+                                rtad_ocr.engine_status_message(),
+                            )
                     if name_matched and not found_in_content:
                         raw_matches.append({
                             "file_path": file_path,
@@ -4812,6 +5191,11 @@ class SearchFrame(wx.Frame):
         self.last_pdf_attachment_empty = pdf_attachment_empty
         self.last_pdf_attachment_seen = pdf_attachment_seen
         self.last_mail_pdf_only = mail_pdf_only
+        self.last_include_ocr = bool(include_ocr)
+        try:
+            self.last_ocr_stats = rtad_ocr.get_stats() if rtad_ocr is not None else {}
+        except Exception:
+            self.last_ocr_stats = {}
         wx.CallAfter(self.finish_search, len(raw_matches))
 
     def sort_and_display_matches(self, sort_type="recent_first"):
@@ -4864,6 +5248,14 @@ class SearchFrame(wx.Frame):
         pdf_att_hits = getattr(self, "last_pdf_attachment_hits", 0) or 0
         pdf_att_empty = getattr(self, "last_pdf_attachment_empty", 0) or 0
         pdf_att_seen = getattr(self, "last_pdf_attachment_seen", 0) or 0
+        ocr_stats = getattr(self, "last_ocr_stats", {}) or {}
+        ocr_note = ""
+        if getattr(self, "last_include_ocr", False):
+            ocr_note = (
+                f" OCR: {ocr_stats.get('images_ocr', 0)} immagini, "
+                f"{ocr_stats.get('pdf_pages_ocr', 0)} pagine PDF, "
+                f"{ocr_stats.get('cache_hits', 0)} da cache."
+            )
         feed_note = ""
         feed_speak = ""
         if feed_raw > 0 and feed_raw != matches:
@@ -4906,7 +5298,7 @@ class SearchFrame(wx.Frame):
         if self._stop_search:
             text = (
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
-                f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}"
+                f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
             )
             rtad_speak(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
             if tones:
@@ -4917,7 +5309,7 @@ class SearchFrame(wx.Frame):
         else:
             text = (
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
-                f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}"
+                f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
             )
             rtad_speak(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.{feed_speak}")
             if tones:
@@ -4942,6 +5334,10 @@ class SearchFrame(wx.Frame):
 
     def on_list_char_hook(self, event):
         key = event.GetKeyCode()
+        if event.AltDown() and key == wx.WXK_F4:
+            self._stop_search = True
+            self.Close()
+            return
         if key == wx.WXK_RETURN:
             self.open_selected_file()
         elif key in [wx.WXK_SPACE, wx.WXK_F4]:
@@ -4949,8 +5345,16 @@ class SearchFrame(wx.Frame):
         elif key == wx.WXK_WINDOWS_MENU:
             self.on_context_menu(None)
         elif key == wx.WXK_ESCAPE:
-            self._stop_search = True
-            self.Destroy()
+            if not self.btn_search.IsEnabled():
+                self.on_cancel_search(None)
+            elif load_escape_closes_preference():
+                self._stop_search = True
+                self.Destroy()
+            else:
+                rtad_speak(
+                    "Esc non chiude l'applicazione. Usa Alt+F4, Ctrl+Q oppure Chiudi.",
+                    force=True,
+                )
         else:
             event.Skip()
 
@@ -5069,7 +5473,8 @@ class SearchFrame(wx.Frame):
         item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPAZIO")
         item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia / Frase con parola chiave")
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
-        item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo")
+        item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo pulito")
+        item_copy_ocr_full = menu.Append(wx.ID_ANY, "Copia OCR completo")
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -5093,7 +5498,8 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data), item_copy_text)
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
         if has_att:
@@ -5183,7 +5589,7 @@ class SearchFrame(wx.Frame):
             wx.TheClipboard.Close()
             _announce("Percorso copiato negli appunti!")
 
-    def copy_text_to_clipboard(self, item_data):
+    def copy_text_to_clipboard(self, item_data, mode="clean"):
         if isinstance(item_data, str):
             file_path = item_data
             prefix = ""
@@ -5192,11 +5598,29 @@ class SearchFrame(wx.Frame):
             file_path = item_data["file_path"]
             prefix = item_data.get("prefix", "")
         ext = os.path.splitext(file_path)[1].lower()
+        mode = (mode or "clean").strip().lower()
 
         if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
+            ocr_txt = (item_data.get("ocr_text") or "").strip()
+            if ocr_txt:
+                if hasattr(rtad_ocr, "ocr_text_for_clipboard"):
+                    try:
+                        ocr_txt = rtad_ocr.ocr_text_for_clipboard(ocr_txt, mode=mode) or ocr_txt
+                    except TypeError:
+                        ocr_txt = rtad_ocr.ocr_text_for_clipboard(ocr_txt) or ocr_txt
+                if wx.TheClipboard.Open():
+                    wx.TheClipboard.SetData(wx.TextDataObject(ocr_txt))
+                    wx.TheClipboard.Close()
+                    if mode == "full":
+                        _announce("OCR completo dell'immagine copiato negli appunti!")
+                    else:
+                        _announce("Testo pulito dell'immagine copiato negli appunti!")
+                else:
+                    _announce("Impossibile copiare il testo OCR negli appunti.")
+                return
             _announce(
-                "Questo risultato è un file immagine: usa Copia Immagine. "
-                "Nessun testo estraibile qui."
+                "Questo risultato è un file immagine senza testo OCR salvato: "
+                "usa Copia Immagine, oppure riesegui la ricerca con OCR attivo."
             )
             return
 
@@ -5218,8 +5642,13 @@ class SearchFrame(wx.Frame):
             paragraphs = extract_paragraphs_from_docx(file_path)
             text_content = "\n".join(paragraphs)
         elif ext == ".pdf":
+            ocr_txt = (item_data.get("ocr_text") or "").strip()
             lines = extract_lines_from_pdf(file_path)
             text_content = "\n".join(lines)
+            if not text_content.strip() and ocr_txt:
+                text_content = ocr_txt
+                if hasattr(rtad_ocr, "ocr_text_for_clipboard"):
+                    text_content = rtad_ocr.ocr_text_for_clipboard(text_content) or text_content
             if not text_content.strip():
                 if get_best_pdf_page_image(file_path):
                     _announce(

@@ -1,0 +1,176 @@
+🌟 Novità della Versione 1.5.8
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+Ultima pubblicata: 1.5.7 — questa è la release pronta al rilascio.
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+COMUNE (Add-on + Standalone)
+════════════════════════════════════════════════════════
+
+- OCR opt-in: casella «Includi testo in immagini e PDF scansionati» (spento di default).
+- Scelta motore OCR:
+  • Windows.Media.Ocr (predefinito, già incluso nel sistema)
+  • EasyOCR (opzionale, se installato) — migliore su scritte stilizzate
+- Menu / elenco «Motore OCR»; preferenza e profili (include_ocr, ocr_engine).
+- Risultati [IMG-OCR] e [PDF-OCR] con snippet; cache locale per motore; contatori nello stato.
+- Preprocess immagini: contrasto, soglia, stripe, ritagli, rotazioni, upscale;
+  scelta della migliore variante OCR (meno «zuppe» di caratteri).
+- Match OCR tollerante: testo invertito, confusabili, fuzzy (es. fiBlRTHDW ≈ birthday),
+  alias BIRTHDAY; sinonimi birthday↔compleanno; anti falso-positivo (es. «tribunale»).
+- BIRTHDAY verticale: ritaglio destro «clean» + rotazioni; se EasyOCR non matcha → Windows.
+- Menu contestuale sui risultati immagine:
+  • «Copia Testo pulito» (es. HAPPY BIRTHDAY + nome)
+  • «Copia OCR completo» (tutto: canzone, sponsor, testo grezzo)
+- OCR senza parola chiave: OCR attivo + testo vuoto → Avvia = elenco immagini con testo.
+- Evoluzione futura (non in 1.5.8): Azure/Google Vision con chiave personale dell’utente.
+- Restano voce/Mute 1.5.7, posta completa 1.5.6, date, profili e filtri.
+
+════════════════════════════════════════════════════════
+PERCHÉ DUE MOTORI (tecnico)
+════════════════════════════════════════════════════════
+
+Windows.Media.Ocr
+  - Già in Windows 10/11; zero pacchetti pesanti; adatto all’Add-on NVDA.
+  - Veloce e leggero; su grafiche a strisce / font estremi spesso “garbla” il testo.
+
+EasyOCR (torch)
+  - Opzionale, installazione pip; modelli ~100+ MB al primo uso (poi offline).
+  - Molto meglio su scritte stilizzate (compleanni Juve, loghi).
+  - Pesante (CPU/RAM): pratico nella Standalone (Python dedicata), non da bundlare in NVDA.
+
+Strategia RTAD 1.5.8
+  - Stesso modulo gemello rtad_ocr.py (Standalone + Add-on).
+  - Predefinito: Windows. EasyOCR selezionabile se importabile.
+  - Standalone: percorso consigliato per prove EasyOCR (requirements-ocr-easy.txt).
+  - Add-on: Windows come percorso principale; EasyOCR solo se già presente nell’ambiente NVDA
+    (non incluso nel .nvda-addon — evita pacchetto gigante e conflitti).
+
+════════════════════════════════════════════════════════
+SOLO STANDALONE
+════════════════════════════════════════════════════════
+
+- Installazione EasyOCR (stessa Python di RTAD):
+    pip install -r requirements-ocr-easy.txt
+- Al primo uso EasyOCR scarica i modelli (Internet una volta; poi offline).
+- Cache in %AppData%\RTAD_Standalone\ocr_cache\.
+- Consigliato: Motore OCR → EasyOCR per grafiche difficili; Windows resta disponibile.
+
+════════════════════════════════════════════════════════
+SOLO ADD-ON
+════════════════════════════════════════════════════════
+
+- Windows OCR = percorso principale (zero dipendenze pesanti nel pacchetto NVDA).
+- EasyOCR solo se il modulo è già importabile nell’ambiente Python di NVDA
+  (non viene installato dall’Add-on; per prove EasyOCR usare la Standalone).
+- Cache in rtad_data\ocr_cache\.
+- Stesse funzioni OCR di ricerca/copia del gemello Standalone (codice condiviso).
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.5.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.5.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+### Comune
+- **OCR opt-in** (spento di default): testo in immagini e PDF scansionati.
+- Motori: **Windows.Media.Ocr** (predefinito) o **EasyOCR** (opzionale, se importabile).
+- Preprocess + match fuzzy / sinonimi birthday↔compleanno; cache e profili.
+- Menu contestuale: **Copia Testo pulito** e **Copia OCR completo**.
+- OCR senza parola chiave: attiva OCR, lascia vuoto il testo, Avvia.
+- Restano Mute 1.5.7 e posta completa 1.5.6.
+
+### Note Add-on
+- Nell’Add-on NVDA il percorso pratico è **Windows OCR** (leggero, già nel sistema).
+- EasyOCR resta selezionabile solo se già presente nell’ambiente NVDA; per prove EasyOCR
+  è più semplice la **Standalone** (`pip install -r requirements-ocr-easy.txt`).
+- OCR **spento di default** (più lento).
+
+## 🇬🇧 English
+
+### Shared
+- **Opt-in OCR** (off by default): text in images and scanned PDFs.
+- Engines: **Windows.Media.Ocr** (default) or optional **EasyOCR** (if importable).
+- Preprocess + fuzzy match / birthday↔compleanno synonyms; cache and profiles.
+- Context menu: **Copy clean text** and **Copy full OCR**.
+- OCR without a search query: enable OCR, leave the query empty, Start.
+- 1.5.7 Mute and 1.5.6 complete mail search remain.
+
+### Add-on notes
+- On the NVDA Add-on, **Windows OCR** is the practical path (lightweight, built-in).
+- EasyOCR only if already importable in NVDA’s Python; for EasyOCR tests prefer **Standalone**.
+- OCR **off by default** (slower).
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.5.8.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.5.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.5.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- OCR **Windows** + **EasyOCR** opzionale (`pip install -r requirements-ocr-easy.txt`).
+- Motore OCR, preprocess/fuzzy, **Copia Testo pulito** / **Copia OCR completo**, cache.
+- OCR senza parola chiave; stessi punti funzionali della release Add-on.
+- EasyOCR consigliato per grafiche stilizzate; modelli al primo uso (Internet una volta).
+
+## 🇬🇧 English
+
+- **Windows** OCR + optional **EasyOCR** (`pip install -r requirements-ocr-easy.txt`).
+- Engine picker, preprocess/fuzzy, **Copy clean text** / **Copy full OCR**, cache.
+- OCR without a query; same feature set as the Add-on release.
+- EasyOCR recommended for stylized graphics; models download on first use.
+```
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.5.8.exe
+RicercaTestualeAccessoDigitale_Portable_v1.5.8.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+OCR opt-in (Windows; EasyOCR se disponibile): immagini/PDF; fuzzy; Copia Testo pulito/completo; cache e profili.
+
+Summary EN:
+Opt-in OCR (Windows; EasyOCR if available): images/PDFs; fuzzy; clean/full OCR copy; cache and profiles.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.5.8/ricerca_testuale_accesso_digitale-1.5.8.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html

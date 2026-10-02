@@ -1,0 +1,83 @@
+🌟 Novità della Versione 1.6.0
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+Ultima pubblicata: 1.5.9 — questa è la release in corso.
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+COMUNE (Add-on + Standalone)
+════════════════════════════════════════════════════════
+
+- OCR Google Cloud Vision (opt-in): riconoscimento testo cloud sulle immagini
+  difficili; richiede Internet e la chiave API PERSONALE di ciascun utente.
+- Dove inserire la chiave: menu Strumenti → «Chiave API Google Vision…»
+  oppure pulsante «Chiave Google» accanto a Motore OCR.
+- Nessuna chiave condivisa nel software: la chiave di Maurizio vale solo
+  per Maurizio; ogni altro utente crea e inserisce la propria.
+- Motore OCR: terza voce «Google Cloud Vision (chiave API personale)».
+- Correzione lista risultati: a fine ricerca (anche con 0 hit) non resta
+  più «Ricerca in corso… attendere prego.» — compare «Nessun risultato trovato.»
+- Restano guida pratica + EPUB 1.5.9, OCR locale Windows/EasyOCR 1.5.8,
+  Mute/voce 1.5.7, posta 1.5.6, profili e filtri.
+- ZIP opt-in: previsto dopo questa release.
+
+Come ottenere la chiave (per te e per la guida utenti):
+  1) Account Google → Google Cloud Console
+  2) Crea un progetto (o usane uno esistente)
+  3) Abilita «Cloud Vision API»
+  4) Credenziali → Crea credenziali → Chiave API
+  5) Incolla la chiave in RTAD (Strumenti / Chiave Google)
+  Nota: possono applicarsi quote e costi Google; RTAD non fattura nulla.
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.0
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.0
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **OCR Google Cloud Vision** (opt-in): chiave API personale (Strumenti / Chiave Google).
+- Correzione lista: a fine ricerca con 0 risultati non resta «Ricerca in corso…».
+- Restano guida pratica + EPUB 1.5.9, OCR locale 1.5.8, Mute 1.5.7, posta 1.5.6.
+
+## 🇬🇧 English
+
+- **Google Cloud Vision OCR** (opt-in): each user enters their own API key (Tools / Google Key).
+- List fix: after 0-hit search, list no longer stays on “Search in progress…”.
+- 1.5.9 guide + EPUB, 1.5.8 local OCR, 1.5.7 Mute, 1.5.6 mail remain.
+```
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.0-standalone
+(oppure stesso tag v1.6.0 se pubblichi Add-on + exe insieme)
+
+Titolo:
+Ricerca Testuale Accesso Digitale - Standalone v1.6.0
+
+Descrizione: come sopra (sezione COMUNE), asset = Setup_…_v1.6.0.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA Add-on DataStore (riassunto)
+════════════════════════════════════════════════════════
+
+Summary (IT, breve):
+OCR Google Vision con chiave API personale; correzione lista a fine ricerca; gemello della Standalone 1.6.0.
+
+Summary (EN, breve):
+Google Vision OCR with personal API key; end-of-search list fix; twin of Standalone 1.6.0.

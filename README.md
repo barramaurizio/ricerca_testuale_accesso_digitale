@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.5.9)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.0)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.0
+
+*(In preparazione — ultima pubblicata: **1.5.9**.)*
+
+- **OCR Google Cloud Vision** (opt-in): chiave API **personale** di ciascun utente (Strumenti / pulsante Chiave Google); gemello Standalone + Add-on.
+- Correzione lista: a fine ricerca con 0 risultati non resta più «Ricerca in corso…».
+- Restano guida pratica + EPUB 1.5.9, OCR locale 1.5.8, voce 1.5.7, posta 1.5.6.
+
 ### 🌟 Novità della Versione 1.5.9
 
-*(In corso — ultima pubblicata: **1.5.8**.)*
+*(Pubblicata.)*
 
 - **Guida pratica** (menu Aiuto): linguaggio semplice; a ogni release le novità sono aggiornate lì, in parallelo alla guida tecnica.
 - Ricerca nei libri **EPUB** (`.epub`), risultati `[EPUB]`; nel filtro Documenti.
@@ -55,9 +63,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.0
+
+*(In preparation — last published: **1.5.9**.)*
+
+- **Google Cloud Vision OCR** (opt-in): each user enters their **own** API key (Tools / Google Key button); twin Standalone + Add-on.
+- List fix: after a search with 0 hits, the list no longer stays on “Search in progress…”.
+- 1.5.9 guide + EPUB, 1.5.8 local OCR, 1.5.7 voice, 1.5.6 mail remain.
+
 ### 🌟 What's New in Version 1.5.9
 
-*(In progress — last published: **1.5.8**.)*
+*(Published.)*
 
 - **Practical guide** (Help menu): plain language; each release updates the simple “what’s new” there, alongside the technical guide.
 - Search inside **EPUB** books (`.epub`), `[EPUB]` results; included in Documents filter.

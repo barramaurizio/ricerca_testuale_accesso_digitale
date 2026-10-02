@@ -63,7 +63,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.5.9"
+APP_VERSION = "1.6.0"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -2670,17 +2670,21 @@ def save_include_ocr_preference(enabled):
 
 
 def load_ocr_engine_preference():
-    """'windows' (default) oppure 'easyocr'."""
+    """'windows' (default), 'easyocr' oppure 'google'."""
     data = _load_settings_dict()
     eng = str(data.get("ocr_engine", "windows") or "windows").strip().lower()
-    if eng not in ("windows", "easyocr"):
+    if eng in ("google-vision", "google_vision", "vision", "gcv"):
+        eng = "google"
+    if eng not in ("windows", "easyocr", "google"):
         eng = "windows"
     return eng
 
 
 def save_ocr_engine_preference(engine):
     eng = str(engine or "windows").strip().lower()
-    if eng not in ("windows", "easyocr"):
+    if eng in ("google-vision", "google_vision", "vision", "gcv"):
+        eng = "google"
+    if eng not in ("windows", "easyocr", "google"):
         eng = "windows"
     data = _load_settings_dict()
     data["ocr_engine"] = eng
@@ -2690,6 +2694,44 @@ def save_ocr_engine_preference(engine):
             rtad_ocr.set_engine_preference(eng)
         except Exception:
             pass
+
+
+def load_google_vision_api_key():
+    """Chiave API personale Google Vision (locale, solo su questo PC)."""
+    data = _load_settings_dict()
+    return str(data.get("google_vision_api_key", "") or "").strip()
+
+
+def save_google_vision_api_key(key):
+    key = str(key or "").strip()
+    data = _load_settings_dict()
+    if key:
+        data["google_vision_api_key"] = key
+    else:
+        data.pop("google_vision_api_key", None)
+    _save_settings_dict(data)
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_google_api_key(key)
+        except Exception:
+            pass
+
+
+def ocr_engine_from_choice_index(idx):
+    if idx == 2:
+        return "google"
+    if idx == 1:
+        return "easyocr"
+    return "windows"
+
+
+def ocr_choice_index_from_engine(eng):
+    eng = str(eng or "windows").strip().lower()
+    if eng == "google":
+        return 2
+    if eng == "easyocr":
+        return 1
+    return 0
 
 
 def load_escape_closes_preference():
@@ -2961,10 +3003,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Guida pratica (menu Aiuto): linguaggio semplice per avvicinarsi\n"
-            "  al programma; le novità di ogni versione sono aggiornate lì.\n"
-            "• Ricerca nei libri EPUB (.epub): risultati [EPUB].\n"
-            "• Restano OCR 1.5.8, Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
+            "• OCR Google Cloud Vision (chiave API personale):\n"
+            "  Motore OCR → Google; Strumenti / pulsante Chiave Google.\n"
+            "  Ogni utente usa la propria chiave (la tua vale solo per te).\n"
+            "• Lista risultati: a fine ricerca (anche 0 hit) non resta più\n"
+            "  «Ricerca in corso…» — compare «Nessun risultato trovato.»\n"
+            "• Restano guida pratica + EPUB 1.5.9, OCR locale 1.5.8,\n"
+            "  Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3269,6 +3314,7 @@ class SearchFrame(wx.Frame):
             choices=[
                 "Windows (predefinito, incluso)",
                 "EasyOCR (opzionale, se installato nell'ambiente Python)",
+                "Google Cloud Vision (chiave API personale)",
             ],
         )
         self.choice_ocr_engine.SetName("Motore OCR")
@@ -3276,7 +3322,13 @@ class SearchFrame(wx.Frame):
             eng = load_ocr_engine_preference()
         except Exception:
             eng = "windows"
-        self.choice_ocr_engine.SetSelection(1 if eng == "easyocr" else 0)
+        try:
+            gkey = load_google_vision_api_key()
+            if rtad_ocr is not None:
+                rtad_ocr.set_google_api_key(gkey)
+        except Exception:
+            pass
+        self.choice_ocr_engine.SetSelection(ocr_choice_index_from_engine(eng))
         if rtad_ocr is not None:
             try:
                 rtad_ocr.set_engine_preference(eng)
@@ -3284,6 +3336,10 @@ class SearchFrame(wx.Frame):
                 pass
         self.choice_ocr_engine.Bind(wx.EVT_CHOICE, self.on_ocr_engine_choice)
         hbox_ocr_eng.Add(self.choice_ocr_engine, 1, wx.EXPAND)
+        btn_gkey = wx.Button(panel, label="Chiave &Google…")
+        btn_gkey.SetName("Chiave API Google Vision")
+        btn_gkey.Bind(wx.EVT_BUTTON, self.on_set_google_vision_key)
+        hbox_ocr_eng.Add(btn_gkey, 0, wx.LEFT, 8)
         vbox.Add(hbox_ocr_eng, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
@@ -3598,6 +3654,11 @@ class SearchFrame(wx.Frame):
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...\tCtrl+U")
         tools_menu.AppendSeparator()
+        item_gkey = tools_menu.Append(
+            wx.ID_ANY, "Chiave API &Google Vision…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_set_google_vision_key, item_gkey)
+        tools_menu.AppendSeparator()
         self.item_escape_closes = tools_menu.AppendCheckItem(
             wx.ID_ANY, "Esc chiude l'&applicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
         )
@@ -3772,25 +3833,77 @@ class SearchFrame(wx.Frame):
             "custom_ext": custom_ext if filter_mode == 4 else "",
             "include_feed_raw": bool(self.chk_feed_raw.GetValue()),
             "include_ocr": bool(self.chk_ocr.GetValue()),
-            "ocr_engine": (
-                "easyocr"
+            "ocr_engine": ocr_engine_from_choice_index(
+                self.choice_ocr_engine.GetSelection()
                 if getattr(self, "choice_ocr_engine", None)
-                and self.choice_ocr_engine.GetSelection() == 1
-                else "windows"
+                else 0
             ),
             "query": self.txt_query.GetValue().strip(),
         }
 
-    def on_ocr_engine_choice(self, event=None):
-        eng = (
-            "easyocr"
-            if self.choice_ocr_engine.GetSelection() == 1
-            else "windows"
+    def on_set_google_vision_key(self, event=None):
+        current = ""
+        try:
+            current = load_google_vision_api_key()
+        except Exception:
+            current = ""
+        dlg = wx.TextEntryDialog(
+            self,
+            "Incolla qui la TUA chiave API di Google Cloud Vision.\n"
+            "Vale solo per te, su questo PC. Gli altri utenti inseriscono la loro.\n"
+            "Lascia vuoto e conferma per rimuovere la chiave salvata.\n\n"
+            "Console Google Cloud → API e servizi → Credenziali → Chiave API\n"
+            "(abilita anche «Cloud Vision API»).",
+            "Chiave API Google Vision",
+            current,
         )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            new_key = (dlg.GetValue() or "").strip()
+        finally:
+            dlg.Destroy()
+        try:
+            save_google_vision_api_key(new_key)
+        except Exception as e:
+            rtad_speak(f"Impossibile salvare la chiave: {e}", force=True)
+            return
+        if new_key:
+            try:
+                self.choice_ocr_engine.SetSelection(2)
+                save_ocr_engine_preference("google")
+                if rtad_ocr is not None:
+                    rtad_ocr.set_engine_preference("google")
+            except Exception:
+                pass
+            rtad_speak(
+                "Chiave Google Vision salvata in locale. "
+                "Motore OCR impostato su Google Cloud Vision.",
+                force=True,
+            )
+        else:
+            rtad_speak("Chiave Google Vision rimossa.", force=True)
+
+    def on_ocr_engine_choice(self, event=None):
+        eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
         try:
             save_ocr_engine_preference(eng)
         except Exception:
             pass
+        if eng == "google" and not load_google_vision_api_key():
+            rtad_speak(
+                "Per Google Vision serve la tua chiave API. "
+                "Apro la finestra per inserirla.",
+                force=True,
+            )
+            self.on_set_google_vision_key()
+            if not load_google_vision_api_key():
+                try:
+                    self.choice_ocr_engine.SetSelection(0)
+                    save_ocr_engine_preference("windows")
+                except Exception:
+                    pass
+                return
         if rtad_ocr is None:
             rtad_speak("Modulo OCR non disponibile.", force=True)
             return
@@ -3817,11 +3930,11 @@ class SearchFrame(wx.Frame):
                     pass
                 return
             try:
-                eng = (
-                    "easyocr"
-                    if self.choice_ocr_engine.GetSelection() == 1
-                    else "windows"
+                eng = ocr_engine_from_choice_index(
+                    self.choice_ocr_engine.GetSelection()
                 )
+                if eng == "google":
+                    save_google_vision_api_key(load_google_vision_api_key())
                 rtad_ocr.set_engine_preference(eng)
                 save_ocr_engine_preference(eng)
             except Exception:
@@ -3979,10 +4092,12 @@ class SearchFrame(wx.Frame):
         except Exception:
             pass
         eng = str(profile.get("ocr_engine", "windows") or "windows").strip().lower()
-        if eng not in ("windows", "easyocr"):
+        if eng in ("google-vision", "google_vision", "vision", "gcv"):
+            eng = "google"
+        if eng not in ("windows", "easyocr", "google"):
             eng = "windows"
         try:
-            self.choice_ocr_engine.SetSelection(1 if eng == "easyocr" else 0)
+            self.choice_ocr_engine.SetSelection(ocr_choice_index_from_engine(eng))
             save_ocr_engine_preference(eng)
         except Exception:
             pass
@@ -4473,11 +4588,9 @@ class SearchFrame(wx.Frame):
         except Exception:
             pass
         try:
-            eng = (
-                "easyocr"
-                if self.choice_ocr_engine.GetSelection() == 1
-                else "windows"
-            )
+            eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
+            if eng == "google":
+                save_google_vision_api_key(load_google_vision_api_key())
             save_ocr_engine_preference(eng)
         except Exception:
             pass
@@ -5306,6 +5419,7 @@ class SearchFrame(wx.Frame):
         self.last_pdf_attachment_seen = pdf_attachment_seen
         self.last_mail_pdf_only = mail_pdf_only
         self.last_include_ocr = bool(include_ocr)
+        self.last_missing_targets = list(missing_targets)
         try:
             self.last_ocr_stats = rtad_ocr.get_stats() if rtad_ocr is not None else {}
         except Exception:
@@ -5409,6 +5523,7 @@ class SearchFrame(wx.Frame):
                     f"(apri il messaggio in Thunderbird, poi ripeti)."
                 )
 
+        missing_targets = getattr(self, "last_missing_targets", None) or []
         if self._stop_search:
             text = (
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
@@ -5446,8 +5561,17 @@ class SearchFrame(wx.Frame):
         self.btn_cancel.Disable()
 
         self.sort_and_display_matches(sort_type=self.current_sort)
-        
-        if matches > 0:
+
+        # Se non ci sono match, lascia un messaggio leggibile (non «Ricerca in corso…»)
+        if self.lst_results.GetCount() == 0:
+            empty_msg = (
+                "Ricerca interrotta: nessun risultato conservato."
+                if self._stop_search
+                else "Nessun risultato trovato."
+            )
+            self.lst_results.Append(empty_msg)
+
+        if self.lst_results.GetCount() > 0:
             self.lst_results.SetSelection(0)
             self.lst_results.SetFocus()
 
@@ -5723,8 +5847,20 @@ class SearchFrame(wx.Frame):
             ocr_txt = (item_data.get("ocr_text") or "").strip()
             if ocr_txt:
                 if hasattr(rtad_ocr, "ocr_text_for_clipboard"):
+                    hint = None
                     try:
-                        ocr_txt = rtad_ocr.ocr_text_for_clipboard(ocr_txt, mode=mode) or ocr_txt
+                        q = (getattr(self, "current_query", None) or "").strip()
+                        if q and q != "(OCR completo)":
+                            hint = normalize_search_text(q).split() or None
+                    except Exception:
+                        hint = None
+                    try:
+                        ocr_txt = (
+                            rtad_ocr.ocr_text_for_clipboard(
+                                ocr_txt, mode=mode, hint_terms=hint
+                            )
+                            or ocr_txt
+                        )
                     except TypeError:
                         ocr_txt = rtad_ocr.ocr_text_for_clipboard(ocr_txt) or ocr_txt
                 if wx.TheClipboard.Open():

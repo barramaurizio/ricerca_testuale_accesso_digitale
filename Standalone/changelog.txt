@@ -1,5 +1,16 @@
+Novità nella Versione 1.6.0
+(In preparazione — dopo 1.5.9 pubblicata)
+- Motore OCR cloud: Google Cloud Vision con chiave API personale dell’utente (gemello Standalone + Add-on)
+- Ogni utente inserisce la propria chiave (Strumenti → Chiave API Google Vision, oppure pulsante «Chiave Google»)
+- Nessuna chiave condivisa nel software: la tua vale solo per te; gli altri usano la loro
+- Più efficace su scritte stilizzate / grafiche rispetto a Windows e EasyOCR
+- Match OCR tollerante: spazi, lettere mancanti (es. SQUAD ST ≈ squadlist), ritentativi Vision su fascia titolo
+- Copia Testo pulito: può ripristinare la parola cercata se l’OCR l’ha mutilata; OCR completo resta fedele al motore
+- Correzione lista risultati: a fine ricerca (anche con 0 hit) non resta più «Ricerca in corso… attendere prego.»
+- ZIP opt-in: dopo il pacchetto OCR cloud (come da roadmap)
+
 Novità nella Versione 1.5.9
-(In corso — ultima pubblicata: 1.5.8)
+(Pubblicata)
 - Guida pratica (menu Aiuto): linguaggio semplice per avvicinarsi al programma; a ogni release la sezione «Novità recenti» si aggiorna in parallelo alla guida tecnica
 - Ricerca nei libri EPUB (.epub): testo dei capitoli, risultati [EPUB]; incluso nel filtro Documenti
 - Pulsante Chiudi (finestra principale) senza «ESC» nell’etichetta — Esc resta per annullare / finestre secondarie

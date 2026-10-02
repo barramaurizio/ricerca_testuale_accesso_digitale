@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-"""RTAD OCR — Windows.Media.Ocr + EasyOCR opzionale, cache locale, gemello SA/Add-on.
+"""RTAD OCR — Windows.Media.Ocr + EasyOCR + Google Vision, cache locale, gemello SA/Add-on.
 
 Motori:
   1) Windows.Media.Ocr (Win10+, predefinito) — winrt/winsdk oppure PowerShell
-  2) EasyOCR (opzionale, pip install easyocr) — migliore su scritte stilizzate
+  2) EasyOCR (opzionale, pip install easyocr) — scritte stilizzate in locale
+  3) Google Cloud Vision (chiave API personale dell’utente) — grafiche difficili
 
 Usato solo se l'utente attiva la casella OCR nella ricerca.
-In futuro: possibili motori cloud (Azure/Google) con chiave personale.
+Google Vision: ogni utente inserisce la propria chiave (nessuna chiave condivisa nel software).
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -19,16 +21,22 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 # Limiti anti-blocco (allineati allo spirito 1.5.5 / 1.5.6)
 MAX_OCR_IMAGE_BYTES = 25 * 1024 * 1024  # 25 MB
 MAX_OCR_PDF_PAGES = 8
 OCR_SOFT_TIMEOUT_SEC = 35
-# v13: sceglie la migliore variante OCR (evita zuppe da concatenate)
-OCR_CACHE_VERSION = 13
+# v16: varianti «fascia titolo» per Google; ripara token OCR mutilati verso la query in Copia pulito
+OCR_CACHE_VERSION = 16
 
 ENGINE_WINDOWS = "windows"
 ENGINE_EASYOCR = "easyocr"
+ENGINE_GOOGLE = "google"
+
+_GOOGLE_VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
 
 _IMG_EXTS = {
     ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif",
@@ -46,6 +54,8 @@ _easyocr_ok = False
 _easyocr_note = ""
 _easyocr_reader = None
 _easyocr_lock = threading.Lock()
+_google_api_key = ""
+_google_last_error = ""
 _ps_script_path = None
 _stats = {
     "images_ocr": 0,
@@ -53,6 +63,7 @@ _stats = {
     "cache_hits": 0,
     "failures": 0,
     "unavailable": 0,
+    "google_calls": 0,
 }
 
 
@@ -87,12 +98,14 @@ def is_image_path(path: str) -> bool:
 
 
 def set_engine_preference(name: str) -> str:
-    """Imposta il motore preferito: 'windows' | 'easyocr'. Restituisce quello effettivo."""
+    """Imposta il motore: 'windows' | 'easyocr' | 'google'. Restituisce quello effettivo."""
     global _preferred_engine, _engine_checked
     n = (name or ENGINE_WINDOWS).strip().lower()
     if n in ("easy", "easy-ocr", "easy_ocr"):
         n = ENGINE_EASYOCR
-    if n not in (ENGINE_WINDOWS, ENGINE_EASYOCR):
+    if n in ("google", "google-vision", "google_vision", "vision", "gcv"):
+        n = ENGINE_GOOGLE
+    if n not in (ENGINE_WINDOWS, ENGINE_EASYOCR, ENGINE_GOOGLE):
         n = ENGINE_WINDOWS
     _preferred_engine = n
     _engine_checked = False
@@ -101,6 +114,29 @@ def set_engine_preference(name: str) -> str:
 
 def get_engine_preference() -> str:
     return _preferred_engine or ENGINE_WINDOWS
+
+
+def set_google_api_key(key: str) -> None:
+    """Imposta la chiave API Google Vision (solo in memoria di processo; salvataggio lato UI)."""
+    global _google_api_key, _google_last_error
+    _google_api_key = (key or "").strip()
+    _google_last_error = ""
+
+
+def get_google_api_key() -> str:
+    return _google_api_key or ""
+
+
+def has_google_api_key() -> bool:
+    return bool((_google_api_key or "").strip())
+
+
+def google_available(force_recheck: bool = False) -> bool:
+    """True se c’è una chiave API configurata (la validità si verifica al primo uso)."""
+    global _google_last_error
+    if force_recheck:
+        _google_last_error = ""
+    return has_google_api_key()
 
 
 def easyocr_available(force_recheck: bool = False) -> bool:
@@ -154,29 +190,44 @@ def _windows_engine_available(force_recheck: bool = False) -> bool:
 
 
 def active_engine() -> str:
-    """Motore che verrà usato adesso (con eventuale fallback a Windows)."""
+    """Motore che verrà usato adesso (con eventuale fallback)."""
     pref = get_engine_preference()
+    if pref == ENGINE_GOOGLE:
+        if google_available():
+            return ENGINE_GOOGLE
+        # senza chiave: fallback locale se possibile
+        if _windows_engine_available():
+            return ENGINE_WINDOWS
+        if easyocr_available():
+            return ENGINE_EASYOCR
+        return ENGINE_GOOGLE
     if pref == ENGINE_EASYOCR:
         if easyocr_available():
             return ENGINE_EASYOCR
-        # fallback silenzioso se Windows c'è
         if _windows_engine_available():
             return ENGINE_WINDOWS
-        return ENGINE_EASYOCR  # nessuno disponibile; lo status lo dirà
+        return ENGINE_EASYOCR
     if _windows_engine_available():
         return ENGINE_WINDOWS
     if easyocr_available():
         return ENGINE_EASYOCR
+    if google_available():
+        return ENGINE_GOOGLE
     return ENGINE_WINDOWS
 
 
 def engine_available(force_recheck: bool = False) -> bool:
     """True se almeno un motore OCR utilizzabile è disponibile per la preferenza."""
     pref = get_engine_preference()
+    if pref == ENGINE_GOOGLE:
+        if google_available(force_recheck=force_recheck):
+            return True
+        if _windows_engine_available(force_recheck=force_recheck):
+            return True
+        return easyocr_available(force_recheck=force_recheck)
     if pref == ENGINE_EASYOCR:
         if easyocr_available(force_recheck=force_recheck):
             return True
-        # fallback Windows così la casella OCR resta utile
         return _windows_engine_available(force_recheck=force_recheck)
     if _windows_engine_available(force_recheck=force_recheck):
         return True
@@ -187,7 +238,25 @@ def engine_status_message() -> str:
     pref = get_engine_preference()
     win_ok = _windows_engine_available()
     easy_ok = easyocr_available()
+    google_ok = google_available()
     active = active_engine()
+    if pref == ENGINE_GOOGLE:
+        if google_ok and active == ENGINE_GOOGLE:
+            return (
+                "OCR Google Cloud Vision pronto (chiave API personale configurata). "
+                "Serve Internet; le richieste contano sul tuo account Google Cloud."
+            )
+        if not google_ok:
+            base = (
+                "Google Vision: inserisci la tua chiave API "
+                "(Strumenti → Chiave API Google Vision, oppure il pulsante Chiave Google)."
+            )
+            if win_ok:
+                return base + f" Nel frattempo uso Windows OCR ({_engine_note})."
+            if easy_ok:
+                return base + f" Nel frattempo uso EasyOCR ({_easyocr_note})."
+            return base
+        return "Google Vision selezionato."
     if pref == ENGINE_EASYOCR:
         if easy_ok and active == ENGINE_EASYOCR:
             return (
@@ -204,14 +273,21 @@ def engine_status_message() -> str:
         return _easyocr_note or "Nessun motore OCR disponibile."
     # preferenza Windows
     if win_ok and active == ENGINE_WINDOWS:
-        extra = ""
+        extras = []
         if easy_ok:
-            extra = " EasyOCR installato: selezionabile dal menu Motore OCR."
+            extras.append("EasyOCR")
+        if google_ok:
+            extras.append("Google Vision")
+        extra = ""
+        if extras:
+            extra = " Altri motori selezionabili: " + ", ".join(extras) + "."
         return f"OCR Windows pronto ({_engine_note}).{extra}"
     if easy_ok:
         return (
             f"OCR Windows non disponibile — posso usare EasyOCR ({_easyocr_note})."
         )
+    if google_ok:
+        return "OCR Windows non disponibile — posso usare Google Cloud Vision (chiave presente)."
     return _engine_note or "OCR Windows non disponibile."
 
 
@@ -258,12 +334,25 @@ def ocr_image_file(path: str, should_abort=None, hint_terms=None) -> str:
         # WinRT/StorageFile spesso fallisce con emoji/unicode nei path
         # (es. "Buon compleanno … 🎂.jpg") → copia su temp ASCII.
         work_path = _ascii_safe_copy(path, temps)
-        # EasyOCR: ~10 slot, priorità a fascia destra ruotata (BIRTHDAY verticale)
-        max_var = 10 if eng == ENGINE_EASYOCR else 14
-        variants = _build_image_variants(work_path, temps, max_variants=max_var)
+        # Google Vision: prima l’originale (1 chiamata). Se la query non matcha,
+        # ritenta poche varianti preprocess (font a strisce / contrasto).
+        # EasyOCR: ~10 slot; Windows: più varianti preprocess.
+        if eng == ENGINE_GOOGLE:
+            max_var = 4
+            variants = [work_path]
+        elif eng == ENGINE_EASYOCR:
+            max_var = 10
+            variants = _build_image_variants(work_path, temps, max_variants=max_var)
+        else:
+            max_var = 14
+            variants = _build_image_variants(work_path, temps, max_variants=max_var)
         chunks = []
         empty_errs = []
-        for vp in variants:
+        google_extra_tried = False
+        vi = 0
+        while vi < len(variants):
+            vp = variants[vi]
+            vi += 1
             if should_abort and should_abort():
                 break
             try:
@@ -292,6 +381,32 @@ def ocr_image_file(path: str, should_abort=None, hint_terms=None) -> str:
                     ]
                     text = _pick_best_ocr_text(matching or chunks, hint_terms)
                     break
+            # Google: se dopo l’originale la query non c’è, aggiungi varianti preprocess
+            if (
+                eng == ENGINE_GOOGLE
+                and hint_terms
+                and not google_extra_tried
+                and vi >= len(variants)
+            ):
+                merged_so_far = "\n".join(chunks)
+                if not ocr_text_matches_terms(
+                    merged_so_far + "\n" + merged_so_far[::-1], hint_terms
+                ):
+                    google_extra_tried = True
+                    # Prima fascia titolo (poster/grafiche), poi le altre varianti
+                    extra = _build_google_retry_variants(
+                        work_path, temps, max_variants=max_var
+                    )
+                    for ep in extra:
+                        if ep not in variants:
+                            variants.append(ep)
+                    if len(variants) < max_var:
+                        more = _build_image_variants(
+                            work_path, temps, max_variants=max_var
+                        )
+                        for ep in more:
+                            if ep not in variants and len(variants) < max_var:
+                                variants.append(ep)
         else:
             text = _pick_best_ocr_text(chunks, hint_terms)
         _stats["images_ocr"] += 1
@@ -544,7 +659,8 @@ def _ocr_edit_distance(a: str, b: str) -> int:
 def _ocr_fuzzy_term_in(hay_fold: str, term_fold: str) -> bool:
     """Match fuzzy: sottostringa esatta o edit-distance su finestre.
 
-    Copre casi come Windows OCR che legge BIRTHDAY come fiBlRTHDW / BRTHDW.
+    Copre casi come Windows OCR che legge BIRTHDAY come fiBlRTHDW / BRTHDW,
+    e Vision che su font a strisce legge SQUADLIST come SQUADST.
     Evita falsi positivi tipo «tribunale» al contrario (…birt…) ≈ birthd.
     """
     if not term_fold:
@@ -554,24 +670,93 @@ def _ocr_fuzzy_term_in(hay_fold: str, term_fold: str) -> bool:
     n = len(term_fold)
     if n < 5:
         return False
-    # Termine intero: 1 errore se corto, 2 se ≥7. Prefisso -1 solo con 1 errore.
-    max_err = 1 if n <= 6 else 2
+    # Termine lungo: più tolleranza (Vision/OCR spesso saltano 1–2 lettere stilizzate)
+    if n <= 6:
+        max_err = 1
+        win_slack = 1
+    elif n <= 9:
+        max_err = 2
+        win_slack = 2
+    else:
+        max_err = 3
+        win_slack = 2
     targets = [(term_fold, max_err)]
     if n >= 7:
-        targets.append((term_fold[:-1], 1))
+        targets.append((term_fold[:-1], min(1, max_err)))
     for target, te in targets:
         tn = len(target)
         for i in range(len(hay_fold)):
-            # la finestra deve iniziare con la stessa lettera (o confusabile)
             if not _ocr_chars_match(hay_fold[i], target[0]):
                 continue
-            for wlen in range(tn - 1, tn + 2):
+            for wlen in range(tn - win_slack, tn + win_slack + 1):
                 if wlen < 4 or i + wlen > len(hay_fold):
                     continue
-                if abs(wlen - tn) > 1:
+                if abs(wlen - tn) > win_slack:
                     continue
                 if _ocr_edit_distance(hay_fold[i : i + wlen], target) <= te:
+                    logging.debug(
+                        f"OCR fuzzy hit: term={term_fold!r} "
+                        f"window={hay_fold[i:i + wlen]!r}"
+                    )
                     return True
+    # Lettere mancanti in mezzo: «squadst» ⊆ «squadlist» (font a strisce → LIST→ST)
+    if n >= 7 and _ocr_missing_letters_hit(hay_fold, term_fold):
+        logging.debug(
+            f"OCR missing-letters hit: term={term_fold!r} hay≈{hay_fold[:40]!r}"
+        )
+        return True
+    return False
+
+
+def _ocr_is_subsequence(short: str, long: str) -> bool:
+    """True se tutti i caratteri di short compaiono in ordine in long."""
+    if not short:
+        return True
+    if not long or len(short) > len(long):
+        return False
+    j = 0
+    for ch in long:
+        if _ocr_chars_match(ch, short[j]):
+            j += 1
+            if j >= len(short):
+                return True
+    return False
+
+
+def _ocr_missing_letters_hit(hay_fold: str, term_fold: str) -> bool:
+    """Match se un pezzo OCR è il termine con alcune lettere saltate (es. squadst≈squadlist)."""
+    n = len(term_fold)
+    if n < 7 or not hay_fold:
+        return False
+    min_tok = max(5, n - 3)
+    # Scorri finestre e anche token alfanumerici già contigui
+    candidates = set()
+    i = 0
+    while i < len(hay_fold):
+        if not hay_fold[i].isalnum():
+            i += 1
+            continue
+        j = i
+        while j < len(hay_fold) and hay_fold[j].isalnum():
+            j += 1
+        tok = hay_fold[i:j]
+        if len(tok) >= min_tok:
+            candidates.add(tok)
+        i = j
+    for i in range(len(hay_fold)):
+        for wlen in range(min_tok, n + 1):
+            if i + wlen > len(hay_fold):
+                break
+            candidates.add(hay_fold[i : i + wlen])
+    for tok in candidates:
+        if len(tok) < min_tok or len(tok) > n:
+            continue
+        if _ocr_is_subsequence(tok, term_fold) or _ocr_is_subsequence(
+            tok, term_fold[::-1]
+        ):
+            # Copertura sufficiente: non accettare pezzi troppo corti rispetto al termine
+            if len(tok) >= int(n * 0.65):
+                return True
     return False
 
 
@@ -624,29 +809,45 @@ def ocr_text_matches_terms(text: str, terms) -> bool:
     terms_l = [str(t).lower() for t in terms if t]
     if not terms_l:
         return False
+    # Anche senza spazi: «squad list» ↔ «squadlist» (titoli stilizzati / OCR spezza le parole)
+    nospace = lambda s: "".join((s or "").split())
     haystacks = [
         text.lower(),
         text[::-1].lower(),
         _ocr_fold(text),
         _ocr_fold(text)[::-1],
+        nospace(text.lower()),
+        nospace(text[::-1].lower()),
+        nospace(_ocr_fold(text)),
+        nospace(_ocr_fold(text)[::-1]),
     ]
     fold_blob = _ocr_fold(text) + _ocr_fold(text[::-1])
+    fold_blob_ns = nospace(fold_blob)
 
     def _one_term_ok(term: str) -> bool:
         alts = _ocr_term_alternatives(term)
         for alt in alts:
             tf = _ocr_fold(alt)
+            alt_ns = nospace(alt)
+            tf_ns = nospace(tf) if tf else ""
             for hay in haystacks:
                 if not hay:
                     continue
                 if alt in hay or (tf and tf in hay):
                     return True
+                if alt_ns and alt_ns in hay:
+                    return True
+                if tf_ns and tf_ns in hay:
+                    return True
             target = tf or alt
-            if len(target) < 3:
-                if target in fold_blob:
+            target_ns = nospace(target)
+            if len(target_ns) < 3:
+                if target_ns and (target_ns in fold_blob or target_ns in fold_blob_ns):
                     return True
                 continue
-            if _ocr_fuzzy_term_in(fold_blob, target):
+            if _ocr_fuzzy_term_in(fold_blob, target) or _ocr_fuzzy_term_in(
+                fold_blob_ns, target_ns
+            ):
                 return True
             if target == "birthday" and _ocr_birthday_alias_hit(fold_blob):
                 return True
@@ -843,12 +1044,86 @@ def _ocr_clipboard_birthday_cleanup(text: str) -> str:
     return "\n".join(out_lines).strip()
 
 
-def ocr_text_for_clipboard(text: str, mode: str = "clean") -> str:
+def _ocr_repair_tokens_toward_hints(text: str, hint_terms) -> str:
+    """In Copia pulito: sostituisce token OCR mutilati (SQUAD ST) con la query (SQUADLIST)."""
+    import re
+    if not text or not hint_terms:
+        return text
+    terms = [str(t).strip() for t in hint_terms if t and str(t).strip()]
+    if not terms:
+        return text
+
+    def _case_like(sample: str, word: str) -> str:
+        if sample.isupper():
+            return word.upper()
+        if sample[:1].isupper() and sample[1:].islower():
+            return word[:1].upper() + word[1:].lower()
+        return word.lower()
+
+    def _fix_token(tok: str) -> str:
+        ff = _ocr_fold(tok)
+        if not ff or len(ff) < 4:
+            return tok
+        for term in terms:
+            tf = _ocr_fold(term)
+            if not tf or len(tf) < 4:
+                continue
+            if ff == tf or ff == tf[::-1]:
+                return _case_like(tok, term)
+            # Match fuzzy / lettere mancanti sul singolo token o su token senza spazi vicini
+            if ocr_text_matches_terms(tok, [term]):
+                return _case_like(tok, term)
+        return tok
+
+    lines_out = []
+    for line in text.splitlines():
+        parts = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[^A-Za-zÀ-ÖØ-öø-ÿ0-9]+", line)
+        # Prova anche a fondere due token consecutivi tipo «SQUAD»+«ST»
+        i = 0
+        rebuilt = []
+        while i < len(parts):
+            p = parts[i]
+            if p.isalnum() and i + 2 < len(parts):
+                mid = parts[i + 1]
+                nxt = parts[i + 2]
+                if nxt.isalnum() and mid.strip() == "":
+                    merged = p + nxt
+                    fixed = _fix_token(merged)
+                    if fixed != merged and _ocr_fold(fixed) != _ocr_fold(merged):
+                        rebuilt.append(fixed)
+                        i += 3
+                        continue
+                    # Spazio singolo tra due pezzi: prova comunque
+                if nxt.isalnum() and (not mid.strip() or mid.isspace()):
+                    merged = p + " " + nxt if mid.isspace() else p + nxt
+                    # Per il match usiamo senza spazio
+                    if ocr_text_matches_terms(p + nxt, terms):
+                        # Quale term?
+                        for term in terms:
+                            if ocr_text_matches_terms(p + nxt, [term]):
+                                rebuilt.append(_case_like(p, term))
+                                i += 3
+                                break
+                        else:
+                            rebuilt.append(_fix_token(p))
+                            i += 1
+                        continue
+            if p.isalnum():
+                rebuilt.append(_fix_token(p))
+            else:
+                rebuilt.append(p)
+            i += 1
+        lines_out.append("".join(rebuilt))
+    return "\n".join(lines_out)
+
+
+def ocr_text_for_clipboard(text: str, mode: str = "clean", hint_terms=None) -> str:
     """Pulisce il testo OCR per la copia.
 
     mode:
       - "clean": grafiche HAPPY/BIRTHDAY → saluto+nome; documenti → cleanup leggero
       - "full": OCR completo (canzone/sponsor/tutto), solo dedup reverse/rumore estremo
+    hint_terms: se presenti in clean, ripara token mutilati verso la parola cercata.
     """
     if not text:
         return ""
@@ -866,9 +1141,19 @@ def ocr_text_for_clipboard(text: str, mode: str = "clean") -> str:
             lines = [ln for ln in text.splitlines() if ln.strip()]
             # Solo lettere/documenti molto lunghi restano in modalità leggera
             if alpha > 450 and len(lines) >= 10:
-                return _ocr_clipboard_light_cleanup(text)
-            return cleaned
-    return _ocr_clipboard_light_cleanup(text)
+                out = _ocr_clipboard_light_cleanup(text)
+            else:
+                return cleaned
+        else:
+            out = _ocr_clipboard_light_cleanup(text)
+    else:
+        out = _ocr_clipboard_light_cleanup(text)
+    if hint_terms:
+        try:
+            out = _ocr_repair_tokens_toward_hints(out, hint_terms)
+        except Exception:
+            pass
+    return out
 
 
 def _score_ocr_candidate(text: str, hint_terms=None) -> float:
@@ -1111,6 +1396,78 @@ def _append_variant(out: list, temps: list, img) -> None:
     if p:
         temps.append(p)
         out.append(p)
+
+
+def _build_google_retry_variants(path: str, temps: list, max_variants: int = 4) -> list:
+    """Poche varianti mirate per Google quando la query non matcha sull’originale.
+
+    Priorità: fascia superiore/centrale (titoli poster tipo SQUADLIST a strisce),
+    anti-strisce + dilatazione, contrasto alto, eventuale invert.
+    """
+    out = []
+    max_variants = max(1, int(max_variants or 4))
+    try:
+        import wx
+    except Exception:
+        return out
+    try:
+        img = wx.Image(path, wx.BITMAP_TYPE_ANY)
+        if img is None or not img.IsOk():
+            return out
+    except Exception:
+        return out
+    w, h = img.GetWidth(), img.GetHeight()
+    if w < 8 or h < 8:
+        return out
+    try:
+        base = img.ConvertToGreyscale()
+    except Exception:
+        base = img
+    try:
+        base = _wx_upscale_min(base, 1600)
+        base = _wx_boost_contrast(base, 1.7)
+    except Exception:
+        pass
+    bw, bh = base.GetWidth(), base.GetHeight()
+
+    # Fascia titolo: circa 12%–55% dell’altezza (sotto header, sopra lista giocatori)
+    bands = [
+        (0.10, 0.48),
+        (0.05, 0.40),
+        (0.15, 0.58),
+    ]
+    for y0r, y1r in bands:
+        if len(out) >= max_variants:
+            break
+        try:
+            y0 = max(0, int(bh * y0r))
+            y1 = min(bh, int(bh * y1r))
+            if y1 - y0 < 24:
+                continue
+            crop = base.GetSubImage(wx.Rect(0, y0, bw, y1 - y0))
+            if crop is None or not crop.IsOk():
+                continue
+            crop = _wx_upscale_min(crop, 1800)
+            dest = _wx_remove_vertical_stripes(crop)
+            dest = _wx_boost_contrast(dest, 1.9)
+            dest = _wx_dilate_horizontal(dest, radius=12)
+            bright = _wx_keep_bright(dest, 140)
+            _append_variant(out, temps, bright)
+            if len(out) < max_variants:
+                _append_variant(out, temps, _wx_invert(bright))
+        except Exception as e:
+            logging.debug(f"Google title-band variant fallita: {e}")
+
+    # Intera immagine con anti-strisce (se c’è ancora posto)
+    if len(out) < max_variants:
+        try:
+            dest = _wx_remove_vertical_stripes(base)
+            dest = _wx_boost_contrast(dest, 1.85)
+            dest = _wx_dilate_horizontal(dest, radius=10)
+            _append_variant(out, temps, _wx_keep_bright(dest, 145))
+        except Exception:
+            pass
+    return out[:max_variants]
 
 
 def _build_image_variants(path: str, temps: list, max_variants: int = 14) -> list:
@@ -1720,6 +2077,89 @@ def _ocr_via_easyocr(path: str) -> str:
         return ""
 
 
+def _ocr_via_google(path: str) -> tuple:
+    """OCR via Google Cloud Vision REST (chiave API utente). Restituisce (testo, diag)."""
+    global _google_last_error
+    key = (_google_api_key or "").strip()
+    if not key:
+        _google_last_error = "chiave API assente"
+        return "", "google: chiave API assente"
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except Exception as e:
+        _google_last_error = f"lettura file: {e}"
+        return "", f"google: lettura ({e})"
+    if not raw:
+        return "", "google: file vuoto"
+    if len(raw) > MAX_OCR_IMAGE_BYTES:
+        return "", "google: file troppo grande"
+
+    payload = {
+        "requests": [
+            {
+                "image": {"content": base64.b64encode(raw).decode("ascii")},
+                "features": [
+                    {"type": "DOCUMENT_TEXT_DETECTION", "maxResults": 1},
+                    {"type": "TEXT_DETECTION", "maxResults": 1},
+                ],
+                "imageContext": {"languageHints": ["it", "en"]},
+            }
+        ]
+    }
+    url = f"{_GOOGLE_VISION_URL}?key={urllib.parse.quote(key, safe='')}"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        _stats["google_calls"] = int(_stats.get("google_calls", 0) or 0) + 1
+        with urllib.request.urlopen(req, timeout=OCR_SOFT_TIMEOUT_SEC) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")[:400]
+        except Exception:
+            pass
+        msg = f"HTTP {e.code}"
+        if err_body:
+            msg += f": {err_body}"
+        _google_last_error = msg
+        logging.warning(f"Google Vision OCR fallito: {msg}")
+        return "", f"google: {msg}"
+    except Exception as e:
+        _google_last_error = str(e)
+        logging.warning(f"Google Vision OCR errore: {e}")
+        return "", f"google: {e}"
+
+    try:
+        responses = data.get("responses") or []
+        if not responses:
+            return "", "google: risposta vuota"
+        r0 = responses[0] or {}
+        if r0.get("error"):
+            err = r0.get("error") or {}
+            msg = err.get("message") or str(err)
+            _google_last_error = msg
+            return "", f"google: {msg}"
+        # Preferisci fullTextAnnotation (DOCUMENT_TEXT_DETECTION)
+        full = r0.get("fullTextAnnotation") or {}
+        text = (full.get("text") or "").strip()
+        if not text:
+            anns = r0.get("textAnnotations") or []
+            if anns:
+                text = (anns[0].get("description") or "").strip()
+        _google_last_error = ""
+        return text, "google"
+    except Exception as e:
+        _google_last_error = str(e)
+        return "", f"google parse: {e}"
+
+
 def _ocr_windows_path(path: str) -> tuple:
     """OCR solo Windows su un path. Restituisce (testo, diag)."""
     text = None
@@ -1759,6 +2199,20 @@ def _ocr_path_impl(path: str, should_abort=None, with_diag: bool = False, hint_t
 
     eng = active_engine()
     diag = ""
+    if eng == ENGINE_GOOGLE:
+        text, gdiag = _ocr_via_google(path)
+        if text:
+            return (text, gdiag or "google") if with_diag else text
+        # Fallback locale se la chiamata cloud fallisce / chiave invalida
+        if _windows_engine_available():
+            win_txt, wdiag = _ocr_windows_path(path)
+            if win_txt:
+                merged_diag = f"{gdiag}; fallback windows"
+                if wdiag:
+                    merged_diag += f" ({wdiag})"
+                return (win_txt, merged_diag) if with_diag else win_txt
+        return ("", gdiag or "google vuoto") if with_diag else ""
+
     if eng == ENGINE_EASYOCR:
         easy = (_ocr_via_easyocr(path) or "").strip()
         terms_ok = bool(easy) and (

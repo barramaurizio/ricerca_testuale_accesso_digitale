@@ -28,16 +28,17 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.5.9
+Novità recenti (in parole semplici) — versione 1.6.0
 ----------------------------------------------------
-• Guida pratica: questa pagina, dal menu Aiuto, per chi si avvicina
-  al programma. A ogni aggiornamento troverai qui le novità spiegate
-  in modo chiaro (la guida tecnica resta separata).
-• Libri EPUB: puoi cercare parole anche dentro i file .epub
-  (ebook), come già fai nei PDF o nei documenti Word.
-  Nei risultati vedrai l’etichetta [EPUB].
-• Restano tutte le funzioni precedenti: OCR sulle immagini (1.5.8),
-  voce e Mute (1.5.7), posta completa (1.5.6), profili, cronologia…
+• OCR Google Cloud Vision: se vuoi, puoi usare il riconoscimento
+  testo di Google sulle immagini difficili (font strani, grafiche).
+  Serve Internet e la TUA chiave API (menu Strumenti oppure
+  pulsante «Chiave Google»). Ogni persona usa la propria chiave:
+  la mia vale solo per me, la tua solo per te.
+• Correzione: a fine ricerca, anche con zero risultati, la lista
+  non dice più «Ricerca in corso…» — ora dice «Nessun risultato trovato.»
+• Restano guida pratica ed EPUB (1.5.9), OCR locale Windows/EasyOCR
+  (1.5.8), voce e Mute (1.5.7), posta (1.5.6), profili…
 
 
 1. A cosa serve
@@ -128,6 +129,15 @@ A volte il testo non è in un documento, ma «disegnato» in una foto
 • Motore facoltativo EasyOCR: spesso meglio sulle scritte stilizzate;
   più comodo nell’applicazione Standalone (installazione a parte).
   Nell’Add-on NVDA resta pratico soprattutto il motore Windows.
+• Motore Google Cloud Vision: il più completo sulle grafiche difficili
+  (font strani, lettere a strisce, poster). Serve Internet e la TUA
+  chiave API: menu Strumenti → «Chiave API Google Vision», oppure il
+  pulsante «Chiave Google». Ogni persona usa la propria chiave;
+  non c’è una chiave condivisa nel programma.
+• La ricerca è tollerante: anche se l’OCR legge male un titolo stilizzato
+  (es. «SQUAD ST» al posto di «SQUADLIST»), spesso la trova lo stesso.
+  In «Copia Testo pulito» può ripristinare la parola cercata; «Copia OCR
+  completo» lascia il testo così come l’ha letto il motore.
 
 Puoi anche attivare l’OCR, lasciare vuoto il testo da cercare e Avviare:
 comparirà l’elenco delle immagini in cui è stato trovato del testo.

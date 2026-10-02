@@ -94,23 +94,34 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 
 ### Fase H2 — EasyOCR + polish OCR (nella `1.5.8`) — FATTA
 
-### Fase H3 — Guida pratica + EPUB (`1.5.9`, in corso; ultima live = `1.5.8`)
+### Fase H3 — Guida pratica + EPUB (`1.5.9`, pubblicata)
 
 1. **Guida pratica** (menu Aiuto): linguaggio semplice; sezione «Novità recenti» aggiornata a ogni release.  
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
-3. ZIP opt-in → release successiva.
+3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.5.8` → lavoro corrente = `1.5.9`; **non** saltare avanti senza chiudere questa.
+**Regola versione:** ultima pubblicata = `1.5.9` → lavoro corrente = `1.6.0` (Google Vision + fix lista) — **in corso nel codice**.
 
-### Fase J — `1.6.0` (salto sostanzioso)
+### Fase J — `1.6.0` (OCR cloud + correzioni) — IN CORSO
 
-Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o OCR + vision leggera), si valuta il salto.
+**Scelta motore cloud: Google Cloud Vision** (non Azure come primo passo).
 
-**Candidati vision (dopo OCR testo):** caption/tag opzionale sul risultato selezionato; ricerca semantica solo se feedback la chiedono e resta opt-in Standalone.
+Motivi (RTAD cerca anche grafiche/poster/meme, non solo documenti):
+- Vision è in media più forte su testo stilizzato, font decorativi, lettere a texture/strisce.
+- API REST semplice + chiave personale dell’utente (stesso modello per Standalone e Add-on).
+- Azure Document Intelligence resta candidato *secondario* se un giorno servono fatture/moduli UE con residenza dati EU.
+
+Contenuto previsto `1.6.0`:
+1. Motore «Google Vision» nel menu Motore OCR (opt-in, chiave utente).
+2. Gemello Standalone + Add-on (`rtad_ocr.py`).
+3. Correzione lista risultati che restava su «Ricerca in corso…» a fine ricerca con 0 hit.
+4. ZIP opt-in: subito dopo, non nello stesso pacchetto se rischia di allungare troppo.
+
+**Candidati vision semantica (dopo):** caption/tag sul risultato; ricerca scene solo se feedback la chiedono.
 
 ---
 
-## Decisioni UX (settembre 2026)
+## Decisioni UX (settembre–ottobre 2026)
 
 - **Niente** secondo/terzo pulsante Cronologia in interfaccia.  
 - **Pin / Windows+N:** gestiti da Windows.  
@@ -118,8 +129,9 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** Standalone = SAPI regolabile (OneCore via token); Add-on = Mute + NVDA per rate/voice.  
 - **PDF 1.5.3:** rilasciato.  
-- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
-- **ZIP opt-in:** dopo 1.5.9 (o pezzo `1.6`).  
+- **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR locale** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
+- **OCR cloud Google Vision** = `1.6.0` (gemello SA/Add-on, chiave utente).  
+- **ZIP opt-in:** dopo 1.6.0 OCR cloud.  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
 ---
@@ -131,9 +143,9 @@ Quando almeno due arricchimenti «si sentono» come pacchetto (es. OCR + EPUB, o
 3. ~~**1.5.5 stabilità / anti-freeze + date su tutti i risultati**~~ fatta.  
 4. ~~**1.5.6 completezza posta**~~ fatta (caselle grandi + allegati PDF + Apri/Salva PDF).  
 5. ~~**1.5.7 voce Standalone + Mute gemello Add-on**~~ fatta.  
-6. ~~**1.5.8 OCR**~~ **pubblicata**.  
-7. **1.5.9** guida pratica + EPUB (in corso); poi ZIP opt-in / anteprima.  
-8. Decidere insieme **1.6.0** (e eventuale vision leggera).
+6. ~~**1.5.8 OCR locale**~~ **pubblicata**.  
+7. ~~**1.5.9** guida pratica + EPUB~~ **pubblicata**.  
+8. **1.6.0** Google Cloud Vision (chiave utente) + fix lista «Ricerca in corso…»; poi ZIP opt-in.
 
 ---
 

@@ -60,10 +60,15 @@ try:
 except ImportError:
     rtad_epub = None
 
+try:
+    import rtad_zip
+except ImportError:
+    rtad_zip = None
+
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.6.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1507,6 +1512,7 @@ def load_search_profiles():
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
                 "include_ocr": bool(item.get("include_ocr", False)),
+                "include_zip": bool(item.get("include_zip", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
         )
@@ -1536,6 +1542,7 @@ def save_search_profiles(profiles):
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
                 "include_ocr": bool(item.get("include_ocr", False)),
+                "include_zip": bool(item.get("include_zip", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
         )
@@ -2669,6 +2676,17 @@ def save_include_ocr_preference(enabled):
     _save_settings_dict(data)
 
 
+def load_include_zip_preference():
+    data = _load_settings_dict()
+    return bool(data.get("include_zip", False))
+
+
+def save_include_zip_preference(enabled):
+    data = _load_settings_dict()
+    data["include_zip"] = bool(enabled)
+    _save_settings_dict(data)
+
+
 def load_ocr_engine_preference():
     """'windows' (default), 'easyocr' oppure 'google'."""
     data = _load_settings_dict()
@@ -3003,13 +3021,12 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• OCR Google Cloud Vision (chiave API personale):\n"
-            "  Motore OCR → Google; Strumenti / pulsante Chiave Google.\n"
-            "  Ogni utente usa la propria chiave (la tua vale solo per te).\n"
-            "• Lista risultati: a fine ricerca (anche 0 hit) non resta più\n"
-            "  «Ricerca in corso…» — compare «Nessun risultato trovato.»\n"
-            "• Restano guida pratica + EPUB 1.5.9, OCR locale 1.5.8,\n"
-            "  Mute 1.5.7, posta 1.5.6, profili e filtri.\n"
+            "• Durante la ricerca la lista non torna più vuota\n"
+            "  («sconosciuto» con NVDA): resta «Ricerca in corso…».\n"
+            "• Arrivi dell'ultimo minuto: file aggiunti alla cartella\n"
+            "  mentre la ricerca è in corso vengono esaminati a fine coda.\n"
+            "• ZIP opt-in: casella «Includi contenuti negli archivi ZIP».\n"
+            "• Restano OCR Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3305,6 +3322,17 @@ class SearchFrame(wx.Frame):
             self.chk_ocr.SetValue(False)
         self.chk_ocr.Bind(wx.EVT_CHECKBOX, self.on_ocr_checkbox)
         vbox.Add(self.chk_ocr, 0, wx.ALL, 5)
+
+        self.chk_zip = wx.CheckBox(
+            panel,
+            label="Includi contenuti negli archivi ZIP (opt-in, più lento)",
+        )
+        try:
+            self.chk_zip.SetValue(load_include_zip_preference())
+        except Exception:
+            self.chk_zip.SetValue(False)
+        self.chk_zip.Bind(wx.EVT_CHECKBOX, self.on_zip_checkbox)
+        vbox.Add(self.chk_zip, 0, wx.ALL, 5)
 
         hbox_ocr_eng = wx.BoxSizer(wx.HORIZONTAL)
         lbl_ocr_eng = wx.StaticText(panel, label="Motore OCR:")
@@ -3833,6 +3861,7 @@ class SearchFrame(wx.Frame):
             "custom_ext": custom_ext if filter_mode == 4 else "",
             "include_feed_raw": bool(self.chk_feed_raw.GetValue()),
             "include_ocr": bool(self.chk_ocr.GetValue()),
+            "include_zip": bool(self.chk_zip.GetValue()),
             "ocr_engine": ocr_engine_from_choice_index(
                 self.choice_ocr_engine.GetSelection()
                 if getattr(self, "choice_ocr_engine", None)
@@ -3960,6 +3989,31 @@ class SearchFrame(wx.Frame):
         else:
             rtad_speak("OCR disattivato: solo nomi file e documenti con testo.", force=True)
 
+    def on_zip_checkbox(self, event=None):
+        enabled = bool(self.chk_zip.GetValue())
+        try:
+            save_include_zip_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            if rtad_zip is None:
+                rtad_speak(
+                    "Modulo ZIP non disponibile in questa build.",
+                    force=True,
+                )
+                try:
+                    self.chk_zip.SetValue(False)
+                    save_include_zip_preference(False)
+                except Exception:
+                    pass
+                return
+            rtad_speak(
+                "Ricerca dentro gli archivi ZIP attivata.",
+                force=True,
+            )
+        else:
+            rtad_speak("Ricerca dentro ZIP disattivata.", force=True)
+
     def on_toggle_escape_closes(self, event=None):
         enabled = False
         try:
@@ -4033,6 +4087,7 @@ class SearchFrame(wx.Frame):
             "query": fields["query"] if include_query else "",
             "include_feed_raw": fields["include_feed_raw"],
             "include_ocr": fields["include_ocr"],
+            "include_zip": fields.get("include_zip", False),
             "ocr_engine": fields.get("ocr_engine", "windows"),
             "auto_start": bool(auto_start and include_query),
         }
@@ -4091,6 +4146,12 @@ class SearchFrame(wx.Frame):
             save_include_ocr_preference(ocr_on)
         except Exception:
             pass
+        zip_on = bool(profile.get("include_zip", False))
+        try:
+            self.chk_zip.SetValue(zip_on)
+            save_include_zip_preference(zip_on)
+        except Exception:
+            pass
         eng = str(profile.get("ocr_engine", "windows") or "windows").strip().lower()
         if eng in ("google-vision", "google_vision", "vision", "gcv"):
             eng = "google"
@@ -4113,6 +4174,8 @@ class SearchFrame(wx.Frame):
                 bits.append(f"testo {query}")
             if ocr_on:
                 bits.append("OCR attivo")
+            if zip_on:
+                bits.append("ZIP attivo")
             _announce(". ".join(bits) + ".")
         if profile.get("auto_start") and query:
             wx.CallLater(350, self.start_search_thread)
@@ -4318,6 +4381,14 @@ class SearchFrame(wx.Frame):
         rtad_speak(msg)
 
     def on_filter_text(self, event):
+        # Durante la ricerca non svuotare «Ricerca in corso…» (NVDA: «sconosciuto»)
+        try:
+            if not self.btn_search.IsEnabled():
+                if event:
+                    event.Skip()
+                return
+        except Exception:
+            pass
         self.update_list_display()
 
     def on_general_char_hook(self, event):
@@ -4587,6 +4658,11 @@ class SearchFrame(wx.Frame):
             save_include_ocr_preference(include_ocr)
         except Exception:
             pass
+        include_zip = bool(self.chk_zip.GetValue())
+        try:
+            save_include_zip_preference(include_zip)
+        except Exception:
+            pass
         try:
             eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
             if eng == "google":
@@ -4621,9 +4697,13 @@ class SearchFrame(wx.Frame):
         self.update_history_menu()
 
         try:
-            self.txt_filter.SetValue("")
+            # ChangeValue non genera EVT_TEXT (evita lista vuota → «sconosciuto»)
+            self.txt_filter.ChangeValue("")
         except Exception:
-            pass
+            try:
+                self.txt_filter.SetValue("")
+            except Exception:
+                pass
         self.lst_results.Clear()
         # Evita che NVDA dica "sconosciuto" sulla lista vuota durante la scansione
         self.lst_results.Append("Ricerca in corso... attendere prego.")
@@ -4656,11 +4736,11 @@ class SearchFrame(wx.Frame):
         targets = normalize_search_targets(target_input)
         threading.Thread(
             target=self.run_search,
-            args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr),
+            args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr, include_zip),
             daemon=True,
         ).start()
 
-    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False, include_ocr=False):
+    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False, include_ocr=False, include_zip=False):
         raw_matches = []
         ignored = [
             "$recycle.bin",
@@ -4760,7 +4840,8 @@ class SearchFrame(wx.Frame):
                     elif filter_mode == 2 and ext not in media_exts:
                         continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
-                        continue
+                        if not (include_zip and ext == ".zip"):
+                            continue
                     elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
                         continue
 
@@ -4832,10 +4913,108 @@ class SearchFrame(wx.Frame):
                 pass
             bump_progress()
 
-        for file_path in file_list:
-            if self._stop_search:
-                break
+        # === Scansione file locali (+ arrivi dell'ultimo minuto a fine coda) ===
+        file_queue = list(file_list)
+        seen_local_files = set(file_queue)
+        queue_i = 0
+        late_pass_done = False
+        late_arrivals_count = 0
 
+        while not self._stop_search:
+            if queue_i >= len(file_queue):
+                if late_pass_done:
+                    break
+                late_pass_done = True
+                late_new = []
+                for folder in targets:
+                    if self._stop_search:
+                        break
+                    if folder.startswith("http://") or folder.startswith("https://"):
+                        continue
+                    if not os.path.exists(folder):
+                        continue
+                    if os.path.isfile(folder):
+                        full = os.path.normpath(folder)
+                        if full in seen_local_files or is_rtad_noise_file(full):
+                            continue
+                        ext = os.path.splitext(full)[1].lower()
+                        is_tb = is_thunderbird_mail_container(full)
+                        mail_for_pdf = (
+                            custom_ext == ".pdf"
+                            and (is_tb or ext in (".eml", ".mbox", ".mbx"))
+                        )
+                        if filter_mode == 1 and ext not in img_exts:
+                            continue
+                        elif ocr_dump_all and ext not in img_exts:
+                            continue
+                        elif filter_mode == 2 and ext not in media_exts:
+                            continue
+                        elif filter_mode == 3 and ext not in doc_exts and not is_tb:
+                            if not (include_zip and ext == ".zip"):
+                                continue
+                        elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                            continue
+                        if ext == ".opml" or (ext in feed_file_exts and not is_thunderbird_feeds_path(full)):
+                            continue
+                        late_new.append(full)
+                        continue
+                    for root, dirs, files in os.walk(folder):
+                        if self._stop_search:
+                            break
+                        dirs[:] = [
+                            d for d in dirs
+                            if not any(ign in os.path.join(root, d).lower() for ign in ignored)
+                        ]
+                        if any(ign in root.lower() for ign in ignored):
+                            continue
+                        for file in files:
+                            ext = os.path.splitext(file)[1].lower()
+                            full = os.path.normpath(os.path.join(root, file))
+                            if full in seen_local_files:
+                                continue
+                            if is_thunderbird_junk_file(full) or is_rtad_noise_file(full):
+                                continue
+                            is_tb = is_thunderbird_mail_container(full)
+                            mail_for_pdf = (
+                                custom_ext == ".pdf"
+                                and (is_tb or ext in (".eml", ".mbox", ".mbx"))
+                            )
+                            if filter_mode == 1 and ext not in img_exts:
+                                continue
+                            elif ocr_dump_all and ext not in img_exts:
+                                continue
+                            elif filter_mode == 2 and ext not in media_exts:
+                                continue
+                            elif filter_mode == 3 and ext not in doc_exts and not is_tb:
+                                if not (include_zip and ext == ".zip"):
+                                    continue
+                            elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                                continue
+                            if ext == ".opml":
+                                continue
+                            if ext in feed_file_exts and not is_thunderbird_feeds_path(full):
+                                continue
+                            late_new.append(full)
+                if late_new:
+                    late_arrivals_count = len(late_new)
+                    work_units += late_arrivals_count
+                    file_queue.extend(late_new)
+                    seen_local_files.update(late_new)
+                    logging.info(
+                        f"Arrivi dell'ultimo minuto: {late_arrivals_count} file aggiunti in coda"
+                    )
+                    wx.CallAfter(
+                        self.txt_status_progress.SetValue,
+                        f"Arrivi dell'ultimo minuto: {late_arrivals_count} file nuovi…",
+                    )
+                    wx.CallAfter(
+                        rtad_speak,
+                        f"Trovati {late_arrivals_count} file aggiunti durante la ricerca. Li esamino.",
+                    )
+                continue
+
+            file_path = file_queue[queue_i]
+            queue_i += 1
             file_name = os.path.basename(file_path)
             ext = os.path.splitext(file_name)[1].lower()
             is_feed = is_thunderbird_feeds_path(file_path)
@@ -5254,6 +5433,38 @@ class SearchFrame(wx.Frame):
                             })
                             found_in_content = True
                             break
+                elif ext == ".zip" and include_zip and allow_content and rtad_zip is not None:
+                    zip_hits, timed_out = run_with_timeout(
+                        lambda: rtad_zip.search_zip_text_members(
+                            file_path,
+                            terms,
+                            text_matches_terms=text_matches_terms,
+                            should_abort=lambda: self._stop_search,
+                        ),
+                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                        default=[],
+                    )
+                    if timed_out:
+                        zip_hits = []
+                    for zh in zip_hits or []:
+                        member = zh.get("member") or "?"
+                        line_no = zh.get("line_number")
+                        snip = zh.get("snippet") or member
+                        loc = f"ZIP {member}"
+                        if line_no:
+                            loc = f"ZIP {member} riga {line_no}"
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": "[ZIP]",
+                            "mtime": mtime,
+                            "line_number": line_no,
+                            "location_info": f"{loc}{file_date_suffix}",
+                            "snippet": snip,
+                            "zip_member": member,
+                        })
+                        found_in_content = True
+
                 elif ext == ".pdf" and allow_content:
                     def _pdf_job():
                         ts = pdf_info_date_timestamp(file_path, fallback=0)
@@ -5419,6 +5630,8 @@ class SearchFrame(wx.Frame):
         self.last_pdf_attachment_seen = pdf_attachment_seen
         self.last_mail_pdf_only = mail_pdf_only
         self.last_include_ocr = bool(include_ocr)
+        self.last_include_zip = bool(include_zip)
+        self.last_late_arrivals = int(late_arrivals_count)
         self.last_missing_targets = list(missing_targets)
         try:
             self.last_ocr_stats = rtad_ocr.get_stats() if rtad_ocr is not None else {}
@@ -5448,6 +5661,11 @@ class SearchFrame(wx.Frame):
             filter_text = self.txt_filter.GetValue().lower().strip()
         except Exception:
             filter_text = ""
+        searching = False
+        try:
+            searching = not self.btn_search.IsEnabled()
+        except Exception:
+            searching = False
         self.lst_results.Clear()
         self.file_map.clear()
         for item in self.current_matches:
@@ -5459,6 +5677,8 @@ class SearchFrame(wx.Frame):
                     continue
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
+        if searching and self.lst_results.GetCount() == 0:
+            self.lst_results.Append("Ricerca in corso... attendere prego.")
 
     def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
@@ -5484,6 +5704,10 @@ class SearchFrame(wx.Frame):
                 f"{ocr_stats.get('pdf_pages_ocr', 0)} pagine PDF, "
                 f"{ocr_stats.get('cache_hits', 0)} da cache."
             )
+        late_n = getattr(self, "last_late_arrivals", 0) or 0
+        late_note = ""
+        if late_n > 0:
+            late_note = f" Arrivi dell'ultimo minuto esaminati: {late_n}."
         feed_note = ""
         feed_speak = ""
         if feed_raw > 0 and feed_raw != matches:
@@ -5527,7 +5751,7 @@ class SearchFrame(wx.Frame):
         if self._stop_search:
             text = (
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
-                f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
+                f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}{late_note}"
             )
             rtad_speak(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
             if tones:
@@ -5538,7 +5762,7 @@ class SearchFrame(wx.Frame):
         else:
             text = (
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
-                f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}"
+                f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}{late_note}"
             )
             if self.scanned_count == 0 and missing_targets:
                 text += (

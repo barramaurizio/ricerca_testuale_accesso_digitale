@@ -1,6 +1,6 @@
-🌟 Novità della Versione 1.6.0
-(Pubblicata — testi di riferimento per coerenza futura)
-Ultima pubblicata: 1.6.0
+🌟 Novità della Versione 1.6.1
+(Pronta al rilascio)
+Ultima pubblicata precedente: 1.6.0
 
 Ordine campi GitHub «Draft new release»:
   Tag → Titolo → Descrizione → Asset(s)
@@ -13,57 +13,49 @@ Ordine campi NVDA Add-on DataStore (form issue registerAddon.yml):
 COMUNE (Add-on + Standalone)
 ════════════════════════════════════════════════════════
 
-- OCR Google Cloud Vision (opt-in): riconoscimento testo cloud sulle immagini
-  difficili; richiede Internet e la chiave API PERSONALE di ciascun utente.
-- Dove inserire la chiave: menu Strumenti → «Chiave API Google Vision…»
-  oppure pulsante «Chiave Google» accanto a Motore OCR.
-- Nessuna chiave condivisa nel software: la chiave di Maurizio vale solo
-  per Maurizio; ogni altro utente crea e inserisce la propria.
-- Motore OCR: terza voce «Google Cloud Vision (chiave API personale)».
-- Correzione lista risultati: a fine ricerca (anche con 0 hit) non resta
-  più «Ricerca in corso… attendere prego.» — compare «Nessun risultato trovato.»
-- Restano guida pratica + EPUB 1.5.9, OCR locale Windows/EasyOCR 1.5.8,
+- Arrivi dell’ultimo minuto: se durante la ricerca aggiungi file nella
+  cartella cercata, a fine coda RTAD li riprende e li esamina.
+- ZIP opt-in: casella «Includi contenuti negli archivi ZIP» — cerca testo
+  nei membri testuali (.txt, .md, .html, .xml, .json, …) senza scompattare.
+- Durante la ricerca la lista non torna più vuota («sconosciuto» con NVDA):
+  resta «Ricerca in corso… attendere prego.» fino alla fine.
+- Voce SAPI (Standalone): se l’Id salvato non è più valido
+  (HRESULT -2147200967) ripristina automaticamente la voce predefinita;
+  in Ctrl+Shift+V c’è «Voce predefinita di Windows».
+- Restano OCR Google Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8,
   Mute/voce 1.5.7, posta 1.5.6, profili e filtri.
-- ZIP opt-in: previsto dopo questa release.
-
-Come ottenere la chiave (per te e per la guida utenti):
-  1) Account Google → Google Cloud Console
-  2) Crea un progetto (o usane uno esistente)
-  3) Abilita «Cloud Vision API»
-  4) Credenziali → Crea credenziali → Chiave API
-  5) Incolla la chiave in RTAD (Strumenti / Chiave Google)
-  Nota: possono applicarsi quote e costi Google; RTAD non fattura nulla.
 
 ════════════════════════════════════════════════════════
 ADD-ON — Release GitHub
 ════════════════════════════════════════════════════════
 
 Tag:
-v1.6.0
+v1.6.1
 
 Titolo:
-Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.0
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.1
 
 Descrizione: sezione COMUNE (o blocco IT/EN breve).
 
 Asset(s):
-ricerca_testuale_accesso_digitale-1.6.0.nvda-addon
+ricerca_testuale_accesso_digitale-1.6.1.nvda-addon
 
 ════════════════════════════════════════════════════════
 STANDALONE — Release GitHub
 ════════════════════════════════════════════════════════
 
 Tag:
-app-v1.6.0
+app-v1.6.1
 
 Titolo:
-Ricerca Testuale Accesso Digitale - Standalone v1.6.0
+Ricerca Testuale Accesso Digitale - Standalone v1.6.1
 
 Descrizione: come sopra (sezione COMUNE).
 
 Asset(s):
-Setup_RicercaTestualeAccessoDigitale_v1.6.0.exe
-RicercaTestualeAccessoDigitale_Portable_v1.6.0.exe
+Setup_RicercaTestualeAccessoDigitale_v1.6.1.exe
+RicercaTestualeAccessoDigitale_Portable_v1.6.1.exe
+(Build Windows: Standalone/compila.bat + setup.iss — non eseguibile in questo ambiente Linux.)
 
 ════════════════════════════════════════════════════════
 ADD-ON — NVDA DataStore (form Web)
@@ -73,10 +65,10 @@ Form:
 https://github.com/nvaccess/addon-datastore/issues/new?template=registerAddon.yml
 
 Title:
-[Submit add-on]: Text Search Accesso Digitale v. 1.6.0
+[Submit add-on]: Text Search Accesso Digitale v. 1.6.1
 
 Download URL:
-https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.0/ricerca_testuale_accesso_digitale-1.6.0.nvda-addon
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.1/ricerca_testuale_accesso_digitale-1.6.1.nvda-addon
 
 Source URL:
 https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -91,6 +83,4 @@ License Name:
 GPL v2
 
 License URL:
-https://www.gnu.org/licenses/gpl-2.0.html
-
-(Accettato: nvaccess/addon-datastore#11930 via #11931)
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html

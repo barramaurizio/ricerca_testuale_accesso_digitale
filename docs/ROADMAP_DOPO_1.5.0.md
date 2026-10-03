@@ -100,9 +100,9 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.5.9` → lavoro corrente = `1.6.0` (Google Vision + fix lista) — **in corso nel codice**.
+**Regola versione:** lavoro corrente = `1.6.1` (arrivi ultimo minuto + ZIP opt-in + fix lista/voce). Ultima pubblicata = `1.6.0` finché non escono i tag `v1.6.1` / `app-v1.6.1`.
 
-### Fase J — `1.6.0` (OCR cloud + correzioni) — IN CORSO
+### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
 **Scelta motore cloud: Google Cloud Vision** (non Azure come primo passo).
 
@@ -131,7 +131,7 @@ Contenuto previsto `1.6.0`:
 - **PDF 1.5.3:** rilasciato.  
 - **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR locale** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
 - **OCR cloud Google Vision** = `1.6.0` (gemello SA/Add-on, chiave utente).  
-- **ZIP opt-in:** dopo 1.6.0 OCR cloud.  
+- **ZIP opt-in:** in `1.6.1` (con arrivi ultimo minuto).  
 - **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
 
 ---
@@ -145,7 +145,8 @@ Contenuto previsto `1.6.0`:
 5. ~~**1.5.7 voce Standalone + Mute gemello Add-on**~~ fatta.  
 6. ~~**1.5.8 OCR locale**~~ **pubblicata**.  
 7. ~~**1.5.9** guida pratica + EPUB~~ **pubblicata**.  
-8. **1.6.0** Google Cloud Vision (chiave utente) + fix lista «Ricerca in corso…»; poi ZIP opt-in.
+8. ~~**1.6.0** Google Cloud Vision + fix lista~~ **pubblicata** (`v1.6.0` / `app-v1.6.0`; DataStore OK).
+9. **1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI — codice pronto; pubblicare tag/asset.
 
 ---
 

@@ -1,5 +1,12 @@
+Novità nella Versione 1.6.1
+(Pronta al rilascio)
+- Durante la ricerca la lista non torna più vuota («sconosciuto» con NVDA): resta «Ricerca in corso… attendere prego.» fino alla fine
+- Arrivi dell’ultimo minuto: file aggiunti alla cartella durante la ricerca vengono esaminati a fine coda
+- ZIP opt-in: casella «Includi contenuti negli archivi ZIP» (testo nei membri .txt/.md/.html/…)
+- Voce SAPI: se l’Id salvato non è più valido (HRESULT -2147200967) torna automaticamente alla voce predefinita; in Ctrl+Shift+V c’è «Voce predefinita di Windows»
+
 Novità nella Versione 1.6.0
-(In preparazione — dopo 1.5.9 pubblicata)
+(Pubblicata)
 - Motore OCR cloud: Google Cloud Vision con chiave API personale dell’utente (gemello Standalone + Add-on)
 - Ogni utente inserisce la propria chiave (Strumenti → Chiave API Google Vision, oppure pulsante «Chiave Google»)
 - Nessuna chiave condivisa nel software: la tua vale solo per te; gli altri usano la loro
@@ -7,7 +14,7 @@ Novità nella Versione 1.6.0
 - Match OCR tollerante: spazi, lettere mancanti (es. SQUAD ST ≈ squadlist), ritentativi Vision su fascia titolo
 - Copia Testo pulito: può ripristinare la parola cercata se l’OCR l’ha mutilata; OCR completo resta fedele al motore
 - Correzione lista risultati: a fine ricerca (anche con 0 hit) non resta più «Ricerca in corso… attendere prego.»
-- ZIP opt-in: dopo il pacchetto OCR cloud (come da roadmap)
+- ZIP opt-in: previsto dopo questa release
 
 Novità nella Versione 1.5.9
 (Pubblicata)

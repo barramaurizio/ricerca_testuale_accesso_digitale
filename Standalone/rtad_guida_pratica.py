@@ -28,17 +28,16 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.0
+Novità recenti (in parole semplici) — versione 1.6.1
 ----------------------------------------------------
-• OCR Google Cloud Vision: se vuoi, puoi usare il riconoscimento
-  testo di Google sulle immagini difficili (font strani, grafiche).
-  Serve Internet e la TUA chiave API (menu Strumenti oppure
-  pulsante «Chiave Google»). Ogni persona usa la propria chiave:
-  la mia vale solo per me, la tua solo per te.
-• Correzione: a fine ricerca, anche con zero risultati, la lista
-  non dice più «Ricerca in corso…» — ora dice «Nessun risultato trovato.»
-• Restano guida pratica ed EPUB (1.5.9), OCR locale Windows/EasyOCR
-  (1.5.8), voce e Mute (1.5.7), posta (1.5.6), profili…
+• Se durante una ricerca aggiungi un file nuovo nella cartella,
+  a fine scansione il programma lo riprende («arrivi dell’ultimo minuto»).
+• Puoi attivare la ricerca anche dentro gli archivi ZIP (casella opt-in).
+• Durante la ricerca la lista non diventa più vuota (meglio con NVDA).
+• Se la voce SAPI salvata non funziona più, torna da sola alla voce
+  predefinita di Windows.
+• Restano OCR Google Vision (1.6.0), guida ed EPUB (1.5.9), OCR locale
+  (1.5.8), voce/Mute (1.5.7), posta (1.5.6), profili…
 
 
 1. A cosa serve

@@ -1,13 +1,13 @@
 🌟 Novità della Versione 1.6.1
-(Pronta al rilascio)
-Ultima pubblicata precedente: 1.6.0
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+Ultima pubblicata precedente: 1.6.0 — questa è la release in corso.
 
 Ordine campi GitHub «Draft new release»:
   Tag → Titolo → Descrizione → Asset(s)
 
 Ordine campi NVDA Add-on DataStore (form issue registerAddon.yml):
   Title → Download URL → Source URL → Publisher → Channel → License Name → License URL
-  (Niente Summary/descrizioni lunghe: il form non le usa.)
+  (Niente Summary/descrizioni lunghe: il form attuale non le usa.)
 
 ════════════════════════════════════════════════════════
 COMUNE (Add-on + Standalone)
@@ -16,14 +16,16 @@ COMUNE (Add-on + Standalone)
 - Arrivi dell’ultimo minuto: se durante la ricerca aggiungi file nella
   cartella cercata, a fine coda RTAD li riprende e li esamina.
 - ZIP opt-in: casella «Includi contenuti negli archivi ZIP» — cerca testo
-  nei membri testuali (.txt, .md, .html, .xml, .json, …) senza scompattare.
+  nei membri testuali (.txt, .md, .html, .xml, .json, .log, .py, …)
+  senza scompattare su disco; risultati con prefisso [ZIP].
 - Durante la ricerca la lista non torna più vuota («sconosciuto» con NVDA):
   resta «Ricerca in corso… attendere prego.» fino alla fine.
 - Voce SAPI (Standalone): se l’Id salvato non è più valido
   (HRESULT -2147200967) ripristina automaticamente la voce predefinita;
-  in Ctrl+Shift+V c’è «Voce predefinita di Windows».
-- Restano OCR Google Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8,
-  Mute/voce 1.5.7, posta 1.5.6, profili e filtri.
+  in Ctrl+Shift+V compare anche «Voce predefinita di Windows».
+- Restano OCR Google Vision 1.6.0, guida pratica + EPUB 1.5.9,
+  OCR locale Windows/EasyOCR 1.5.8, Mute/voce 1.5.7, posta 1.5.6,
+  profili e filtri.
 
 ════════════════════════════════════════════════════════
 ADD-ON — Release GitHub
@@ -35,7 +37,23 @@ v1.6.1
 Titolo:
 Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.1
 
-Descrizione: sezione COMUNE (o blocco IT/EN breve).
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Arrivi dell’ultimo minuto**: file aggiunti alla cartella mentre la ricerca è in corso vengono esaminati a fine coda.
+- **ZIP opt-in**: casella «Includi contenuti negli archivi ZIP» — cerca testo nei file dentro `.zip` (txt, md, html, csv, json, log, …); risultati `[ZIP]`.
+- **Lista durante la ricerca**: non torna più vuota («sconosciuto» con NVDA); resta «Ricerca in corso… attendere prego.» fino alla fine.
+- Restano OCR Google Cloud Vision 1.6.0, guida pratica + EPUB 1.5.9, OCR locale 1.5.8, Mute 1.5.7 e posta 1.5.6.
+
+## 🇬🇧 English
+
+- **Last-minute arrivals**: files added to the search folder while a search is running are picked up at the end of the queue.
+- **ZIP opt-in**: checkbox to search text inside `.zip` members (txt, md, html, csv, json, log, …); results use the `[ZIP]` prefix.
+- **Results list while searching**: no longer goes empty (NVDA “unknown”); it keeps “Search in progress… please wait.” until the end.
+- Google Cloud Vision OCR 1.6.0, practical guide + EPUB 1.5.9, local OCR 1.5.8, Mute 1.5.7 and complete mail 1.5.6 remain.
+```
 
 Asset(s):
 ricerca_testuale_accesso_digitale-1.6.1.nvda-addon
@@ -50,12 +68,25 @@ app-v1.6.1
 Titolo:
 Ricerca Testuale Accesso Digitale - Standalone v1.6.1
 
-Descrizione: come sopra (sezione COMUNE).
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Stessi punti della release Add-on: **arrivi dell’ultimo minuto**, **ZIP opt-in**, lista stabile durante la ricerca.
+- **Voce SAPI**: se l’Id voce salvato non è più valido, ripristino automatico della voce predefinita di Windows; in Ctrl+Shift+V c’è «Voce predefinita di Windows».
+- Restano OCR Google Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8 e voce/Mute 1.5.7.
+
+## 🇬🇧 English
+
+- Same features as the Add-on release: **last-minute arrivals**, **ZIP opt-in**, stable results list while searching.
+- **SAPI voice**: if the saved voice Id is no longer valid, automatically falls back to the Windows default voice; Ctrl+Shift+V includes “Windows default voice”.
+- Google Vision OCR 1.6.0, practical guide/EPUB 1.5.9, local OCR 1.5.8 and voice/Mute 1.5.7 remain.
+```
 
 Asset(s):
 Setup_RicercaTestualeAccessoDigitale_v1.6.1.exe
 RicercaTestualeAccessoDigitale_Portable_v1.6.1.exe
-(Build Windows: Standalone/compila.bat + setup.iss — non eseguibile in questo ambiente Linux.)
 
 ════════════════════════════════════════════════════════
 ADD-ON — NVDA DataStore (form Web)
@@ -83,4 +114,4 @@ License Name:
 GPL v2
 
 License URL:
-https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+https://www.gnu.org/licenses/gpl-2.0.html

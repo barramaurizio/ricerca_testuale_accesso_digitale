@@ -1,5 +1,13 @@
+Novità nella Versione 1.6.2
+(In preparazione — ultima pubblicata: 1.6.1)
+- Notifica a fine ricerca nel Centro notifiche Windows (Windows+N): resta finché non la apri; Strumenti, attiva di default; restano bip e annuncio vocale
+- Svuota cache OCR dal menu Strumenti
+- Google Vision: ritentativi su fasce basse e margini (byline/firma) + merge pezzi OCR; cache OCR v17
+- Immagini: se il match è solo sul nome ma l’OCR ha letto testo, risultato [IMG-OCR] «Nome File + OCR» con Copia OCR funzionante
+- Restano ZIP / arrivi ultimo minuto 1.6.1, OCR Vision 1.6.0, guida/EPUB 1.5.9
+
 Novità nella Versione 1.6.1
-(Pronta al rilascio)
+(Pubblicata)
 - Durante la ricerca la lista non torna più vuota («sconosciuto» con NVDA): resta «Ricerca in corso… attendere prego.» fino alla fine
 - Arrivi dell’ultimo minuto: file aggiunti alla cartella durante la ricerca vengono esaminati a fine coda
 - ZIP opt-in: casella «Includi contenuti negli archivi ZIP» (testo nei membri .txt/.md/.html/…)

@@ -56,7 +56,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.6.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1686,12 +1686,12 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.6.1</strong></p>
+        <p><strong>Novit&agrave; Versione 1.6.2</strong></p>
         <ul>
-            <li><strong>Arrivi dell'ultimo minuto</strong>: file aggiunti durante la ricerca vengono esaminati a fine coda.</li>
-            <li><strong>ZIP opt-in</strong>: casella per cercare testo dentro gli archivi .zip.</li>
-            <li>Lista stabile durante la ricerca (niente &laquo;sconosciuto&raquo; NVDA); reset voce SAPI se Id non valido.</li>
-            <li>Restano OCR Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8.</li>
+            <li><strong>Notifica a fine ricerca</strong>: resta nel Centro notifiche Windows (Windows+N) finch&eacute; non la apri (Strumenti, attiva di default).</li>
+            <li><strong>Svuota cache OCR</strong> dal menu Strumenti.</li>
+            <li>Google Vision: ritentativi su fasce basse/margini e unione pezzi OCR.</li>
+            <li>Restano ZIP / arrivi ultimo minuto 1.6.1, OCR Vision 1.6.0, guida/EPUB 1.5.9.</li>
         </ul>
         <p><code>F7</code>: Mute &middot; OCR / ZIP: caselle opt-in &middot; Aiuto &rarr; Guida pratica.</p>
     </div>
@@ -3151,6 +3151,114 @@ def save_escape_closes_preference(enabled):
     _save_settings_dict(data)
 
 
+def load_notify_search_end_preference():
+    """True di default: notifica di sistema a fine ricerca."""
+    data = _load_settings_dict()
+    if "notify_search_end" not in data:
+        return True
+    return bool(data.get("notify_search_end", True))
+
+
+def save_notify_search_end_preference(enabled):
+    data = _load_settings_dict()
+    data["notify_search_end"] = bool(enabled)
+    _save_settings_dict(data)
+
+
+# Toast WinRT nel Centro notifiche (Windows+N), non il popup wx «Python»
+RTAD_TOAST_AUMID = "AccessoDigitale.RTAD.Standalone"
+
+
+def ensure_rtad_app_user_model_id():
+    """Associa il processo Standalone a un AUMID (nome in Centro notifiche)."""
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(RTAD_TOAST_AUMID)
+    except Exception:
+        pass
+    _register_toast_aumid_display_name(RTAD_TOAST_AUMID, APP_TITLE)
+
+
+def _register_toast_aumid_display_name(aumid: str, display_name: str) -> None:
+    try:
+        import winreg
+        key = winreg.CreateKey(
+            winreg.HKEY_CURRENT_USER,
+            rf"Software\Classes\AppUserModelId\{aumid}",
+        )
+        try:
+            winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, display_name)
+        finally:
+            winreg.CloseKey(key)
+    except Exception:
+        pass
+
+
+def show_persistent_windows_notification(title: str, message: str, *, aumid: str = "") -> bool:
+    """Mostra un toast WinRT scenario=reminder: resta finché non si apre/OK.
+
+    Appare anche in Centro notifiche (Windows+N). Ritorna True se mostrato.
+    """
+    app_id = (aumid or RTAD_TOAST_AUMID).strip() or RTAD_TOAST_AUMID
+    try:
+        _register_toast_aumid_display_name(app_id, APP_TITLE)
+    except Exception:
+        pass
+    try:
+        payload = json.dumps(
+            {
+                "title": str(title or APP_TITLE),
+                "body": str(message or ""),
+                "aumid": app_id,
+            },
+            ensure_ascii=False,
+        )
+        b64 = __import__("base64").b64encode(payload.encode("utf-8")).decode("ascii")
+    except Exception:
+        return False
+
+    # PowerShell + WinRT: niente dipendenze extra; reminder resta nel Centro
+    ps = (
+        "$ErrorActionPreference = 'Stop'; "
+        "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; "
+        "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null; "
+        f"$raw = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{b64}')); "
+        "$o = $raw | ConvertFrom-Json; "
+        "function Esc([string]$s) { if ($null -eq $s) { return '' }; "
+        "return (($s -replace '&','&amp;') -replace '<','&lt;' -replace '>','&gt;' -replace '\"','&quot;') }; "
+        "$t = Esc ([string]$o.title); $b = Esc ([string]$o.body); "
+        "$xmlText = \"<toast scenario='reminder'><visual><binding template='ToastGeneric'>"
+        "<text>$t</text><text>$b</text></binding></visual>"
+        "<actions><action content='OK' arguments='dismiss' activationType='system'/></actions></toast>\"; "
+        "$xml = New-Object Windows.Data.Xml.Dom.XmlDocument; $xml.LoadXml($xmlText); "
+        "$toast = [Windows.UI.Notifications.ToastNotification]::new($xml); "
+        "$notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier([string]$o.aumid); "
+        "$notifier.Show($toast)"
+    )
+    try:
+        flags = 0
+        if hasattr(subprocess, "CREATE_NO_WINDOW"):
+            flags = subprocess.CREATE_NO_WINDOW
+        completed = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                ps,
+            ],
+            capture_output=True,
+            timeout=12,
+            creationflags=flags,
+        )
+        return completed.returncode == 0
+    except Exception as e:
+        logging.debug(f"Toast WinRT non avviato: {e}")
+        return False
+
+
 def jump_to_line_in_editor(file_path, line_number):
     def _jump_worker():
         npp_path = shutil.which("notepad++.exe") or r"C:\Program Files\Notepad++\notepad++.exe"
@@ -3526,14 +3634,15 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Durante la ricerca la lista non torna più vuota\n"
-            "  («sconosciuto» con NVDA): resta «Ricerca in corso…».\n"
-            "• Arrivi dell'ultimo minuto: file aggiunti alla cartella\n"
-            "  mentre la ricerca è in corso vengono esaminati a fine coda.\n"
-            "• ZIP opt-in: casella «Includi contenuti negli archivi ZIP».\n"
-            "• Voce SAPI: Id non valido → ripristino automatico voce\n"
-            "  predefinita; Ctrl+Shift+V offre «Voce predefinita di Windows».\n"
-            "• Restano OCR Vision 1.6.0, guida/EPUB 1.5.9, OCR locale 1.5.8.\n"
+            "• Notifica di sistema a fine ricerca (Strumenti):\n"
+            "  resta nel Centro notifiche (Windows+N) finché\n"
+            "  non la apri; attiva di default.\n"
+            "• Svuota cache OCR dal menu Strumenti (dopo un update\n"
+            "  o se un’immagine non viene riletta bene).\n"
+            "• Google Vision: ritenta anche fasce basse e margini\n"
+            "  (byline/firma) e unisce i pezzi OCR utili.\n"
+            "• Restano ZIP e arrivi ultimo minuto 1.6.1,\n"
+            "  OCR Vision 1.6.0, guida/EPUB 1.5.9.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -4038,7 +4147,19 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Chiave API &Google Vision…"
         )
         self.Bind(wx.EVT_MENU, self.on_set_google_vision_key, item_gkey)
+        item_clear_ocr = tools_menu.Append(
+            wx.ID_ANY, "S&vuota cache OCR…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_clear_ocr_cache, item_clear_ocr)
         tools_menu.AppendSeparator()
+        self.item_notify_end = tools_menu.AppendCheckItem(
+            wx.ID_ANY, "&Notifica a fine ricerca (Centro notifiche Windows)"
+        )
+        try:
+            self.item_notify_end.Check(load_notify_search_end_preference())
+        except Exception:
+            self.item_notify_end.Check(True)
+        self.Bind(wx.EVT_MENU, self.on_toggle_notify_search_end, self.item_notify_end)
         self.item_escape_closes = tools_menu.AppendCheckItem(
             wx.ID_ANY, "Esc chiude l'&applicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
         )
@@ -4393,6 +4514,120 @@ class MainWindow(wx.Frame):
                 "Durante la ricerca Esc annulla solo la scansione.",
                 force=True,
             )
+
+    def on_toggle_notify_search_end(self, event=None):
+        enabled = False
+        try:
+            enabled = bool(self.item_notify_end.IsChecked())
+        except Exception:
+            enabled = not load_notify_search_end_preference()
+        try:
+            save_notify_search_end_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            speak_accessible(
+                "Notifica di sistema a fine ricerca attivata. "
+                "Resta nel Centro notifiche Windows finché non la apri.",
+                force=True,
+            )
+        else:
+            speak_accessible(
+                "Notifica di sistema a fine ricerca disattivata. Restano bip e annuncio vocale.",
+                force=True,
+            )
+
+    def on_clear_ocr_cache(self, event=None):
+        if rtad_ocr is None:
+            speak_accessible("Modulo OCR non disponibile.")
+            return
+        try:
+            count = int(rtad_ocr.get_ocr_cache_count() or 0)
+        except Exception:
+            count = 0
+        cache_dir = ""
+        try:
+            cache_dir = rtad_ocr.get_ocr_cache_dir() or OCR_CACHE_DIR
+        except Exception:
+            cache_dir = OCR_CACHE_DIR
+        if count <= 0:
+            wx.MessageBox(
+                f"La cache OCR è già vuota.\n\nCartella:\n{cache_dir}",
+                "Svuota cache OCR",
+                wx.OK | wx.ICON_INFORMATION,
+            )
+            speak_accessible("Cache OCR già vuota.")
+            return
+        ask = wx.MessageDialog(
+            self,
+            f"Eliminare {count} file dalla cache OCR?\n\n"
+            f"Cartella:\n{cache_dir}\n\n"
+            "Utile dopo un aggiornamento o se un’immagine non viene "
+            "rilettà correttamente. La prossima ricerca rifarà l’OCR.",
+            "Svuota cache OCR",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        if ask.ShowModal() != wx.ID_YES:
+            ask.Destroy()
+            speak_accessible("Operazione annullata.")
+            return
+        ask.Destroy()
+        try:
+            removed = int(rtad_ocr.clear_ocr_cache() or 0)
+        except Exception as e:
+            logging.error(f"Svuota cache OCR fallita: {e}")
+            wx.MessageBox(
+                f"Impossibile svuotare la cache OCR.\n{e}",
+                "Errore",
+                wx.OK | wx.ICON_ERROR,
+            )
+            return
+        msg = f"Cache OCR svuotata: rimossi {removed} file."
+        speak_accessible(msg, force=True)
+        wx.MessageBox(msg, "Svuota cache OCR", wx.OK | wx.ICON_INFORMATION)
+
+    def _notify_search_end(self, matches, stopped=False):
+        """Notifica Windows persistente (Centro notifiche) a fine ricerca."""
+        try:
+            if not load_notify_search_end_preference():
+                return
+        except Exception:
+            return
+        if stopped:
+            body = f"Ricerca interrotta. Conservati {matches} risultati."
+        elif matches > 0:
+            body = f"Ricerca completata: {matches} risultati."
+        else:
+            body = "Ricerca completata: nessun risultato."
+        try:
+            self.RequestUserAttention(wx.USER_ATTENTION_INFO)
+        except Exception:
+            pass
+
+        def _fallback_wx():
+            try:
+                import wx.adv
+                n = wx.adv.NotificationMessage(APP_TITLE, body, parent=self)
+                try:
+                    n.SetFlags(wx.ICON_INFORMATION)
+                except Exception:
+                    pass
+                timeout = getattr(wx.adv.NotificationMessage, "Timeout_Never", 0)
+                n.Show(timeout=timeout)
+            except Exception as e:
+                logging.debug(f"NotificationMessage non disponibile: {e}")
+
+        def _worker():
+            ok = False
+            try:
+                ok = show_persistent_windows_notification(APP_TITLE, body)
+            except Exception as e:
+                logging.debug(f"Toast persistente fallito: {e}")
+                ok = False
+            if not ok:
+                wx.CallAfter(_fallback_wx)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def on_save_search_profile(self, event=None):
         fields = self._collect_current_profile_fields()
@@ -5697,6 +5932,7 @@ class MainWindow(wx.Frame):
             try:
                 name_matched = text_matches_terms(file_name, terms)
                 found_in_content = False
+                img_ocr_text = ""
                 allow_content = content_scan_allowed(file_path)
                 if not allow_content and not name_matched:
                     # Solo nome: file troppo grande, salta lettura contenuto
@@ -5730,6 +5966,7 @@ class MainWindow(wx.Frame):
                                 should_abort=lambda: self._stop_search,
                                 hint_terms=terms or None,
                             )
+                            img_ocr_text = img_text or ""
                             ocr_match = False
                             if ocr_dump_all:
                                 # Senza parola chiave: elenca ogni immagine con testo OCR
@@ -6244,12 +6481,29 @@ class MainWindow(wx.Frame):
                         found_in_content = True
 
                 if name_matched and not found_in_content:
-                    raw_matches.append({
+                    entry = {
                         "file_path": file_path, "file_name": file_name, "prefix": prefix,
                         "mtime": mtime, "line_number": None, "paragraph_index": None,
                         "location_info": f"Nome File{file_date_suffix}",
                         "snippet": f"Corrispondenza: '{file_name}'",
-                    })
+                    }
+                    # Match sul nome: se OCR era attivo e ha prodotto testo, allevalo
+                    # così «Copia OCR» funziona anche quando la query non è nel testo immagine.
+                    if ext in img_exts and (img_ocr_text or "").strip():
+                        entry["ocr_text"] = img_ocr_text
+                        entry["prefix"] = "[IMG-OCR]"
+                        entry["location_info"] = (
+                            f"Nome File + OCR{file_date_suffix}"
+                        )
+                        try:
+                            snip = " ".join(img_ocr_text.split())[:200]
+                            if snip:
+                                entry["snippet"] = (
+                                    f"Nome file; anteprima OCR: {snip}"
+                                )
+                        except Exception:
+                            pass
+                    raw_matches.append(entry)
 
             except Exception as e:
                 logging.debug(f"Salto file bloccato o corrotto durante scansione ({file_path}): {e}")
@@ -6349,6 +6603,11 @@ class MainWindow(wx.Frame):
 
         threading.Thread(target=_play_end_sound, daemon=True).start()
         # --- FINE FEEDBACK ACUSTICO ---
+
+        try:
+            self._notify_search_end(matches, stopped=bool(self._stop_search))
+        except Exception:
+            pass
 
         self.gauge.SetValue(100)
         self.current_percent = 100
@@ -6732,8 +6991,9 @@ class MainWindow(wx.Frame):
                     speak_accessible("Impossibile copiare il testo OCR negli appunti.")
                 return
             speak_accessible(
-                "Questo risultato è un file immagine senza testo OCR salvato: "
-                "usa «Copia Immagine», oppure riesegui la ricerca con OCR attivo."
+                "Questo risultato è un’immagine: il match è sul nome file e "
+                "l’OCR non ha restituito testo da copiare "
+                "(grafica/loghi difficili, oppure cache vuota — prova Strumenti → Svuota cache OCR)."
             )
             return
 
@@ -6992,6 +7252,10 @@ class MainWindow(wx.Frame):
             speak_accessible("Impossibile aprire la cartella.")
 
 def main():
+    try:
+        ensure_rtad_app_user_model_id()
+    except Exception:
+        pass
     app = wx.App(False)
     frame = MainWindow()
     frame.Show()

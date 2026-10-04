@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** lavoro corrente = `1.6.1` (arrivi ultimo minuto + ZIP opt-in + fix lista/voce). Ultima pubblicata = `1.6.0` finché non escono i tag `v1.6.1` / `app-v1.6.1`.
+**Regola versione:** lavoro corrente = `1.6.2` (notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini). Ultima pubblicata = `1.6.1` finché non escono i tag `v1.6.2` / `app-v1.6.2`.
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -125,14 +125,15 @@ Contenuto previsto `1.6.0`:
 
 - **Niente** secondo/terzo pulsante Cronologia in interfaccia.  
 - **Pin / Windows+N:** gestiti da Windows.  
-- **Notifiche fine ricerca:** dopo i profili.  
+- **Notifiche fine ricerca:** in `1.6.2` (con svuota cache OCR + Vision fasce basse).  
 - **Log lunghi:** ultime 30–40 righe bastano.  
 - **Voce:** Standalone = SAPI regolabile (OneCore via token); Add-on = Mute + NVDA per rate/voice.  
 - **PDF 1.5.3:** rilasciato.  
 - **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR locale** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
 - **OCR cloud Google Vision** = `1.6.0` (gemello SA/Add-on, chiave utente).  
 - **ZIP opt-in:** in `1.6.1` (con arrivi ultimo minuto).  
-- **Oggetti nelle foto:** non nel nucleo; pista futura opt-in.
+- **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini.  
+- **Oggetti nelle foto:** non nel nucleo; pista futura opt-in (dopo 1.6.2).
 
 ---
 
@@ -146,7 +147,8 @@ Contenuto previsto `1.6.0`:
 6. ~~**1.5.8 OCR locale**~~ **pubblicata**.  
 7. ~~**1.5.9** guida pratica + EPUB~~ **pubblicata**.  
 8. ~~**1.6.0** Google Cloud Vision + fix lista~~ **pubblicata** (`v1.6.0` / `app-v1.6.0`; DataStore OK).
-9. **1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI — codice pronto; pubblicare tag/asset.
+9. ~~**1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI~~ **pubblicata**.
+10. **1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini — codice in corso; pubblicare dopo test.
 
 ---
 

@@ -29,8 +29,8 @@ import urllib.request
 MAX_OCR_IMAGE_BYTES = 25 * 1024 * 1024  # 25 MB
 MAX_OCR_PDF_PAGES = 8
 OCR_SOFT_TIMEOUT_SEC = 35
-# v16: varianti «fascia titolo» per Google; ripara token OCR mutilati verso la query in Copia pulito
-OCR_CACHE_VERSION = 16
+# v17: Google retry anche fascia bassa/margini + merge pezzi OCR; clear cache da menu
+OCR_CACHE_VERSION = 17
 
 ENGINE_WINDOWS = "windows"
 ENGINE_EASYOCR = "easyocr"
@@ -76,6 +76,50 @@ def configure(cache_dir: str) -> None:
             os.makedirs(_cache_dir, exist_ok=True)
         except Exception:
             pass
+
+
+def get_ocr_cache_dir() -> str:
+    """Cartella cache OCR configurata (può essere vuota)."""
+    return _cache_dir or ""
+
+
+def get_ocr_cache_count() -> int:
+    """Numero di file .json nella cache OCR."""
+    d = _cache_dir
+    if not d or not os.path.isdir(d):
+        return 0
+    try:
+        return sum(
+            1
+            for name in os.listdir(d)
+            if name.endswith(".json") and os.path.isfile(os.path.join(d, name))
+        )
+    except Exception:
+        return 0
+
+
+def clear_ocr_cache() -> int:
+    """Elimina i file della cache OCR. Restituisce quanti file rimossi."""
+    d = _cache_dir
+    if not d or not os.path.isdir(d):
+        return 0
+    removed = 0
+    with _cache_lock:
+        try:
+            names = list(os.listdir(d))
+        except Exception:
+            return 0
+        for name in names:
+            if not name.endswith(".json"):
+                continue
+            path = os.path.join(d, name)
+            try:
+                if os.path.isfile(path):
+                    os.unlink(path)
+                    removed += 1
+            except Exception:
+                pass
+    return removed
 
 
 def reset_stats() -> None:
@@ -338,7 +382,8 @@ def ocr_image_file(path: str, should_abort=None, hint_terms=None) -> str:
         # ritenta poche varianti preprocess (font a strisce / contrasto).
         # EasyOCR: ~10 slot; Windows: più varianti preprocess.
         if eng == ENGINE_GOOGLE:
-            max_var = 4
+            # Originale + ritentativi fasce titolo/basa/margini (Vision a pagamento)
+            max_var = 8
             variants = [work_path]
         elif eng == ENGINE_EASYOCR:
             max_var = 10
@@ -1176,17 +1221,78 @@ def _score_ocr_candidate(text: str, hint_terms=None) -> float:
     return score
 
 
+def _ocr_chunk_norm(text: str) -> str:
+    return " ".join((text or "").lower().split())
+
+
+def _ocr_chunk_covered_by(candidate: str, existing: str) -> bool:
+    """True se candidate è quasi già contenuto in existing (evita merge ridondanti)."""
+    a = _ocr_chunk_norm(candidate)
+    b = _ocr_chunk_norm(existing)
+    if not a:
+        return True
+    if a == b:
+        return True
+    # Sottostringa chiara (anche breve): «hello» dentro «hello world»
+    if a in b:
+        return True
+    # existing più corto ma quasi uguale al candidate → tienilo coperto
+    if b in a and len(a) <= max(12, int(len(b) * 1.25)):
+        return True
+    return False
+
+
 def _pick_best_ocr_text(chunks: list, hint_terms=None) -> str:
-    """Sceglie il pezzo OCR migliore invece di concatenare tutte le varianti."""
+    """Sceglie il pezzo OCR migliore; se pezzi diversi si completano, li unisce.
+
+    Utile con Vision a fasce: titolo in alto + firma/byline in basso possono
+    arrivare da ritagli diversi; il merge mantiene entrambi senza duplicare.
+    """
     if not chunks:
         return ""
+    cleaned = []
+    for ch in chunks:
+        t = (ch or "").strip()
+        if t:
+            cleaned.append(t)
+    if not cleaned:
+        return ""
+
+    uniq = []
+    for ch in cleaned:
+        replaced = False
+        for i, u in enumerate(uniq):
+            if _ocr_chunk_covered_by(ch, u):
+                replaced = True
+                break
+            if _ocr_chunk_covered_by(u, ch):
+                uniq[i] = ch
+                replaced = True
+                break
+        if not replaced:
+            uniq.append(ch)
+
     best = ""
     best_score = -1.0
-    for ch in chunks:
+    for ch in uniq:
         sc = _score_ocr_candidate(ch, hint_terms=hint_terms)
         if sc > best_score:
             best_score = sc
             best = ch
+    if len(uniq) <= 1:
+        return best or ""
+
+    merged = "\n".join(uniq)
+    merged_score = _score_ocr_candidate(merged, hint_terms=hint_terms)
+    if hint_terms:
+        rev_m = merged + "\n" + merged[::-1]
+        rev_b = (best or "") + "\n" + (best or "")[::-1]
+        if ocr_text_matches_terms(rev_m, hint_terms) and not ocr_text_matches_terms(
+            rev_b, hint_terms
+        ):
+            return merged
+    if merged_score > best_score:
+        return merged
     return best or ""
 
 
@@ -1398,14 +1504,17 @@ def _append_variant(out: list, temps: list, img) -> None:
         out.append(p)
 
 
-def _build_google_retry_variants(path: str, temps: list, max_variants: int = 4) -> list:
+def _build_google_retry_variants(path: str, temps: list, max_variants: int = 8) -> list:
     """Poche varianti mirate per Google quando la query non matcha sull’originale.
 
-    Priorità: fascia superiore/centrale (titoli poster tipo SQUADLIST a strisce),
-    anti-strisce + dilatazione, contrasto alto, eventuale invert.
+    Priorità:
+      1) fascia superiore/centrale (titoli poster tipo SQUADLIST)
+      2) fascia bassa (byline / firma tipo «di Giulia …» su Tuttosport)
+      3) margini sinistro/destro (nomi verticali o colonne laterali)
+      4) intera anti-strisce
     """
     out = []
-    max_variants = max(1, int(max_variants or 4))
+    max_variants = max(1, int(max_variants or 8))
     try:
         import wx
     except Exception:
@@ -1430,13 +1539,23 @@ def _build_google_retry_variants(path: str, temps: list, max_variants: int = 4) 
         pass
     bw, bh = base.GetWidth(), base.GetHeight()
 
-    # Fascia titolo: circa 12%–55% dell’altezza (sotto header, sopra lista giocatori)
-    bands = [
-        (0.10, 0.48),
-        (0.05, 0.40),
-        (0.15, 0.58),
-    ]
-    for y0r, y1r in bands:
+    def _band_pipeline(crop, *, min_side=1800, dilate=12, bright_thr=140, invert=True):
+        if crop is None or not crop.IsOk() or len(out) >= max_variants:
+            return
+        try:
+            crop = _wx_upscale_min(crop, min_side)
+            dest = _wx_remove_vertical_stripes(crop)
+            dest = _wx_boost_contrast(dest, 1.9)
+            dest = _wx_dilate_horizontal(dest, radius=dilate)
+            bright = _wx_keep_bright(dest, bright_thr)
+            _append_variant(out, temps, bright)
+            if invert and len(out) < max_variants:
+                _append_variant(out, temps, _wx_invert(bright))
+        except Exception as e:
+            logging.debug(f"Google band variant fallita: {e}")
+
+    # 1) Fascia titolo: circa 5%–58% (sotto header, sopra corpo articolo / lista)
+    for y0r, y1r in ((0.10, 0.48), (0.05, 0.40), (0.15, 0.58)):
         if len(out) >= max_variants:
             break
         try:
@@ -1444,21 +1563,56 @@ def _build_google_retry_variants(path: str, temps: list, max_variants: int = 4) 
             y1 = min(bh, int(bh * y1r))
             if y1 - y0 < 24:
                 continue
-            crop = base.GetSubImage(wx.Rect(0, y0, bw, y1 - y0))
-            if crop is None or not crop.IsOk():
-                continue
-            crop = _wx_upscale_min(crop, 1800)
-            dest = _wx_remove_vertical_stripes(crop)
-            dest = _wx_boost_contrast(dest, 1.9)
-            dest = _wx_dilate_horizontal(dest, radius=12)
-            bright = _wx_keep_bright(dest, 140)
-            _append_variant(out, temps, bright)
-            if len(out) < max_variants:
-                _append_variant(out, temps, _wx_invert(bright))
+            _band_pipeline(
+                base.GetSubImage(wx.Rect(0, y0, bw, y1 - y0)),
+                min_side=1800,
+                dilate=12,
+            )
         except Exception as e:
             logging.debug(f"Google title-band variant fallita: {e}")
 
-    # Intera immagine con anti-strisce (se c’è ancora posto)
+    # 2) Fascia bassa — byline / crediti foto (spesso sotto il corpo)
+    for y0r, y1r in ((0.72, 1.0), (0.58, 0.88), (0.80, 1.0)):
+        if len(out) >= max_variants:
+            break
+        try:
+            y0 = max(0, int(bh * y0r))
+            y1 = min(bh, int(bh * y1r))
+            if y1 - y0 < 20:
+                continue
+            _band_pipeline(
+                base.GetSubImage(wx.Rect(0, y0, bw, y1 - y0)),
+                min_side=2000,
+                dilate=8,
+                bright_thr=150,
+                invert=True,
+            )
+        except Exception as e:
+            logging.debug(f"Google bottom-band variant fallita: {e}")
+
+    # 3) Margini laterali (testo verticale / colonne strette)
+    if len(out) < max_variants:
+        try:
+            x1 = max(8, int(bw * 0.28))
+            left = base.GetSubImage(wx.Rect(0, 0, x1, bh))
+            left = _wx_upscale_min(left, 1600)
+            rot = left.Rotate90(clockwise=False)
+            if rot is not None and rot.IsOk():
+                _band_pipeline(rot, min_side=1800, dilate=8, invert=False)
+        except Exception as e:
+            logging.debug(f"Google left-margin variant fallita: {e}")
+    if len(out) < max_variants:
+        try:
+            x0 = max(0, int(bw * 0.72))
+            right = base.GetSubImage(wx.Rect(x0, 0, max(8, bw - x0), bh))
+            right = _wx_upscale_min(right, 1600)
+            rot = right.Rotate90(clockwise=False)
+            if rot is not None and rot.IsOk():
+                _band_pipeline(rot, min_side=1800, dilate=8, invert=False)
+        except Exception as e:
+            logging.debug(f"Google right-margin variant fallita: {e}")
+
+    # 4) Intera immagine con anti-strisce (se c’è ancora posto)
     if len(out) < max_variants:
         try:
             dest = _wx_remove_vertical_stripes(base)

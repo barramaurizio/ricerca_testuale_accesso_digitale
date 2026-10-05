@@ -1,5 +1,14 @@
+Novità nella Versione 1.6.3
+(In preparazione — ultima pubblicata: 1.6.2)
+- Descrizione avanzata immagini con Gemini (chiave personale Google AI Studio): layout, testi, contesto immersivo
+- Fallback etichette Google Vision + scheda tecnica (dimensioni/EXIF anche senza chiave)
+- Ricerca contenuto visivo opt-in: risultati [IMG-VIS]; chiave Google Vision
+- Standalone: sottomenù Explorer sulle immagini (Descrivi, OCR, Etichette, Scheda, Copia)
+- Menu contestuale: Descrivi / Etichette / Scheda tecnica; pulsanti Chiave Google e Chiave Gemini
+- Restano notifica fine ricerca / cache OCR 1.6.2, ZIP 1.6.1, OCR Vision 1.6.0
+
 Novità nella Versione 1.6.2
-(In preparazione — ultima pubblicata: 1.6.1)
+(Pubblicata)
 - Notifica a fine ricerca nel Centro notifiche Windows (Windows+N): resta finché non la apri; Strumenti, attiva di default; restano bip e annuncio vocale
 - Svuota cache OCR dal menu Strumenti
 - Google Vision: ritentativi su fasce basse e margini (byline/firma) + merge pezzi OCR; cache OCR v17

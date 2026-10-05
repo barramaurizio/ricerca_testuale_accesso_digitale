@@ -14,16 +14,17 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.1
+Novità recenti (in parole semplici) — versione 1.6.3
 ----------------------------------------------------
-• Se durante una ricerca aggiungi un file nuovo nella cartella,
-  a fine scansione il programma lo riprende («arrivi dell’ultimo minuto»).
-• Puoi attivare la ricerca anche dentro gli archivi ZIP (casella opt-in).
-• Durante la ricerca la lista non diventa più vuota (meglio con NVDA).
-• Se la voce SAPI salvata non funziona più, torna da sola alla voce
-  predefinita di Windows.
-• Restano OCR Google Vision (1.6.0), guida ed EPUB (1.5.9), OCR locale
-  (1.5.8), voce/Mute (1.5.7), posta (1.5.6), profili…
+• Sulle immagini puoi chiedere una descrizione avanzata
+  (layout, testi, maglia, contesto): serve la chiave Gemini
+  da Strumenti → Chiave API Gemini (Google AI Studio).
+• In Esplora file, «Cerca con Accesso Digitale» sulle immagini
+  è un sottomenù: Descrivi, OCR, Etichette, Scheda, Copia.
+• Ricerca contenuto visivo (etichette/scene) con Google Vision;
+  scheda tecnica anche senza chiavi.
+• Restano notifica fine ricerca (1.6.2), ZIP (1.6.1), OCR Vision
+  (1.6.0), guida/EPUB (1.5.9)…
 
 
 1. A cosa serve

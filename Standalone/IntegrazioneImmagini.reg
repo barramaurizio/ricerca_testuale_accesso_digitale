@@ -1,0 +1,51 @@
+Windows Registry Editor Version 5.00
+
+; Sottomenù immagini «Cerca con Accesso Digitale» (1.6.3)
+; Adatta il percorso EXE se usi la Portable o un'installazione diversa.
+; Dopo la modifica: salva, doppio clic sul .reg, conferma.
+
+; Esempio Installer (Program Files):
+;   C:\Program Files\Ricerca Testuale Accesso Digitale\Ricerca Testuale Accesso Digitale.exe
+; Esempio Portable: sostituisci EXE=... qui sotto.
+
+; --- .jpg (modello completo; replica per altre estensioni nell'Installer) ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg]
+"MUIVerb"="Cerca con Accesso Digitale"
+"SubCommands"=""
+"Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri]
+@="Apri in Ricerca Testuale"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi]
+@="Descrivi immagine (dettagliata)"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --describe \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\03ocr]
+@="Leggi testo nell'immagine (OCR)"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\03ocr\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --ocr-quick \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\04etichette]
+@="Etichette e oggetti"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\04etichette\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --labels \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\05scheda]
+@="Scheda tecnica"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\05scheda\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --tech \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\06copia]
+@="Copia descrizione"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\06copia\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --copy-describe \"%1\""

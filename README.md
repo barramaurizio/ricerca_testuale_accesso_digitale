@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,18 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.3
+
+*(In preparazione — ultima pubblicata: **1.6.2**.)*
+
+- **Descrivi immagine (Gemini)**: descrizione immersiva (layout, testi, contesto); chiave personale Google AI Studio.
+- **Scheda tecnica** + etichette Vision; ricerca contenuto visivo opt-in `[IMG-VIS]`.
+- **Standalone**: sottomenù Explorer sulle immagini (Descrivi, OCR, Etichette, Scheda, Copia).
+- Restano notifica fine ricerca / cache OCR 1.6.2, ZIP 1.6.1, OCR Vision 1.6.0.
+
 ### 🌟 Novità della Versione 1.6.2
 
-*(In preparazione — ultima pubblicata: **1.6.1**.)*
+*(Pubblicata.)*
 
 - **Notifica a fine ricerca**: resta nel Centro notifiche Windows (Windows+N) finché non la apri (Strumenti, attiva di default); restano bip e annuncio vocale.
 - **Svuota cache OCR** dal menu Strumenti.
@@ -79,9 +88,18 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.3
+
+*(In preparation — last published: **1.6.2**.)*
+
+- **Describe image (Gemini)**: immersive description (layout, text, context); personal Google AI Studio key.
+- **Technical sheet** + Vision labels; opt-in visual search `[IMG-VIS]`.
+- **Standalone**: Explorer submenu on images (Describe, OCR, Labels, Tech sheet, Copy).
+- End-of-search notification / OCR cache 1.6.2, ZIP 1.6.1, Vision OCR 1.6.0 remain.
+
 ### 🌟 What's New in Version 1.6.2
 
-*(In preparation — last published: **1.6.1**.)*
+*(Published.)*
 
 - **End-of-search notification**: stays in Windows Action Center (Windows+N) until you open it (Tools menu, on by default); beeps and speech remain.
 - **Clear OCR cache** from the Tools menu.

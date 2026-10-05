@@ -8,6 +8,9 @@ Motori:
 
 Usato solo se l'utente attiva la casella OCR nella ricerca.
 Google Vision: ogni utente inserisce la propria chiave (nessuna chiave condivisa nel software).
+
+Dalla 1.6.3: analisi visiva (etichette/oggetti/colori), descrizione accessibile
+in italiano e scheda tecnica (dimensioni/EXIF) — opt-in, stessa chiave Vision.
 """
 
 from __future__ import annotations
@@ -31,12 +34,28 @@ MAX_OCR_PDF_PAGES = 8
 OCR_SOFT_TIMEOUT_SEC = 35
 # v17: Google retry anche fascia bassa/margini + merge pezzi OCR; clear cache da menu
 OCR_CACHE_VERSION = 17
+# Cache separata per etichette/descrizione Vision (1.6.3)
+VISION_CACHE_VERSION = 1
 
 ENGINE_WINDOWS = "windows"
 ENGINE_EASYOCR = "easyocr"
 ENGINE_GOOGLE = "google"
 
 _GOOGLE_VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
+# Gemini (Google AI Studio) — descrizione avanzata accessibile (1.6.3)
+# Preferenza: Flash 3.x (attuali). I 1.5/2.0 spesso danno 404 su chiavi nuove.
+_GEMINI_MODELS_PREFERRED = (
+    "gemini-3.5-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+)
+_GEMINI_TIMEOUT_SEC = 75
+_gemini_models_cache = None  # elenco scoperto via ListModels (per chiave)
+_gemini_models_cache_key = ""
 
 _IMG_EXTS = {
     ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif",
@@ -56,6 +75,8 @@ _easyocr_reader = None
 _easyocr_lock = threading.Lock()
 _google_api_key = ""
 _google_last_error = ""
+_gemini_api_key = ""
+_gemini_last_error = ""
 _ps_script_path = None
 _stats = {
     "images_ocr": 0,
@@ -64,6 +85,7 @@ _stats = {
     "failures": 0,
     "unavailable": 0,
     "google_calls": 0,
+    "gemini_calls": 0,
 }
 
 
@@ -173,6 +195,29 @@ def get_google_api_key() -> str:
 
 def has_google_api_key() -> bool:
     return bool((_google_api_key or "").strip())
+
+
+def set_gemini_api_key(key: str) -> None:
+    """Imposta la chiave API Gemini (Google AI Studio), personale dell’utente."""
+    global _gemini_api_key, _gemini_last_error
+    global _gemini_models_cache, _gemini_models_cache_key
+    _gemini_api_key = (key or "").strip()
+    _gemini_last_error = ""
+    # Nuova chiave → riscopri i modelli disponibili
+    _gemini_models_cache = None
+    _gemini_models_cache_key = ""
+
+
+def get_gemini_api_key() -> str:
+    return _gemini_api_key or ""
+
+
+def has_gemini_api_key() -> bool:
+    return bool((_gemini_api_key or "").strip())
+
+
+def gemini_last_error() -> str:
+    return _gemini_last_error or ""
 
 
 def google_available(force_recheck: bool = False) -> bool:
@@ -2395,3 +2440,1292 @@ def _ocr_path_impl(path: str, should_abort=None, with_diag: bool = False, hint_t
     if with_diag:
         return merged, diag
     return merged
+
+
+# ---------------------------------------------------------------------------
+# 1.6.3 — Analisi visiva, descrizione accessibile, scheda tecnica
+# ---------------------------------------------------------------------------
+
+# Traduzioni etichette Vision più comuni (EN → IT). Fallback: etichetta originale.
+_LABEL_IT = {
+    "person": "persona",
+    "people": "persone",
+    "man": "uomo",
+    "woman": "donna",
+    "child": "bambino",
+    "boy": "ragazzo",
+    "girl": "ragazza",
+    "face": "volto",
+    "smile": "sorriso",
+    "dog": "cane",
+    "cat": "gatto",
+    "bird": "uccello",
+    "horse": "cavallo",
+    "animal": "animale",
+    "pet": "animale domestico",
+    "flower": "fiore",
+    "plant": "pianta",
+    "tree": "albero",
+    "grass": "erba",
+    "sky": "cielo",
+    "cloud": "nuvola",
+    "sun": "sole",
+    "sunset": "tramonto",
+    "beach": "spiaggia",
+    "sea": "mare",
+    "ocean": "oceano",
+    "water": "acqua",
+    "mountain": "montagna",
+    "hill": "collina",
+    "forest": "bosco",
+    "nature": "natura",
+    "landscape": "paesaggio",
+    "building": "edificio",
+    "house": "casa",
+    "architecture": "architettura",
+    "street": "strada",
+    "road": "strada",
+    "car": "auto",
+    "vehicle": "veicolo",
+    "bicycle": "bicicletta",
+    "food": "cibo",
+    "meal": "pasto",
+    "drink": "bevanda",
+    "table": "tavolo",
+    "chair": "sedia",
+    "furniture": "arredamento",
+    "room": "stanza",
+    "indoor": "interno",
+    "outdoor": "esterno",
+    "text": "testo",
+    "font": "carattere tipografico",
+    "screenshot": "screenshot",
+    "photograph": "fotografia",
+    "photo": "fotografia",
+    "art": "arte",
+    "drawing": "disegno",
+    "painting": "dipinto",
+    "poster": "locandina",
+    "logo": "logo",
+    "sign": "cartello",
+    "book": "libro",
+    "document": "documento",
+    "paper": "carta",
+    "clothing": "abbigliamento",
+    "shirt": "maglietta",
+    "dress": "abito",
+    "shoe": "scarpa",
+    "glasses": "occhiali",
+    "phone": "telefono",
+    "computer": "computer",
+    "laptop": "portatile",
+    "screen": "schermo",
+    "television": "televisione",
+    "festivity": "festa",
+    "celebration": "celebrazione",
+    "birthday": "compleanno",
+    "party": "festa",
+    "cake": "torta",
+    "gift": "regalo",
+    "christmas": "Natale",
+    "wedding": "matrimonio",
+    "family": "famiglia",
+    "group": "gruppo",
+    "crowd": "folla",
+    "sport": "sport",
+    "ball": "palla",
+    "game": "gioco",
+    "music": "musica",
+    "instrument": "strumento",
+    "night": "notte",
+    "day": "giorno",
+    "snow": "neve",
+    "rain": "pioggia",
+    "window": "finestra",
+    "door": "porta",
+    "wall": "muro",
+    "floor": "pavimento",
+    "light": "luce",
+    "shadow": "ombra",
+    "black": "nero",
+    "white": "bianco",
+    "red": "rosso",
+    "blue": "blu",
+    "green": "verde",
+    "yellow": "giallo",
+    "orange": "arancione",
+    "pink": "rosa",
+    "purple": "viola",
+    "brown": "marrone",
+    "gray": "grigio",
+    "grey": "grigio",
+}
+
+
+def _label_to_it(label: str) -> str:
+    raw = (label or "").strip()
+    if not raw:
+        return ""
+    key = raw.lower()
+    if key in _LABEL_IT:
+        return _LABEL_IT[key]
+    # Prova senza plurale grezzo
+    if key.endswith("s") and key[:-1] in _LABEL_IT:
+        return _LABEL_IT[key[:-1]]
+    return raw
+
+
+def _color_name_it(r: float, g: float, b: float) -> str:
+    """Nome colore approssimato in italiano da RGB 0–1 o 0–255."""
+    if r > 1.5 or g > 1.5 or b > 1.5:
+        r, g, b = r / 255.0, g / 255.0, b / 255.0
+    mx = max(r, g, b)
+    mn = min(r, g, b)
+    if mx < 0.12:
+        return "nero"
+    if mn > 0.88:
+        return "bianco"
+    if mx - mn < 0.08:
+        if mx < 0.35:
+            return "grigio scuro"
+        if mx > 0.7:
+            return "grigio chiaro"
+        return "grigio"
+    # Hue grezzo
+    if r >= g and r >= b:
+        if g > b * 1.2:
+            return "arancione" if g > 0.45 else "rosso"
+        if b > g * 1.2:
+            return "rosa" if r > 0.7 else "viola"
+        return "rosso"
+    if g >= r and g >= b:
+        if b > r * 1.15:
+            return "turchese"
+        return "verde"
+    # blu dominante
+    if r > g * 1.2:
+        return "viola"
+    return "blu"
+
+
+def _vision_cache_key(path: str, size: int, mtime: float, kind: str) -> str:
+    raw = (
+        f"vision{VISION_CACHE_VERSION}|{kind}|"
+        f"{os.path.normcase(os.path.abspath(path))}|{size}|{mtime:.3f}"
+    )
+    return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
+
+
+def _vision_cache_get(key: str):
+    path = _cache_path(key)
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if int(data.get("v", 0)) != VISION_CACHE_VERSION:
+            return None
+        return data.get("payload")
+    except Exception:
+        return None
+
+
+def _vision_cache_put(key: str, payload) -> None:
+    path = _cache_path(key)
+    if not path:
+        return
+    with _cache_lock:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"v": VISION_CACHE_VERSION, "payload": payload, "ts": time.time()},
+                    f,
+                    ensure_ascii=False,
+                )
+        except Exception:
+            pass
+
+
+def _read_image_dimensions(path: str) -> tuple:
+    """(width, height) senza dipendenze esterne; (0,0) se sconosciuto."""
+    import struct
+    try:
+        with open(path, "rb") as f:
+            head = f.read(32)
+            if len(head) < 10:
+                return 0, 0
+            # PNG
+            if head.startswith(b"\x89PNG\r\n\x1a\n"):
+                f.seek(16)
+                wh = f.read(8)
+                if len(wh) == 8:
+                    w, h = struct.unpack(">II", wh)
+                    return int(w), int(h)
+            # GIF
+            if head[:6] in (b"GIF87a", b"GIF89a"):
+                w, h = struct.unpack("<HH", head[6:10])
+                return int(w), int(h)
+            # BMP
+            if head[:2] == b"BM":
+                f.seek(18)
+                wh = f.read(8)
+                if len(wh) == 8:
+                    w, h = struct.unpack("<ii", wh)
+                    return abs(int(w)), abs(int(h))
+            # JPEG: cerca SOF0/SOF2
+            if head[:2] == b"\xff\xd8":
+                f.seek(2)
+                while True:
+                    marker = f.read(2)
+                    if len(marker) < 2:
+                        break
+                    if marker[0] != 0xFF:
+                        break
+                    code = marker[1]
+                    while code == 0xFF:
+                        b = f.read(1)
+                        if not b:
+                            return 0, 0
+                        code = b[0]
+                    if code in (0xD8, 0xD9):
+                        continue
+                    seglen = f.read(2)
+                    if len(seglen) < 2:
+                        break
+                    length = struct.unpack(">H", seglen)[0]
+                    if length < 2:
+                        break
+                    if code in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB):
+                        data = f.read(length - 2)
+                        if len(data) >= 5:
+                            h, w = struct.unpack(">HH", data[1:5])
+                            return int(w), int(h)
+                        break
+                    f.seek(length - 2, os.SEEK_CUR)
+            # WebP (RIFF....WEBP)
+            if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+                f.seek(12)
+                chunk = f.read(16)
+                if chunk[:4] == b"VP8 " and len(chunk) >= 14:
+                    # lossy: width/height in frame header after 10 bytes of payload start
+                    pass
+                if chunk[:4] == b"VP8X" and len(chunk) >= 14:
+                    # canvas size: 3 bytes each little-endian minus 1
+                    raw = chunk[8:14] if len(chunk) >= 14 else b""
+                    if len(raw) == 6:
+                        w = 1 + raw[0] + (raw[1] << 8) + (raw[2] << 16)
+                        h = 1 + raw[3] + (raw[4] << 8) + (raw[5] << 16)
+                        return int(w), int(h)
+    except Exception:
+        pass
+    return 0, 0
+
+
+def _read_jpeg_exif_basic(path: str) -> dict:
+    """EXIF minimi da JPEG (data scatto, marca, modello) senza Pillow."""
+    import struct
+    out = {}
+    try:
+        with open(path, "rb") as f:
+            if f.read(2) != b"\xff\xd8":
+                return out
+            while True:
+                marker = f.read(2)
+                if len(marker) < 2 or marker[0] != 0xFF:
+                    break
+                code = marker[1]
+                if code in (0xD8, 0xD9):
+                    continue
+                seglen = f.read(2)
+                if len(seglen) < 2:
+                    break
+                length = struct.unpack(">H", seglen)[0]
+                if length < 2:
+                    break
+                data = f.read(length - 2)
+                if code == 0xE1 and data.startswith(b"Exif\x00\x00"):
+                    tiff = data[6:]
+                    if len(tiff) < 8:
+                        break
+                    endian = "<" if tiff[:2] == b"II" else ">"
+                    if tiff[2:4] != (b"\x2a\x00" if endian == "<" else b"\x00\x2a"):
+                        break
+                    ifd0 = struct.unpack(endian + "I", tiff[4:8])[0]
+                    out.update(_parse_exif_ifd(tiff, ifd0, endian))
+                    # EXIF sub-IFD (tag 0x8769) per DateTimeOriginal
+                    sub = out.pop("_exif_ifd", None)
+                    if sub:
+                        out.update(_parse_exif_ifd(tiff, sub, endian))
+                    break
+                if code == 0xDA:  # SOS — fine header
+                    break
+    except Exception:
+        pass
+    return out
+
+
+def _parse_exif_ifd(tiff: bytes, offset: int, endian: str) -> dict:
+    import struct
+    out = {}
+    try:
+        if offset < 0 or offset + 2 > len(tiff):
+            return out
+        n = struct.unpack(endian + "H", tiff[offset:offset + 2])[0]
+        pos = offset + 2
+        for _ in range(n):
+            if pos + 12 > len(tiff):
+                break
+            tag, typ, count = struct.unpack(endian + "HHI", tiff[pos:pos + 8])
+            val_raw = tiff[pos + 8:pos + 12]
+            pos += 12
+            type_size = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1}.get(typ, 1)
+            nbytes = count * type_size
+            if nbytes <= 4:
+                data = val_raw[:nbytes]
+            else:
+                off = struct.unpack(endian + "I", val_raw)[0]
+                data = tiff[off:off + nbytes]
+            if tag == 0x010F and typ == 2:  # Make
+                out["make"] = data.split(b"\x00")[0].decode("latin1", errors="ignore").strip()
+            elif tag == 0x0110 and typ == 2:  # Model
+                out["model"] = data.split(b"\x00")[0].decode("latin1", errors="ignore").strip()
+            elif tag == 0x0132 and typ == 2:  # DateTime
+                out["datetime"] = data.split(b"\x00")[0].decode("latin1", errors="ignore").strip()
+            elif tag == 0x9003 and typ == 2:  # DateTimeOriginal
+                out["datetime_original"] = (
+                    data.split(b"\x00")[0].decode("latin1", errors="ignore").strip()
+                )
+            elif tag == 0x8769 and typ == 4:  # ExifIFDPointer
+                out["_exif_ifd"] = struct.unpack(endian + "I", val_raw)[0]
+    except Exception:
+        pass
+    return out
+
+
+def get_image_tech_info(path: str) -> dict:
+    """Scheda tecnica locale (B): dimensioni, formato, dimensione file, date, EXIF base."""
+    info = {
+        "path": path or "",
+        "file_name": os.path.basename(path or "") or "",
+        "ext": "",
+        "format_label": "",
+        "width": 0,
+        "height": 0,
+        "size_bytes": 0,
+        "mtime": 0.0,
+        "mtime_label": "",
+        "exif_datetime": "",
+        "exif_camera": "",
+        "ok": False,
+        "error": "",
+    }
+    if not path or not os.path.isfile(path):
+        info["error"] = "File non trovato."
+        return info
+    ext = os.path.splitext(path)[1].lower()
+    info["ext"] = ext
+    fmt_map = {
+        ".jpg": "JPEG", ".jpeg": "JPEG", ".jfif": "JPEG",
+        ".png": "PNG", ".gif": "GIF", ".bmp": "BMP",
+        ".tif": "TIFF", ".tiff": "TIFF", ".webp": "WebP", ".ico": "ICO",
+    }
+    info["format_label"] = fmt_map.get(ext, ext.replace(".", "").upper() or "sconosciuto")
+    try:
+        info["size_bytes"] = int(os.path.getsize(path))
+    except Exception:
+        info["size_bytes"] = 0
+    try:
+        info["mtime"] = float(os.path.getmtime(path))
+        import datetime as _dt
+        info["mtime_label"] = _dt.datetime.fromtimestamp(info["mtime"]).strftime(
+            "%d/%m/%Y %H:%M"
+        )
+    except Exception:
+        pass
+    w, h = _read_image_dimensions(path)
+    info["width"], info["height"] = w, h
+    if ext in (".jpg", ".jpeg", ".jfif"):
+        exif = _read_jpeg_exif_basic(path)
+        dt = exif.get("datetime_original") or exif.get("datetime") or ""
+        info["exif_datetime"] = dt.replace(":", "-", 2) if dt else ""
+        cam_parts = [p for p in (exif.get("make"), exif.get("model")) if p]
+        # Evita "Canon Canon EOS…"
+        if len(cam_parts) == 2 and cam_parts[1].lower().startswith(cam_parts[0].lower()):
+            info["exif_camera"] = cam_parts[1]
+        else:
+            info["exif_camera"] = " ".join(cam_parts).strip()
+    info["ok"] = True
+    return info
+
+
+def format_tech_sheet(info: dict) -> str:
+    """Testo accessibile della scheda tecnica (B)."""
+    if not info:
+        return "Scheda tecnica non disponibile."
+    if not info.get("ok"):
+        return info.get("error") or "Scheda tecnica non disponibile."
+    lines = [
+        f"Scheda tecnica: {info.get('file_name') or 'immagine'}",
+        f"Formato: {info.get('format_label') or 'sconosciuto'}.",
+    ]
+    w, h = int(info.get("width") or 0), int(info.get("height") or 0)
+    if w > 0 and h > 0:
+        lines.append(f"Dimensioni: {w} per {h} pixel.")
+    else:
+        lines.append("Dimensioni: non rilevate.")
+    size_b = int(info.get("size_bytes") or 0)
+    if size_b > 0:
+        if size_b < 1024:
+            sz = f"{size_b} byte"
+        elif size_b < 1024 * 1024:
+            sz = f"{size_b / 1024:.1f} KB"
+        else:
+            sz = f"{size_b / (1024 * 1024):.2f} MB"
+        lines.append(f"Dimensione file: {sz}.")
+    if info.get("mtime_label"):
+        lines.append(f"Data file: {info['mtime_label']}.")
+    if info.get("exif_datetime"):
+        lines.append(f"Data scatto (EXIF): {info['exif_datetime']}.")
+    if info.get("exif_camera"):
+        lines.append(f"Fotocamera: {info['exif_camera']}.")
+    return "\n".join(lines)
+
+
+def _google_vision_annotate(path: str, features: list) -> tuple:
+    """Chiama Vision annotate. Restituisce (response_dict|None, diag)."""
+    global _google_last_error
+    key = (_google_api_key or "").strip()
+    if not key:
+        _google_last_error = "chiave API assente"
+        return None, "google: chiave API assente"
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except Exception as e:
+        return None, f"google: lettura ({e})"
+    if not raw:
+        return None, "google: file vuoto"
+    if len(raw) > MAX_OCR_IMAGE_BYTES:
+        return None, "google: file troppo grande"
+    payload = {
+        "requests": [
+            {
+                "image": {"content": base64.b64encode(raw).decode("ascii")},
+                "features": features,
+                "imageContext": {"languageHints": ["it", "en"]},
+            }
+        ]
+    }
+    url = f"{_GOOGLE_VISION_URL}?key={urllib.parse.quote(key, safe='')}"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        _stats["google_calls"] = int(_stats.get("google_calls", 0) or 0) + 1
+        with urllib.request.urlopen(req, timeout=OCR_SOFT_TIMEOUT_SEC) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")[:400]
+        except Exception:
+            pass
+        msg = f"HTTP {e.code}"
+        if err_body:
+            msg += f": {err_body}"
+        _google_last_error = msg
+        return None, f"google: {msg}"
+    except Exception as e:
+        _google_last_error = str(e)
+        return None, f"google: {e}"
+    try:
+        responses = data.get("responses") or []
+        if not responses:
+            return None, "google: risposta vuota"
+        r0 = responses[0] or {}
+        if r0.get("error"):
+            err = r0.get("error") or {}
+            msg = err.get("message") or str(err)
+            _google_last_error = msg
+            return None, f"google: {msg}"
+        _google_last_error = ""
+        return r0, "google"
+    except Exception as e:
+        return None, f"google parse: {e}"
+
+
+def _parse_vision_response(r0: dict) -> dict:
+    """Estrae etichette, oggetti, colori, landmark e testo da una response Vision."""
+    labels = []
+    for ann in r0.get("labelAnnotations") or []:
+        desc = (ann.get("description") or "").strip()
+        if not desc:
+            continue
+        score = float(ann.get("score") or 0)
+        labels.append({"en": desc, "it": _label_to_it(desc), "score": score})
+    objects = []
+    for ann in r0.get("localizedObjectAnnotations") or []:
+        name = (ann.get("name") or "").strip()
+        if not name:
+            continue
+        score = float(ann.get("score") or 0)
+        objects.append({"en": name, "it": _label_to_it(name), "score": score})
+    colors = []
+    props = r0.get("imagePropertiesAnnotation") or {}
+    colors_block = (props.get("dominantColors") or {}).get("colors") or []
+    for c in colors_block[:6]:
+        col = c.get("color") or {}
+        r = float(col.get("red") or 0)
+        g = float(col.get("green") or 0)
+        b = float(col.get("blue") or 0)
+        frac = float(c.get("pixelFraction") or 0)
+        colors.append({
+            "r": r, "g": g, "b": b,
+            "name_it": _color_name_it(r, g, b),
+            "fraction": frac,
+        })
+    landmarks = []
+    for ann in r0.get("landmarkAnnotations") or []:
+        desc = (ann.get("description") or "").strip()
+        if desc:
+            landmarks.append(desc)
+    ocr_text = ""
+    full = r0.get("fullTextAnnotation") or {}
+    ocr_text = (full.get("text") or "").strip()
+    if not ocr_text:
+        anns = r0.get("textAnnotations") or []
+        if anns:
+            ocr_text = (anns[0].get("description") or "").strip()
+    return {
+        "labels": labels,
+        "objects": objects,
+        "colors": colors,
+        "landmarks": landmarks,
+        "ocr_text": ocr_text,
+    }
+
+
+def analyze_image_visual(path: str, should_abort=None, use_cache: bool = True) -> dict:
+    """Analisi Vision (etichette/oggetti/colori/landmark/testo). Richiede chiave Google.
+
+    Restituisce dict con ok, error, labels, objects, colors, landmarks, ocr_text, source.
+    """
+    result = {
+        "ok": False,
+        "error": "",
+        "labels": [],
+        "objects": [],
+        "colors": [],
+        "landmarks": [],
+        "ocr_text": "",
+        "source": "",
+        "path": path or "",
+    }
+    if not path or not os.path.isfile(path):
+        result["error"] = "File non trovato."
+        return result
+    if not is_image_path(path):
+        result["error"] = "Il file non è un'immagine supportata."
+        return result
+    if should_abort and should_abort():
+        result["error"] = "Annullato."
+        return result
+    try:
+        size = os.path.getsize(path)
+        mtime = os.path.getmtime(path)
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+    if size <= 0 or size > MAX_OCR_IMAGE_BYTES:
+        result["error"] = "File troppo grande o vuoto per l'analisi."
+        return result
+
+    cache_key = _vision_cache_key(path, size, mtime, "full")
+    if use_cache:
+        cached = _vision_cache_get(cache_key)
+        if isinstance(cached, dict) and cached.get("ok"):
+            _stats["cache_hits"] = int(_stats.get("cache_hits", 0) or 0) + 1
+            cached = dict(cached)
+            cached["source"] = (cached.get("source") or "cache") + "+cache"
+            return cached
+
+    if not has_google_api_key():
+        result["error"] = (
+            "Per descrivere il contenuto dell'immagine serve la chiave API "
+            "Google Vision (Strumenti → Chiave API Google Vision)."
+        )
+        return result
+
+    features = [
+        {"type": "LABEL_DETECTION", "maxResults": 12},
+        {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
+        {"type": "IMAGE_PROPERTIES", "maxResults": 1},
+        {"type": "LANDMARK_DETECTION", "maxResults": 3},
+        {"type": "TEXT_DETECTION", "maxResults": 1},
+    ]
+    r0, diag = _google_vision_annotate(path, features)
+    if not r0:
+        result["error"] = diag or "Analisi Vision non riuscita."
+        return result
+    parsed = _parse_vision_response(r0)
+    result.update(parsed)
+    result["ok"] = True
+    result["source"] = diag or "google"
+    result["error"] = ""
+    if use_cache:
+        _vision_cache_put(cache_key, {
+            "ok": True,
+            "error": "",
+            "labels": result["labels"],
+            "objects": result["objects"],
+            "colors": result["colors"],
+            "landmarks": result["landmarks"],
+            "ocr_text": result["ocr_text"],
+            "source": "google",
+            "path": path,
+        })
+    return result
+
+
+def get_image_label_strings(path: str, should_abort=None) -> list:
+    """Elenco stringhe (IT+EN) per ricerca contenuto visivo. Cache Vision."""
+    data = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
+    if not data.get("ok"):
+        return []
+    out = []
+    for item in (data.get("labels") or []) + (data.get("objects") or []):
+        for k in ("it", "en"):
+            s = (item.get(k) or "").strip().lower()
+            if s and s not in out:
+                out.append(s)
+    for lm in data.get("landmarks") or []:
+        s = str(lm).strip().lower()
+        if s and s not in out:
+            out.append(s)
+    for c in data.get("colors") or []:
+        s = (c.get("name_it") or "").strip().lower()
+        if s and s not in out:
+            out.append(s)
+    return out
+
+
+def visual_labels_match_terms(labels, terms) -> bool:
+    """True se tutti i termini compaiono nelle etichette/oggetti (IT o EN)."""
+    if not labels or not terms:
+        return False
+    blob = " ".join(str(x).lower() for x in labels if x)
+    if not blob:
+        return False
+    # Riusa la logica tollerante OCR (sinonimi, fold)
+    return ocr_text_matches_terms(blob, terms)
+
+
+def _uniq_keep_order(items):
+    out = []
+    seen = set()
+    for x in items:
+        s = (str(x) or "").strip()
+        if not s:
+            continue
+        key = s.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(s)
+    return out
+
+
+def format_labels_text(data: dict) -> str:
+    """Testo etichette/oggetti per dialoghi e copia."""
+    if not data:
+        return "Nessuna etichetta disponibile."
+    if not data.get("ok"):
+        return data.get("error") or "Analisi non disponibile."
+    lines = []
+    labs = data.get("labels") or []
+    if labs:
+        parts = []
+        for L in labs[:12]:
+            it = L.get("it") or L.get("en") or ""
+            en = L.get("en") or ""
+            if it and en and it.lower() != en.lower():
+                parts.append(f"{it} ({en})")
+            elif it:
+                parts.append(it)
+        parts = _uniq_keep_order(parts)
+        if parts:
+            lines.append("Etichette: " + ", ".join(parts) + ".")
+    objs = data.get("objects") or []
+    if objs:
+        parts = []
+        for O in objs[:10]:
+            it = O.get("it") or O.get("en") or ""
+            if it:
+                parts.append(it)
+        parts = _uniq_keep_order(parts)
+        if parts:
+            lines.append("Oggetti riconosciuti: " + ", ".join(parts) + ".")
+    lms = data.get("landmarks") or []
+    if lms:
+        lines.append("Luoghi: " + ", ".join(_uniq_keep_order(lms)) + ".")
+    cols = data.get("colors") or []
+    if cols:
+        names = []
+        for c in cols[:5]:
+            n = c.get("name_it") or ""
+            if n and n not in names:
+                names.append(n)
+        if names:
+            lines.append("Colori dominanti: " + ", ".join(names) + ".")
+    if not lines:
+        return "Nessuna etichetta rilevata in questa immagine."
+    return "\n".join(lines)
+
+
+def format_image_description(path: str, visual: dict = None, tech: dict = None,
+                             include_tech: bool = True, include_ocr: bool = True) -> str:
+    """Descrizione accessibile da etichette Vision (fallback se Gemini assente)."""
+    parts = []
+    name = os.path.basename(path or "") or "immagine"
+    parts.append(f"Descrizione di: {name}")
+    parts.append(
+        "(Livello etichette Google Vision. Per una descrizione narrativa "
+        "completa inserisci la chiave API Gemini in Strumenti.)"
+    )
+
+    if visual is None:
+        visual = analyze_image_visual(path) if path else {"ok": False, "error": "Percorso assente."}
+
+    if visual.get("ok"):
+        labs = visual.get("labels") or []
+        objs = visual.get("objects") or []
+        top = _uniq_keep_order(
+            [L.get("it") or L.get("en") for L in labs[:6] if (L.get("it") or L.get("en"))]
+        )
+        if top:
+            if len(top) == 1:
+                parts.append(f"L'immagine riguarda soprattutto: {top[0]}.")
+            else:
+                parts.append(
+                    "L'immagine riguarda soprattutto: "
+                    + ", ".join(top[:-1])
+                    + " e "
+                    + top[-1]
+                    + "."
+                )
+        obj_names = _uniq_keep_order(
+            [O.get("it") or O.get("en") for O in objs[:8] if (O.get("it") or O.get("en"))]
+        )
+        top_cf = {t.casefold() for t in top}
+        obj_names = [o for o in obj_names if o.casefold() not in top_cf]
+        if obj_names:
+            parts.append("Si vedono anche: " + ", ".join(obj_names) + ".")
+        lms = _uniq_keep_order(visual.get("landmarks") or [])
+        if lms:
+            parts.append("Luogo riconosciuto: " + ", ".join(lms) + ".")
+        cols = visual.get("colors") or []
+        cnames = []
+        for c in cols[:4]:
+            n = c.get("name_it") or ""
+            if n and n not in cnames:
+                cnames.append(n)
+        if cnames:
+            parts.append("Colori dominanti: " + ", ".join(cnames) + ".")
+        if include_ocr:
+            ocr = (visual.get("ocr_text") or "").strip()
+            if ocr:
+                compact = " ".join(ocr.split())
+                if len(compact) > 500:
+                    compact = compact[:497] + "…"
+                parts.append(f"Testo presente nell'immagine: {compact}")
+    else:
+        err = visual.get("error") or ""
+        if err:
+            parts.append(err)
+        else:
+            parts.append("Descrizione del contenuto non disponibile.")
+        if include_ocr and path and engine_available():
+            try:
+                ocr = (ocr_image_file(path) or "").strip()
+            except Exception:
+                ocr = ""
+            if ocr:
+                compact = " ".join(ocr.split())
+                if len(compact) > 500:
+                    compact = compact[:497] + "…"
+                parts.append(f"Testo letto con OCR: {compact}")
+
+    if include_tech:
+        if tech is None:
+            tech = get_image_tech_info(path)
+        tech_block = format_tech_sheet(tech)
+        if tech_block:
+            parts.append("")
+            parts.append(tech_block)
+
+    return "\n".join(parts).strip()
+
+
+_GEMINI_DESCRIBE_PROMPT = """\
+Sei un assistente di accessibilità per persone cieche e ipovedenti.
+Descrivi l'immagine in italiano chiaro, preciso e immersivo: chi ascolta
+deve potersi sentire «dentro» la scena.
+
+PRIORITÀ ASSOLUTA — anti-allucinazione:
+1) Descrivi SOLO ciò che vedi in QUESTA immagine, non articoli o prime pagine
+   famose del passato che ti ricordano qualcosa di simile.
+2) Se nel messaggio utente c'è un blocco «Indizi dal file / OCR», usalo come
+   ancoraggio: date nel nome file, data OCR, citazioni OCR hanno priorità
+   sulla tua memoria storica.
+3) Se leggi una data nell'immagine (giorno/mese/anno), riportala ESATTAMENTE
+   come appare. Non «correggerla» in anni precedenti (es. 2026 non diventa 2020).
+4) Nomi propri di persone: solo se sei molto sicuro dal volto O se il nome
+   è scritto nell'immagine/OCR. Se non sei sicuro, descrivi senza nome
+   («uomo calvo con barba», «allenatore in polo», «pilota con tuta») invece
+   di inventare o ripescare nomi d'epoca sbagliata.
+5) Non mescolare epoche: se la pagina è del 2026, non raccontare come se fosse
+   il 2020 (Nations League di allora, Pirlo allenatore Juve, ecc.) a meno che
+   il testo nell'immagine lo dica chiaramente.
+6) Per i testi: preferisci le stringhe dell'OCR fornito; puoi correggere solo
+   errori OCR evidenti (lettere scambiate), non riscrivere i fatti.
+
+Altre regole:
+- Scrivi solo in italiano.
+- Distingui fotografia reale da grafica/locandina/prima pagina di giornale.
+- Completa SEMPRE tutte le sezioni: non interrompere a metà frase.
+- Titoli di sezione in testo semplice (senza markdown ** grassetto).
+
+Usa ESATTAMENTE queste sezioni (titoli inclusi):
+
+Titolo
+Una riga che riassume l'immagine.
+
+Layout e composizione
+Come è costruita l'immagine (sfondo, riquadri, colonne, foto, grafica).
+
+Testi visibili
+Elenco dei testi leggibili, con posizione. Se non ce ne sono: «Nessun testo rilevante.».
+
+Soggetti e dettagli
+Persone, abbigliamento, oggetti, espressioni. Nomi propri solo se sicuri
+(vedi regole sopra). Chiudi con una frase completa.
+
+Postura e movimento
+Se ci sono persone: orientamento del corpo, appoggio, gambe/braccia, sguardo,
+senso del movimento. Se non ci sono figure in azione:
+«Nessuna figura in movimento rilevante.».
+
+Luogo e contesto
+Ambientazione e occasione. Allinea il contesto alla data letta nell'immagine
+o negli indizi file/OCR, non a ricordi di altre epoche.
+
+Note
+Solo se serve una precisazione breve (es. «alcuni volti nei riquadri piccoli
+non sono identificabili con certezza»); altrimenti ometti la sezione.
+"""
+
+
+def _parse_date_hint_from_name(name: str) -> str:
+    """Estrae indizio data da nome file tipo 05-10-2026 o 2026-10-05."""
+    import re
+    s = name or ""
+    m = re.search(r"(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4})(?!\d)", s)
+    if m:
+        gg, mm, aaaa = m.group(1), m.group(2), m.group(3)
+        try:
+            if 1 <= int(mm) <= 12 and 1 <= int(gg) <= 31:
+                return f"{gg}/{mm}/{aaaa}"
+        except Exception:
+            pass
+    m = re.search(r"(?<!\d)(\d{4})[-_.](\d{2})[-_.](\d{2})(?!\d)", s)
+    if m:
+        aaaa, mm, gg = m.group(1), m.group(2), m.group(3)
+        try:
+            if 1 <= int(mm) <= 12 and 1 <= int(gg) <= 31:
+                return f"{gg}/{mm}/{aaaa}"
+        except Exception:
+            pass
+    return ""
+
+
+def _build_gemini_grounding(path: str) -> str:
+    """Indizi file + OCR Vision per ancorare Gemini e ridurre allucinazioni."""
+    lines = ["Indizi dal file / OCR (ancora fattuale — rispettali):"]
+    base = os.path.basename(path or "") or ""
+    if base:
+        lines.append(f"- Nome file: {base}")
+    date_hint = _parse_date_hint_from_name(base)
+    if date_hint:
+        lines.append(
+            f"- Data suggerita dal nome file: {date_hint} "
+            f"(se nell'immagine leggi una data diversa, preferisci quella "
+            f"dell'immagine; non sostituirla con anni di articoli storici)."
+        )
+    try:
+        tech = get_image_tech_info(path)
+        if tech.get("mtime_label"):
+            lines.append(f"- Data del file sul disco: {tech['mtime_label']}")
+    except Exception:
+        pass
+    ocr_txt = ""
+    try:
+        if has_google_api_key():
+            vis = analyze_image_visual(path, use_cache=True)
+            if vis.get("ok"):
+                ocr_txt = (vis.get("ocr_text") or "").strip()
+        if not ocr_txt and engine_available():
+            ocr_txt = (ocr_image_file(path) or "").strip()
+    except Exception:
+        ocr_txt = ""
+    if ocr_txt:
+        compact = " ".join(ocr_txt.split())
+        if len(compact) > 2500:
+            compact = compact[:2497] + "…"
+        lines.append("- Testo OCR rilevato nell'immagine (usa come riferimento per citazioni e date):")
+        lines.append(compact)
+    else:
+        lines.append(
+            "- OCR non disponibile: leggi i testi direttamente dall'immagine, "
+            "senza inventare citazioni."
+        )
+    lines.append(
+        "Se un volto nei riquadri piccoli non è riconoscibile con certezza, "
+        "NON assegnare un nome famoso: descrivi solo aspetto e ruolo."
+    )
+    return "\n".join(lines)
+
+
+def _mime_for_image_path(path: str) -> str:
+    ext = os.path.splitext(path or "")[1].lower()
+    return {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".jfif": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".ico": "image/x-icon",
+    }.get(ext, "image/jpeg")
+
+
+def _gemini_list_generate_models(key: str) -> list:
+    """Elenco modelli che supportano generateContent (nome corto, senza 'models/')."""
+    global _gemini_models_cache, _gemini_models_cache_key
+    key = (key or "").strip()
+    if not key:
+        return []
+    if _gemini_models_cache is not None and _gemini_models_cache_key == key:
+        return list(_gemini_models_cache)
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models"
+        f"?key={urllib.parse.quote(key, safe='')}&pageSize=100"
+    )
+    names = []
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(body) if body else {}
+        for m in data.get("models") or []:
+            methods = m.get("supportedGenerationMethods") or []
+            if "generateContent" not in methods:
+                continue
+            name = (m.get("name") or "").strip()
+            if name.startswith("models/"):
+                name = name[len("models/"):]
+            # Solo Flash/Pro utili per descrizione immagini (niente TTS/Live/Embedding)
+            low = name.lower()
+            if any(
+                skip in low
+                for skip in (
+                    "tts", "live", "embed", "image", "veo", "lyria",
+                    "transcribe", "robotics", "omni", "deep-research",
+                    "antigravity", "computer-use",
+                )
+            ):
+                continue
+            if "flash" in low or "pro" in low or low.endswith("-latest"):
+                if name and name not in names:
+                    names.append(name)
+    except Exception as e:
+        logging.debug(f"ListModels Gemini fallito: {e}")
+        names = []
+    _gemini_models_cache = names
+    _gemini_models_cache_key = key
+    return list(names)
+
+
+def _gemini_model_candidates(key: str) -> list:
+    """Ordine di prova: preferiti attuali, poi quelli scoperti dalla chiave."""
+    ordered = []
+    seen = set()
+
+    def _add(name: str):
+        n = (name or "").strip()
+        if not n or n in seen:
+            return
+        seen.add(n)
+        ordered.append(n)
+
+    for n in _GEMINI_MODELS_PREFERRED:
+        _add(n)
+    for n in _gemini_list_generate_models(key):
+        _add(n)
+    return ordered
+
+
+def _gemini_generate_description(path: str, should_abort=None) -> tuple:
+    """Chiama Gemini multimodal. Restituisce (testo, diag)."""
+    global _gemini_last_error
+    key = (_gemini_api_key or "").strip()
+    if not key:
+        _gemini_last_error = "chiave API Gemini assente"
+        return "", "gemini: chiave API assente"
+    if should_abort and should_abort():
+        return "", "gemini: annullato"
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except Exception as e:
+        _gemini_last_error = f"lettura file: {e}"
+        return "", f"gemini: lettura ({e})"
+    if not raw:
+        return "", "gemini: file vuoto"
+    if len(raw) > MAX_OCR_IMAGE_BYTES:
+        return "", "gemini: file troppo grande"
+
+    b64 = base64.b64encode(raw).decode("ascii")
+    mime = _mime_for_image_path(path)
+    try:
+        grounding = _build_gemini_grounding(path)
+    except Exception as e:
+        logging.debug(f"Grounding Gemini non disponibile: {e}")
+        grounding = ""
+    user_text = _GEMINI_DESCRIBE_PROMPT
+    if grounding:
+        user_text = user_text + "\n\n" + grounding
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": user_text},
+                    {"inline_data": {"mime_type": mime, "data": b64}},
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 8192,
+        },
+    }
+    body = json.dumps(payload).encode("utf-8")
+    last_err = ""
+    tried = []
+    models = _gemini_model_candidates(key)
+    if not models:
+        models = list(_GEMINI_MODELS_PREFERRED)
+    for model in models:
+        if should_abort and should_abort():
+            return "", "gemini: annullato"
+        tried.append(model)
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={urllib.parse.quote(key, safe='')}"
+        )
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            method="POST",
+        )
+        try:
+            _stats["gemini_calls"] = int(_stats.get("gemini_calls", 0) or 0) + 1
+            with urllib.request.urlopen(req, timeout=_GEMINI_TIMEOUT_SEC) as resp:
+                resp_body = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(resp_body) if resp_body else {}
+        except urllib.error.HTTPError as e:
+            err_body = ""
+            try:
+                err_body = e.read().decode("utf-8", errors="replace")[:400]
+            except Exception:
+                pass
+            last_err = f"HTTP {e.code} ({model})"
+            if err_body:
+                last_err += f": {err_body}"
+            # 404/429: prova il modello successivo
+            if e.code in (404, 429):
+                continue
+            # 400 spesso = modello non adatto all'immagine → continua
+            if e.code == 400 and "not found" in (err_body or "").lower():
+                continue
+            _gemini_last_error = last_err
+            logging.warning(f"Gemini descrizione fallita: {last_err}")
+            return "", f"gemini: {last_err}"
+        except Exception as e:
+            last_err = f"{model}: {e}"
+            _gemini_last_error = last_err
+            logging.warning(f"Gemini errore: {e}")
+            return "", f"gemini: {e}"
+
+        try:
+            cands = data.get("candidates") or []
+            if not cands:
+                pf = data.get("promptFeedback") or {}
+                last_err = f"{model}: nessuna risposta ({pf or 'vuoto'})"
+                continue
+            parts = (((cands[0] or {}).get("content") or {}).get("parts")) or []
+            texts = []
+            for p in parts:
+                t = (p.get("text") or "").strip()
+                if t:
+                    texts.append(t)
+            text = "\n".join(texts).strip()
+            if text:
+                finish = str((cands[0] or {}).get("finishReason") or "")
+                if finish.upper() in ("MAX_TOKENS", "LENGTH"):
+                    # Completa in modo leggibile se il modello ha tagliato
+                    if not text.endswith((".", "!", "?", "»", '"')):
+                        text = text.rstrip(",;:") + "…"
+                    text += (
+                        "\n\n(Nota: la descrizione è stata leggermente "
+                        "accorciata dal limite tecnico; i punti principali "
+                        "restano comunque presenti.)"
+                    )
+                _gemini_last_error = ""
+                return text, f"gemini:{model}"
+            last_err = f"{model}: testo vuoto"
+        except Exception as e:
+            last_err = f"{model} parse: {e}"
+            continue
+
+    short_tried = ", ".join(tried[:6])
+    if len(tried) > 6:
+        short_tried += f"… (+{len(tried) - 6})"
+    _gemini_last_error = last_err or "nessun modello Gemini disponibile"
+    return (
+        "",
+        f"gemini: {_gemini_last_error} [provati: {short_tried}]",
+    )
+
+
+def describe_image_gemini(path: str, should_abort=None, use_cache: bool = True) -> dict:
+    """Descrizione narrativa avanzata via Gemini. Dict: ok, text, error, source."""
+    result = {
+        "ok": False,
+        "text": "",
+        "error": "",
+        "source": "",
+        "path": path or "",
+    }
+    if not path or not os.path.isfile(path):
+        result["error"] = "File non trovato."
+        return result
+    if not is_image_path(path):
+        result["error"] = "Il file non è un'immagine supportata."
+        return result
+    if not has_gemini_api_key():
+        result["error"] = (
+            "Per la descrizione avanzata serve la chiave API Gemini "
+            "(Strumenti → Chiave API Gemini / Google AI Studio)."
+        )
+        return result
+    try:
+        size = os.path.getsize(path)
+        mtime = os.path.getmtime(path)
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+    if size <= 0 or size > MAX_OCR_IMAGE_BYTES:
+        result["error"] = "File troppo grande o vuoto."
+        return result
+
+    # v6: grounding OCR/data file + anti-allucinazione epoche/nomi
+    cache_key = _vision_cache_key(path, size, mtime, "gemini_desc_v6")
+    if use_cache:
+        cached = _vision_cache_get(cache_key)
+        if isinstance(cached, dict) and cached.get("ok") and cached.get("text"):
+            _stats["cache_hits"] = int(_stats.get("cache_hits", 0) or 0) + 1
+            out = dict(cached)
+            out["source"] = (out.get("source") or "gemini") + "+cache"
+            return out
+
+    text, diag = _gemini_generate_description(path, should_abort=should_abort)
+    if not text:
+        result["error"] = diag or (_gemini_last_error or "Descrizione Gemini non riuscita.")
+        return result
+    result["ok"] = True
+    result["text"] = text
+    result["source"] = diag or "gemini"
+    result["error"] = ""
+    if use_cache:
+        _vision_cache_put(cache_key, {
+            "ok": True,
+            "text": text,
+            "error": "",
+            "source": result["source"],
+            "path": path,
+        })
+    return result
+
+
+def describe_image(path: str, should_abort=None, include_tech: bool = True,
+                   include_ocr: bool = True, prefer_gemini: bool = True) -> str:
+    """Descrizione completa: Gemini (se chiave) altrimenti Vision + scheda tecnica."""
+    tech = get_image_tech_info(path)
+    tech_block = format_tech_sheet(tech) if include_tech else ""
+
+    if prefer_gemini and has_gemini_api_key():
+        adv = describe_image_gemini(path, should_abort=should_abort, use_cache=True)
+        if adv.get("ok") and (adv.get("text") or "").strip():
+            parts = [
+                f"Descrizione avanzata di: {os.path.basename(path) or 'immagine'}",
+                "",
+                (adv.get("text") or "").strip(),
+            ]
+            if tech_block:
+                parts.extend(["", tech_block])
+            return "\n".join(parts).strip()
+        # Gemini fallita: continua con fallback Vision (segnala l’errore)
+        note = adv.get("error") or gemini_last_error() or "Gemini non disponibile."
+        visual = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
+        base = format_image_description(
+            path, visual=visual, tech=tech,
+            include_tech=False, include_ocr=include_ocr,
+        )
+        parts = [base, "", f"Nota: descrizione avanzata Gemini non usata ({note})."]
+        if tech_block:
+            parts.extend(["", tech_block])
+        return "\n".join(parts).strip()
+
+    visual = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
+    return format_image_description(
+        path, visual=visual, tech=tech,
+        include_tech=include_tech, include_ocr=include_ocr,
+    )
+
+
+def vision_status_message() -> str:
+    """Messaggio stato analisi visiva (per UI)."""
+    bits = []
+    if has_gemini_api_key():
+        bits.append("Descrizione avanzata Gemini pronta.")
+    else:
+        bits.append(
+            "Descrizione avanzata: inserisci la chiave API Gemini "
+            "(Strumenti → Chiave API Gemini)."
+        )
+    if has_google_api_key():
+        bits.append("Etichette/ricerca visiva Google Vision pronte.")
+    else:
+        bits.append("Per etichette e ricerca visiva serve la chiave Google Vision.")
+    bits.append("La scheda tecnica funziona sempre, anche senza chiavi.")
+    return " ".join(bits)
+

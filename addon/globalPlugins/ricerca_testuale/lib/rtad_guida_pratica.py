@@ -28,18 +28,17 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.2
+Novità recenti (in parole semplici) — versione 1.6.3
 ----------------------------------------------------
-• A fine ricerca compare una notifica nel Centro notifiche
-  Windows (Windows+N): resta lì finché non la apri
-  (la trovi in Strumenti; di default è attiva).
-• Da Strumenti puoi svuotare la cache OCR se un’immagine
-  non viene riletta bene dopo un aggiornamento.
-• Con Google Vision il programma prova anche la parte bassa
-  e i bordi delle foto (firme, byline) e unisce i pezzi utili.
-• Restano ZIP e «arrivi dell’ultimo minuto» (1.6.1),
-  OCR Google Vision (1.6.0), guida ed EPUB (1.5.9), OCR locale
-  (1.5.8), voce/Mute (1.5.7), posta (1.5.6), profili…
+• Sulle immagini puoi chiedere una descrizione avanzata
+  (layout, testi, maglia, contesto): serve la chiave Gemini
+  da Strumenti → Chiave API Gemini (Google AI Studio).
+• In Esplora file, «Cerca con Accesso Digitale» sulle immagini
+  è un sottomenù: Descrivi, OCR, Etichette, Scheda, Copia.
+• Ricerca contenuto visivo (etichette/scene) con Google Vision;
+  scheda tecnica anche senza chiavi.
+• Restano notifica fine ricerca (1.6.2), ZIP (1.6.1), OCR Vision
+  (1.6.0), guida/EPUB (1.5.9)…
 
 
 1. A cosa serve

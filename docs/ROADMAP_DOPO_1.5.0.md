@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** lavoro corrente = `1.6.2` (notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini). Ultima pubblicata = `1.6.1` finché non escono i tag `v1.6.2` / `app-v1.6.2`.
+**Regola versione:** lavoro corrente = `1.6.3` (immagini: descrizione + ricerca visiva + scheda tecnica). Ultima pubblicata = `1.6.2` finché non escono i tag `v1.6.3` / `app-v1.6.3`.
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -132,8 +132,10 @@ Contenuto previsto `1.6.0`:
 - **Profili** = `1.5.4`; **posta completa + allegati ricette** = `1.5.6`; **voce** = `1.5.7`; **OCR locale** = `1.5.8`; **guida pratica + EPUB** = `1.5.9`.
 - **OCR cloud Google Vision** = `1.6.0` (gemello SA/Add-on, chiave utente).  
 - **ZIP opt-in:** in `1.6.1` (con arrivi ultimo minuto).  
-- **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini.  
-- **Oggetti nelle foto:** non nel nucleo; pista futura opt-in (dopo 1.6.2).
+- **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini — **pubblicata**.  
+- **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone.  
+- **1.6.4 (dopo):** C alt-text breve/lungo + D/E/F (PDF describe, batch, dialogo unico).  
+- **Oggetti nelle foto:** avviato in 1.6.3 (etichette Vision opt-in); ampliamenti in 1.6.4.
 
 ---
 
@@ -148,13 +150,16 @@ Contenuto previsto `1.6.0`:
 7. ~~**1.5.9** guida pratica + EPUB~~ **pubblicata**.  
 8. ~~**1.6.0** Google Cloud Vision + fix lista~~ **pubblicata** (`v1.6.0` / `app-v1.6.0`; DataStore OK).
 9. ~~**1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI~~ **pubblicata**.
-10. **1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini — codice in corso; pubblicare dopo test.
+10. ~~**1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini~~ **pubblicata** (o pronta).
+11. **1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA) — codice in corso; pubblicare dopo test.
+12. **1.6.4** alt-text breve/lungo + batch/PDF describe (dopo feedback).
 
 ---
 
 ## Idee in lista d’attesa
 
-- Caption/tag visuali opt-in Standalone; ricerca semantica scene  
+- Alt-text breve + descrizione lunga (C → 1.6.4)  
+- Descrivi da PDF / batch cartella / dialogo unico «Tutto sull’immagine»  
 - Media/Whisper gemello; export/stampa extra; API OneCore native  
 - Feedback esterni → aggiornano priorità qui  
 

@@ -68,7 +68,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.2"
+APP_VERSION = "1.6.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1512,6 +1512,7 @@ def load_search_profiles():
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
                 "include_ocr": bool(item.get("include_ocr", False)),
+                "include_visual": bool(item.get("include_visual", False)),
                 "include_zip": bool(item.get("include_zip", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
@@ -1542,6 +1543,7 @@ def save_search_profiles(profiles):
                 "query": str(item.get("query", "") or ""),
                 "include_feed_raw": bool(item.get("include_feed_raw", False)),
                 "include_ocr": bool(item.get("include_ocr", False)),
+                "include_visual": bool(item.get("include_visual", False)),
                 "include_zip": bool(item.get("include_zip", False)),
                 "auto_start": bool(item.get("auto_start", False)),
             }
@@ -2676,6 +2678,17 @@ def save_include_ocr_preference(enabled):
     _save_settings_dict(data)
 
 
+def load_include_visual_preference():
+    data = _load_settings_dict()
+    return bool(data.get("include_visual", False))
+
+
+def save_include_visual_preference(enabled):
+    data = _load_settings_dict()
+    data["include_visual"] = bool(enabled)
+    _save_settings_dict(data)
+
+
 def load_include_zip_preference():
     data = _load_settings_dict()
     return bool(data.get("include_zip", False))
@@ -2731,6 +2744,27 @@ def save_google_vision_api_key(key):
     if rtad_ocr is not None:
         try:
             rtad_ocr.set_google_api_key(key)
+        except Exception:
+            pass
+
+
+def load_gemini_api_key():
+    """Chiave API personale Gemini / Google AI Studio (descrizione avanzata)."""
+    data = _load_settings_dict()
+    return str(data.get("gemini_api_key", "") or "").strip()
+
+
+def save_gemini_api_key(key):
+    key = str(key or "").strip()
+    data = _load_settings_dict()
+    if key:
+        data["gemini_api_key"] = key
+    else:
+        data.pop("gemini_api_key", None)
+    _save_settings_dict(data)
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
         except Exception:
             pass
 
@@ -3100,6 +3134,71 @@ class MboxViewerFrame(wx.Frame):
         else:
             event.Skip()
 
+class ImageInfoFrame(wx.Frame):
+    """Finestra descrizione / etichette / scheda tecnica immagine (1.6.3).
+
+    parent=None di proposito: resta aperta e consultabile anche se si
+    iconizza/cambia finestra; si chiude solo con Chiudi o ESC.
+    """
+
+    def __init__(self, parent, title, body_text, image_path=""):
+        # Ignora parent: top-level indipendente (non si chiude col dialogo padre)
+        super(ImageInfoFrame, self).__init__(
+            None,
+            title=title,
+            size=(720, 520),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+        self.image_path = image_path or ""
+        self.body_text = body_text or ""
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        lbl = wx.StaticText(
+            panel,
+            label=os.path.basename(self.image_path) if self.image_path else "Immagine",
+        )
+        vbox.Add(lbl, 0, wx.ALL, 8)
+
+        self.txt_display = wx.TextCtrl(
+            panel,
+            value=self.body_text,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+        )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        btn_copy = wx.Button(panel, label="&Copia testo")
+        btn_copy.Bind(wx.EVT_BUTTON, self.on_copy)
+        hbox.Add(btn_copy, 0, wx.ALL, 5)
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
+        hbox.Add(btn_close, 0, wx.ALL, 5)
+        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.txt_display.SetFocus()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        rtad_speak(f"{title}. Usa le frecce per leggere.")
+
+    def on_copy(self, event=None):
+        text = self.txt_display.GetValue()
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.Close()
+            rtad_speak("Testo copiato negli appunti.")
+        else:
+            rtad_speak("Impossibile aprire gli appunti.")
+
+    def on_char_hook(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.Close()
+        else:
+            event.Skip()
+
+
 class WhatsNewFrame(wx.Frame):
     def __init__(self, parent):
         super(WhatsNewFrame, self).__init__(
@@ -3116,14 +3215,11 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Notifica di sistema a fine ricerca (Strumenti):\n"
-            "  resta nel Centro notifiche (Windows+N) finché\n"
-            "  non la apri; attiva di default.\n"
-            "• Svuota cache OCR dal menu Strumenti (dopo un update\n"
-            "  o se un’immagine non viene riletta bene).\n"
-            "• Google Vision: ritenta anche fasce basse e margini\n"
-            "  (byline/firma) e unisce i pezzi OCR utili.\n"
-            "• Restano ZIP e arrivi ultimo minuto 1.6.1,\n"
+            "• Descrizione avanzata immagini con Gemini\n"
+            "  (chiave personale Google AI Studio).\n"
+            "• Etichette, scheda tecnica e ricerca contenuto visivo\n"
+            "  (Google Vision) dal menu contestuale.\n"
+            "• Restano notifica fine ricerca 1.6.2, ZIP 1.6.1,\n"
             "  OCR Vision 1.6.0, guida/EPUB 1.5.9.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
@@ -3421,6 +3517,17 @@ class SearchFrame(wx.Frame):
         self.chk_ocr.Bind(wx.EVT_CHECKBOX, self.on_ocr_checkbox)
         vbox.Add(self.chk_ocr, 0, wx.ALL, 5)
 
+        self.chk_visual = wx.CheckBox(
+            panel,
+            label="Includi contenuto visivo delle immagini (etichette/scene, richiede Google Vision)",
+        )
+        try:
+            self.chk_visual.SetValue(load_include_visual_preference())
+        except Exception:
+            self.chk_visual.SetValue(False)
+        self.chk_visual.Bind(wx.EVT_CHECKBOX, self.on_visual_checkbox)
+        vbox.Add(self.chk_visual, 0, wx.ALL, 5)
+
         self.chk_zip = wx.CheckBox(
             panel,
             label="Includi contenuti negli archivi ZIP (opt-in, più lento)",
@@ -3454,6 +3561,12 @@ class SearchFrame(wx.Frame):
                 rtad_ocr.set_google_api_key(gkey)
         except Exception:
             pass
+        try:
+            gemkey = load_gemini_api_key()
+            if rtad_ocr is not None:
+                rtad_ocr.set_gemini_api_key(gemkey)
+        except Exception:
+            pass
         self.choice_ocr_engine.SetSelection(ocr_choice_index_from_engine(eng))
         if rtad_ocr is not None:
             try:
@@ -3466,6 +3579,10 @@ class SearchFrame(wx.Frame):
         btn_gkey.SetName("Chiave API Google Vision")
         btn_gkey.Bind(wx.EVT_BUTTON, self.on_set_google_vision_key)
         hbox_ocr_eng.Add(btn_gkey, 0, wx.LEFT, 8)
+        btn_gem = wx.Button(panel, label="Chiave Ge&mini…")
+        btn_gem.SetName("Chiave API Gemini")
+        btn_gem.Bind(wx.EVT_BUTTON, self.on_set_gemini_api_key)
+        hbox_ocr_eng.Add(btn_gem, 0, wx.LEFT, 8)
         vbox.Add(hbox_ocr_eng, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         hbox_actions = wx.BoxSizer(wx.HORIZONTAL)
@@ -3784,6 +3901,10 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "Chiave API &Google Vision…"
         )
         self.Bind(wx.EVT_MENU, self.on_set_google_vision_key, item_gkey)
+        item_gemkey = tools_menu.Append(
+            wx.ID_ANY, "Chiave API Ge&mini (descrizione avanzata)…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_set_gemini_api_key, item_gemkey)
         item_clear_ocr = tools_menu.Append(
             wx.ID_ANY, "S&vuota cache OCR…"
         )
@@ -3971,6 +4092,9 @@ class SearchFrame(wx.Frame):
             "custom_ext": custom_ext if filter_mode == 4 else "",
             "include_feed_raw": bool(self.chk_feed_raw.GetValue()),
             "include_ocr": bool(self.chk_ocr.GetValue()),
+            "include_visual": bool(
+                getattr(self, "chk_visual", None) and self.chk_visual.GetValue()
+            ),
             "include_zip": bool(self.chk_zip.GetValue()),
             "ocr_engine": ocr_engine_from_choice_index(
                 self.choice_ocr_engine.GetSelection()
@@ -4022,6 +4146,44 @@ class SearchFrame(wx.Frame):
             )
         else:
             rtad_speak("Chiave Google Vision rimossa.", force=True)
+
+    def on_set_gemini_api_key(self, event=None):
+        current = ""
+        try:
+            current = load_gemini_api_key()
+        except Exception:
+            current = ""
+        dlg = wx.TextEntryDialog(
+            self,
+            "Incolla qui la TUA chiave API Gemini (Google AI Studio).\n"
+            "Serve per la descrizione avanzata delle immagini.\n"
+            "Consigliata una chiave dedicata a RTAD (non quella di altri programmi).\n"
+            "Vale solo per te, su questo PC. Gli altri utenti inseriscono la loro.\n"
+            "Lascia vuoto e conferma per rimuovere la chiave salvata.\n\n"
+            "Crea la chiave su: https://aistudio.google.com/apikey\n"
+            "(L’abbonamento Gemini Plus/Pro dell’app chat NON serve per l’API.)",
+            "Chiave API Gemini",
+            current,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            new_key = (dlg.GetValue() or "").strip()
+        finally:
+            dlg.Destroy()
+        try:
+            save_gemini_api_key(new_key)
+        except Exception as e:
+            rtad_speak(f"Impossibile salvare la chiave Gemini: {e}", force=True)
+            return
+        if new_key:
+            rtad_speak(
+                "Chiave Gemini salvata in locale. "
+                "Ora «Descrivi immagine» userà la descrizione avanzata.",
+                force=True,
+            )
+        else:
+            rtad_speak("Chiave Gemini rimossa.", force=True)
 
     def on_ocr_engine_choice(self, event=None):
         eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
@@ -4098,6 +4260,67 @@ class SearchFrame(wx.Frame):
                 )
         else:
             rtad_speak("OCR disattivato: solo nomi file e documenti con testo.", force=True)
+
+    def on_visual_checkbox(self, event=None):
+        enabled = bool(self.chk_visual.GetValue())
+        try:
+            save_include_visual_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            if rtad_ocr is None:
+                rtad_speak("Modulo immagini non disponibile in questa build.", force=True)
+                try:
+                    self.chk_visual.SetValue(False)
+                    save_include_visual_preference(False)
+                except Exception:
+                    pass
+                return
+            has_key = False
+            try:
+                has_key = bool(load_google_vision_api_key())
+            except Exception:
+                has_key = False
+            if not has_key:
+                rtad_speak(
+                    "Per il contenuto visivo serve la chiave API Google Vision. "
+                    "Apro la finestra per inserirla.",
+                    force=True,
+                )
+                self.on_set_google_vision_key()
+                try:
+                    has_key = bool(load_google_vision_api_key())
+                except Exception:
+                    has_key = False
+                if not has_key:
+                    try:
+                        self.chk_visual.SetValue(False)
+                        save_include_visual_preference(False)
+                    except Exception:
+                        pass
+                    rtad_speak(
+                        "Contenuto visivo non attivato: manca la chiave Google.",
+                        force=True,
+                    )
+                    return
+            if rtad_ocr is not None:
+                try:
+                    rtad_ocr.set_google_api_key(load_google_vision_api_key())
+                except Exception:
+                    pass
+            status = ""
+            try:
+                status = rtad_ocr.vision_status_message()
+            except Exception:
+                status = ""
+            rtad_speak(
+                "Contenuto visivo attivato: la ricerca userà anche etichette e scene "
+                "nelle immagini (più lento, con cache). "
+                + (status or ""),
+                force=True,
+            )
+        else:
+            rtad_speak("Contenuto visivo disattivato.", force=True)
 
     def on_zip_checkbox(self, event=None):
         enabled = bool(self.chk_zip.GetValue())
@@ -4309,6 +4532,7 @@ class SearchFrame(wx.Frame):
             "query": fields["query"] if include_query else "",
             "include_feed_raw": fields["include_feed_raw"],
             "include_ocr": fields["include_ocr"],
+            "include_visual": fields.get("include_visual", False),
             "include_zip": fields.get("include_zip", False),
             "ocr_engine": fields.get("ocr_engine", "windows"),
             "auto_start": bool(auto_start and include_query),
@@ -4366,6 +4590,13 @@ class SearchFrame(wx.Frame):
         self.chk_ocr.SetValue(ocr_on)
         try:
             save_include_ocr_preference(ocr_on)
+        except Exception:
+            pass
+        vis_on = bool(profile.get("include_visual", False))
+        try:
+            if getattr(self, "chk_visual", None):
+                self.chk_visual.SetValue(vis_on)
+            save_include_visual_preference(vis_on)
         except Exception:
             pass
         zip_on = bool(profile.get("include_zip", False))
@@ -4880,6 +5111,13 @@ class SearchFrame(wx.Frame):
             save_include_ocr_preference(include_ocr)
         except Exception:
             pass
+        include_visual = bool(
+            getattr(self, "chk_visual", None) and self.chk_visual.GetValue()
+        )
+        try:
+            save_include_visual_preference(include_visual)
+        except Exception:
+            pass
         include_zip = bool(self.chk_zip.GetValue())
         try:
             save_include_zip_preference(include_zip)
@@ -4887,7 +5125,7 @@ class SearchFrame(wx.Frame):
             pass
         try:
             eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
-            if eng == "google":
+            if eng == "google" or include_visual:
                 save_google_vision_api_key(load_google_vision_api_key())
             save_ocr_engine_preference(eng)
         except Exception:
@@ -4934,6 +5172,15 @@ class SearchFrame(wx.Frame):
         self.gauge.SetValue(0)
         if include_ocr and not query:
             self.txt_status_progress.SetValue("OCR completo sulle immagini: 0%...")
+        elif include_ocr or include_visual:
+            bits = []
+            if include_ocr:
+                bits.append("OCR")
+            if include_visual:
+                bits.append("visivo")
+            self.txt_status_progress.SetValue(
+                f"Ricerca in corso ({'+'.join(bits)}): 0%..."
+            )
         else:
             self.txt_status_progress.SetValue("Ricerca in corso: 0%...")
         
@@ -4942,8 +5189,15 @@ class SearchFrame(wx.Frame):
 
         if include_ocr and not query:
             rtad_speak("OCR completo avviato sulle immagini.")
-        elif include_ocr:
-            rtad_speak(f"Ricerca avviata per '{query}', con OCR.")
+        elif include_ocr or include_visual:
+            extras = []
+            if include_ocr:
+                extras.append("OCR")
+            if include_visual:
+                extras.append("contenuto visivo")
+            rtad_speak(
+                f"Ricerca avviata per '{query}', con {' e '.join(extras)}."
+            )
         else:
             rtad_speak(f"Ricerca avviata per '{query}'.")
         
@@ -4958,11 +5212,24 @@ class SearchFrame(wx.Frame):
         targets = normalize_search_targets(target_input)
         threading.Thread(
             target=self.run_search,
-            args=(query, targets, filter_mode, custom_ext, include_feed_raw, include_ocr, include_zip),
+            args=(
+                query, targets, filter_mode, custom_ext,
+                include_feed_raw, include_ocr, include_zip, include_visual,
+            ),
             daemon=True,
         ).start()
 
-    def run_search(self, query, targets, filter_mode, custom_ext, include_feed_raw=False, include_ocr=False, include_zip=False):
+    def run_search(
+        self,
+        query,
+        targets,
+        filter_mode,
+        custom_ext,
+        include_feed_raw=False,
+        include_ocr=False,
+        include_zip=False,
+        include_visual=False,
+    ):
         raw_matches = []
         ignored = [
             "$recycle.bin",
@@ -5271,6 +5538,10 @@ class SearchFrame(wx.Frame):
                     )
 
                 if ext in img_exts and allow_content:
+                    ocr_match = False
+                    visual_match = False
+                    img_text = ""
+                    vis_labels = []
                     if include_ocr and rtad_ocr is not None:
                         if not rtad_ocr.engine_available():
                             if not ocr_unavailable_announced:
@@ -5286,7 +5557,6 @@ class SearchFrame(wx.Frame):
                                 hint_terms=terms or None,
                             )
                             img_ocr_text = img_text or ""
-                            ocr_match = False
                             if ocr_dump_all:
                                 ocr_match = bool((img_text or "").strip())
                             else:
@@ -5294,30 +5564,75 @@ class SearchFrame(wx.Frame):
                                     ocr_match = rtad_ocr.ocr_text_matches_terms(img_text, terms)
                                 except Exception:
                                     ocr_match = text_matches_terms(img_text, terms)
-                            if ocr_match:
-                                if ocr_dump_all:
-                                    try:
-                                        snip = rtad_ocr.ocr_text_for_clipboard(img_text) or img_text
-                                    except Exception:
-                                        snip = img_text
-                                    snip = " ".join((snip or "").split())[:200] or file_name
-                                else:
-                                    snip = rtad_ocr.snippet_from_ocr_text(img_text, terms) or query
-                                raw_matches.append({
-                                    "file_path": file_path,
-                                    "file_name": file_name,
-                                    "prefix": "[IMG-OCR]",
-                                    "mtime": mtime,
-                                    "line_number": None,
-                                    "location_info": (
-                                        f"OCR completo{file_date_suffix}"
-                                        if ocr_dump_all
-                                        else f"Testo OCR{file_date_suffix}"
-                                    ),
-                                    "snippet": snip,
-                                    "ocr_text": img_text,
-                                })
-                                found_in_content = True
+                    if (
+                        include_visual
+                        and terms
+                        and not ocr_dump_all
+                        and rtad_ocr is not None
+                        and hasattr(rtad_ocr, "get_image_label_strings")
+                        and not self._stop_search
+                    ):
+                        try:
+                            if not rtad_ocr.has_google_api_key():
+                                gkey = load_google_vision_api_key()
+                                if gkey:
+                                    rtad_ocr.set_google_api_key(gkey)
+                            vis_labels = rtad_ocr.get_image_label_strings(
+                                file_path,
+                                should_abort=lambda: self._stop_search,
+                            ) or []
+                            visual_match = rtad_ocr.visual_labels_match_terms(
+                                vis_labels, terms
+                            )
+                        except Exception as e:
+                            logging.debug(f"Analisi visiva fallita su {file_path}: {e}")
+                            visual_match = False
+                    if ocr_match or visual_match:
+                        if ocr_match:
+                            if ocr_dump_all:
+                                try:
+                                    snip = rtad_ocr.ocr_text_for_clipboard(img_text) or img_text
+                                except Exception:
+                                    snip = img_text
+                                snip = " ".join((snip or "").split())[:200] or file_name
+                            else:
+                                snip = (
+                                    rtad_ocr.snippet_from_ocr_text(img_text, terms)
+                                    if img_text and rtad_ocr is not None
+                                    else ""
+                                ) or query
+                            loc = (
+                                f"OCR completo{file_date_suffix}"
+                                if ocr_dump_all
+                                else (
+                                    f"Testo OCR + contenuto visivo{file_date_suffix}"
+                                    if visual_match
+                                    else f"Testo OCR{file_date_suffix}"
+                                )
+                            )
+                            prefix_img = "[IMG-OCR]"
+                        else:
+                            shown = []
+                            for L in vis_labels:
+                                if L and L not in shown:
+                                    shown.append(L)
+                                if len(shown) >= 6:
+                                    break
+                            snip = ", ".join(shown) if shown else query
+                            loc = f"Contenuto visivo{file_date_suffix}"
+                            prefix_img = "[IMG-VIS]"
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": prefix_img,
+                            "mtime": mtime,
+                            "line_number": None,
+                            "location_info": loc,
+                            "snippet": snip,
+                            "ocr_text": img_text or "",
+                            "visual_labels": vis_labels,
+                        })
+                        found_in_content = True
 
                 elif is_feed and allow_content:
                     if is_thunderbird_junk_file(file_path):
@@ -5869,6 +6184,7 @@ class SearchFrame(wx.Frame):
         self.last_pdf_attachment_seen = pdf_attachment_seen
         self.last_mail_pdf_only = mail_pdf_only
         self.last_include_ocr = bool(include_ocr)
+        self.last_include_visual = bool(include_visual)
         self.last_include_zip = bool(include_zip)
         self.last_late_arrivals = int(late_arrivals_count)
         self.last_missing_targets = list(missing_targets)
@@ -6186,6 +6502,19 @@ class SearchFrame(wx.Frame):
         item_copy_path = menu.Append(wx.ID_ANY, "Copia Percorso Completo")
         item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo pulito")
         item_copy_ocr_full = menu.Append(wx.ID_ANY, "Copia OCR completo")
+        item_describe = None
+        item_labels = None
+        item_tech = None
+        ext_sel = os.path.splitext(file_path)[1].lower()
+        is_img_result = (
+            ext_sel in IMG_EXTS
+            or str(item_data.get("prefix", "")).startswith("[IMG")
+        )
+        if is_img_result:
+            menu.AppendSeparator()
+            item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
+            item_labels = menu.Append(wx.ID_ANY, "Etichette e oggetti")
+            item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -6211,6 +6540,24 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
+        if item_describe is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="describe"),
+                item_describe,
+            )
+        if item_labels is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="labels"),
+                item_labels,
+            )
+        if item_tech is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="tech"),
+                item_tech,
+            )
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
         if has_att:
@@ -6225,6 +6572,92 @@ class SearchFrame(wx.Frame):
 
         self.PopupMenu(menu)
         menu.Destroy()
+
+    def show_image_analysis(self, file_path, mode="describe", copy_only=False):
+        """Descrivi / etichette / scheda tecnica su un file immagine."""
+        if not file_path or not os.path.isfile(file_path):
+            rtad_speak("File immagine non trovato.")
+            return
+        if rtad_ocr is None:
+            rtad_speak("Modulo immagini non disponibile.")
+            return
+        try:
+            gkey = load_google_vision_api_key()
+            if gkey:
+                rtad_ocr.set_google_api_key(gkey)
+        except Exception:
+            pass
+        try:
+            gemkey = load_gemini_api_key()
+            if gemkey:
+                rtad_ocr.set_gemini_api_key(gemkey)
+        except Exception:
+            pass
+
+        if mode in ("describe", "copy-describe") and not load_gemini_api_key():
+            rtad_speak(
+                "Descrizione avanzata: nessuna chiave Gemini. "
+                "Uso etichette Vision se disponibili. "
+                "Puoi aggiungere Gemini da Strumenti."
+            )
+        else:
+            rtad_speak("Analisi immagine in corso…")
+
+        def _work():
+            title = "Immagine"
+            body = ""
+            try:
+                if mode == "tech":
+                    title = "Scheda tecnica immagine"
+                    body = rtad_ocr.format_tech_sheet(rtad_ocr.get_image_tech_info(file_path))
+                elif mode == "labels":
+                    title = "Etichette e oggetti"
+                    data = rtad_ocr.analyze_image_visual(file_path)
+                    body = rtad_ocr.format_labels_text(data)
+                elif mode == "ocr":
+                    title = "Testo OCR dell'immagine"
+                    if rtad_ocr.engine_available():
+                        txt = rtad_ocr.ocr_image_file(file_path) or ""
+                        body = txt.strip() or "Nessun testo rilevato nell'immagine."
+                    else:
+                        body = rtad_ocr.engine_status_message()
+                else:
+                    title = "Descrizione immagine"
+                    body = rtad_ocr.describe_image(file_path)
+            except Exception as e:
+                title = "Errore analisi immagine"
+                body = str(e)
+
+            def _show():
+                if copy_only:
+                    if wx.TheClipboard.Open():
+                        wx.TheClipboard.SetData(wx.TextDataObject(body))
+                        wx.TheClipboard.Close()
+                        rtad_speak("Descrizione copiata negli appunti.")
+                    else:
+                        rtad_speak("Impossibile aprire gli appunti.")
+                    return
+                # Riferimento forte: evita GC e resta aperta finché non la chiudi
+                if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
+                    self._image_info_frames = []
+                frm = ImageInfoFrame(None, title, body, image_path=file_path)
+
+                def _on_close(evt, frame=frm):
+                    try:
+                        if frame in self._image_info_frames:
+                            self._image_info_frames.remove(frame)
+                    except Exception:
+                        pass
+                    evt.Skip()
+
+                frm.Bind(wx.EVT_CLOSE, _on_close)
+                self._image_info_frames.append(frm)
+                frm.Show()
+                frm.Raise()
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)

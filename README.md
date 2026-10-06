@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,20 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.4
+
+*(In preparazione — ultima pubblicata: **1.6.3**.)*
+
+- **Descrivi da URL / Appunti / cattura schermo** (gemello SA + Add-on); scorciatoie SA a finestra attiva.
+- **Add-on NVDA**: `NVDA+Shift+G` su figura web o file immagine in Esplora file/Desktop.
+- **Alt-text** breve e Alt-text + descrizione; **Descrivi immagine da PDF**.
+- **Elenco per tipo** senza parola chiave (documenti/immagini/media): risultati `[ELENCO]`.
+- Fix: `NVDA+Shift+G` non riusa più un file selezionato in Explorer in secondo piano.
+- Restano Gemini/Vision/Explorer 1.6.3, notifica 1.6.2, ZIP 1.6.1.
+
 ### 🌟 Novità della Versione 1.6.3
 
-*(In preparazione — ultima pubblicata: **1.6.2**.)*
+*(Pubblicata.)*
 
 - **Descrivi immagine (Gemini)**: descrizione immersiva (layout, testi, contesto); chiave personale Google AI Studio.
 - **Scheda tecnica** + etichette Vision; ricerca contenuto visivo opt-in `[IMG-VIS]`.
@@ -88,9 +99,20 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.4
+
+*(In preparation — last published: **1.6.3**.)*
+
+- **Describe from URL / Clipboard / screen capture** (twin SA + Add-on); SA shortcuts when the window is focused.
+- **NVDA add-on**: `NVDA+Shift+G` on a web graphic or image file in File Explorer/Desktop.
+- **Alt-text** short and Alt-text + description; **Describe image from PDF**.
+- **List by type** with empty query (documents/images/media): `[ELENCO]` results.
+- Fix: `NVDA+Shift+G` no longer reuses a background Explorer selection.
+- Gemini/Vision/Explorer 1.6.3, notification 1.6.2, ZIP 1.6.1 remain.
+
 ### 🌟 What's New in Version 1.6.3
 
-*(In preparation — last published: **1.6.2**.)*
+*(Published.)*
 
 - **Describe image (Gemini)**: immersive description (layout, text, context); personal Google AI Studio key.
 - **Technical sheet** + Vision labels; opt-in visual search `[IMG-VIS]`.

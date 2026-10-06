@@ -28,17 +28,36 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.3
+Novità recenti (in parole semplici) — versione 1.6.4
 ----------------------------------------------------
-• Sulle immagini puoi chiedere una descrizione avanzata
-  (layout, testi, maglia, contesto): serve la chiave Gemini
-  da Strumenti → Chiave API Gemini (Google AI Studio).
-• In Esplora file, «Cerca con Accesso Digitale» sulle immagini
-  è un sottomenù: Descrivi, OCR, Etichette, Scheda, Copia.
-• Ricerca contenuto visivo (etichette/scene) con Google Vision;
-  scheda tecnica anche senza chiavi.
-• Restano notifica fine ricerca (1.6.2), ZIP (1.6.1), OCR Vision
-  (1.6.0), guida/EPUB (1.5.9)…
+• Puoi far descrivere anche immagini dal web o dagli appunti:
+  Strumenti → Descrivi da URL, dagli Appunti, oppure cattura
+  lo schermo e descrivi (utile anche senza NVDA).
+• Nell’Add-on NVDA: NVDA+Shift+G descrive la figura sotto il
+  navigatore (lettera g sul web) oppure un file immagine
+  selezionato in Esplora file/Desktop, senza aprirlo.
+• Alt-text breve e Alt-text + descrizione (menu contestuale);
+  Descrivi immagine da PDF (Strumenti o menu sul risultato PDF,
+  oppure incolla/apri il PDF dal dialogo).
+• Senza parola chiave, se scegli un tipo di file (documenti,
+  immagini, audio/video…), il programma elenca i file di quel
+  tipo nella cartella: utile per poi aprirli o analizzarli.
+  Per cercare DENTRO un PDF serve comunque una parola.
+• OCR senza testo (casella OCR attiva) resta sulle immagini,
+  con filtro «Tutti» o «Solo Immagini».
+• Dove usare cosa per le immagini:
+  - Al volo su web / Esplora file sotto il cursore → Add-on
+    (NVDA+Shift+G). Nello Standalone non c’è quella gesture.
+  - URL, appunti, cattura schermo, PDF, file già nei risultati
+    → Standalone e Add-on allo stesso modo (menu Strumenti).
+  - In Esplora file, se hai installato il sottomenù shell della
+    Standalone, puoi anche descrivere l’immagine col tasto destro.
+• Non ci sono tasti globali di sistema nella Standalone (per
+  evitare conflitti con NVDA e altri programmi): usa i menu
+  o le scorciatoie a finestra attiva (Ctrl+Shift+U / I, ecc.).
+• Solo NVDA: la gesture sul navigatore/file. URL / appunti /
+  cattura / PDF / elenco per tipo sono gemello Standalone ↔ Add-on.
+• Restano descrizione Gemini / Vision (1.6.3), notifica (1.6.2)…
 
 
 1. A cosa serve

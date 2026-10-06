@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** lavoro corrente = `1.6.3` (immagini: descrizione + ricerca visiva + scheda tecnica). Ultima pubblicata = `1.6.2` finché non escono i tag `v1.6.3` / `app-v1.6.3`.
+**Regola versione:** lavoro corrente = `1.6.4` (web/URL/appunti + alt-text + dialogo unico + PDF describe + batch). Ultima pubblicata = `1.6.3` (GitHub + DataStore OK, 05/10/2026).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -133,9 +133,13 @@ Contenuto previsto `1.6.0`:
 - **OCR cloud Google Vision** = `1.6.0` (gemello SA/Add-on, chiave utente).  
 - **ZIP opt-in:** in `1.6.1` (con arrivi ultimo minuto).  
 - **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini — **pubblicata**.  
-- **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone.  
-- **1.6.4 (dopo):** C alt-text breve/lungo + D/E/F (PDF describe, batch, dialogo unico).  
-- **Oggetti nelle foto:** avviato in 1.6.3 (etichette Vision opt-in); ampliamenti in 1.6.4.
+- **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone; Gemini immersivo + grounding OCR/data; finestra descrizione indipendente — **pubblicata** (GitHub + DataStore, issue #11999 → #12001).  
+- **1.6.4 (in corso):** Descrivi web/URL/Appunti/cattura (06/10) → alt-text breve/lungo → dialogo unico → PDF describe → batch.  
+- **Oggetti nelle foto:** avviato in 1.6.3 (etichette Vision opt-in); ampliamenti in 1.6.4.  
+- **Pausa post-release 1.6.3:** fatta; codice 1.6.4 aperto il 06/10/2026.  
+- **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.4…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
+- **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
+- **Descrizione audio/video:** priorità di Maurizio anche senza feedback esterni → dopo il blocco immagini 1.6.4 (pista media/Whisper gemello).
 
 ---
 
@@ -150,18 +154,43 @@ Contenuto previsto `1.6.0`:
 7. ~~**1.5.9** guida pratica + EPUB~~ **pubblicata**.  
 8. ~~**1.6.0** Google Cloud Vision + fix lista~~ **pubblicata** (`v1.6.0` / `app-v1.6.0`; DataStore OK).
 9. ~~**1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI~~ **pubblicata**.
-10. ~~**1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini~~ **pubblicata** (o pronta).
-11. **1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA) — codice in corso; pubblicare dopo test.
-12. **1.6.4** alt-text breve/lungo + batch/PDF describe (dopo feedback).
+10. ~~**1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini~~ **pubblicata**.
+11. ~~**1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA)~~ **pubblicata** (`v1.6.3` / `app-v1.6.3`; DataStore OK).
+12. **1.6.4** (ordine interno): web/URL/appunti/cattura → alt-text → dialogo unico → PDF describe → batch.  
+13. **Dopo 1.6.4:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
+
+### Fase K — `1.6.4` (immagini: completezza) — IN CORSO
+
+Ordine di implementazione:
+
+1. **Descrivi da web / URL / Appunti / cattura** — **avviato 06/10/2026**  
+   - Gemello: menu Strumenti + scorciatoie (SA e Add-on).  
+   - Solo Add-on: `NVDA+Shift+G` su grafica navigator (URL o rettangolo).  
+   - SA: anche CLI `--describe-url`.  
+2. **Alt-text breve + descrizione lunga** (due uscite Gemini/Vision).  
+3. **Dialogo unico «Tutto sull’immagine»** (Descrivi / Etichette / Scheda / Copia) gemello SA/Add-on.  
+4. **Descrivi da PDF** (immagini incorporate).  
+5. **Batch cartella** (soprattutto Standalone; Add-on se fattibile senza pesare NVDA).
 
 ---
 
 ## Idee in lista d’attesa
 
-- Alt-text breve + descrizione lunga (C → 1.6.4)  
-- Descrivi da PDF / batch cartella / dialogo unico «Tutto sull’immagine»  
+- ~~Descrivi grafica web / URL / appunti~~ → in `1.6.4` (codice avviato)  
+- ~~Alt-text breve + descrizione lunga~~ → entra in `1.6.4`  
+- ~~Descrivi da PDF / batch / dialogo unico~~ → entra in `1.6.4`  
+- **Descrizione audio/video** (priorità Maurizio, anche senza feedback store)  
 - Media/Whisper gemello; export/stampa extra; API OneCore native  
+- Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
+
+---
+
+## Igiene chat Cursor (accordo 05/10/2026)
+
+- Una **nuova chat per ogni versione** (es. 1.6.4), stesso progetto RTAD.  
+- **YouTube / brand Accesso Digitale:** chat separata; workspace RTAD va bene se i file (logo, ecc.) restano qui.  
+- Richieste urgenti dal feedback store possono anticipare un pezzo della roadmap.
 
 ---
 

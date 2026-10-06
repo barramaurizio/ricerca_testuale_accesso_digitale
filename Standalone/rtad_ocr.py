@@ -20,6 +20,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import threading
@@ -3328,6 +3329,93 @@ Solo se serve una precisazione breve (es. «alcuni volti nei riquadri piccoli
 non sono identificabili con certezza»); altrimenti ometti la sezione.
 """
 
+_GEMINI_ALT_TEXT_PROMPT = """\
+Sei un assistente di accessibilità per persone cieche e ipovedenti.
+Scrivi un ALT-TEXT breve in italiano per questa immagine.
+
+Obiettivo: dare l'idea dell'immagine in una frase completa (due solo se serve).
+Lunghezza ideale 100–160 caratteri; completa sempre la frase (punto finale).
+
+Includi, se riconoscibili: chi/cosa è in primo piano, contesto (es. maglia,
+evento, slide), testi importanti leggibili (nomi, titoli).
+
+Vietato:
+- markdown, asterischi, elenchi, titoli tipo Context/Description/Alt-text
+- inglese o altre lingue
+- note tecniche, scuse, puntini di sospensione finali
+- nomi o date inventati (se non sicuri, resta generico)
+
+Output: solo la frase alt in italiano, nient'altro.
+"""
+
+
+def _clean_alt_text(raw: str) -> str:
+    """Normalizza l'alt Gemini: italiano in chiaro, senza markdown/scheletri."""
+    clean = (raw or "").replace("\r", "\n").strip()
+    if not clean:
+        return ""
+    # Se il modello ha risposto con blocchi tipo **Context:** … tieni solo
+    # pezzi utili in italiano, scarta etichette inglesi/markdown.
+    lines = []
+    for line in clean.split("\n"):
+        s = line.strip()
+        if not s:
+            continue
+        s = re.sub(r"^#{1,6}\s*", "", s)
+        s = re.sub(r"^\*+\s*", "", s)
+        s = re.sub(r"^[-•]\s*", "", s)
+        s = re.sub(r"\*+", "", s)
+        s = re.sub(r"`+", "", s)
+        s = s.strip().strip('"').strip("'").strip()
+        low = s.lower()
+        if low.startswith((
+            "context:", "description:", "alt-text:", "alt text:",
+            "alt:", "image description:", "caption:",
+        )):
+            s = s.split(":", 1)[-1].strip()
+        if not s or s in {".", "…", "...", '""', "''"}:
+            continue
+        # Scarta residui tipici di scheletri inglesi
+        if re.match(r"^(there is an?|this (image|graphic)|context)\b", s, re.I):
+            continue
+        lines.append(s)
+    clean = " ".join(lines) if lines else " ".join(clean.split())
+    clean = " ".join(clean.split())
+    if clean.lower().startswith("alt-text:"):
+        clean = clean[9:].strip()
+    for marker in (
+        "(Nota: la descrizione è stata leggermente",
+        "(nota: la descrizione è stata leggermente",
+        "Nota: la descrizione è stata leggermente",
+    ):
+        idx = clean.find(marker)
+        if idx >= 0:
+            clean = clean[:idx].strip()
+    # Al più due frasi
+    sentences = [
+        s.strip()
+        for s in re.split(r"(?<=[.!?])\s+", clean)
+        if s.strip()
+    ]
+    if not sentences:
+        return ""
+    # Evita di tenere una sola "frase" tagliata con … se c'è di meglio
+    picked = []
+    for s in sentences:
+        if s.endswith("…") and len(s) < 40 and picked:
+            continue
+        picked.append(s)
+        if len(picked) >= 2:
+            break
+    clean = " ".join(picked).strip()
+    # Taglio morbido a ~180, preferendo fine parola; evita … se già completa
+    if len(clean) > 180:
+        cut = clean[:177].rsplit(" ", 1)[0]
+        clean = (cut or clean[:177]).rstrip(",;:…")
+        if not clean.endswith((".", "!", "?")):
+            clean += "…"
+    return clean
+
 
 def _parse_date_hint_from_name(name: str) -> str:
     """Estrae indizio data da nome file tipo 05-10-2026 o 2026-10-05."""
@@ -3481,7 +3569,14 @@ def _gemini_model_candidates(key: str) -> list:
     return ordered
 
 
-def _gemini_generate_description(path: str, should_abort=None) -> tuple:
+def _gemini_generate_description(
+    path: str,
+    should_abort=None,
+    prompt: str = None,
+    max_output_tokens: int = 8192,
+    use_grounding: bool = True,
+    append_truncation_note: bool = True,
+) -> tuple:
     """Chiama Gemini multimodal. Restituisce (testo, diag)."""
     global _gemini_last_error
     key = (_gemini_api_key or "").strip()
@@ -3503,12 +3598,14 @@ def _gemini_generate_description(path: str, should_abort=None) -> tuple:
 
     b64 = base64.b64encode(raw).decode("ascii")
     mime = _mime_for_image_path(path)
-    try:
-        grounding = _build_gemini_grounding(path)
-    except Exception as e:
-        logging.debug(f"Grounding Gemini non disponibile: {e}")
-        grounding = ""
-    user_text = _GEMINI_DESCRIBE_PROMPT
+    grounding = ""
+    if use_grounding:
+        try:
+            grounding = _build_gemini_grounding(path)
+        except Exception as e:
+            logging.debug(f"Grounding Gemini non disponibile: {e}")
+            grounding = ""
+    user_text = prompt or _GEMINI_DESCRIBE_PROMPT
     if grounding:
         user_text = user_text + "\n\n" + grounding
     payload = {
@@ -3523,7 +3620,7 @@ def _gemini_generate_description(path: str, should_abort=None) -> tuple:
         ],
         "generationConfig": {
             "temperature": 0.2,
-            "maxOutputTokens": 8192,
+            "maxOutputTokens": int(max_output_tokens or 8192),
         },
     }
     body = json.dumps(payload).encode("utf-8")
@@ -3592,13 +3689,14 @@ def _gemini_generate_description(path: str, should_abort=None) -> tuple:
                 finish = str((cands[0] or {}).get("finishReason") or "")
                 if finish.upper() in ("MAX_TOKENS", "LENGTH"):
                     # Completa in modo leggibile se il modello ha tagliato
-                    if not text.endswith((".", "!", "?", "»", '"')):
+                    if not text.endswith((".", "!", "?", "»", '"', "…")):
                         text = text.rstrip(",;:") + "…"
-                    text += (
-                        "\n\n(Nota: la descrizione è stata leggermente "
-                        "accorciata dal limite tecnico; i punti principali "
-                        "restano comunque presenti.)"
-                    )
+                    if append_truncation_note:
+                        text += (
+                            "\n\n(Nota: la descrizione è stata leggermente "
+                            "accorciata dal limite tecnico; i punti principali "
+                            "restano comunque presenti.)"
+                        )
                 _gemini_last_error = ""
                 return text, f"gemini:{model}"
             last_err = f"{model}: testo vuoto"
@@ -3676,6 +3774,118 @@ def describe_image_gemini(path: str, should_abort=None, use_cache: bool = True) 
     return result
 
 
+def describe_image_alt_text(path: str, should_abort=None, use_cache: bool = True) -> dict:
+    """Alt-text breve via Gemini. Dict: ok, text, error, source."""
+    result = {
+        "ok": False,
+        "text": "",
+        "error": "",
+        "source": "",
+        "path": path or "",
+    }
+    if not path or not os.path.isfile(path):
+        result["error"] = "File non trovato."
+        return result
+    if not is_image_path(path):
+        result["error"] = "Il file non è un'immagine supportata."
+        return result
+    if not has_gemini_api_key():
+        result["error"] = (
+            "Per l'alt-text serve la chiave API Gemini "
+            "(Strumenti → Chiave API Gemini / Google AI Studio)."
+        )
+        return result
+    try:
+        size = os.path.getsize(path)
+        mtime = os.path.getmtime(path)
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+    if size <= 0 or size > MAX_OCR_IMAGE_BYTES:
+        result["error"] = "File troppo grande o vuoto."
+        return result
+
+    # v3: budget token più alto (i modelli 3.x usano thinking) + pulizia markdown
+    cache_key = _vision_cache_key(path, size, mtime, "gemini_alt_v3")
+    if use_cache:
+        cached = _vision_cache_get(cache_key)
+        if isinstance(cached, dict) and cached.get("ok") and cached.get("text"):
+            cached_text = (cached.get("text") or "").strip()
+            # Non riusare alt troppo corti/rotti da prove precedenti
+            if (
+                len(cached_text) >= 40
+                and "**" not in cached_text
+                and "Context:" not in cached_text
+            ):
+                _stats["cache_hits"] = int(_stats.get("cache_hits", 0) or 0) + 1
+                out = dict(cached)
+                out["source"] = (out.get("source") or "gemini") + "+cache"
+                return out
+
+    text, diag = _gemini_generate_description(
+        path,
+        should_abort=should_abort,
+        prompt=_GEMINI_ALT_TEXT_PROMPT,
+        # Budget largo: sui Flash 3.x parte dei token va al thinking interno
+        max_output_tokens=2048,
+        use_grounding=True,
+        append_truncation_note=False,
+    )
+    if not text:
+        result["error"] = diag or (_gemini_last_error or "Alt-text Gemini non riuscito.")
+        return result
+    clean = _clean_alt_text(text)
+    if len(clean) < 24 or "**" in clean or re.search(r"\bContext:\b", clean):
+        result["error"] = "Alt-text troppo incompleto o non utilizzabile; riprova."
+        return result
+    result["ok"] = True
+    result["text"] = clean
+    result["source"] = diag or "gemini"
+    result["error"] = ""
+    if use_cache:
+        _vision_cache_put(cache_key, {
+            "ok": True,
+            "text": clean,
+            "error": "",
+            "source": result["source"],
+            "path": path,
+        })
+    return result
+
+
+def format_alt_and_long_description(
+    path: str, should_abort=None, include_tech: bool = True
+) -> str:
+    """Alt-text breve + descrizione lunga (+ scheda tecnica opzionale)."""
+    parts = [f"Immagine: {os.path.basename(path) or 'immagine'}", ""]
+    alt = describe_image_alt_text(path, should_abort=should_abort, use_cache=True)
+    if alt.get("ok") and (alt.get("text") or "").strip():
+        parts.extend(["Alt-text breve", (alt.get("text") or "").strip(), ""])
+    else:
+        parts.extend([
+            "Alt-text breve",
+            f"(Non disponibile: {alt.get('error') or 'errore sconosciuto'})",
+            "",
+        ])
+    long_body = describe_image(
+        path,
+        should_abort=should_abort,
+        include_tech=False,
+        include_ocr=True,
+        prefer_gemini=True,
+    )
+    if long_body:
+        parts.extend(["Descrizione dettagliata", "", long_body.strip()])
+    if include_tech:
+        try:
+            tech_block = format_tech_sheet(get_image_tech_info(path))
+            if tech_block:
+                parts.extend(["", tech_block])
+        except Exception:
+            pass
+    return "\n".join(parts).strip()
+
+
 def describe_image(path: str, should_abort=None, include_tech: bool = True,
                    include_ocr: bool = True, prefer_gemini: bool = True) -> str:
     """Descrizione completa: Gemini (se chiave) altrimenti Vision + scheda tecnica."""
@@ -3728,4 +3938,304 @@ def vision_status_message() -> str:
         bits.append("Per etichette e ricerca visiva serve la chiave Google Vision.")
     bits.append("La scheda tecnica funziona sempre, anche senza chiavi.")
     return " ".join(bits)
+
+
+# ---------------------------------------------------------------------------
+# Materializza immagini da URL / bytes / rettangolo schermo (1.6.4)
+# Usato da Standalone (URL, appunti, cattura) e Add-on (grafica navigator).
+# ---------------------------------------------------------------------------
+
+_WEB_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36 RTAD/1.6.4"
+)
+_WEB_MAX_BYTES = MAX_OCR_IMAGE_BYTES
+_TEMP_IMAGE_PREFIXES = (
+    "rtad_web_", "rtad_clip_", "rtad_cap_", "rtad_ocr_", "rtad_pdf_",
+)
+
+
+def is_likely_image_url(url: str) -> bool:
+    """True se l'URL sembra un'immagine scaricabile (http/https)."""
+    u = (url or "").strip()
+    if not u:
+        return False
+    low = u.lower()
+    if not (low.startswith("http://") or low.startswith("https://")):
+        return False
+    if low.startswith("https://data:") or "javascript:" in low:
+        return False
+    path = urllib.parse.urlparse(u).path.lower()
+    if any(path.endswith(ext) for ext in _IMG_EXTS):
+        return True
+    # CDN / trasformazioni senza estensione nel path (Cloudinary-like, ecc.)
+    if any(
+        token in low
+        for token in (
+            "/image/",
+            "/images/",
+            "/img/",
+            "/media/",
+            "/photo",
+            "/photos",
+            "format=jpg",
+            "format=png",
+            "format=webp",
+            "f_auto",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+        )
+    ):
+        return True
+    return False
+
+
+def _sniff_image_suffix(data: bytes, content_type: str = "", url: str = "") -> str:
+    """Estensione file da magic bytes / Content-Type / URL."""
+    ct = (content_type or "").split(";")[0].strip().lower()
+    if data[:3] == b"\xff\xd8\xff":
+        return ".jpg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return ".png"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return ".gif"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
+    if data[:2] == b"BM":
+        return ".bmp"
+    ct_map = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+        "image/bmp": ".bmp",
+        "image/x-ms-bmp": ".bmp",
+        "image/tiff": ".tif",
+    }
+    if ct in ct_map:
+        return ct_map[ct]
+    path = urllib.parse.urlparse(url or "").path.lower()
+    for ext in sorted(_IMG_EXTS, key=len, reverse=True):
+        if path.endswith(ext):
+            return ext
+    return ".jpg"
+
+
+def materialize_image_from_bytes(
+    data: bytes,
+    suffix: str = "",
+    prefix: str = "rtad_web_",
+) -> dict:
+    """Scrive bytes immagine su file temp. Dict: ok, path, error."""
+    out = {"ok": False, "path": "", "error": ""}
+    if not data:
+        out["error"] = "Dati immagine vuoti."
+        return out
+    if len(data) > _WEB_MAX_BYTES:
+        out["error"] = "Immagine troppo grande."
+        return out
+    ext = suffix if suffix.startswith(".") else _sniff_image_suffix(data)
+    if ext not in _IMG_EXTS:
+        ext = ".jpg"
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=ext, prefix=prefix)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        out["ok"] = True
+        out["path"] = tmp
+        return out
+    except Exception as e:
+        out["error"] = str(e)
+        return out
+
+
+def materialize_image_from_url(url: str, timeout: int = 45) -> dict:
+    """Scarica un'immagine da URL http(s) su file temp. Dict: ok, path, error, url."""
+    out = {"ok": False, "path": "", "error": "", "url": (url or "").strip()}
+    u = out["url"]
+    if not u:
+        out["error"] = "URL vuoto."
+        return out
+    if not (u.lower().startswith("http://") or u.lower().startswith("https://")):
+        out["error"] = "Serve un URL http o https."
+        return out
+    try:
+        req = urllib.request.Request(
+            u,
+            headers={
+                "User-Agent": _WEB_UA,
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            ctype = resp.headers.get("Content-Type", "") or ""
+            data = resp.read(_WEB_MAX_BYTES + 1)
+            final_url = resp.geturl() or u
+    except urllib.error.HTTPError as e:
+        out["error"] = f"HTTP {e.code}: download immagine non riuscito."
+        return out
+    except Exception as e:
+        out["error"] = f"Download non riuscito: {e}"
+        return out
+    if not data:
+        out["error"] = "Risposta vuota dal server."
+        return out
+    if len(data) > _WEB_MAX_BYTES:
+        out["error"] = "Immagine troppo grande."
+        return out
+    # Evita di passare HTML di errore a Gemini
+    ctype_l = ctype.lower()
+    if "text/html" in ctype_l or "application/json" in ctype_l:
+        if not _sniff_image_suffix(data).startswith(".") or data[:1] in (b"<", b"{", b"["):
+            if data.lstrip()[:1] in (b"<", b"{", b"["):
+                out["error"] = "L'URL non punta a un'immagine (ricevuta pagina o JSON)."
+                return out
+    suffix = _sniff_image_suffix(data, ctype, final_url)
+    saved = materialize_image_from_bytes(data, suffix=suffix, prefix="rtad_web_")
+    if not saved.get("ok"):
+        return saved
+    out["ok"] = True
+    out["path"] = saved["path"]
+    out["url"] = final_url
+    return out
+
+
+def materialize_image_from_screen_rect(
+    left: int, top: int, width: int, height: int
+) -> dict:
+    """Cattura un rettangolo dello schermo in BMP temp (Win32 GDI). Dict: ok, path, error."""
+    out = {"ok": False, "path": "", "error": ""}
+    try:
+        left = int(left)
+        top = int(top)
+        width = int(width)
+        height = int(height)
+    except Exception:
+        out["error"] = "Coordinate cattura non valide."
+        return out
+    if width < 2 or height < 2:
+        out["error"] = "Area troppo piccola per la cattura."
+        return out
+    if width > 16000 or height > 16000:
+        out["error"] = "Area di cattura troppo grande."
+        return out
+    import ctypes
+    from ctypes import wintypes
+
+    class BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [
+            ("biSize", wintypes.DWORD),
+            ("biWidth", wintypes.LONG),
+            ("biHeight", wintypes.LONG),
+            ("biPlanes", wintypes.WORD),
+            ("biBitCount", wintypes.WORD),
+            ("biCompression", wintypes.DWORD),
+            ("biSizeImage", wintypes.DWORD),
+            ("biXPelsPerMeter", wintypes.LONG),
+            ("biYPelsPerMeter", wintypes.LONG),
+            ("biClrUsed", wintypes.DWORD),
+            ("biClrImportant", wintypes.DWORD),
+        ]
+
+    class BITMAPINFO(ctypes.Structure):
+        _fields_ = [("bmiHeader", BITMAPINFOHEADER), ("bmiColors", wintypes.DWORD * 3)]
+
+    user32 = ctypes.windll.user32
+    gdi32 = ctypes.windll.gdi32
+    hwnd_desk = user32.GetDesktopWindow()
+    hdc_screen = user32.GetWindowDC(hwnd_desk)
+    hdc_mem = None
+    hbmp = None
+    path = ""
+    try:
+        if not hdc_screen:
+            out["error"] = "Impossibile accedere allo schermo."
+            return out
+        hdc_mem = gdi32.CreateCompatibleDC(hdc_screen)
+        hbmp = gdi32.CreateCompatibleBitmap(hdc_screen, width, height)
+        if not hdc_mem or not hbmp:
+            out["error"] = "Impossibile creare il buffer di cattura."
+            return out
+        old = gdi32.SelectObject(hdc_mem, hbmp)
+        ok_blit = gdi32.BitBlt(
+            hdc_mem, 0, 0, width, height, hdc_screen, left, top, 0x00CC0020
+        )
+        gdi32.SelectObject(hdc_mem, old)
+        if not ok_blit:
+            out["error"] = "Cattura schermo non riuscita."
+            return out
+
+        bmi = BITMAPINFO()
+        bmi.bmiHeader.biSize = 40
+        bmi.bmiHeader.biWidth = width
+        bmi.bmiHeader.biHeight = -height  # top-down
+        bmi.bmiHeader.biPlanes = 1
+        bmi.bmiHeader.biBitCount = 24
+        bmi.bmiHeader.biCompression = 0
+        row = ((width * 3 + 3) // 4) * 4
+        buf_size = row * height
+        buf = (ctypes.c_byte * buf_size)()
+        got = gdi32.GetDIBits(
+            hdc_screen, hbmp, 0, height, buf, ctypes.byref(bmi), 0
+        )
+        if not got:
+            out["error"] = "Lettura bitmap non riuscita."
+            return out
+        fd, path = tempfile.mkstemp(suffix=".bmp", prefix="rtad_cap_")
+        with os.fdopen(fd, "wb") as f:
+            file_size = 14 + 40 + buf_size
+            f.write(b"BM")
+            f.write(file_size.to_bytes(4, "little"))
+            f.write((0).to_bytes(4, "little"))
+            f.write((14 + 40).to_bytes(4, "little"))
+            f.write(bytes(bmi.bmiHeader))
+            f.write(bytes(buf))
+        if os.path.getsize(path) < 32:
+            out["error"] = "File di cattura non valido."
+            cleanup_temp_image(path)
+            return out
+        out["ok"] = True
+        out["path"] = path
+        return out
+    except Exception as e:
+        if path:
+            cleanup_temp_image(path)
+        out["error"] = f"Cattura non riuscita: {e}"
+        return out
+    finally:
+        try:
+            if hbmp:
+                gdi32.DeleteObject(hbmp)
+        except Exception:
+            pass
+        try:
+            if hdc_mem:
+                gdi32.DeleteDC(hdc_mem)
+        except Exception:
+            pass
+        try:
+            if hdc_screen:
+                user32.ReleaseDC(hwnd_desk, hdc_screen)
+        except Exception:
+            pass
+
+
+def cleanup_temp_image(path: str) -> None:
+    """Elimina un file temp RTAD se sembra nostro (best-effort)."""
+    if not path or not isinstance(path, str):
+        return
+    base = os.path.basename(path)
+    if not any(base.startswith(p) for p in _TEMP_IMAGE_PREFIXES):
+        return
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+    except Exception:
+        pass
 

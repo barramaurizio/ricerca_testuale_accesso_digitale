@@ -1,0 +1,34 @@
+---
+description: Prima di dire «vai con installazione/rilascio», verifica SA+Add-on e documenti allineati
+alwaysApply: true
+---
+
+# RTAD — controllo pre-install / pre-rilascio
+
+Maurizio si fida del controllo automatico: **non** dire che SA/Add-on sono pronti finché non hai verificato.
+
+## Prima di «procedi / reinstalla / compila»
+
+1. Esegui `python tools/rtad_release.py check` (o `verifica_versioni.bat`). Deve risultare **OK tutte allineate**.
+2. Controlla i gemelli (hash o diff):
+   - `Standalone/rtad_ocr.py` ↔ `addon/.../lib/rtad_ocr.py`
+   - `Standalone/rtad_guida_pratica.py` ↔ `addon/.../lib/rtad_guida_pratica.py`
+3. Documenti spesso dimenticati (non bastano solo `.py`):
+   - `README.md` (titolo + novità IT/EN)
+   - `docs/GUIDA_PRATICA.txt` (sincronizzata dal testo in `rtad_guida_pratica.py`)
+   - `addon/doc/it/guida_pratica.html`
+   - `addon/doc/it/readme.html` e `addon/doc/en/readme.html`
+   - `Standalone/changelog.txt`, `Standalone/setup.iss`, `Standalone/compila.bat`, `Standalone/version.txt`
+4. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco.
+5. Distingui: **codice OK** ≠ **documentazione OK**. Segnala esplicitamente entrambi.
+
+## Cosa è «storico» (non è un bug)
+
+- `docs/NOTE_RILASCIO_1.6.x.txt` di versioni già pubblicate
+- Roadmap / NOTE_CONTESTO che citano l’ultima pubblicata vs lavoro corrente
+
+## Workflow Maurizio (ricorda)
+
+- Add-on: reinstallare l’ultimo `.nvda-addon` → riavvio NVDA
+- SA: `Standalone/compila.bat` poi F9 su `setup.iss`
+- Nuova versione: preferire `python tools/rtad_release.py bump X.Y.Z` per le etichette

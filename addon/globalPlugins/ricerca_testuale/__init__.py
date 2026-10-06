@@ -68,7 +68,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.3"
+APP_VERSION = "1.6.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -3134,6 +3134,1083 @@ class MboxViewerFrame(wx.Frame):
         else:
             event.Skip()
 
+def _ensure_ocr_keys():
+    """Carica chiavi Vision/Gemini in rtad_ocr (best-effort)."""
+    if rtad_ocr is None:
+        return
+    try:
+        gkey = load_google_vision_api_key()
+        if gkey:
+            rtad_ocr.set_google_api_key(gkey)
+    except Exception:
+        pass
+    try:
+        gemkey = load_gemini_api_key()
+        if gemkey:
+            rtad_ocr.set_gemini_api_key(gemkey)
+    except Exception:
+        pass
+
+
+def run_image_analysis(
+    host,
+    file_path,
+    mode="describe",
+    copy_only=False,
+    delete_after=False,
+    speak=None,
+):
+    """Analisi immagine riusabile da SearchFrame e GlobalPlugin (1.6.4)."""
+    speak = speak or rtad_speak
+    if not file_path or not os.path.isfile(file_path):
+        speak("File immagine non trovato.")
+        return
+    if rtad_ocr is None:
+        speak("Modulo immagini non disponibile.")
+        return
+    _ensure_ocr_keys()
+
+    if mode in ("describe", "copy-describe", "alt", "alt-long") and not load_gemini_api_key():
+        speak(
+            "Descrizione avanzata: nessuna chiave Gemini. "
+            "Uso etichette Vision se disponibili. "
+            "Puoi aggiungere Gemini da Strumenti."
+        )
+    else:
+        speak("Analisi immagine in corso…")
+
+    def _work():
+        title = "Immagine"
+        body = ""
+        try:
+            if mode == "tech":
+                title = "Scheda tecnica immagine"
+                body = rtad_ocr.format_tech_sheet(rtad_ocr.get_image_tech_info(file_path))
+            elif mode == "labels":
+                title = "Etichette e oggetti"
+                data = rtad_ocr.analyze_image_visual(file_path)
+                body = rtad_ocr.format_labels_text(data)
+            elif mode == "ocr":
+                title = "Testo OCR dell'immagine"
+                if rtad_ocr.engine_available():
+                    txt = rtad_ocr.ocr_image_file(file_path) or ""
+                    body = txt.strip() or "Nessun testo rilevato nell'immagine."
+                else:
+                    body = rtad_ocr.engine_status_message()
+            elif mode == "alt":
+                title = "Alt-text breve"
+                alt = rtad_ocr.describe_image_alt_text(file_path)
+                if alt.get("ok") and (alt.get("text") or "").strip():
+                    body = (alt.get("text") or "").strip()
+                else:
+                    body = alt.get("error") or "Alt-text non disponibile."
+            elif mode == "alt-long":
+                title = "Alt-text e descrizione"
+                body = rtad_ocr.format_alt_and_long_description(file_path)
+            else:
+                title = "Descrizione immagine"
+                body = rtad_ocr.describe_image(file_path)
+        except Exception as e:
+            title = "Errore analisi immagine"
+            body = str(e)
+
+        def _show():
+            if copy_only:
+                if wx.TheClipboard.Open():
+                    wx.TheClipboard.SetData(wx.TextDataObject(body))
+                    wx.TheClipboard.Close()
+                    speak("Descrizione copiata negli appunti.")
+                else:
+                    speak("Impossibile aprire gli appunti.")
+                if delete_after:
+                    rtad_ocr.cleanup_temp_image(file_path)
+                return
+            if not hasattr(host, "_image_info_frames") or host._image_info_frames is None:
+                host._image_info_frames = []
+            frm = ImageInfoFrame(None, title, body, image_path=file_path)
+
+            def _on_close(evt, frame=frm, path=file_path, do_del=delete_after):
+                try:
+                    if frame in host._image_info_frames:
+                        host._image_info_frames.remove(frame)
+                except Exception:
+                    pass
+                if do_del:
+                    try:
+                        rtad_ocr.cleanup_temp_image(path)
+                    except Exception:
+                        pass
+                evt.Skip()
+
+            frm.Bind(wx.EVT_CLOSE, _on_close)
+            host._image_info_frames.append(frm)
+            frm.Show()
+            frm.Raise()
+
+        wx.CallAfter(_show)
+
+    threading.Thread(target=_work, daemon=True).start()
+
+
+def describe_image_from_url_dialog(host, speak=None):
+    speak = speak or rtad_speak
+    if rtad_ocr is None:
+        speak("Modulo immagini non disponibile.")
+        return
+    parent = host if isinstance(host, wx.Window) else None
+    dlg = wx.TextEntryDialog(
+        parent,
+        "Incolla l'URL completo dell'immagine da descrivere\n"
+        "(http o https, anche da gallerie o articoli web):",
+        "Descrivi immagine da URL",
+        "",
+    )
+    if dlg.ShowModal() != wx.ID_OK:
+        dlg.Destroy()
+        return
+    url = (dlg.GetValue() or "").strip().strip('"').strip("'")
+    dlg.Destroy()
+    if not url:
+        speak("URL non inserito.")
+        return
+    speak("Download immagine in corso…")
+
+    def _work():
+        res = rtad_ocr.materialize_image_from_url(url)
+        if not res.get("ok") or not res.get("path"):
+            wx.CallAfter(speak, res.get("error") or "Download immagine non riuscito.")
+            return
+        wx.CallAfter(
+            run_image_analysis,
+            host,
+            res["path"],
+            "describe",
+            False,
+            True,
+            speak,
+        )
+
+    threading.Thread(target=_work, daemon=True).start()
+
+
+def describe_image_from_clipboard(host, speak=None):
+    speak = speak or rtad_speak
+    if rtad_ocr is None:
+        speak("Modulo immagini non disponibile.")
+        return
+    path = ""
+    delete_after = True
+    url_text = ""
+    try:
+        if not wx.TheClipboard.Open():
+            speak("Impossibile aprire gli appunti.")
+            return
+        try:
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_BITMAP)):
+                data = wx.BitmapDataObject()
+                if wx.TheClipboard.GetData(data):
+                    bmp = data.GetBitmap()
+                    if bmp and bmp.IsOk():
+                        fd, path = tempfile.mkstemp(suffix=".png", prefix="rtad_clip_")
+                        os.close(fd)
+                        if not bmp.SaveFile(path, wx.BITMAP_TYPE_PNG):
+                            path = ""
+            if not path and wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_FILENAME)):
+                fdo = wx.FileDataObject()
+                if wx.TheClipboard.GetData(fdo):
+                    for cand in fdo.GetFilenames() or []:
+                        if cand and os.path.isfile(cand) and rtad_ocr.is_image_path(cand):
+                            path = cand
+                            delete_after = False
+                            break
+            if not path and wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                tdo = wx.TextDataObject()
+                if wx.TheClipboard.GetData(tdo):
+                    url_text = (tdo.GetText() or "").strip().strip('"').strip("'")
+        finally:
+            wx.TheClipboard.Close()
+    except Exception:
+        speak("Lettura appunti non riuscita.")
+        return
+
+    if path and os.path.isfile(path):
+        run_image_analysis(
+            host, path, mode="describe", delete_after=delete_after, speak=speak
+        )
+        return
+    if url_text and (
+        rtad_ocr.is_likely_image_url(url_text)
+        or url_text.lower().startswith("http://")
+        or url_text.lower().startswith("https://")
+    ):
+        speak("Download immagine dall'URL negli appunti…")
+
+        def _work():
+            res = rtad_ocr.materialize_image_from_url(url_text)
+            if not res.get("ok") or not res.get("path"):
+                wx.CallAfter(speak, res.get("error") or "Download immagine non riuscito.")
+                return
+            wx.CallAfter(
+                run_image_analysis,
+                host,
+                res["path"],
+                "describe",
+                False,
+                True,
+                speak,
+            )
+
+        threading.Thread(target=_work, daemon=True).start()
+        return
+    speak(
+        "Nessuna immagine negli appunti. "
+        "Copia un'immagine, un file immagine o un URL http, poi riprova."
+    )
+
+
+def describe_image_from_screenshot(host, speak=None):
+    speak = speak or rtad_speak
+    if rtad_ocr is None:
+        speak("Modulo immagini non disponibile.")
+        return
+    speak("Cattura schermo in corso…")
+    try:
+        screen = wx.ScreenDC()
+        size = screen.GetSize()
+        res = rtad_ocr.materialize_image_from_screen_rect(
+            0, 0, int(size.width), int(size.height)
+        )
+    except Exception:
+        speak("Cattura schermo non riuscita.")
+        return
+    if not res.get("ok") or not res.get("path"):
+        speak(res.get("error") or "Cattura schermo non riuscita.")
+        return
+    run_image_analysis(
+        host, res["path"], mode="describe", delete_after=True, speak=speak
+    )
+
+
+def _nvda_role_set():
+    """Ruoli grafica/figura compatibili NVDA 2024+ e precedenti."""
+    roles = set()
+    try:
+        from controlTypes import Role
+
+        for name in ("GRAPHIC", "IMAGE", "FIGURE"):
+            if hasattr(Role, name):
+                roles.add(getattr(Role, name))
+    except Exception:
+        try:
+            import controlTypes as ct
+
+            for name in ("ROLE_GRAPHIC", "ROLE_IMAGE", "ROLE_FIGURE"):
+                if hasattr(ct, name):
+                    roles.add(getattr(ct, name))
+        except Exception:
+            pass
+    return roles
+
+
+def _object_location_tuple(obj):
+    """(left, top, width, height) o None."""
+    try:
+        loc = obj.location
+        if loc is None:
+            return None
+        if hasattr(loc, "left"):
+            w, h = int(loc.width), int(loc.height)
+            if w < 2 or h < 2:
+                return None
+            return (int(loc.left), int(loc.top), w, h)
+        if isinstance(loc, (tuple, list)) and len(loc) >= 4:
+            w, h = int(loc[2]), int(loc[3])
+            if w < 2 or h < 2:
+                return None
+            return (int(loc[0]), int(loc[1]), w, h)
+    except Exception:
+        return None
+    return None
+
+
+def _ia2_attrs(obj):
+    """Dict attributi IA2 in modo tollerante (Chrome/Edge/Firefox)."""
+    try:
+        attrs = obj.IA2Attributes
+        if isinstance(attrs, dict):
+            return attrs
+    except Exception:
+        pass
+    try:
+        attrs = obj._get_IA2Attributes()
+        if isinstance(attrs, dict):
+            return attrs
+    except Exception:
+        pass
+    return {}
+
+
+def _normalize_http_url(url, base=""):
+    c = (url or "").strip()
+    if not c or c.startswith("data:"):
+        return ""
+    if c.startswith("//"):
+        c = "https:" + c
+    elif c.startswith("/") and base:
+        try:
+            c = urllib.parse.urljoin(base, c)
+        except Exception:
+            return ""
+    elif not c.lower().startswith("http") and base:
+        try:
+            c = urllib.parse.urljoin(base, c)
+        except Exception:
+            return ""
+    if c.lower().startswith("http://") or c.lower().startswith("https://"):
+        return c
+    return ""
+
+
+def _document_url_from_obj(obj):
+    """URL della pagina (browse mode / documento) best-effort."""
+    try:
+        import api as _api
+    except Exception:
+        _api = None
+
+    tried = []
+    if obj is not None:
+        tried.append(obj)
+        try:
+            ti = getattr(obj, "treeInterceptor", None)
+            if ti is not None:
+                tried.append(ti)
+                root = getattr(ti, "rootNVDAObject", None)
+                if root is not None:
+                    tried.append(root)
+        except Exception:
+            pass
+        try:
+            p = obj.parent
+            hops = 0
+            while p is not None and hops < 12:
+                tried.append(p)
+                p = p.parent
+                hops += 1
+        except Exception:
+            pass
+    if _api is not None:
+        try:
+            tried.append(_api.getFocusObject())
+        except Exception:
+            pass
+
+    for cand in tried:
+        if cand is None:
+            continue
+        for attr in ("documentUrl", "URL", "url", "statusBarText"):
+            try:
+                u = getattr(cand, attr, None)
+            except Exception:
+                u = None
+            if isinstance(u, str) and u.startswith("http"):
+                return u.split()[0].strip()
+        try:
+            val = cand.IAccessibleObject.accValue(0)
+            if isinstance(val, str) and val.startswith("http"):
+                return val.strip()
+        except Exception:
+            pass
+        attrs = _ia2_attrs(cand)
+        for key in ("url", "doc-url", "document-url", "href"):
+            u = attrs.get(key)
+            if isinstance(u, str) and u.startswith("http"):
+                return u.strip()
+    return ""
+
+
+def _collect_image_url_from_obj(obj, base=""):
+    """Estrae URL immagine da attributi IA2 / value (best-effort)."""
+    candidates = []
+    attrs = _ia2_attrs(obj)
+    for key in (
+        "src",
+        "data-src",
+        "data-lazy-src",
+        "data-original",
+        "data-url",
+        "href",
+        "content",
+        "poster",
+        "current-src",
+        "srcset",
+    ):
+        val = attrs.get(key)
+        if not val:
+            continue
+        val = str(val).strip()
+        if key == "srcset":
+            # "url1 1x, url2 2x" → prendi l'ultimo (di solito più grande)
+            parts = [p.strip().split(" ")[0] for p in val.split(",") if p.strip()]
+            candidates.extend(parts)
+        else:
+            candidates.append(val)
+    for k, v in attrs.items():
+        kl = str(k).lower()
+        if any(tok in kl for tok in ("src", "href", "poster")) and v:
+            candidates.append(str(v).strip())
+    try:
+        val = getattr(obj, "value", None)
+        if val and isinstance(val, str):
+            candidates.append(val.strip())
+    except Exception:
+        pass
+    try:
+        name = getattr(obj, "name", None) or ""
+        if isinstance(name, str) and name.strip().lower().startswith("http"):
+            candidates.append(name.strip())
+    except Exception:
+        pass
+
+    out = []
+    for c in candidates:
+        u = _normalize_http_url(c, base=base)
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
+def _alt_hint_from_name(name):
+    """Da 'Figura _1AG5322 grafico' → '_1AG5322'."""
+    n = (name or "").strip()
+    if not n:
+        return ""
+    # togli rumore NVDA IT/EN
+    cleaned = n
+    for noise in (
+        "figura",
+        "grafico",
+        "graphic",
+        "figure",
+        "immagine",
+        "image",
+        "foto",
+        "photo",
+    ):
+        cleaned = re.sub(rf"\b{noise}\b", " ", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if cleaned:
+        tokens = [
+            t.strip(" .,:;\"'")
+            for t in cleaned.replace("\\", "/").split(" ")
+            if t.strip(" .,:;\"'")
+        ]
+        # Preferisci pezzi distintivi (estensione file, id lunghi), non «WhatsApp»
+        weak = {
+            "whatsapp", "telegram", "facebook", "instagram", "twitter",
+            "jpeg", "jpg", "png", "gif", "webp", "at",
+        }
+        for t in tokens:
+            low = t.lower()
+            if low in weak:
+                continue
+            if "." in t and any(low.endswith(ext) for ext in (
+                ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
+            )):
+                return t
+            if len(t) >= 8 and any(ch.isdigit() for ch in t):
+                return t
+        for t in tokens:
+            if len(t) >= 3 and t.lower() not in weak and any(ch.isalnum() for ch in t):
+                return t
+        return cleaned
+    return n
+
+
+def _find_img_url_in_page_html(page_url, alt_hint):
+    """Scarica HTML della pagina e cerca <img> con alt/src correlato all'hint."""
+    if not page_url or not alt_hint:
+        return ""
+    hint = alt_hint.strip()
+    if len(hint) < 3:
+        return ""
+    try:
+        req = urllib.request.Request(
+            page_url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36 RTAD/1.6.4"
+                ),
+                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            raw = resp.read(2_500_000)
+            final = resp.geturl() or page_url
+        html = raw.decode("utf-8", "replace")
+    except Exception:
+        return ""
+
+    hint_l = hint.lower()
+    best = ""
+
+    def _pick_from_tag(tag):
+        src = ""
+        m = re.search(r'\bsrc\s*=\s*["\']([^"\']+)["\']', tag, re.I)
+        if m:
+            src = m.group(1).strip()
+        if not src:
+            m = re.search(r'\bdata-src\s*=\s*["\']([^"\']+)["\']', tag, re.I)
+            if m:
+                src = m.group(1).strip()
+        if not src:
+            m = re.search(r'\bsrcset\s*=\s*["\']([^"\']+)["\']', tag, re.I)
+            if m:
+                parts = [p.strip().split(" ")[0] for p in m.group(1).split(",") if p.strip()]
+                if parts:
+                    src = parts[-1]
+        return _normalize_http_url(src, base=final)
+
+    for m in re.finditer(r"<img\b[^>]*>", html, re.I):
+        tag = m.group(0)
+        tag_l = tag.lower()
+        if hint_l in tag_l:
+            u = _pick_from_tag(tag)
+            if u:
+                return u
+    # source dentro picture
+    for m in re.finditer(r"<source\b[^>]*>", html, re.I):
+        tag = m.group(0)
+        if hint_l in tag.lower():
+            u = _pick_from_tag(tag)
+            if u:
+                return u
+    # fallback: src che contiene l'hint (nome file)
+    for m in re.finditer(
+        r'(?:src|data-src)\s*=\s*["\']([^"\']+' + re.escape(hint) + r'[^"\']*)["\']',
+        html,
+        re.I,
+    ):
+        u = _normalize_http_url(m.group(1), base=final)
+        if u:
+            return u
+    return best
+
+
+def _is_local_image_file(path):
+    """True se path è un file immagine supportato su disco."""
+    if not path or not isinstance(path, str):
+        return False
+    p = path.strip().strip('"').strip("'")
+    if not p or not os.path.isfile(p):
+        return False
+    ext = os.path.splitext(p)[1].lower()
+    if ext in IMG_EXTS:
+        return True
+    if rtad_ocr is not None:
+        try:
+            return bool(rtad_ocr.is_image_path(p))
+        except Exception:
+            pass
+    return False
+
+
+def _foreground_window_class():
+    """Class name della finestra in primo piano (es. CabinetWClass, Chrome_WidgetWin_1)."""
+    try:
+        import winUser
+
+        fg = winUser.getForegroundWindow()
+        if fg:
+            return winUser.getClassName(fg) or ""
+    except Exception:
+        pass
+    try:
+        user32 = ctypes.windll.user32
+        fg = user32.GetForegroundWindow()
+        if not fg:
+            return ""
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(fg, buf, 256)
+        return buf.value or ""
+    except Exception:
+        return ""
+
+
+def _foreground_is_file_manager():
+    """True se il focus è Esplora file / Desktop (non un browser)."""
+    cls = (_foreground_window_class() or "").lower()
+    if not cls:
+        return False
+    # Explorer classico / moderno, Desktop
+    if cls in (
+        "cabinetwclass",
+        "explorewclass",
+        "progman",
+        "workerw",
+    ):
+        return True
+    return False
+
+
+def _object_looks_like_web_context(obj):
+    """True se l'oggetto NVDA è in una pagina web / browse mode."""
+    if obj is None:
+        return False
+    try:
+        ti = getattr(obj, "treeInterceptor", None)
+        if ti is not None:
+            return True
+    except Exception:
+        pass
+    try:
+        mod = getattr(obj, "appModule", None)
+        app = (getattr(mod, "appName", None) or getattr(mod, "productName", None) or "")
+        app_l = str(app).lower()
+        if any(
+            tok in app_l
+            for tok in (
+                "chrome",
+                "msedge",
+                "edge",
+                "firefox",
+                "brave",
+                "opera",
+                "vivaldi",
+                "iexplore",
+                "thorium",
+            )
+        ):
+            return True
+    except Exception:
+        pass
+    if _document_url_from_obj(obj):
+        return True
+    return False
+
+
+def _shell_foreground_selected_image_path():
+    """Percorso immagine selezionata solo se Esplora/Desktop è in primo piano.
+
+    Non usare selezioni di finestre Explorer in secondo piano: altrimenti
+    NVDA+Shift+G sul web analizzerebbe ancora un file lasciato selezionato
+    in Download (bug «sempre la stessa immagine»).
+    """
+    if not _foreground_is_file_manager():
+        return ""
+    try:
+        import comtypes.client
+    except Exception:
+        return ""
+    fg = None
+    try:
+        import winUser
+
+        fg = winUser.getForegroundWindow()
+    except Exception:
+        try:
+            user32 = ctypes.windll.user32
+            fg = user32.GetForegroundWindow()
+        except Exception:
+            fg = None
+    try:
+        shell = comtypes.client.CreateObject("Shell.Application")
+        windows = shell.Windows()
+        count = int(windows.Count)
+    except Exception:
+        return ""
+
+    scored = []
+    for i in range(count):
+        try:
+            w = windows.Item(i)
+        except Exception:
+            continue
+        score = 0
+        try:
+            hwnd = int(w.HWND)
+            if fg and hwnd == fg:
+                score = 100
+        except Exception:
+            pass
+        # Solo la finestra Explorer effettivamente in primo piano
+        if score < 100:
+            continue
+        try:
+            doc = w.Document
+            sel = doc.SelectedItems()
+            nsel = int(sel.Count)
+        except Exception:
+            continue
+        for j in range(nsel):
+            try:
+                item = sel.Item(j)
+                path = getattr(item, "Path", None) or ""
+            except Exception:
+                path = ""
+            if _is_local_image_file(path):
+                scored.append((score, path))
+    if not scored:
+        return ""
+    scored.sort(key=lambda x: -x[0])
+    return scored[0][1]
+
+
+def _path_guess_from_nvda_object(obj):
+    """Prova a ricavare un path file dall'oggetto NVDA (value/name/attributi)."""
+    if obj is None:
+        return ""
+    texts = []
+    for attr in ("value", "name"):
+        try:
+            v = getattr(obj, attr, None)
+        except Exception:
+            v = None
+        if isinstance(v, str) and v.strip():
+            texts.append(v.strip().strip('"').strip("'"))
+    attrs = _ia2_attrs(obj)
+    for key in (
+        "path",
+        "filename",
+        "fullpath",
+        "full-path",
+        "url",
+        "contentLocation",
+    ):
+        v = attrs.get(key)
+        if isinstance(v, str) and v.strip():
+            texts.append(v.strip())
+    # UIA Value / FullDescription (Explorer moderno)
+    try:
+        el = getattr(obj, "UIAElement", None) or getattr(obj, "UIAElement", None)
+        if el is not None:
+            for prop in ("CurrentValue", "CachedValue", "CurrentFullDescription"):
+                try:
+                    v = getattr(el, prop, None)
+                except Exception:
+                    v = None
+                if isinstance(v, str) and v.strip():
+                    texts.append(v.strip())
+    except Exception:
+        pass
+
+    for t in texts:
+        if t.lower().startswith("file:"):
+            try:
+                t = urllib.request.url2pathname(t[5:])
+            except Exception:
+                t = t[5:]
+            if t.startswith("///"):
+                t = t[3:]
+            elif t.startswith("//"):
+                t = t[2:]
+        if _is_local_image_file(t):
+            return t
+    # Nome file + cartella del parent (value del contenitore)
+    try:
+        name = (getattr(obj, "name", None) or "").strip().strip('"')
+    except Exception:
+        name = ""
+    if name and os.path.splitext(name)[1].lower() in IMG_EXTS:
+        try:
+            parent = obj.parent
+        except Exception:
+            parent = None
+        hops = 0
+        while parent is not None and hops < 8:
+            try:
+                pval = getattr(parent, "value", None) or getattr(parent, "name", None)
+            except Exception:
+                pval = None
+            if isinstance(pval, str):
+                folder = pval.strip().strip('"')
+                if folder.lower().startswith("file:"):
+                    try:
+                        folder = urllib.request.url2pathname(folder[5:])
+                    except Exception:
+                        pass
+                if os.path.isdir(folder):
+                    cand = os.path.join(folder, name)
+                    if _is_local_image_file(cand):
+                        return cand
+            try:
+                parent = parent.parent
+            except Exception:
+                break
+            hops += 1
+    return ""
+
+
+def resolve_local_image_file_path():
+    """Path immagine sotto focus/navigatore (Explorer, Desktop, elenchi file).
+
+    Da chiamare sul thread principale NVDA.
+    """
+    try:
+        import api
+    except Exception:
+        api = None
+
+    objs = []
+    if api is not None:
+        for getter in (
+            getattr(api, "getFocusObject", None),
+            getattr(api, "getNavigatorObject", None),
+        ):
+            if getter is None:
+                continue
+            try:
+                o = getter()
+            except Exception:
+                o = None
+            if o is not None and o not in objs:
+                objs.append(o)
+
+    for obj in list(objs):
+        p = _path_guess_from_nvda_object(obj)
+        if p:
+            return p
+        # figlio / parent vicini
+        try:
+            ch = obj.firstChild
+            if ch is not None:
+                p = _path_guess_from_nvda_object(ch)
+                if p:
+                    return p
+        except Exception:
+            pass
+        try:
+            par = obj.parent
+            if par is not None:
+                p = _path_guess_from_nvda_object(par)
+                if p:
+                    return p
+        except Exception:
+            pass
+
+    # Shell: selezione nella finestra Explorer in primo piano (affidabile)
+    return _shell_foreground_selected_image_path() or ""
+
+
+def snapshot_navigator_image_source():
+    """Cattura metadati navigatore sul thread principale NVDA.
+
+    Non scarica né scrive file. Returns dict:
+      ok_source, urls, rect, name, page_url, alt_hint, file_path, error
+    """
+    out = {
+        "ok_source": False,
+        "urls": [],
+        "rect": None,
+        "name": "",
+        "page_url": "",
+        "alt_hint": "",
+        "file_path": "",
+        "error": "",
+    }
+    try:
+        import api
+    except Exception:
+        out["error"] = "API NVDA non disponibile."
+        return out
+
+    nav = None
+    focus = None
+    try:
+        nav = api.getNavigatorObject()
+    except Exception:
+        nav = None
+    try:
+        focus = api.getFocusObject()
+    except Exception:
+        focus = None
+    if nav is None:
+        nav = focus
+    if nav is None:
+        out["error"] = (
+            "Nessun oggetto navigatore. "
+            "Vai su una figura con la lettera g, oppure su un file "
+            "immagine in Esplora file, e riprova."
+        )
+        return out
+
+    # Web / browse mode: MAI prendere un file ancora selezionato in Explorer
+    # in secondo piano (era la causa della descrizione «J medical» ripetuta).
+    web_ctx = (
+        _object_looks_like_web_context(nav)
+        or _object_looks_like_web_context(focus)
+        or (not _foreground_is_file_manager() and bool(_document_url_from_obj(nav)))
+    )
+    if not web_ctx:
+        local = resolve_local_image_file_path()
+        if local:
+            out["ok_source"] = True
+            out["file_path"] = local
+            out["name"] = os.path.basename(local)
+            return out
+
+    # Browse mode: a volte l'oggetto utile è NVDAObjectAtStart
+    real = nav
+    for attr in ("NVDAObjectAtStart", "objectAtStart"):
+        try:
+            cand = getattr(nav, attr, None)
+            if cand is not None:
+                real = cand
+                break
+        except Exception:
+            pass
+    try:
+        if hasattr(nav, "_get_NVDAObjectAtStart"):
+            cand = nav._get_NVDAObjectAtStart()
+            if cand is not None:
+                real = cand
+    except Exception:
+        pass
+
+    try:
+        out["name"] = (getattr(real, "name", None) or getattr(nav, "name", None) or "") or ""
+    except Exception:
+        out["name"] = ""
+    out["alt_hint"] = _alt_hint_from_name(out["name"])
+    out["page_url"] = _document_url_from_obj(real) or _document_url_from_obj(nav)
+
+    graphic_roles = _nvda_role_set()
+    candidates = []
+    for obj in (real, nav):
+        if obj is not None and obj not in candidates:
+            candidates.append(obj)
+    for root in (real, nav):
+        if root is None:
+            continue
+        try:
+            child = root.firstChild
+            depth = 0
+            while child is not None and depth < 10:
+                if child not in candidates:
+                    candidates.append(child)
+                try:
+                    child = child.next
+                except Exception:
+                    break
+                depth += 1
+        except Exception:
+            pass
+        try:
+            parent = root.parent
+            if parent is not None and parent not in candidates:
+                candidates.append(parent)
+                ch = parent.firstChild
+                d = 0
+                while ch is not None and d < 14:
+                    if ch not in candidates:
+                        candidates.append(ch)
+                    try:
+                        ch = ch.next
+                    except Exception:
+                        break
+                    d += 1
+        except Exception:
+            pass
+
+    urls = []
+    rect = None
+    base = out["page_url"]
+    for obj in candidates:
+        for u in _collect_image_url_from_obj(obj, base=base):
+            if u not in urls:
+                urls.append(u)
+        try:
+            role = getattr(obj, "role", None)
+        except Exception:
+            role = None
+        if graphic_roles and role in graphic_roles and rect is None:
+            rect = _object_location_tuple(obj)
+    if rect is None:
+        rect = _object_location_tuple(real) or _object_location_tuple(nav)
+
+    out["urls"] = urls
+    out["rect"] = rect
+    if urls or rect or (out["page_url"] and out["alt_hint"]):
+        out["ok_source"] = True
+    else:
+        out["error"] = (
+            "Su questo elemento non trovo URL né area da catturare. "
+            "Posizionati su una figura con g e riprova."
+        )
+    return out
+
+
+def materialize_image_from_snapshot(snap):
+    """Da snapshot (thread qualsiasi): file locale / download URL / cattura rect."""
+    result = {"ok": False, "path": "", "error": "", "method": ""}
+    if rtad_ocr is None:
+        result["error"] = "Modulo immagini non disponibile."
+        return result
+    if not snap:
+        result["error"] = "Nessuna immagine da analizzare."
+        return result
+
+    # File già su disco (Explorer / Desktop): nessuna copia temp
+    file_path = snap.get("file_path") or ""
+    if _is_local_image_file(file_path):
+        result["ok"] = True
+        result["path"] = file_path
+        result["method"] = "file"
+        return result
+
+    urls = list(snap.get("urls") or [])
+    page_url = snap.get("page_url") or ""
+    alt_hint = snap.get("alt_hint") or ""
+
+    # Edge/Chrome spesso non espongono src in IA2: recupera dall'HTML via alt
+    if page_url and alt_hint:
+        found = _find_img_url_in_page_html(page_url, alt_hint)
+        if found and found not in urls:
+            urls.insert(0, found)
+
+    for u in urls:
+        dl = rtad_ocr.materialize_image_from_url(u)
+        if dl.get("ok") and dl.get("path"):
+            result["ok"] = True
+            result["path"] = dl["path"]
+            result["method"] = "url"
+            return result
+
+    rect = snap.get("rect")
+    if rect and len(rect) == 4:
+        left, top, width, height = rect
+        cap = rtad_ocr.materialize_image_from_screen_rect(left, top, width, height)
+        if cap.get("ok") and cap.get("path"):
+            result["ok"] = True
+            result["path"] = cap["path"]
+            result["method"] = "capture"
+            return result
+        result["error"] = cap.get("error") or "Cattura area non riuscita."
+        return result
+
+    result["error"] = (
+        "Nessun file immagine, URL o area da catturare. "
+        "Su web: lettera g sulla figura. In Esplora file: freccia sul file immagine."
+    )
+    return result
+
+
+def capture_navigator_image():
+    """Compat: snapshot (main thread) + materialize. Preferire i due passi separati."""
+    snap = snapshot_navigator_image_source()
+    if not snap.get("ok_source"):
+        return {
+            "ok": False,
+            "path": "",
+            "error": snap.get("error") or "Navigatore non disponibile.",
+            "method": "",
+        }
+    return materialize_image_from_snapshot(snap)
+
+
 class ImageInfoFrame(wx.Frame):
     """Finestra descrizione / etichette / scheda tecnica immagine (1.6.3).
 
@@ -3215,12 +4292,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Descrizione avanzata immagini con Gemini\n"
-            "  (chiave personale Google AI Studio).\n"
-            "• Etichette, scheda tecnica e ricerca contenuto visivo\n"
-            "  (Google Vision) dal menu contestuale.\n"
-            "• Restano notifica fine ricerca 1.6.2, ZIP 1.6.1,\n"
-            "  OCR Vision 1.6.0, guida/EPUB 1.5.9.\n"
+            "• Descrivi con NVDA+Shift+G: figura web (lettera g) oppure\n"
+            "  file immagine in Esplora file/Desktop senza aprirlo.\n"
+            "• Anche da Strumenti: Descrivi da URL, Appunti, cattura, PDF\n"
+            "  (gemello della Standalone).\n"
+            "• Senza parola chiave + tipo file: elenco [ELENCO] in cartella.\n"
+            "• Alt-text; fix immagine «sempre la stessa» da Explorer in background.\n"
+            "• Restano Gemini / Vision 1.6.3, notifica 1.6.2.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3334,6 +4412,8 @@ class ShortcutsFrame(wx.Frame):
             "  - NVDA + Shift + Control + F : Apri la finestra principale di ricerca\n"
             "  - NVDA + Shift + Control + S : Apri questa finestra comandi\n"
             "  - NVDA + Shift + Control + D : Apri la pagina per le Donazioni PayPal\n"
+            "  - NVDA + Shift + G : Descrivi grafica web (lettera g) oppure file immagine\n"
+            "    selezionato in Esplora file / Desktop (senza aprirlo)\n"
             "  - (Per la Guida in formato Web, usa Gestione Componenti Aggiuntivi -> Guida)\n\n"
             "Comandi Finestra di Ricerca:\n"
             "  - Alt + T : Imposta la scansione su TUTTO IL PC (tutte le unità attive)\n"
@@ -3346,6 +4426,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
             "  - TAB oppure Alt+S / S : Raggiunge anche il campo 'Stato avanzamento' leggibile dallo screen reader\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
+            "  - Alt + Shift + K : Cattura schermo e descrivi l'immagine\n"
+            "  - Ctrl + Shift + U : Descrivi immagine da URL\n"
+            "  - Ctrl + Shift + I : Descrivi immagine dagli Appunti (o URL)\n"
             "  - Ctrl + P : Stampa rapida dei risultati di ricerca in lista\n"
             "  - Ctrl + E : Esporta Risultati\n"
             "  - Ctrl + D : Aggiunge percorso attuale ai Segnalibri\n"            "  - Ctrl + Shift + P : Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L : Carica un profilo di ricerca\n"
@@ -3909,6 +4992,23 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "S&vuota cache OCR…"
         )
         self.Bind(wx.EVT_MENU, self.on_clear_ocr_cache, item_clear_ocr)
+        tools_menu.AppendSeparator()
+        item_desc_url = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine da &URL…\tCtrl+Shift+U"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_url, item_desc_url)
+        item_desc_clip = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine dagli &Appunti\tCtrl+Shift+I"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_clipboard, item_desc_clip)
+        item_desc_cap = tools_menu.Append(
+            wx.ID_ANY, "Cattura schermo e &descrivi\tAlt+Shift+K"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_screenshot, item_desc_cap)
+        item_desc_pdf = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine da P&DF…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_pdf_dialog, item_desc_pdf)
         tools_menu.AppendSeparator()
         self.item_notify_end = tools_menu.AppendCheckItem(
             wx.ID_ANY, "&Notifica a fine ricerca (Centro notifiche Windows)"
@@ -4859,8 +5959,14 @@ class SearchFrame(wx.Frame):
         elif ctrl and key in (ord("H"), ord("h")):
             self.on_recall_query_history()
             return
+        elif ctrl and event.ShiftDown() and key in (ord("U"), ord("u")):
+            self.on_describe_from_url(None)
+            return
         elif ctrl and key in (ord("U"), ord("u")):
             self.on_check_updates(None)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("I"), ord("i")):
+            self.on_describe_from_clipboard(None)
             return
         elif key == wx.WXK_F1:
             self.show_shortcuts_dialog()
@@ -4882,6 +5988,9 @@ class SearchFrame(wx.Frame):
             return
         elif ctrl and key in (ord("D"), ord("d")):
             self.on_add_bookmark(None)
+            return
+        elif alt and key in (ord("K"), ord("k")) and event.ShiftDown():
+            self.on_describe_from_screenshot(None)
             return
         elif alt and key in (ord("K"), ord("k")):
             self.on_take_screenshot(None)
@@ -5132,20 +6241,32 @@ class SearchFrame(wx.Frame):
             pass
 
         if not query:
-            if include_ocr:
+            if include_ocr and filter_mode in (0, 1):
                 rtad_speak(
                     "Nessun testo di ricerca: OCR completo sulle immagini del percorso. "
                     "Poi puoi usare Copia Testo o Salva Immagine sul risultato."
                 )
+            elif filter_mode in (1, 2, 3, 4):
+                tipo = FILTER_MODE_LABELS[filter_mode] if filter_mode < len(FILTER_MODE_LABELS) else "tipo scelto"
+                rtad_speak(
+                    f"Nessun testo di ricerca: elenco dei file ({tipo}) "
+                    f"nella cartella indicata. Poi puoi aprirli o analizzarli dal menu."
+                )
             else:
                 rtad_speak(
-                    "Inserire un testo da cercare, oppure attiva OCR per leggere "
-                    "tutte le immagini senza parola chiave."
+                    "Inserire un testo da cercare, oppure scegli un tipo di file "
+                    "(documenti, immagini…) per elencarli, oppure attiva OCR "
+                    "per leggere tutte le immagini senza parola chiave."
                 )
                 return
 
         self._stop_search = False
-        self.current_query = query or "(OCR completo)"
+        if query:
+            self.current_query = query
+        elif include_ocr and filter_mode in (0, 1):
+            self.current_query = "(OCR completo)"
+        else:
+            self.current_query = "(Elenco per tipo)"
         self.current_percent = 0
         self.scanned_count = 0
         self.live_matches_count = 0
@@ -5170,8 +6291,10 @@ class SearchFrame(wx.Frame):
         self.file_map.clear()
         self.current_matches = []
         self.gauge.SetValue(0)
-        if include_ocr and not query:
+        if include_ocr and not query and filter_mode in (0, 1):
             self.txt_status_progress.SetValue("OCR completo sulle immagini: 0%...")
+        elif not query and filter_mode in (1, 2, 3, 4):
+            self.txt_status_progress.SetValue("Elenco file per tipo: 0%...")
         elif include_ocr or include_visual:
             bits = []
             if include_ocr:
@@ -5187,8 +6310,10 @@ class SearchFrame(wx.Frame):
         self.btn_search.Disable()
         self.btn_cancel.Enable()
 
-        if include_ocr and not query:
+        if include_ocr and not query and filter_mode in (0, 1):
             rtad_speak("OCR completo avviato sulle immagini.")
+        elif not query and filter_mode in (1, 2, 3, 4):
+            rtad_speak("Elenco file per tipo avviato.")
         elif include_ocr or include_visual:
             extras = []
             if include_ocr:
@@ -5248,7 +6373,10 @@ class SearchFrame(wx.Frame):
 
         norm_query = normalize_search_text(query) if query else ""
         terms = norm_query.split() if norm_query else []
-        ocr_dump_all = bool(include_ocr and not terms)
+        ocr_dump_all = bool(include_ocr and not terms and filter_mode in (0, 1))
+        list_files_only = bool(
+            not terms and not ocr_dump_all and filter_mode in (1, 2, 3, 4)
+        )
         img_exts = list(IMG_EXTS)
         media_exts = list(MEDIA_EXTS)
         doc_exts = list(DOC_EXTS)
@@ -5324,14 +6452,14 @@ class SearchFrame(wx.Frame):
 
                     if filter_mode == 1 and ext not in img_exts:
                         continue
-                    elif ocr_dump_all and ext not in img_exts:
-                        continue
                     elif filter_mode == 2 and ext not in media_exts:
                         continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                         if not (include_zip and ext == ".zip"):
                             continue
                     elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                        continue
+                    elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                         continue
 
                     if ext == ".opml":
@@ -5434,14 +6562,14 @@ class SearchFrame(wx.Frame):
                         )
                         if filter_mode == 1 and ext not in img_exts:
                             continue
-                        elif ocr_dump_all and ext not in img_exts:
-                            continue
                         elif filter_mode == 2 and ext not in media_exts:
                             continue
                         elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                             if not (include_zip and ext == ".zip"):
                                 continue
                         elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                            continue
+                        elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                             continue
                         if ext == ".opml" or (ext in feed_file_exts and not is_thunderbird_feeds_path(full)):
                             continue
@@ -5470,14 +6598,14 @@ class SearchFrame(wx.Frame):
                             )
                             if filter_mode == 1 and ext not in img_exts:
                                 continue
-                            elif ocr_dump_all and ext not in img_exts:
-                                continue
                             elif filter_mode == 2 and ext not in media_exts:
                                 continue
                             elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                                 if not (include_zip and ext == ".zip"):
                                     continue
                             elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                                continue
+                            elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                                 continue
                             if ext == ".opml":
                                 continue
@@ -5515,6 +6643,30 @@ class SearchFrame(wx.Frame):
                 mtime = 0
             file_date_label = format_file_date_label(mtime)
             file_date_suffix = f" {file_date_label}" if file_date_label else ""
+
+            if list_files_only:
+                try:
+                    sz = os.path.getsize(file_path)
+                except Exception:
+                    sz = 0
+                if sz >= 1024 * 1024:
+                    size_s = f"{sz / (1024 * 1024):.1f} MB"
+                elif sz >= 1024:
+                    size_s = f"{sz / 1024:.0f} KB"
+                else:
+                    size_s = f"{sz} byte"
+                raw_matches.append({
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "prefix": "[ELENCO]",
+                    "mtime": mtime,
+                    "line_number": None,
+                    "paragraph_index": None,
+                    "location_info": f"Elenco per tipo{file_date_suffix}",
+                    "snippet": f"{(ext or 'file').lstrip('.').upper() or 'FILE'} · {size_s}",
+                })
+                bump_progress()
+                continue
 
             try:
                 name_matched = text_matches_terms(file_name, terms)
@@ -6324,6 +7476,11 @@ class SearchFrame(wx.Frame):
                     " Nessun percorso valido trovato: controlla che la cartella o il file "
                     "esistano (senza virgolette nel campo percorso)."
                 )
+            elif self.scanned_count == 0 and matches == 0:
+                text += (
+                    " Nessun file in coda con questi filtri: verifica testo da cercare, "
+                    "tipo di file e percorso."
+                )
             rtad_speak(f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente.{feed_speak}")
             if tones:
                 try:
@@ -6503,18 +7660,32 @@ class SearchFrame(wx.Frame):
         item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo pulito")
         item_copy_ocr_full = menu.Append(wx.ID_ANY, "Copia OCR completo")
         item_describe = None
+        item_alt = None
+        item_alt_long = None
         item_labels = None
         item_tech = None
+        item_pdf_describe = None
         ext_sel = os.path.splitext(file_path)[1].lower()
         is_img_result = (
             ext_sel in IMG_EXTS
             or str(item_data.get("prefix", "")).startswith("[IMG")
         )
+        is_pdf_result = (
+            ext_sel == ".pdf"
+            or str(item_data.get("prefix", "")).startswith("[PDF")
+        )
         if is_img_result:
             menu.AppendSeparator()
+            item_alt = menu.Append(wx.ID_ANY, "Alt-text breve")
             item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
+            item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
             item_labels = menu.Append(wx.ID_ANY, "Etichette e oggetti")
             item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
+        elif is_pdf_result:
+            menu.AppendSeparator()
+            item_pdf_describe = menu.Append(
+                wx.ID_ANY, "Descrivi immagine da PDF"
+            )
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -6540,11 +7711,23 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
+        if item_alt is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="alt"),
+                item_alt,
+            )
         if item_describe is not None:
             self.Bind(
                 wx.EVT_MENU,
                 lambda e: self.show_image_analysis(file_path, mode="describe"),
                 item_describe,
+            )
+        if item_alt_long is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="alt-long"),
+                item_alt_long,
             )
         if item_labels is not None:
             self.Bind(
@@ -6557,6 +7740,12 @@ class SearchFrame(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.show_image_analysis(file_path, mode="tech"),
                 item_tech,
+            )
+        if item_pdf_describe is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.describe_image_from_pdf(file_path),
+                item_pdf_describe,
             )
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
@@ -6573,91 +7762,92 @@ class SearchFrame(wx.Frame):
         self.PopupMenu(menu)
         menu.Destroy()
 
-    def show_image_analysis(self, file_path, mode="describe", copy_only=False):
+    def show_image_analysis(
+        self, file_path, mode="describe", copy_only=False, delete_after=False
+    ):
         """Descrivi / etichette / scheda tecnica su un file immagine."""
-        if not file_path or not os.path.isfile(file_path):
-            rtad_speak("File immagine non trovato.")
-            return
-        if rtad_ocr is None:
-            rtad_speak("Modulo immagini non disponibile.")
-            return
-        try:
-            gkey = load_google_vision_api_key()
-            if gkey:
-                rtad_ocr.set_google_api_key(gkey)
-        except Exception:
-            pass
-        try:
-            gemkey = load_gemini_api_key()
-            if gemkey:
-                rtad_ocr.set_gemini_api_key(gemkey)
-        except Exception:
-            pass
+        run_image_analysis(
+            self,
+            file_path,
+            mode=mode,
+            copy_only=copy_only,
+            delete_after=delete_after,
+            speak=rtad_speak,
+        )
 
-        if mode in ("describe", "copy-describe") and not load_gemini_api_key():
-            rtad_speak(
-                "Descrizione avanzata: nessuna chiave Gemini. "
-                "Uso etichette Vision se disponibili. "
-                "Puoi aggiungere Gemini da Strumenti."
-            )
-        else:
-            rtad_speak("Analisi immagine in corso…")
+    def materialize_pdf_image_temp(self, file_path):
+        """Estrae la migliore immagine da un PDF su file temp. Path o ''."""
+        if not file_path or not os.path.isfile(file_path):
+            return ""
+        record = get_best_pdf_page_image(file_path)
+        if not record:
+            logos = extract_images_from_pdf(file_path)
+            record = logos[0] if logos else None
+        if not record:
+            return ""
+        suffix = ".jpg" if record.get("kind") == "jpeg" else ".png"
+        try:
+            fd, tmp = tempfile.mkstemp(suffix=suffix, prefix="rtad_pdf_")
+            os.close(fd)
+        except Exception:
+            return ""
+        if save_pdf_image_record_to_path(record, tmp) and os.path.isfile(tmp):
+            return tmp
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        return ""
+
+    def describe_image_from_pdf(self, file_path, mode="describe"):
+        """Estrae immagine dal PDF e avvia analisi (temp + delete_after)."""
+        if not file_path or not os.path.isfile(file_path):
+            rtad_speak("File PDF non trovato.")
+            return
+        rtad_speak("Estrazione immagine dal PDF…")
 
         def _work():
-            title = "Immagine"
-            body = ""
-            try:
-                if mode == "tech":
-                    title = "Scheda tecnica immagine"
-                    body = rtad_ocr.format_tech_sheet(rtad_ocr.get_image_tech_info(file_path))
-                elif mode == "labels":
-                    title = "Etichette e oggetti"
-                    data = rtad_ocr.analyze_image_visual(file_path)
-                    body = rtad_ocr.format_labels_text(data)
-                elif mode == "ocr":
-                    title = "Testo OCR dell'immagine"
-                    if rtad_ocr.engine_available():
-                        txt = rtad_ocr.ocr_image_file(file_path) or ""
-                        body = txt.strip() or "Nessun testo rilevato nell'immagine."
-                    else:
-                        body = rtad_ocr.engine_status_message()
-                else:
-                    title = "Descrizione immagine"
-                    body = rtad_ocr.describe_image(file_path)
-            except Exception as e:
-                title = "Errore analisi immagine"
-                body = str(e)
-
-            def _show():
-                if copy_only:
-                    if wx.TheClipboard.Open():
-                        wx.TheClipboard.SetData(wx.TextDataObject(body))
-                        wx.TheClipboard.Close()
-                        rtad_speak("Descrizione copiata negli appunti.")
-                    else:
-                        rtad_speak("Impossibile aprire gli appunti.")
-                    return
-                # Riferimento forte: evita GC e resta aperta finché non la chiudi
-                if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
-                    self._image_info_frames = []
-                frm = ImageInfoFrame(None, title, body, image_path=file_path)
-
-                def _on_close(evt, frame=frm):
-                    try:
-                        if frame in self._image_info_frames:
-                            self._image_info_frames.remove(frame)
-                    except Exception:
-                        pass
-                    evt.Skip()
-
-                frm.Bind(wx.EVT_CLOSE, _on_close)
-                self._image_info_frames.append(frm)
-                frm.Show()
-                frm.Raise()
-
-            wx.CallAfter(_show)
+            tmp = self.materialize_pdf_image_temp(file_path)
+            if not tmp:
+                wx.CallAfter(
+                    rtad_speak,
+                    "Nessuna immagine utilizzabile in questo PDF "
+                    "(solo loghi piccoli o nessuna grafica).",
+                )
+                return
+            wx.CallAfter(
+                self.show_image_analysis,
+                tmp,
+                mode,
+                False,
+                True,
+            )
 
         threading.Thread(target=_work, daemon=True).start()
+
+    def on_describe_pdf_dialog(self, event=None):
+        """Scegli un PDF e descrivi la sua immagine principale."""
+        dlg = wx.FileDialog(
+            self,
+            "Scegli un PDF con immagine da descrivere",
+            wildcard="PDF (*.pdf)|*.pdf",
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+        path = dlg.GetPath()
+        dlg.Destroy()
+        self.describe_image_from_pdf(path, mode="describe")
+
+    def on_describe_from_url(self, event=None):
+        describe_image_from_url_dialog(self, speak=rtad_speak)
+
+    def on_describe_from_clipboard(self, event=None):
+        describe_image_from_clipboard(self, speak=rtad_speak)
+
+    def on_describe_from_screenshot(self, event=None):
+        describe_image_from_screenshot(self, speak=rtad_speak)
 
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)
@@ -7021,6 +8211,10 @@ class SearchFrame(wx.Frame):
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
+    def __init__(self):
+        super(GlobalPlugin, self).__init__()
+        self._image_info_frames = []
+
     @scriptHandler.script(
         description="Apri la finestra principale di Ricerca Testuale",
         category="Ricerca Testuale Accesso Digitale",
@@ -7051,6 +8245,80 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     def script_openDonation(self, gesture):
         webbrowser.open(DONATION_URL)
         rtad_speak("Apertura pagina donazioni...")
+
+    @scriptHandler.script(
+        description=(
+            "Descrivi la grafica sotto il navigatore (web) "
+            "oppure il file immagine selezionato in Esplora file"
+        ),
+        category="Ricerca Testuale Accesso Digitale",
+        gesture="kb:NVDA+shift+g",
+    )
+    def script_describeCurrentGraphic(self, gesture):
+        # Esegui subito sul thread NVDA (non CallAfter): altrimenti si perde il navigatore.
+        try:
+            self.describe_current_graphic()
+        except Exception as e:
+            rtad_speak(f"Errore descrizione grafica: {e}")
+
+    def describe_current_graphic(self):
+        """Snapshot navigatore/file (thread NVDA) poi analisi in background."""
+        if rtad_ocr is None:
+            rtad_speak("Modulo immagini non disponibile.")
+            return
+        # 1) Leggi navigatore / selezione file QUI (thread principale)
+        snap = snapshot_navigator_image_source()
+        if not snap.get("ok_source"):
+            rtad_speak(
+                snap.get("error")
+                or "Nessuna figura o file immagine utilizzabile."
+            )
+            return
+        if snap.get("file_path"):
+            rtad_speak("Analisi file immagine in corso…")
+        else:
+            rtad_speak("Preparazione immagine dal navigatore…")
+
+        def _work():
+            res = materialize_image_from_snapshot(snap)
+            if not res.get("ok") or not res.get("path"):
+                wx.CallAfter(
+                    rtad_speak,
+                    res.get("error")
+                    or "Impossibile ottenere l'immagine dal navigatore.",
+                )
+                return
+            method = res.get("method") or ""
+            delete_after = method in ("url", "capture")
+            base = os.path.basename(res.get("path") or "") or "immagine"
+            nav_name = (snap.get("name") or "").strip()
+            if method == "file":
+                msg = f"Analisi file locale: {base}."
+            elif method == "url":
+                # Se il nome accessibile differisce dal file CDN, lo diciamo
+                if nav_name and nav_name.lower() not in base.lower():
+                    msg = (
+                        f"Immagine web scaricata ({base}). "
+                        f"Figura: {nav_name[:80]}. Analisi in corso…"
+                    )
+                else:
+                    msg = f"Immagine web scaricata ({base}). Analisi in corso…"
+            elif method == "capture":
+                msg = "Area schermo catturata. Analisi in corso…"
+            else:
+                msg = "Analisi immagine in corso…"
+            wx.CallAfter(rtad_speak, msg)
+            wx.CallAfter(
+                run_image_analysis,
+                self,
+                res["path"],
+                "describe",
+                False,
+                delete_after,
+                rtad_speak,
+            )
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def open_search_window(self):
         try:

@@ -56,7 +56,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.3"
+APP_VERSION = "1.6.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1686,12 +1686,12 @@ def create_html_help_file():
     <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
     <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
     <div class="box">
-        <p><strong>Novit&agrave; Versione 1.6.3</strong></p>
+        <p><strong>Novit&agrave; Versione 1.6.4</strong></p>
         <ul>
-            <li><strong>Sottomen&ugrave; Explorer</strong> sulle immagini: Descrivi, OCR rapido, Etichette, Scheda tecnica, Copia descrizione.</li>
-            <li><strong>Descrizione avanzata Gemini</strong> (chiave personale Google AI Studio): layout, testi, dettagli immersivi.</li>
-            <li><strong>Ricerca contenuto visivo</strong> + scheda tecnica (Vision / EXIF).</li>
-            <li>Restano notifica fine ricerca / cache OCR 1.6.2, ZIP 1.6.1, Vision OCR 1.6.0.</li>
+            <li><strong>Descrivi da URL / Appunti / cattura</strong>; scorciatoie a finestra attiva.</li>
+            <li><strong>Alt-text</strong>, descrizione da PDF; elenco per tipo <code>[ELENCO]</code>.</li>
+            <li>Nell'Add-on: <code>NVDA+Shift+G</code> su figura web o file in Explorer.</li>
+            <li>Restano Gemini/Vision/Explorer 1.6.3, notifica 1.6.2, ZIP 1.6.1.</li>
         </ul>
         <p><code>F7</code>: Mute &middot; OCR / Visivo / ZIP: caselle opt-in &middot; Aiuto &rarr; Guida pratica.</p>
     </div>
@@ -3734,14 +3734,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Sottomenù «Cerca con Accesso Digitale» sulle immagini\n"
-            "  in Esplora file: Descrivi, OCR rapido, Etichette,\n"
-            "  Scheda tecnica, Copia descrizione.\n"
-            "• Descrizione avanzata con Gemini (chiave personale):\n"
-            "  layout, testi, maglie, contesto — immersiva.\n"
-            "• Scheda tecnica e ricerca contenuto visivo (Vision).\n"
-            "• Restano notifica fine ricerca 1.6.2, ZIP 1.6.1,\n"
-            "  OCR Vision 1.6.0, guida/EPUB 1.5.9.\n"
+            "• Descrivi immagine da URL, dagli Appunti o catturando\n"
+            "  lo schermo (anche senza NVDA): menu Strumenti.\n"
+            "• Scorciatoie (finestra attiva): Ctrl+Shift+U (URL),\n"
+            "  Ctrl+Shift+I (Appunti), Alt+Shift+K (cattura).\n"
+            "• Senza parola chiave + tipo file: elenco dei file\n"
+            "  (documenti/immagini/media) nella cartella.\n"
+            "• Nell'Add-on: NVDA+Shift+G su figura web o file in Explorer.\n"
+            "• Alt-text, descrizione da PDF, Gemini/Vision come in 1.6.3.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -3860,6 +3860,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
             "  - TAB oppure Alt+S / S : Raggiunge la casella 'Stato avanzamento'\n"
             "  - Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
+            "  - Alt + Shift + K : Cattura schermo e descrivi l'immagine\n"
+            "  - Ctrl + Shift + U : Descrivi immagine da URL\n"
+            "  - Ctrl + Shift + I : Descrivi immagine dagli Appunti (o URL)\n"
             "  - Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
             "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"            "  - Ctrl + Shift + P: Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L: Carica un profilo di ricerca\n"
             "  - INVIO : Avvia ricerca, apri file alla riga esatta o apri articolo nel Browser\n"
@@ -4275,6 +4278,23 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "S&vuota cache OCR…"
         )
         self.Bind(wx.EVT_MENU, self.on_clear_ocr_cache, item_clear_ocr)
+        tools_menu.AppendSeparator()
+        item_desc_url = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine da &URL…\tCtrl+Shift+U"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_url, item_desc_url)
+        item_desc_clip = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine dagli &Appunti\tCtrl+Shift+I"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_clipboard, item_desc_clip)
+        item_desc_cap = tools_menu.Append(
+            wx.ID_ANY, "Cattura schermo e &descrivi\tAlt+Shift+K"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_from_screenshot, item_desc_cap)
+        item_desc_pdf = tools_menu.Append(
+            wx.ID_ANY, "Descrivi immagine da P&DF…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_describe_pdf_dialog, item_desc_pdf)
         tools_menu.AppendSeparator()
         self.item_notify_end = tools_menu.AppendCheckItem(
             wx.ID_ANY, "&Notifica a fine ricerca (Centro notifiche Windows)"
@@ -5280,8 +5300,17 @@ class MainWindow(wx.Frame):
         elif alt and key in (ord("T"), ord("t")):
             self.on_search_all_pc(None)
             return
+        elif alt and key in (ord("K"), ord("k")) and event.ShiftDown():
+            self.on_describe_from_screenshot(None)
+            return
         elif alt and key in (ord("K"), ord("k")):
             self.on_take_screenshot(None)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("U"), ord("u")):
+            self.on_describe_from_url(None)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("I"), ord("i")):
+            self.on_describe_from_clipboard(None)
             return
         elif alt and key in (ord("N"), ord("n")):
             self.on_cancel_search(None)
@@ -5796,20 +5825,32 @@ class MainWindow(wx.Frame):
             pass
 
         if not query:
-            if include_ocr:
+            if include_ocr and filter_mode in (0, 1):
                 speak_accessible(
                     "Nessun testo di ricerca: OCR completo sulle immagini del percorso. "
                     "Poi puoi usare Copia Testo o Salva Immagine sul risultato."
                 )
+            elif filter_mode in (1, 2, 3, 4):
+                tipo = FILTER_MODE_LABELS[filter_mode] if filter_mode < len(FILTER_MODE_LABELS) else "tipo scelto"
+                speak_accessible(
+                    f"Nessun testo di ricerca: elenco dei file ({tipo}) "
+                    f"nella cartella indicata. Poi puoi aprirli o analizzarli dal menu."
+                )
             else:
                 speak_accessible(
-                    "Inserire un testo da cercare, oppure attiva OCR per leggere "
-                    "tutte le immagini senza parola chiave."
+                    "Inserire un testo da cercare, oppure scegli un tipo di file "
+                    "(documenti, immagini…) per elencarli, oppure attiva OCR "
+                    "per leggere tutte le immagini senza parola chiave."
                 )
                 return
 
         self._stop_search = False
-        self.current_query = query or "(OCR completo)"
+        if query:
+            self.current_query = query
+        elif include_ocr and filter_mode in (0, 1):
+            self.current_query = "(OCR completo)"
+        else:
+            self.current_query = "(Elenco per tipo)"
         self.current_percent = 0
         self.scanned_count = 0
         self.live_matches_count = 0
@@ -5838,8 +5879,10 @@ class MainWindow(wx.Frame):
         self.current_matches = []
         self.gauge.SetValue(0)
         status_start = "Ricerca in corso: 0%..."
-        if include_ocr and not query:
+        if include_ocr and not query and filter_mode in (0, 1):
             status_start = "OCR completo sulle immagini: 0%..."
+        elif not query and filter_mode in (1, 2, 3, 4):
+            status_start = "Elenco file per tipo: 0%..."
         elif include_ocr or include_visual:
             bits = []
             if include_ocr:
@@ -5853,11 +5896,13 @@ class MainWindow(wx.Frame):
         self.btn_cancel.Enable()
 
         logging.info(
-            f"Avvio ricerca. Testo: '{query or '(OCR completo)'}'. Tipo filtro: {filter_mode}. "
+            f"Avvio ricerca. Testo: '{query or self.current_query}'. Tipo filtro: {filter_mode}. "
             f"OCR: {include_ocr}. Visivo: {include_visual}. ZIP: {include_zip}. Path: {target_input}"
         )
-        if include_ocr and not query:
+        if include_ocr and not query and filter_mode in (0, 1):
             speak_accessible("OCR completo avviato sulle immagini.")
+        elif not query and filter_mode in (1, 2, 3, 4):
+            speak_accessible("Elenco file per tipo avviato.")
         elif include_ocr or include_visual:
             extras = []
             if include_ocr:
@@ -5912,7 +5957,12 @@ class MainWindow(wx.Frame):
         ]
         norm_query = normalize_search_text(query) if query else ""
         terms = norm_query.split() if norm_query else []
-        ocr_dump_all = bool(include_ocr and not terms)
+        # OCR senza query solo su «Tutti» o «Solo Immagini»
+        ocr_dump_all = bool(include_ocr and not terms and filter_mode in (0, 1))
+        # Elenco file del tipo scelto (senza leggere il contenuto)
+        list_files_only = bool(
+            not terms and not ocr_dump_all and filter_mode in (1, 2, 3, 4)
+        )
         img_exts = list(IMG_EXTS)
         media_exts = list(MEDIA_EXTS)
         doc_exts = list(DOC_EXTS)
@@ -5987,15 +6037,15 @@ class MainWindow(wx.Frame):
 
                     if filter_mode == 1 and ext not in img_exts:
                         continue
-                    elif ocr_dump_all and ext not in img_exts:
-                        # OCR senza query: solo immagini
-                        continue
                     elif filter_mode == 2 and ext not in media_exts:
                         continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                         if not (include_zip and ext == ".zip"):
                             continue
                     elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                        continue
+                    elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
+                        # OCR senza query su «Tutti i tipi»: solo immagini
                         continue
 
                     if ext == ".opml":
@@ -6101,14 +6151,14 @@ class MainWindow(wx.Frame):
                         )
                         if filter_mode == 1 and ext not in img_exts:
                             continue
-                        elif ocr_dump_all and ext not in img_exts:
-                            continue
                         elif filter_mode == 2 and ext not in media_exts:
                             continue
                         elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                             if not (include_zip and ext == ".zip"):
                                 continue
                         elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                            continue
+                        elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                             continue
                         if ext == ".opml" or (ext in feed_file_exts and not is_thunderbird_feeds_path(full)):
                             continue
@@ -6137,14 +6187,14 @@ class MainWindow(wx.Frame):
                             )
                             if filter_mode == 1 and ext not in img_exts:
                                 continue
-                            elif ocr_dump_all and ext not in img_exts:
-                                continue
                             elif filter_mode == 2 and ext not in media_exts:
                                 continue
                             elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                                 if not (include_zip and ext == ".zip"):
                                     continue
                             elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
+                                continue
+                            elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                                 continue
                             if ext == ".opml":
                                 continue
@@ -6192,6 +6242,31 @@ class MainWindow(wx.Frame):
                 mtime = 0
             file_date_label = format_file_date_label(mtime)
             file_date_suffix = f" {file_date_label}" if file_date_label else ""
+
+            # Elenco per tipo: nessun testo da cercare, solo inventario filtrato
+            if list_files_only:
+                try:
+                    sz = os.path.getsize(file_path)
+                except Exception:
+                    sz = 0
+                if sz >= 1024 * 1024:
+                    size_s = f"{sz / (1024 * 1024):.1f} MB"
+                elif sz >= 1024:
+                    size_s = f"{sz / 1024:.0f} KB"
+                else:
+                    size_s = f"{sz} byte"
+                raw_matches.append({
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "prefix": "[ELENCO]",
+                    "mtime": mtime,
+                    "line_number": None,
+                    "paragraph_index": None,
+                    "location_info": f"Elenco per tipo{file_date_suffix}",
+                    "snippet": f"{(ext or 'file').lstrip('.').upper() or 'FILE'} · {size_s}",
+                })
+                bump_progress()
+                continue
 
             try:
                 name_matched = text_matches_terms(file_name, terms)
@@ -6998,6 +7073,11 @@ class MainWindow(wx.Frame):
                     " Nessun percorso valido trovato: controlla che la cartella o il file "
                     "esistano (senza virgolette nel campo percorso)."
                 )
+            elif self.scanned_count == 0 and matches == 0:
+                text += (
+                    " Nessun file in coda con questi filtri: verifica testo da cercare, "
+                    "tipo di file e percorso."
+                )
             logging.info(
                 f"Ricerca completata. File esaminati: {self.scanned_count}. "
                 f"Messaggi posta: {mail_msgs}. Allegati PDF visti: {pdf_att_seen}, "
@@ -7158,18 +7238,32 @@ class MainWindow(wx.Frame):
         item_copy_text = menu.Append(wx.ID_ANY, "Copia Testo pulito")
         item_copy_ocr_full = menu.Append(wx.ID_ANY, "Copia OCR completo")
         item_describe = None
+        item_alt = None
+        item_alt_long = None
         item_labels = None
         item_tech = None
+        item_pdf_describe = None
         ext_sel = os.path.splitext(file_path)[1].lower()
         is_img_result = (
             ext_sel in IMG_EXTS
             or str(item_data.get("prefix", "")).startswith("[IMG")
         )
+        is_pdf_result = (
+            ext_sel == ".pdf"
+            or str(item_data.get("prefix", "")).startswith("[PDF")
+        )
         if is_img_result:
             menu.AppendSeparator()
+            item_alt = menu.Append(wx.ID_ANY, "Alt-text breve")
             item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
+            item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
             item_labels = menu.Append(wx.ID_ANY, "Etichette e oggetti")
             item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
+        elif is_pdf_result:
+            menu.AppendSeparator()
+            item_pdf_describe = menu.Append(
+                wx.ID_ANY, "Descrivi immagine da PDF"
+            )
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -7195,11 +7289,23 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
+        if item_alt is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="alt"),
+                item_alt,
+            )
         if item_describe is not None:
             self.Bind(
                 wx.EVT_MENU,
                 lambda e: self.show_image_analysis(file_path, mode="describe"),
                 item_describe,
+            )
+        if item_alt_long is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="alt-long"),
+                item_alt_long,
             )
         if item_labels is not None:
             self.Bind(
@@ -7212,6 +7318,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.show_image_analysis(file_path, mode="tech"),
                 item_tech,
+            )
+        if item_pdf_describe is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.describe_image_from_pdf(file_path),
+                item_pdf_describe,
             )
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
@@ -7226,7 +7338,9 @@ class MainWindow(wx.Frame):
         self.PopupMenu(menu)
         menu.Destroy()
 
-    def show_image_analysis(self, file_path, mode="describe", copy_only=False):
+    def show_image_analysis(
+        self, file_path, mode="describe", copy_only=False, delete_after=False
+    ):
         """Descrivi / etichette / scheda tecnica su un file immagine (UI o CLI)."""
         if not file_path or not os.path.isfile(file_path):
             speak_accessible("File immagine non trovato.")
@@ -7247,7 +7361,7 @@ class MainWindow(wx.Frame):
         except Exception:
             pass
 
-        if mode in ("describe", "copy-describe") and not load_gemini_api_key():
+        if mode in ("describe", "copy-describe", "alt", "alt-long") and not load_gemini_api_key():
             speak_accessible(
                 "Descrizione avanzata: nessuna chiave Gemini. "
                 "Uso etichette Vision se disponibili. "
@@ -7274,6 +7388,16 @@ class MainWindow(wx.Frame):
                         body = txt.strip() or "Nessun testo rilevato nell'immagine."
                     else:
                         body = rtad_ocr.engine_status_message()
+                elif mode == "alt":
+                    title = "Alt-text breve"
+                    alt = rtad_ocr.describe_image_alt_text(file_path)
+                    if alt.get("ok") and (alt.get("text") or "").strip():
+                        body = (alt.get("text") or "").strip()
+                    else:
+                        body = alt.get("error") or "Alt-text non disponibile."
+                elif mode == "alt-long":
+                    title = "Alt-text e descrizione"
+                    body = rtad_ocr.format_alt_and_long_description(file_path)
                 else:
                     title = "Descrizione immagine"
                     body = rtad_ocr.describe_image(file_path)
@@ -7289,18 +7413,25 @@ class MainWindow(wx.Frame):
                         speak_accessible("Descrizione copiata negli appunti.")
                     else:
                         speak_accessible("Impossibile aprire gli appunti.")
+                    if delete_after and rtad_ocr is not None:
+                        rtad_ocr.cleanup_temp_image(file_path)
                     return
                 # Riferimento forte: evita GC e resta aperta finché non la chiudi
                 if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
                     self._image_info_frames = []
                 frm = ImageInfoFrame(None, title, body, image_path=file_path)
 
-                def _on_close(evt, frame=frm):
+                def _on_close(evt, frame=frm, path=file_path, do_del=delete_after):
                     try:
                         if frame in self._image_info_frames:
                             self._image_info_frames.remove(frame)
                     except Exception:
                         pass
+                    if do_del and rtad_ocr is not None:
+                        try:
+                            rtad_ocr.cleanup_temp_image(path)
+                        except Exception:
+                            pass
                     evt.Skip()
 
                 frm.Bind(wx.EVT_CLOSE, _on_close)
@@ -7311,6 +7442,210 @@ class MainWindow(wx.Frame):
             wx.CallAfter(_show)
 
         threading.Thread(target=_work, daemon=True).start()
+
+    def materialize_pdf_image_temp(self, file_path):
+        """Estrae la migliore immagine da un PDF su file temp. Path o ''."""
+        if not file_path or not os.path.isfile(file_path):
+            return ""
+        record = get_best_pdf_page_image(file_path)
+        if not record:
+            logos = extract_images_from_pdf(file_path)
+            record = logos[0] if logos else None
+        if not record:
+            return ""
+        suffix = ".jpg" if record.get("kind") == "jpeg" else ".png"
+        try:
+            fd, tmp = tempfile.mkstemp(suffix=suffix, prefix="rtad_pdf_")
+            os.close(fd)
+        except Exception:
+            return ""
+        if save_pdf_image_record_to_path(record, tmp) and os.path.isfile(tmp):
+            return tmp
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        return ""
+
+    def describe_image_from_pdf(self, file_path, mode="describe"):
+        """Estrae immagine dal PDF e avvia analisi (temp + delete_after)."""
+        if not file_path or not os.path.isfile(file_path):
+            speak_accessible("File PDF non trovato.")
+            return
+        speak_accessible("Estrazione immagine dal PDF…")
+
+        def _work():
+            tmp = self.materialize_pdf_image_temp(file_path)
+            if not tmp:
+                wx.CallAfter(
+                    speak_accessible,
+                    "Nessuna immagine utilizzabile in questo PDF "
+                    "(solo loghi piccoli o nessuna grafica).",
+                )
+                return
+            wx.CallAfter(
+                self.show_image_analysis,
+                tmp,
+                mode,
+                False,
+                True,
+            )
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def on_describe_pdf_dialog(self, event=None):
+        """Scegli un PDF e descrivi la sua immagine principale."""
+        dlg = wx.FileDialog(
+            self,
+            "Scegli un PDF con immagine da descrivere",
+            wildcard="PDF (*.pdf)|*.pdf",
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+        path = dlg.GetPath()
+        dlg.Destroy()
+        self.describe_image_from_pdf(path, mode="describe")
+
+    def on_describe_from_url(self, event=None):
+        """Chiede un URL immagine, lo scarica e avvia Descrivi (gemello Add-on)."""
+        if rtad_ocr is None:
+            speak_accessible("Modulo immagini non disponibile.")
+            return
+        dlg = wx.TextEntryDialog(
+            self,
+            "Incolla l'URL completo dell'immagine da descrivere\n"
+            "(http o https, anche da gallerie o articoli web):",
+            "Descrivi immagine da URL",
+            "",
+        )
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+        url = (dlg.GetValue() or "").strip().strip('"').strip("'")
+        dlg.Destroy()
+        if not url:
+            speak_accessible("URL non inserito.")
+            return
+        speak_accessible("Download immagine in corso…")
+
+        def _work():
+            res = rtad_ocr.materialize_image_from_url(url)
+            if not res.get("ok") or not res.get("path"):
+                wx.CallAfter(
+                    speak_accessible,
+                    res.get("error") or "Download immagine non riuscito.",
+                )
+                return
+            wx.CallAfter(
+                self.show_image_analysis,
+                res["path"],
+                "describe",
+                False,
+                True,
+            )
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def on_describe_from_clipboard(self, event=None):
+        """Descrive un'immagine (o URL immagine) presente negli Appunti."""
+        if rtad_ocr is None:
+            speak_accessible("Modulo immagini non disponibile.")
+            return
+        path = ""
+        delete_after = True
+        try:
+            if not wx.TheClipboard.Open():
+                speak_accessible("Impossibile aprire gli appunti.")
+                return
+            try:
+                # 1) Bitmap negli appunti
+                if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_BITMAP)):
+                    data = wx.BitmapDataObject()
+                    if wx.TheClipboard.GetData(data):
+                        bmp = data.GetBitmap()
+                        if bmp and bmp.IsOk():
+                            fd, path = tempfile.mkstemp(suffix=".png", prefix="rtad_clip_")
+                            os.close(fd)
+                            if not bmp.SaveFile(path, wx.BITMAP_TYPE_PNG):
+                                path = ""
+                # 2) File path negli appunti
+                if not path and wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_FILENAME)):
+                    fdo = wx.FileDataObject()
+                    if wx.TheClipboard.GetData(fdo):
+                        names = fdo.GetFilenames() or []
+                        for cand in names:
+                            if cand and os.path.isfile(cand) and rtad_ocr.is_image_path(cand):
+                                path = cand
+                                delete_after = False
+                                break
+                # 3) Testo = URL immagine
+                url_text = ""
+                if not path and wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                    tdo = wx.TextDataObject()
+                    if wx.TheClipboard.GetData(tdo):
+                        url_text = (tdo.GetText() or "").strip().strip('"').strip("'")
+            finally:
+                wx.TheClipboard.Close()
+        except Exception as e:
+            logging.error(f"Appunti immagine: {e}")
+            speak_accessible("Lettura appunti non riuscita.")
+            return
+
+        if path and os.path.isfile(path):
+            self.show_image_analysis(path, mode="describe", delete_after=delete_after)
+            return
+        if url_text and (
+            rtad_ocr.is_likely_image_url(url_text)
+            or url_text.lower().startswith("http://")
+            or url_text.lower().startswith("https://")
+        ):
+            speak_accessible("Download immagine dall'URL negli appunti…")
+
+            def _work():
+                res = rtad_ocr.materialize_image_from_url(url_text)
+                if not res.get("ok") or not res.get("path"):
+                    wx.CallAfter(
+                        speak_accessible,
+                        res.get("error") or "Download immagine non riuscito.",
+                    )
+                    return
+                wx.CallAfter(
+                    self.show_image_analysis,
+                    res["path"],
+                    "describe",
+                    False,
+                    True,
+                )
+
+            threading.Thread(target=_work, daemon=True).start()
+            return
+        speak_accessible(
+            "Nessuna immagine negli appunti. "
+            "Copia un'immagine, un file immagine o un URL http, poi riprova."
+        )
+
+    def on_describe_from_screenshot(self, event=None):
+        """Cattura l'intero schermo in temp e avvia Descrivi (gemello istantanea)."""
+        if rtad_ocr is None:
+            speak_accessible("Modulo immagini non disponibile.")
+            return
+        speak_accessible("Cattura schermo in corso…")
+        try:
+            screen = wx.ScreenDC()
+            size = screen.GetSize()
+            res = rtad_ocr.materialize_image_from_screen_rect(
+                0, 0, int(size.width), int(size.height)
+            )
+        except Exception as e:
+            logging.error(f"Cattura+descrivi: {e}")
+            speak_accessible("Cattura schermo non riuscita.")
+            return
+        if not res.get("ok") or not res.get("path"):
+            speak_accessible(res.get("error") or "Cattura schermo non riuscita.")
+            return
+        self.show_image_analysis(res["path"], mode="describe", delete_after=True)
 
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)
@@ -7682,18 +8017,23 @@ class MainWindow(wx.Frame):
             speak_accessible("Impossibile aprire la cartella.")
 
 def _parse_cli_image_action(argv):
-    """Riconosce --describe/--labels/--tech/--ocr-quick/--copy-describe e il path.
+    """Riconosce --describe/--labels/--tech/--ocr-quick/--copy-describe/--describe-url.
 
-    Restituisce (mode|None, path|None, rest_path_for_search|None).
+    Restituisce (mode|None, path|None, rest_path_for_search|None, url|None).
     """
     mode = None
     path = None
+    url = None
     flags = {
         "--describe": "describe",
+        "--alt": "alt",
+        "--alt-long": "alt-long",
         "--labels": "labels",
         "--tech": "tech",
         "--ocr-quick": "ocr",
         "--copy-describe": "copy-describe",
+        "--describe-url": "describe-url",
+        "--describe-pdf": "describe-pdf",
     }
     args = list(argv[1:]) if argv else []
     i = 0
@@ -7703,20 +8043,25 @@ def _parse_cli_image_action(argv):
         if a in flags:
             mode = flags[a]
             if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                path = args[i + 1]
+                if mode == "describe-url":
+                    url = args[i + 1]
+                else:
+                    path = args[i + 1]
                 i += 2
                 continue
             i += 1
             continue
         leftover.append(a)
         i += 1
-    if path is None and leftover:
+    if path is None and leftover and mode != "describe-url":
         # Primo argomento esistente come path
         for cand in leftover:
             if os.path.exists(cand):
                 path = cand
                 break
-    return mode, path, leftover
+    if url is None and mode == "describe-url" and leftover:
+        url = leftover[0]
+    return mode, path, leftover, url
 
 
 def main():
@@ -7724,7 +8069,7 @@ def main():
         ensure_rtad_app_user_model_id()
     except Exception:
         pass
-    cli_mode, cli_path, leftover = _parse_cli_image_action(sys.argv)
+    cli_mode, cli_path, leftover, cli_url = _parse_cli_image_action(sys.argv)
     app = wx.App(False)
     frame = MainWindow()
     frame.Show()
@@ -7749,7 +8094,38 @@ def main():
             frame.txt_path.SetValue(path_for_search)
         save_last_path(frame.txt_path.GetValue())
 
-    if cli_mode and cli_path and os.path.isfile(cli_path):
+    if cli_mode == "describe-url" and cli_url:
+        def _cli_url():
+            if rtad_ocr is None:
+                speak_accessible("Modulo immagini non disponibile.")
+                return
+            speak_accessible("Download immagine in corso…")
+
+            def _work():
+                res = rtad_ocr.materialize_image_from_url(cli_url)
+                if not res.get("ok") or not res.get("path"):
+                    wx.CallAfter(
+                        speak_accessible,
+                        res.get("error") or "Download immagine non riuscito.",
+                    )
+                    return
+                wx.CallAfter(
+                    frame.show_image_analysis,
+                    res["path"],
+                    "describe",
+                    False,
+                    True,
+                )
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        wx.CallLater(400, _cli_url)
+    elif cli_mode == "describe-pdf" and cli_path and os.path.isfile(cli_path):
+        wx.CallLater(
+            400,
+            lambda: frame.describe_image_from_pdf(cli_path, mode="describe"),
+        )
+    elif cli_mode and cli_path and os.path.isfile(cli_path):
         mode = "describe" if cli_mode == "copy-describe" else cli_mode
         copy_only = cli_mode == "copy-describe"
         wx.CallLater(

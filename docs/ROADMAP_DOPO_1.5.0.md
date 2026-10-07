@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** lavoro corrente = `1.6.5` (polish web/meteo + sottomenù PDF). Ultima pubblicata = `1.6.4` (GitHub + DataStore OK, 06/10/2026). **Non hotfixare 1.6.4.** Dialogo unico + batch → `1.6.6`.
+**Regola versione:** ultima pubblicata = `1.6.5` (GitHub + DataStore OK, 07/10/2026). **Non hotfixare 1.6.5.** Prossima = `1.6.6` (dialogo unico + batch + PDF ToUnicode + Gemini API).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -135,8 +135,8 @@ Contenuto previsto `1.6.0`:
 - **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini — **pubblicata**.  
 - **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone; Gemini immersivo + grounding OCR/data; finestra descrizione indipendente — **pubblicata** (GitHub + DataStore, issue #11999 → #12001).  
 - **1.6.4:** Descrivi web/URL/Appunti/cattura; NVDA+Shift+G; alt-text; PDF describe; elenco `[ELENCO]`; fix Explorer in background — **pubblicata** (06/10/2026; DataStore #12027 → #12028).  
-- **1.6.5 (in corso):** polish icone/grafici web (3BMeteo/wx) + sottomenù Explorer PDF.  
-- **1.6.6:** dialogo unico «Tutto sull’immagine» + batch cartella (chiusura blocco immagini).  
+- **1.6.5:** polish icone/grafici web (3BMeteo/wx) + sottomenù Explorer PDF/documenti — **pubblicata** (07/10/2026; DataStore #12044 → #12045).  
+- **1.6.6:** dialogo unico + batch + PDF ToUnicode per font + Gemini API (togliere `temperature`).  
 - **Oggetti nelle foto:** avviato in 1.6.3; ampliamenti con il blocco immagini.  
 - **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.5…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
@@ -158,8 +158,8 @@ Contenuto previsto `1.6.0`:
 10. ~~**1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini~~ **pubblicata**.
 11. ~~**1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA)~~ **pubblicata** (`v1.6.3` / `app-v1.6.3`; DataStore OK).
 12. ~~**1.6.4** web/URL/appunti/cattura + Shift+G + alt-text + PDF + elenco~~ **pubblicata** (`v1.6.4` / `app-v1.6.4`; DataStore OK).  
-13. **1.6.5** polish grafici web (3BMeteo/wx) + sottomenù Explorer PDF.  
-14. **1.6.6** dialogo unico + batch (chiusura immagini).  
+13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
+14. **1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API (`temperature`).  
 15. **Dopo blocco immagini:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
@@ -171,19 +171,23 @@ Contenuto previsto `1.6.0`:
 5. Batch cartella → **rimandato a 1.6.6**.  
 6. ~~Elenco per tipo `[ELENCO]`~~.
 
-### Fase L — `1.6.5` (polish web + PDF Explorer) — IN CORSO
+### Fase L — `1.6.5` (polish web + PDF Explorer) — PUBBLICATA
 
-1. **Fix 3BMeteo / icone web:** niente dialogo wx «Formato dati immagine sconosciuto»;
-   WebP/SVG/AVIF; LogNull su load wx; fallback cattura per non-raster
-   (test: 3bmeteo Torino centro, pulsante «nuvoloso»).  
-2. **Sottomenù Explorer PDF** (Apri, Descrivi immagini PDF, ecc.) — SA `setup.iss`.
+1. ~~Fix 3BMeteo / icone web (SVG/WebP, LogNull, fallback cattura)~~.
+2. ~~Sottomenù Explorer PDF/documenti (Apri/Leggi/Copia/Descrivi)~~ — SA `setup.iss`.
 
-### Fase M — `1.6.6` (chiusura immagini + PDF testo)
+### Fase M — `1.6.6` (chiusura immagini + PDF testo + Gemini)
 
-1. Dialogo unico «Tutto sull’immagine».  
-2. Batch cartella.  
-3. **PDF testo multi-font / ToUnicode per font** (fix spazzatura su PDF
+1. Dialogo unico «Tutto sull’immagine».
+2. Batch cartella.
+3. **PDF testo multi-font / ToUnicode per font** (testo spazzatura su PDF
    multilingue tipo `sample-multilingual-text.pdf`; Edge già OK).
+4. **Gemini API** (email Google AI Studio 07/10/2026): in
+   `rtad_ocr.py` → `_gemini_generate_description` togliere
+   `generationConfig.temperature` (oggi `0.2`). Non usiamo
+   `thinking_budget` / `top_p` / `top_k`. Presto i modelli nuovi
+   risponderanno `400` se restano. Chiave API ok; `generateContent` ok.
+   Gemello SA ↔ addon. Vedi anche `.cursor/rules/rtad-gemini-api.mdc`.
 
 ---
 

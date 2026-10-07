@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.5
+
+*(In corso — ultima pubblicata: **1.6.4**.)*
+
+- **Fix icone/grafici web** (es. 3BMeteo): niente dialogo wx «formato immagine sconosciuto» su SVG/WebP; fallback cattura area (`NVDA+Shift+G`).
+- **Standalone Explorer**: sottomenù **PDF** / **documenti** (Apri con app predefinita + voce in lista, Leggi testo, Copia testo; sui PDF anche Descrivi immagini).
+- Restano descrivi URL/Appunti/cattura, Shift+G, alt-text, `[ELENCO]`, sottomenù immagini.
+
 ### 🌟 Novità della Versione 1.6.4
 
-*(In preparazione — ultima pubblicata: **1.6.3**.)*
+*(Pubblicata.)*
 
 - **Descrivi da URL / Appunti / cattura schermo** (gemello SA + Add-on); scorciatoie SA a finestra attiva.
 - **Add-on NVDA**: `NVDA+Shift+G` su figura web o file immagine in Esplora file/Desktop.
@@ -99,9 +107,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.5
+
+*(In progress — last published: **1.6.4**.)*
+
+- **Web icons/charts fix** (e.g. 3BMeteo): no wx «unknown image format» dialog on SVG/WebP; screen-area capture fallback (`NVDA+Shift+G`).
+- **Standalone Explorer**: **PDF** / **documents** submenu (Open with default app + list entry, Read text, Copy text; Describe images on PDF).
+- Describe from URL/Clipboard/capture, Shift+G, alt-text, `[ELENCO]`, image submenu remain.
+
 ### 🌟 What's New in Version 1.6.4
 
-*(In preparation — last published: **1.6.3**.)*
+*(Published.)*
 
 - **Describe from URL / Clipboard / screen capture** (twin SA + Add-on); SA shortcuts when the window is focused.
 - **NVDA add-on**: `NVDA+Shift+G` on a web graphic or image file in File Explorer/Desktop.

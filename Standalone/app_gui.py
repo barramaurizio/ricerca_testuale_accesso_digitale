@@ -56,7 +56,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.4"
+APP_VERSION = "1.6.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1900,6 +1900,15 @@ DOC_EXTS = (
 TEXT_LIKE_EXTS = (
     ".txt", ".log", ".csv", ".md", ".rtf", ".html", ".htm",
 )
+# File per cui Explorer apre RTAD sul FILE stesso (non solo la cartella)
+# e che hanno (o avranno) sottomenù shell documento.
+SHELL_DOCUMENT_EXTS = (
+    ".pdf",
+    ".docx", ".odt",
+    ".txt", ".md", ".csv", ".log", ".rtf",
+    ".html", ".htm",
+    ".epub",
+)
 
 def _filter_choice_labels():
     return [
@@ -2049,6 +2058,83 @@ def get_real_ready_drives():
                     pass
         bitmask >>= 1
     return drives
+
+def extract_plain_text_file(file_path):
+    """Legge un file di testo (txt/md/html/…) in Unicode."""
+    try:
+        with open(file_path, "rb") as f:
+            raw_data = f.read()
+    except Exception as e:
+        logging.debug(f"Errore lettura testo {file_path}: {e}")
+        return ""
+    if not raw_data:
+        return ""
+    try:
+        if raw_data.startswith(b"\xff\xfe") or raw_data.startswith(b"\xfe\xff"):
+            text = raw_data.decode("utf-16", errors="ignore")
+        else:
+            try:
+                text = raw_data.decode("utf-8")
+            except UnicodeDecodeError:
+                text = raw_data.decode("latin1", errors="ignore")
+        return text.replace("\x00", "").replace("\r\n", "\n").replace("\r", "\n")
+    except Exception as e:
+        logging.debug(f"Errore decode testo {file_path}: {e}")
+        return ""
+
+
+def extract_document_text(file_path):
+    """Testo leggibile da PDF/DOCX/EPUB/testo per CLI shell e «Leggi/Copia».
+
+    Restituisce stringa (può essere vuota se scansione/protetto/non supportato).
+    """
+    if not file_path or not os.path.isfile(file_path):
+        return ""
+    ext = os.path.splitext(file_path)[1].lower()
+    try:
+        if ext == ".pdf":
+            return "\n".join(extract_lines_from_pdf(file_path)).strip()
+        if ext in (".docx", ".doc", ".odt"):
+            # odt non è OOXML: extract_paragraphs_from_docx gestisce solo docx zip
+            if ext == ".odt":
+                return _extract_text_from_odt(file_path)
+            return "\n".join(extract_paragraphs_from_docx(file_path)).strip()
+        if ext == ".epub":
+            if rtad_epub is None:
+                return ""
+            return "\n".join(rtad_epub.extract_paragraphs_from_epub(file_path) or []).strip()
+        if ext in TEXT_LIKE_EXTS:
+            return extract_plain_text_file(file_path).strip()
+    except Exception as e:
+        logging.debug(f"extract_document_text fallita su {file_path}: {e}")
+    return ""
+
+
+def _extract_text_from_odt(file_path):
+    """Estrae testo grezzo da ODT (content.xml in ZIP)."""
+    try:
+        magic = _read_file_magic(file_path, 4)
+        if magic[:2] != b"PK":
+            return ""
+        with zipfile.ZipFile(file_path) as z:
+            try:
+                xml_content = z.read("content.xml")
+            except KeyError:
+                return ""
+            if len(xml_content) > MAX_DOCX_XML_BYTES:
+                xml_content = xml_content[:MAX_DOCX_XML_BYTES]
+            tree = ET.fromstring(xml_content)
+            parts = []
+            for el in tree.iter():
+                if el.tag.rsplit("}", 1)[-1] == "p":
+                    t = "".join(el.itertext()).strip()
+                    if t:
+                        parts.append(t)
+            return "\n".join(parts).strip()
+    except Exception as e:
+        logging.debug(f"Errore estrazione ODT {file_path}: {e}")
+        return ""
+
 
 def extract_paragraphs_from_docx(file_path):
     """Estrae paragrafi da DOCX/OOXML. I .doc OLE non sono ZIP: restituisce [] subito."""
@@ -2911,7 +2997,7 @@ def pdf_image_record_to_wx_image(record, fit_for_clipboard=True):
                     os.close(fd)
                     img = wx.Image(tmp, wx.BITMAP_TYPE_JPEG)
                     if not img.IsOk():
-                        img = wx.Image(tmp, wx.BITMAP_TYPE_ANY)
+                        img = rtad_ocr.load_wx_image_silent(tmp)
                 finally:
                     if tmp:
                         try:
@@ -3734,14 +3820,12 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Descrivi immagine da URL, dagli Appunti o catturando\n"
-            "  lo schermo (anche senza NVDA): menu Strumenti.\n"
-            "• Scorciatoie (finestra attiva): Ctrl+Shift+U (URL),\n"
-            "  Ctrl+Shift+I (Appunti), Alt+Shift+K (cattura).\n"
-            "• Senza parola chiave + tipo file: elenco dei file\n"
-            "  (documenti/immagini/media) nella cartella.\n"
-            "• Nell'Add-on: NVDA+Shift+G su figura web o file in Explorer.\n"
-            "• Alt-text, descrizione da PDF, Gemini/Vision come in 1.6.3.\n"
+            "• Fix icone/grafici web (es. 3BMeteo): niente dialogo\n"
+            "  «formato immagine sconosciuto» su SVG/WebP; fallback\n"
+            "  cattura area. Vale anche per NVDA+Shift+G nell'Add-on.\n"
+            "• Explorer: sottomenù PDF/documenti (Apri con app predefinita\n"
+            "  + voce in lista; Leggi testo; Copia testo; Descrivi PDF).\n"
+            "• Restano Shift+G, URL/Appunti/cattura, [ELENCO], Gemini.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7264,6 +7348,12 @@ class MainWindow(wx.Frame):
             item_pdf_describe = menu.Append(
                 wx.ID_ANY, "Descrivi immagine da PDF"
             )
+        item_read_doc = None
+        is_shell_doc = ext_sel in SHELL_DOCUMENT_EXTS or is_pdf_result
+        if is_shell_doc and not is_img_result:
+            if not is_pdf_result:
+                menu.AppendSeparator()
+            item_read_doc = menu.Append(wx.ID_ANY, "Leggi testo del documento")
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -7324,6 +7414,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.describe_image_from_pdf(file_path),
                 item_pdf_describe,
+            )
+        if item_read_doc is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.read_document_file(file_path),
+                item_read_doc,
             )
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
@@ -7466,6 +7562,167 @@ class MainWindow(wx.Frame):
         except Exception:
             pass
         return ""
+
+    def prepare_shell_document(self, file_path, announce=True, open_external=True):
+        """Explorer → Apri questo documento/PDF.
+
+        1) Apre il file con l'app predefinita di Windows (es. Edge per PDF).
+        2) Lo mette in lista risultati così NVDA non trova «sconosciuto»
+           e dal menu contestuale si può Leggi/Copia testo, ecc.
+        """
+        if not file_path or not os.path.isfile(file_path):
+            speak_accessible("File non trovato.")
+            return False
+        file_path = os.path.normpath(file_path)
+        name = os.path.basename(file_path)
+        ext = os.path.splitext(name)[1].lower()
+
+        self.txt_path.SetValue(file_path)
+        save_last_path(file_path)
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            try:
+                self.txt_filter.SetValue("")
+            except Exception:
+                pass
+
+        try:
+            mtime = os.path.getmtime(file_path)
+        except Exception:
+            mtime = 0
+        try:
+            sz = os.path.getsize(file_path)
+        except Exception:
+            sz = 0
+        if sz >= 1024 * 1024:
+            size_s = f"{sz / (1024 * 1024):.1f} MB"
+        elif sz >= 1024:
+            size_s = f"{sz / 1024:.0f} KB"
+        else:
+            size_s = f"{sz} byte"
+        date_lbl = format_file_date_label(mtime)
+        date_suffix = f" {date_lbl}" if date_lbl else ""
+        prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
+        item = {
+            "file_path": file_path,
+            "file_name": name,
+            "prefix": prefix,
+            "mtime": mtime,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": f"Aperto da Explorer{date_suffix}",
+            "snippet": f"Documento da sottomenù shell · {size_s}",
+        }
+        self.current_matches = [item]
+        self.current_query = "(Documento da Explorer)"
+        self.update_list_display()
+        if self.lst_results.GetCount() > 0:
+            self.lst_results.SetSelection(0)
+            self.lst_results.SetFocus()
+
+        opened_ok = False
+        if open_external:
+            try:
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, "open", file_path, None, None, 1
+                )
+                opened_ok = True
+            except Exception as e:
+                logging.error(f"Apertura esterna fallita per {file_path}: {e}")
+                try:
+                    os.startfile(file_path)
+                    opened_ok = True
+                except Exception as e2:
+                    logging.error(f"os.startfile fallito per {file_path}: {e2}")
+
+        if announce:
+            if opened_ok:
+                speak_accessible(
+                    f"Aperto «{name}» con l'app predefinita. "
+                    f"Il file è anche in lista in Ricerca Testuale: "
+                    f"menu contestuale per Leggi o Copia testo."
+                )
+            else:
+                speak_accessible(
+                    f"«{name}» è in lista. "
+                    f"Apertura con app predefinita non riuscita; "
+                    f"usa INVIO o il menu contestuale."
+                )
+        return True
+
+    def read_document_file(self, file_path):
+        """Apre una finestra con il testo estratto dal documento/PDF."""
+        if not file_path or not os.path.isfile(file_path):
+            speak_accessible("File non trovato.")
+            return
+        name = os.path.basename(file_path)
+        speak_accessible(f"Lettura di «{name}» in corso…")
+
+        def _work():
+            text = extract_document_text(file_path)
+            if not (text or "").strip():
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext == ".pdf" and get_best_pdf_page_image(file_path):
+                    msg = (
+                        "Questo PDF sembra una scansione: nessun testo estraibile. "
+                        "Prova «Descrivi immagini del PDF» oppure Apri con Edge/NVDA."
+                    )
+                else:
+                    msg = (
+                        "Nessun testo estraibile da questo file "
+                        "(formato non supportato, protetto o vuoto)."
+                    )
+                wx.CallAfter(speak_accessible, msg)
+                return
+
+            def _show():
+                frame = ImageInfoFrame(
+                    None,
+                    title=f"Testo — {name}",
+                    body_text=text,
+                    image_path=file_path,
+                )
+                frame.Show()
+                frame.Raise()
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def copy_document_text_file(self, file_path):
+        """Copia negli appunti il testo estratto dal documento/PDF."""
+        if not file_path or not os.path.isfile(file_path):
+            speak_accessible("File non trovato.")
+            return
+        name = os.path.basename(file_path)
+        speak_accessible(f"Estrazione testo da «{name}»…")
+
+        def _work():
+            text = extract_document_text(file_path)
+            if not (text or "").strip():
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext == ".pdf" and get_best_pdf_page_image(file_path):
+                    msg = (
+                        "PDF scansionato: nessun testo da copiare. "
+                        "Usa «Descrivi immagini del PDF» o Copia Immagine dai risultati."
+                    )
+                else:
+                    msg = "Nessun testo da copiare da questo file."
+                wx.CallAfter(speak_accessible, msg)
+                return
+
+            def _copy():
+                if wx.TheClipboard.Open():
+                    wx.TheClipboard.SetData(wx.TextDataObject(text))
+                    wx.TheClipboard.Close()
+                    speak_accessible("Testo del documento copiato negli appunti.")
+                else:
+                    speak_accessible("Impossibile aprire gli appunti.")
+
+            wx.CallAfter(_copy)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def describe_image_from_pdf(self, file_path, mode="describe"):
         """Estrae immagine dal PDF e avvia analisi (temp + delete_after)."""
@@ -7853,8 +8110,8 @@ class MainWindow(wx.Frame):
 
         if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
             try:
-                img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
-                if img.IsOk() and wx.TheClipboard.Open():
+                img = rtad_ocr.load_wx_image_silent(file_path)
+                if img is not None and img.IsOk() and wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.BitmapDataObject(wx.Bitmap(img)))
                     wx.TheClipboard.Close()
                     speak_accessible("Immagine copiata negli appunti!")
@@ -8017,7 +8274,7 @@ class MainWindow(wx.Frame):
             speak_accessible("Impossibile aprire la cartella.")
 
 def _parse_cli_image_action(argv):
-    """Riconosce --describe/--labels/--tech/--ocr-quick/--copy-describe/--describe-url.
+    """Riconosce flag CLI immagini/documenti da Explorer.
 
     Restituisce (mode|None, path|None, rest_path_for_search|None, url|None).
     """
@@ -8034,6 +8291,11 @@ def _parse_cli_image_action(argv):
         "--copy-describe": "copy-describe",
         "--describe-url": "describe-url",
         "--describe-pdf": "describe-pdf",
+        "--read-doc": "read-doc",
+        "--read-pdf": "read-doc",
+        "--copy-doc-text": "copy-doc-text",
+        "--copy-pdf-text": "copy-doc-text",
+        "--open-doc": "open-doc",
     }
     args = list(argv[1:]) if argv else []
     i = 0
@@ -8086,10 +8348,19 @@ def main():
             if os.path.exists(cand):
                 path_for_search = cand
                 break
-    if path_for_search:
-        # Se è un file, usa la cartella come percorso ricerca e tieni il file per azioni
+    # Azioni documento: non pre-impostare solo la cartella (lo fa il handler)
+    doc_cli = cli_mode in ("read-doc", "copy-doc-text", "open-doc", "describe-pdf")
+    if path_for_search and not doc_cli:
         if os.path.isfile(path_for_search):
-            frame.txt_path.SetValue(os.path.dirname(path_for_search) or path_for_search)
+            ext = os.path.splitext(path_for_search)[1].lower()
+            if ext in SHELL_DOCUMENT_EXTS:
+                # Documento: percorso = file stesso (ricerca/lettura su quel file)
+                frame.txt_path.SetValue(path_for_search)
+            else:
+                # Immagini / altro: cartella contenitore come prima
+                frame.txt_path.SetValue(
+                    os.path.dirname(path_for_search) or path_for_search
+                )
         else:
             frame.txt_path.SetValue(path_for_search)
         save_last_path(frame.txt_path.GetValue())
@@ -8120,6 +8391,12 @@ def main():
             threading.Thread(target=_work, daemon=True).start()
 
         wx.CallLater(400, _cli_url)
+    elif cli_mode == "open-doc" and cli_path and os.path.isfile(cli_path):
+        wx.CallLater(400, lambda: frame.prepare_shell_document(cli_path, announce=True))
+    elif cli_mode == "read-doc" and cli_path and os.path.isfile(cli_path):
+        wx.CallLater(400, lambda: frame.read_document_file(cli_path))
+    elif cli_mode == "copy-doc-text" and cli_path and os.path.isfile(cli_path):
+        wx.CallLater(400, lambda: frame.copy_document_text_file(cli_path))
     elif cli_mode == "describe-pdf" and cli_path and os.path.isfile(cli_path):
         wx.CallLater(
             400,

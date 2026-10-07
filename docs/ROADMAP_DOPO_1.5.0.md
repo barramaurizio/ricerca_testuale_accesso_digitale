@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** lavoro corrente = `1.6.4` (web/URL/appunti + alt-text + dialogo unico + PDF describe + batch). Ultima pubblicata = `1.6.3` (GitHub + DataStore OK, 05/10/2026).
+**Regola versione:** lavoro corrente = `1.6.5` (polish web/meteo + sottomenù PDF). Ultima pubblicata = `1.6.4` (GitHub + DataStore OK, 06/10/2026). **Non hotfixare 1.6.4.** Dialogo unico + batch → `1.6.6`.
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -134,12 +134,13 @@ Contenuto previsto `1.6.0`:
 - **ZIP opt-in:** in `1.6.1` (con arrivi ultimo minuto).  
 - **1.6.2:** notifiche fine ricerca + svuota cache OCR + Vision fasce basse/margini — **pubblicata**.  
 - **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone; Gemini immersivo + grounding OCR/data; finestra descrizione indipendente — **pubblicata** (GitHub + DataStore, issue #11999 → #12001).  
-- **1.6.4 (in corso):** Descrivi web/URL/Appunti/cattura (06/10) → alt-text breve/lungo → dialogo unico → PDF describe → batch.  
-- **Oggetti nelle foto:** avviato in 1.6.3 (etichette Vision opt-in); ampliamenti in 1.6.4.  
-- **Pausa post-release 1.6.3:** fatta; codice 1.6.4 aperto il 06/10/2026.  
-- **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.4…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
+- **1.6.4:** Descrivi web/URL/Appunti/cattura; NVDA+Shift+G; alt-text; PDF describe; elenco `[ELENCO]`; fix Explorer in background — **pubblicata** (06/10/2026; DataStore #12027 → #12028).  
+- **1.6.5 (in corso):** polish icone/grafici web (3BMeteo/wx) + sottomenù Explorer PDF.  
+- **1.6.6:** dialogo unico «Tutto sull’immagine» + batch cartella (chiusura blocco immagini).  
+- **Oggetti nelle foto:** avviato in 1.6.3; ampliamenti con il blocco immagini.  
+- **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.5…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
-- **Descrizione audio/video:** priorità di Maurizio anche senza feedback esterni → dopo il blocco immagini 1.6.4 (pista media/Whisper gemello).
+- **Descrizione audio/video:** priorità di Maurizio anche senza feedback esterni → dopo chiusura immagini 1.6.6 (pista media/Whisper gemello).
 
 ---
 
@@ -156,30 +157,45 @@ Contenuto previsto `1.6.0`:
 9. ~~**1.6.1** arrivi ultimo minuto + ZIP opt-in + fix lista mid-search + reset voce SAPI~~ **pubblicata**.
 10. ~~**1.6.2** notifica fine ricerca + svuota cache OCR + Vision fasce basse/margini~~ **pubblicata**.
 11. ~~**1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA)~~ **pubblicata** (`v1.6.3` / `app-v1.6.3`; DataStore OK).
-12. **1.6.4** (ordine interno): web/URL/appunti/cattura → alt-text → dialogo unico → PDF describe → batch.  
-13. **Dopo 1.6.4:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
+12. ~~**1.6.4** web/URL/appunti/cattura + Shift+G + alt-text + PDF + elenco~~ **pubblicata** (`v1.6.4` / `app-v1.6.4`; DataStore OK).  
+13. **1.6.5** polish grafici web (3BMeteo/wx) + sottomenù Explorer PDF.  
+14. **1.6.6** dialogo unico + batch (chiusura immagini).  
+15. **Dopo blocco immagini:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
 
-### Fase K — `1.6.4` (immagini: completezza) — IN CORSO
+### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
-Ordine di implementazione:
+1. ~~Descrivi da web / URL / Appunti / cattura~~ (+ Shift+G, CLI).  
+2. ~~Alt-text breve + descrizione lunga~~.  
+3. Dialogo unico «Tutto sull’immagine» → **rimandato a 1.6.6**.  
+4. ~~Descrivi da PDF~~.  
+5. Batch cartella → **rimandato a 1.6.6**.  
+6. ~~Elenco per tipo `[ELENCO]`~~.
 
-1. **Descrivi da web / URL / Appunti / cattura** — **avviato 06/10/2026**  
-   - Gemello: menu Strumenti + scorciatoie (SA e Add-on).  
-   - Solo Add-on: `NVDA+Shift+G` su grafica navigator (URL o rettangolo).  
-   - SA: anche CLI `--describe-url`.  
-2. **Alt-text breve + descrizione lunga** (due uscite Gemini/Vision).  
-3. **Dialogo unico «Tutto sull’immagine»** (Descrivi / Etichette / Scheda / Copia) gemello SA/Add-on.  
-4. **Descrivi da PDF** (immagini incorporate).  
-5. **Batch cartella** (soprattutto Standalone; Add-on se fattibile senza pesare NVDA).
+### Fase L — `1.6.5` (polish web + PDF Explorer) — IN CORSO
+
+1. **Fix 3BMeteo / icone web:** niente dialogo wx «Formato dati immagine sconosciuto»;
+   WebP/SVG/AVIF; LogNull su load wx; fallback cattura per non-raster
+   (test: 3bmeteo Torino centro, pulsante «nuvoloso»).  
+2. **Sottomenù Explorer PDF** (Apri, Descrivi immagini PDF, ecc.) — SA `setup.iss`.
+
+### Fase M — `1.6.6` (chiusura immagini + PDF testo)
+
+1. Dialogo unico «Tutto sull’immagine».  
+2. Batch cartella.  
+3. **PDF testo multi-font / ToUnicode per font** (fix spazzatura su PDF
+   multilingue tipo `sample-multilingual-text.pdf`; Edge già OK).
 
 ---
 
 ## Idee in lista d’attesa
 
-- ~~Descrivi grafica web / URL / appunti~~ → in `1.6.4` (codice avviato)  
-- ~~Alt-text breve + descrizione lunga~~ → entra in `1.6.4`  
-- ~~Descrivi da PDF / batch / dialogo unico~~ → entra in `1.6.4`  
+- ~~Descrivi grafica web / URL / appunti / Shift+G / alt-text / PDF / elenco~~ → `1.6.4`  
+- ~~Polish web meteo + sottomenù PDF/documenti (Apri/Leggi/Copia)~~ → `1.6.5`  
+- Dialogo unico / batch → `1.6.6`  
 - **Descrizione audio/video** (priorità Maurizio, anche senza feedback store)  
+- **Lettore documenti strutturato** (TOC/capitoli, titoli, link, paragrafi;
+  PDF lunghi / libri / libretti — oltre al testo piano attuale; dopo immagini/media)  
+- «Apri con» / associazione predefinita Windows (opzionale)  
 - Media/Whisper gemello; export/stampa extra; API OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
@@ -188,9 +204,10 @@ Ordine di implementazione:
 
 ## Igiene chat Cursor (accordo 05/10/2026)
 
-- Una **nuova chat per ogni versione** (es. 1.6.4), stesso progetto RTAD.  
+- Una **nuova chat per ogni versione** (es. 1.6.5), stesso progetto RTAD.  
 - **YouTube / brand Accesso Digitale:** chat separata; workspace RTAD va bene se i file (logo, ecc.) restano qui.  
-- Richieste urgenti dal feedback store possono anticipare un pezzo della roadmap.
+- Richieste urgenti dal feedback store possono anticipare un pezzo della roadmap.  
+- **Versione già pubblicata:** non hotfix; fix nella successiva.
 
 ---
 

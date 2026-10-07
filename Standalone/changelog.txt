@@ -1,5 +1,13 @@
+Novità nella Versione 1.6.5
+- Fix web (3BMeteo e simili): niente dialogo wx «formato immagine sconosciuto» su SVG/WebP; sniff corretto; fallback cattura area (anche NVDA+Shift+G)
+- Standalone Explorer: sottomenù PDF (Apri questo PDF, Leggi testo, Copia testo, Descrivi immagini)
+- Standalone Explorer: stesso schema documenti (.docx, .odt, .txt, .md, .epub, .html, …)
+- «Apri questo PDF/documento»: apre con l’app predefinita (es. Edge) e mette il file in lista (niente lista vuota / «sconosciuto»)
+- Menu contestuale risultati: «Leggi testo del documento» su PDF/documenti
+- Restano descrivi URL/Appunti/cattura, Shift+G, alt-text, [ELENCO], sottomenù immagini
+
 Novità nella Versione 1.6.4
-(In preparazione — ultima pubblicata: 1.6.3)
+(Pubblicata)
 - Descrivi immagine da URL, dagli Appunti o catturando lo schermo (gemello SA / Add-on)
 - Scorciatoie SA (finestra attiva): Ctrl+Shift+U, Ctrl+Shift+I, Alt+Shift+K; CLI --describe-url / --alt / --describe-pdf
 - Add-on NVDA: NVDA+Shift+G su figura web o file immagine in Esplora file/Desktop

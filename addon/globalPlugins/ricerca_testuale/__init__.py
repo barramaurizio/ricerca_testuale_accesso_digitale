@@ -68,7 +68,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.4"
+APP_VERSION = "1.6.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -2527,7 +2527,11 @@ def pdf_image_record_to_wx_image(record, fit_for_clipboard=True):
                     os.close(fd)
                     img = wx.Image(tmp, wx.BITMAP_TYPE_JPEG)
                     if not img.IsOk():
-                        img = wx.Image(tmp, wx.BITMAP_TYPE_ANY)
+                        img = (
+                            rtad_ocr.load_wx_image_silent(tmp)
+                            if rtad_ocr is not None
+                            else None
+                        )
                 finally:
                     if tmp:
                         try:
@@ -4171,7 +4175,30 @@ def materialize_image_from_snapshot(snap):
         if found and found not in urls:
             urls.insert(0, found)
 
-    for u in urls:
+    def _url_looks_svg(u):
+        try:
+            path = (urllib.parse.urlparse(u or "").path or "").lower()
+        except Exception:
+            path = (u or "").lower()
+        return path.endswith(".svg") or "image/svg" in (u or "").lower()
+
+    # Raster prima; SVG (es. icone 3BMeteo) → cattura area, non download finto .jpg
+    raster_urls = [u for u in urls if u and not _url_looks_svg(u)]
+    only_svg = bool(urls) and not raster_urls
+    rect = snap.get("rect")
+
+    if only_svg and rect and len(rect) == 4:
+        left, top, width, height = rect
+        cap = rtad_ocr.materialize_image_from_screen_rect(left, top, width, height)
+        if cap.get("ok") and cap.get("path"):
+            result["ok"] = True
+            result["path"] = cap["path"]
+            result["method"] = "capture"
+            return result
+
+    for u in raster_urls or urls:
+        if _url_looks_svg(u):
+            continue
         dl = rtad_ocr.materialize_image_from_url(u)
         if dl.get("ok") and dl.get("path"):
             result["ok"] = True
@@ -4179,7 +4206,6 @@ def materialize_image_from_snapshot(snap):
             result["method"] = "url"
             return result
 
-    rect = snap.get("rect")
     if rect and len(rect) == 4:
         left, top, width, height = rect
         cap = rtad_ocr.materialize_image_from_screen_rect(left, top, width, height)
@@ -4292,13 +4318,12 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Descrivi con NVDA+Shift+G: figura web (lettera g) oppure\n"
-            "  file immagine in Esplora file/Desktop senza aprirlo.\n"
-            "• Anche da Strumenti: Descrivi da URL, Appunti, cattura, PDF\n"
-            "  (gemello della Standalone).\n"
-            "• Senza parola chiave + tipo file: elenco [ELENCO] in cartella.\n"
-            "• Alt-text; fix immagine «sempre la stessa» da Explorer in background.\n"
-            "• Restano Gemini / Vision 1.6.3, notifica 1.6.2.\n"
+            "• Fix icone/grafici web (es. 3BMeteo): NVDA+Shift+G su SVG\n"
+            "  non apre più il dialogo «formato immagine sconosciuto»;\n"
+            "  se serve, cattura l'area sullo schermo.\n"
+            "• Con la Standalone: sottomenù Explorer su PDF/documenti\n"
+            "  (Apri con app predefinita + voce in lista; Leggi/Copia testo).\n"
+            "• Restano Shift+G, URL/Appunti/cattura, [ELENCO], Gemini.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -8048,8 +8073,12 @@ class SearchFrame(wx.Frame):
 
         if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"]:
             try:
-                img = wx.Image(file_path, wx.BITMAP_TYPE_ANY)
-                if img.IsOk() and wx.TheClipboard.Open():
+                img = (
+                    rtad_ocr.load_wx_image_silent(file_path)
+                    if rtad_ocr is not None
+                    else None
+                )
+                if img is not None and img.IsOk() and wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.BitmapDataObject(wx.Bitmap(img)))
                     wx.TheClipboard.Close()
                     _announce("Immagine copiata negli appunti!")

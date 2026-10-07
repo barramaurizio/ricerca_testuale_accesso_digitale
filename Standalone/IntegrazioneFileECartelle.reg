@@ -16,10 +16,41 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale\command]
 @="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
 
-; --- INTEGRAZIONE SINGOLI FILE ---
+; --- FILE GENERICI (esclusi immagini e documenti col sottomenù) ---
 [HKEY_CURRENT_USER\Software\Classes\*\shell\RicercaTestualeAccessoDigitale]
 @="Cerca con Accesso Digitale"
 "Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+"AppliesTo"="System.Kind:<>System.Kind#Picture AND System.FileExtension:<>.pdf AND System.FileExtension:<>.docx AND System.FileExtension:<>.odt AND System.FileExtension:<>.txt AND System.FileExtension:<>.md AND System.FileExtension:<>.epub AND System.FileExtension:<>.html AND System.FileExtension:<>.htm AND System.FileExtension:<>.rtf AND System.FileExtension:<>.csv AND System.FileExtension:<>.log"
 
 [HKEY_CURRENT_USER\Software\Classes\*\shell\RicercaTestualeAccessoDigitale\command]
 @="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" \"%1\""
+
+; --- SOTTOMENÙ PDF ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf]
+"MUIVerb"="Cerca con Accesso Digitale"
+"Icon"="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\""
+"SubCommands"=""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\01apri]
+@="Apri questo PDF"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\01apri\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --open-doc \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\02leggi]
+@="Leggi testo del PDF"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\02leggi\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --read-pdf \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\03copia]
+@="Copia testo del PDF"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\03copia\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --copy-pdf-text \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\04descrivi]
+@="Descrivi immagini del PDF"
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\04descrivi\command]
+@="\"C:\\Program Files\\Ricerca Testuale Accesso Digitale\\Ricerca Testuale Accesso Digitale.exe\" --describe-pdf \"%1\""

@@ -1,0 +1,80 @@
+🌟 Novità della Versione 1.6.5
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Fix icone/grafici web (es. 3BMeteo): `NVDA+Shift+G` su SVG/WebP non apre più il dialogo wx «formato immagine sconosciuto»; fallback cattura area.
+- Standalone Explorer: sottomenù **PDF** / **documenti** (Apri con app predefinita + voce in lista; Leggi testo; Copia testo; sui PDF anche Descrivi immagini).
+- Restano Shift+G, URL/Appunti/cattura, `[ELENCO]`, Gemini/Vision 1.6.3, notifica 1.6.2.
+
+## 🇬🇧 English
+
+- Web icons/charts fix (e.g. 3BMeteo): `NVDA+Shift+G` on SVG/WebP no longer shows the wx «unknown image format» dialog; screen-area capture fallback.
+- Standalone Explorer: **PDF** / **documents** submenu (Open with default app + list entry; Read text; Copy text; Describe images on PDF).
+- Shift+G, URL/Clipboard/capture, `[ELENCO]`, Gemini/Vision 1.6.3, notification 1.6.2 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.6.5.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.6.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.6.5
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.6.5.exe
+RicercaTestualeAccessoDigitale_Portable_v1.6.5.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Fix SVG/WebP su Shift+G; Standalone: sottomenù Explorer PDF/documenti (Apri con app predefinita + lista, Leggi, Copia).
+
+Summary EN:
+SVG/WebP fix for Shift+G; Standalone Explorer submenu for PDF/documents (Open with default app + list, Read, Copy).
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.5/ricerca_testuale_accesso_digitale-1.6.5.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html

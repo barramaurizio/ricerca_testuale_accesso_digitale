@@ -1370,6 +1370,33 @@ def _ascii_safe_copy(path: str, temps: list) -> str:
     return tmp
 
 
+def load_wx_image_silent(path: str):
+    """Carica un file in wx.Image senza dialoghi «formato sconosciuto».
+
+    wx (soprattutto in NVDA) mostra un MessageBox se il file non è un
+    raster supportato (WebP in build senza codec, SVG salvato come .jpg, ecc.).
+    Restituisce l'immagine o None.
+    """
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        import wx
+    except Exception:
+        return None
+    no_log = None
+    try:
+        no_log = wx.LogNull()
+        img = wx.Image(path, wx.BITMAP_TYPE_ANY)
+        if img is None or not img.IsOk():
+            return None
+        return img
+    except Exception:
+        return None
+    finally:
+        # Mantiene LogNull vivo fino a fine load
+        del no_log
+
+
 def _wx_save_temp_image(img, suffix=".png") -> str:
     """Salva wx.Image in temp; restituisce path o ''."""
     if img is None:
@@ -1383,7 +1410,11 @@ def _wx_save_temp_image(img, suffix=".png") -> str:
     os.close(fd)
     try:
         import wx
-        ok = img.SaveFile(tmp, wx.BITMAP_TYPE_PNG)
+        no_log = wx.LogNull()
+        try:
+            ok = img.SaveFile(tmp, wx.BITMAP_TYPE_PNG)
+        finally:
+            del no_log
         if not ok:
             try:
                 os.unlink(tmp)
@@ -1565,11 +1596,8 @@ def _build_google_retry_variants(path: str, temps: list, max_variants: int = 8) 
         import wx
     except Exception:
         return out
-    try:
-        img = wx.Image(path, wx.BITMAP_TYPE_ANY)
-        if img is None or not img.IsOk():
-            return out
-    except Exception:
+    img = load_wx_image_silent(path)
+    if img is None:
         return out
     w, h = img.GetWidth(), img.GetHeight()
     if w < 8 or h < 8:
@@ -1685,11 +1713,8 @@ def _build_image_variants(path: str, temps: list, max_variants: int = 14) -> lis
         import wx
     except Exception:
         return out
-    try:
-        img = wx.Image(path, wx.BITMAP_TYPE_ANY)
-        if img is None or not img.IsOk():
-            return out
-    except Exception:
+    img = load_wx_image_silent(path)
+    if img is None:
         return out
 
     w, h = img.GetWidth(), img.GetHeight()
@@ -3941,14 +3966,14 @@ def vision_status_message() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Materializza immagini da URL / bytes / rettangolo schermo (1.6.4)
+# Materializza immagini da URL / bytes / rettangolo schermo (1.6.4+)
 # Usato da Standalone (URL, appunti, cattura) e Add-on (grafica navigator).
 # ---------------------------------------------------------------------------
 
 _WEB_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36 RTAD/1.6.4"
+    "Chrome/120.0.0.0 Safari/537.36 RTAD/1.6.5"
 )
 _WEB_MAX_BYTES = MAX_OCR_IMAGE_BYTES
 _TEMP_IMAGE_PREFIXES = (
@@ -3994,9 +4019,62 @@ def is_likely_image_url(url: str) -> bool:
     return False
 
 
+def _looks_like_svg_bytes(data: bytes) -> bool:
+    """True se i bytes sembrano SVG (testo), non un raster."""
+    if not data:
+        return False
+    sample = data.lstrip()
+    if sample.startswith(b"\xef\xbb\xbf"):
+        sample = sample[3:].lstrip()
+    if not sample or sample[:1] != b"<":
+        return False
+    low = sample[:512].lower()
+    if low.startswith(b"<svg"):
+        return True
+    if low.startswith(b"<?xml"):
+        return b"<svg" in low
+    return False
+
+
+def _is_raster_image_bytes(data: bytes) -> bool:
+    """True se i magic bytes indicano un raster supportato da RTAD/Gemini."""
+    if not data or len(data) < 6:
+        return False
+    if data[:3] == b"\xff\xd8\xff":
+        return True
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return True
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return True
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return True
+    if data[:2] == b"BM":
+        return True
+    # TIFF
+    if data[:4] in (b"II*\x00", b"MM\x00*"):
+        return True
+    # ICO
+    if len(data) >= 6 and data[:4] == b"\x00\x00\x01\x00":
+        return True
+    # AVIF / HEIF container (non sempre supportato da wx; Gemini spesso sì)
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        brand = data[8:12]
+        if brand in (b"avif", b"avis", b"heic", b"heif", b"mif1"):
+            return True
+        if b"avif" in data[8:24]:
+            return True
+    return False
+
+
 def _sniff_image_suffix(data: bytes, content_type: str = "", url: str = "") -> str:
-    """Estensione file da magic bytes / Content-Type / URL."""
+    """Estensione file da magic bytes / Content-Type / URL.
+
+    Restituisce '' se il contenuto non è un raster riconoscibile
+    (es. SVG, HTML, JSON): non inventare mai `.jpg` di default.
+    """
     ct = (content_type or "").split(";")[0].strip().lower()
+    if _looks_like_svg_bytes(data) or ct in ("image/svg+xml", "image/svg"):
+        return ""
     if data[:3] == b"\xff\xd8\xff":
         return ".jpg"
     if data[:8] == b"\x89PNG\r\n\x1a\n":
@@ -4007,6 +4085,15 @@ def _sniff_image_suffix(data: bytes, content_type: str = "", url: str = "") -> s
         return ".webp"
     if data[:2] == b"BM":
         return ".bmp"
+    if data[:4] in (b"II*\x00", b"MM\x00*"):
+        return ".tif"
+    if len(data) >= 6 and data[:4] == b"\x00\x00\x01\x00":
+        return ".ico"
+    if len(data) >= 12 and data[4:8] == b"ftyp" and (
+        data[8:12] in (b"avif", b"avis") or b"avif" in data[8:24]
+    ):
+        # Non in _IMG_EXTS: lasciare vuoto → rifiuto / cattura (wx non legge AVIF)
+        return ""
     ct_map = {
         "image/jpeg": ".jpg",
         "image/jpg": ".jpg",
@@ -4016,14 +4103,28 @@ def _sniff_image_suffix(data: bytes, content_type: str = "", url: str = "") -> s
         "image/bmp": ".bmp",
         "image/x-ms-bmp": ".bmp",
         "image/tiff": ".tif",
+        "image/x-icon": ".ico",
+        "image/vnd.microsoft.icon": ".ico",
     }
     if ct in ct_map:
+        # Content-Type può mentire (SVG servito come jpeg): verifica magic
+        if data and not _is_raster_image_bytes(data) and data.lstrip()[:1] in (
+            b"<", b"{", b"[",
+        ):
+            return ""
         return ct_map[ct]
     path = urllib.parse.urlparse(url or "").path.lower()
+    if path.endswith(".svg"):
+        return ""
     for ext in sorted(_IMG_EXTS, key=len, reverse=True):
         if path.endswith(ext):
+            # Estensione URL vs contenuto: se i bytes non sono raster, rifiuta
+            if data and not _is_raster_image_bytes(data):
+                return ""
             return ext
-    return ".jpg"
+    if _is_raster_image_bytes(data):
+        return ".jpg"
+    return ""
 
 
 def materialize_image_from_bytes(
@@ -4039,9 +4140,18 @@ def materialize_image_from_bytes(
     if len(data) > _WEB_MAX_BYTES:
         out["error"] = "Immagine troppo grande."
         return out
+    if _looks_like_svg_bytes(data):
+        out["error"] = "SVG non raster: usare cattura area dello schermo."
+        return out
+    if not _is_raster_image_bytes(data):
+        out["error"] = "Formato immagine non raster o sconosciuto."
+        return out
     ext = suffix if suffix.startswith(".") else _sniff_image_suffix(data)
     if ext not in _IMG_EXTS:
-        ext = ".jpg"
+        ext = _sniff_image_suffix(data)
+    if ext not in _IMG_EXTS:
+        out["error"] = "Estensione immagine non supportata."
+        return out
     try:
         fd, tmp = tempfile.mkstemp(suffix=ext, prefix=prefix)
         with os.fdopen(fd, "wb") as f:
@@ -4063,6 +4173,10 @@ def materialize_image_from_url(url: str, timeout: int = 45) -> dict:
         return out
     if not (u.lower().startswith("http://") or u.lower().startswith("https://")):
         out["error"] = "Serve un URL http o https."
+        return out
+    path_l = urllib.parse.urlparse(u).path.lower()
+    if path_l.endswith(".svg"):
+        out["error"] = "URL SVG: usare cattura area (non è un raster)."
         return out
     try:
         req = urllib.request.Request(
@@ -4089,17 +4203,26 @@ def materialize_image_from_url(url: str, timeout: int = 45) -> dict:
     if len(data) > _WEB_MAX_BYTES:
         out["error"] = "Immagine troppo grande."
         return out
-    # Evita di passare HTML di errore a Gemini
     ctype_l = ctype.lower()
+    if "svg" in ctype_l or _looks_like_svg_bytes(data):
+        out["error"] = "Contenuto SVG: usare cattura area dello schermo."
+        return out
+    # Evita di passare HTML/JSON di errore a Gemini
     if "text/html" in ctype_l or "application/json" in ctype_l:
-        if not _sniff_image_suffix(data).startswith(".") or data[:1] in (b"<", b"{", b"["):
-            if data.lstrip()[:1] in (b"<", b"{", b"["):
-                out["error"] = "L'URL non punta a un'immagine (ricevuta pagina o JSON)."
-                return out
+        if data.lstrip()[:1] in (b"<", b"{", b"["):
+            out["error"] = "L'URL non punta a un'immagine (ricevuta pagina o JSON)."
+            return out
+    if not _is_raster_image_bytes(data):
+        out["error"] = "Download non raster (formato sconosciuto o non supportato)."
+        return out
     suffix = _sniff_image_suffix(data, ctype, final_url)
+    if not suffix:
+        out["error"] = "Formato immagine non riconosciuto."
+        return out
     saved = materialize_image_from_bytes(data, suffix=suffix, prefix="rtad_web_")
     if not saved.get("ok"):
-        return saved
+        out["error"] = saved.get("error") or "Salvataggio immagine non riuscito."
+        return out
     out["ok"] = True
     out["path"] = saved["path"]
     out["url"] = final_url

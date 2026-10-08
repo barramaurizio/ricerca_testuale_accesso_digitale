@@ -13,30 +13,22 @@ Documento di lavoro per nuove chat Cursor. Piano dettagliato: `docs/ROADMAP_DOPO
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (07/10/2026 sera)
+## Stato attuale (08/10/2026)
 - **Ultima pubblicata:** `1.6.5` — GitHub (`v1.6.5` + `app-v1.6.5`) + Add-on Store
   (DataStore #12044 → #12045 accettata). **Non ripubblicare / non hotfixare 1.6.5.**
-- **Prossima chat:** `1.6.6` (dialogo unico + batch + PDF ToUnicode + Gemini API)
+- **In corso:** `1.6.6` (codice + docs pronti in locale; da testare / compilare / pubblicare)
 - Chiavi opt-in personali: Google Vision + Gemini (AI Studio), salvate in locale
-- Gemello SA ↔ Add-on su OCR/immagini (`rtad_ocr.py`)
+- Gemello SA ↔ Add-on su OCR/immagini (`rtad_ocr.py`) + guida
 - Promemoria Cursor: `.cursor/rules/rtad-pre-release-check.mdc` (check versioni/docs prima di «vai»)
 
-### Cosa c’è in 1.6.5 (riassunto)
-- Fix 3BMeteo / SVG-WebP: niente dialogo wx «formato sconosciuto»; fallback cattura
-- SA Explorer: sottomenù PDF/documenti (Apri + lista, Leggi testo, Copia testo, Descrivi immagini PDF)
-- Restano Shift+G / URL / Appunti / Gemini/Vision 1.6.3, notifica 1.6.2, ZIP 1.6.1
+### Cosa c’è in 1.6.6 (riassunto)
+1. Dialogo unico «Tutto sull’immagine» + batch cartella (`.rtad.txt`).
+2. **PDF multi-font / ToUnicode per font** (test `docs/samples/rtad-multifont-tounicode.pdf`).
+3. **Gemini API:** tolto `temperature` da `generationConfig` (avviso AI Studio 07/10/2026).
+4. Dopo pubblicazione: audio/video (priorità Maurizio); «Apri con» / lettore strutturato in lista.
 
-## Scope 1.6.6 (da riprendere)
-1. Dialogo unico «Tutto sull’immagine» + batch cartella.
-2. **PDF multi-font / ToUnicode per font** (es. `sample-multilingual-text.pdf`):
-   oggi CMap unificate → testo spazzatura; Edge OK. Serve CMap per font.
-3. **Gemini API (avviso Google AI Studio 07/10/2026):** togliere
-   `temperature` da `generationConfig` in `rtad_ocr.py` (noi non usiamo
-   `thinking_budget` / `top_p` / `top_k`). Presto i modelli nuovi
-   rifiuteranno temperature con `400`. Chiave ok; `generateContent` ok.
-   Dettaglio anche in `ROADMAP` Fase M punto 4.
-4. Audio/video (priorità Maurizio) — dopo chiusura immagini se possibile.
-5. «Apri con» / lettore documenti strutturato — lista d’attesa.
+### Cosa c’è in 1.6.5 (storico)
+- Fix 3BMeteo / SVG-WebP; SA Explorer sottomenù PDF/documenti
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`
 

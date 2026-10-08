@@ -3643,8 +3643,9 @@ def _gemini_generate_description(
                 ],
             }
         ],
+        # Niente temperature/top_p/top_k/thinking_budget: i modelli Gemini nuovi
+        # (avviso AI Studio 07/10/2026) rifiutano temperature con HTTP 400.
         "generationConfig": {
-            "temperature": 0.2,
             "maxOutputTokens": int(max_output_tokens or 8192),
         },
     }
@@ -3882,33 +3883,157 @@ def format_alt_and_long_description(
     path: str, should_abort=None, include_tech: bool = True
 ) -> str:
     """Alt-text breve + descrizione lunga (+ scheda tecnica opzionale)."""
-    parts = [f"Immagine: {os.path.basename(path) or 'immagine'}", ""]
-    alt = describe_image_alt_text(path, should_abort=should_abort, use_cache=True)
-    if alt.get("ok") and (alt.get("text") or "").strip():
-        parts.extend(["Alt-text breve", (alt.get("text") or "").strip(), ""])
-    else:
-        parts.extend([
-            "Alt-text breve",
-            f"(Non disponibile: {alt.get('error') or 'errore sconosciuto'})",
-            "",
-        ])
-    long_body = describe_image(
+    return format_full_image_report(
         path,
+        include_alt=True,
+        include_describe=True,
+        include_labels=False,
+        include_tech=include_tech,
         should_abort=should_abort,
-        include_tech=False,
-        include_ocr=True,
-        prefer_gemini=True,
     )
-    if long_body:
-        parts.extend(["Descrizione dettagliata", "", long_body.strip()])
+
+
+def format_full_image_report(
+    path: str,
+    *,
+    include_alt: bool = True,
+    include_describe: bool = True,
+    include_labels: bool = True,
+    include_tech: bool = True,
+    should_abort=None,
+) -> str:
+    """Report unificato «Tutto sull'immagine» (sezioni a richiesta, 1.6.6)."""
+    parts = [f"Immagine: {os.path.basename(path) or 'immagine'}", ""]
+    if include_alt:
+        if should_abort and should_abort():
+            return "\n".join(parts).strip() + "\n(Annullato.)"
+        alt = describe_image_alt_text(path, should_abort=should_abort, use_cache=True)
+        if alt.get("ok") and (alt.get("text") or "").strip():
+            parts.extend(["=== Alt-text breve ===", (alt.get("text") or "").strip(), ""])
+        else:
+            parts.extend([
+                "=== Alt-text breve ===",
+                f"(Non disponibile: {alt.get('error') or 'errore sconosciuto'})",
+                "",
+            ])
+    if include_describe:
+        if should_abort and should_abort():
+            return "\n".join(parts).strip() + "\n(Annullato.)"
+        long_body = describe_image(
+            path,
+            should_abort=should_abort,
+            include_tech=False,
+            include_ocr=True,
+            prefer_gemini=True,
+        )
+        if long_body:
+            parts.extend(["=== Descrizione dettagliata ===", "", long_body.strip(), ""])
+    if include_labels:
+        if should_abort and should_abort():
+            return "\n".join(parts).strip() + "\n(Annullato.)"
+        try:
+            data = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
+            body = format_labels_text(data)
+        except Exception as e:
+            body = f"(Etichette non disponibili: {e})"
+        parts.extend(["=== Etichette e oggetti ===", "", (body or "").strip(), ""])
     if include_tech:
         try:
             tech_block = format_tech_sheet(get_image_tech_info(path))
             if tech_block:
-                parts.extend(["", tech_block])
+                parts.extend(["=== Scheda tecnica ===", "", tech_block.strip(), ""])
         except Exception:
             pass
     return "\n".join(parts).strip()
+
+
+def list_image_files_in_folder(folder: str, recursive: bool = False) -> list:
+    """Elenco path immagine in una cartella (estensioni comuni)."""
+    exts = {
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff",
+        ".webp", ".jfif", ".heic", ".heif",
+    }
+    folder = os.path.abspath(folder or "")
+    if not folder or not os.path.isdir(folder):
+        return []
+    out = []
+    if recursive:
+        for root, _dirs, files in os.walk(folder):
+            for name in files:
+                if os.path.splitext(name)[1].lower() in exts:
+                    out.append(os.path.join(root, name))
+    else:
+        try:
+            names = os.listdir(folder)
+        except Exception:
+            return []
+        for name in names:
+            path = os.path.join(folder, name)
+            if os.path.isfile(path) and os.path.splitext(name)[1].lower() in exts:
+                out.append(path)
+    out.sort(key=lambda p: os.path.basename(p).lower())
+    return out
+
+
+def batch_describe_folder(
+    folder: str,
+    *,
+    include_alt: bool = True,
+    include_describe: bool = True,
+    include_labels: bool = False,
+    include_tech: bool = True,
+    save_txt: bool = True,
+    recursive: bool = False,
+    should_abort=None,
+    on_progress=None,
+) -> dict:
+    """Analizza tutte le immagini di una cartella. Restituisce riepilogo.
+
+    on_progress(i, total, path, ok) opzionale.
+    Se save_txt: scrive «nome.rtad.txt» accanto a ogni immagine.
+    """
+    files = list_image_files_in_folder(folder, recursive=recursive)
+    results = []
+    ok_n = 0
+    for i, path in enumerate(files, start=1):
+        if should_abort and should_abort():
+            break
+        try:
+            body = format_full_image_report(
+                path,
+                include_alt=include_alt,
+                include_describe=include_describe,
+                include_labels=include_labels,
+                include_tech=include_tech,
+                should_abort=should_abort,
+            )
+            err = ""
+            if save_txt and body:
+                txt_path = path + ".rtad.txt"
+                try:
+                    with open(txt_path, "w", encoding="utf-8") as f:
+                        f.write(body)
+                        f.write("\n")
+                except Exception as e:
+                    err = f"salvataggio txt: {e}"
+            ok = bool(body) and not err
+            if ok:
+                ok_n += 1
+            results.append({"path": path, "ok": ok, "error": err, "chars": len(body or "")})
+        except Exception as e:
+            results.append({"path": path, "ok": False, "error": str(e), "chars": 0})
+            ok = False
+        if on_progress:
+            try:
+                on_progress(i, len(files), path, ok)
+            except Exception:
+                pass
+    return {
+        "folder": folder,
+        "total": len(files),
+        "ok": ok_n,
+        "results": results,
+    }
 
 
 def describe_image(path: str, should_abort=None, include_tech: bool = True,

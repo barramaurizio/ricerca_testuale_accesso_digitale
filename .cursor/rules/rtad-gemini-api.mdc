@@ -1,5 +1,5 @@
 ---
-description: Gemini (AI Studio) — parametri deprecati; fix previsto in 1.6.6
+description: Gemini (AI Studio) — temperature rimosso in 1.6.6
 alwaysApply: false
 ---
 
@@ -7,18 +7,14 @@ alwaysApply: false
 
 Avviso Google AI Studio del **07/10/2026** (progetto con chiave RTAD).
 
-## Situazione codice (`Standalone/rtad_ocr.py` ↔ gemello addon)
+## Fatto in `1.6.6`
 
-- Chiamata: REST `generateContent` (ancora supportata; Interactions API = opzionale).
-- In `generationConfig` oggi c’è **`temperature: 0.2`** → da **rimuovere** prima che i modelli nuovi restituiscano `400`.
-- **Non** usiamo `thinking_budget`, `top_p`, `top_k`.
-- La chiave API utente non va cambiata.
-
-## Cosa fare (1.6.6 o hotfix se Google anticipa)
-
-1. Togliere `temperature` dal payload in `_gemini_generate_description`.
-2. Lasciare `maxOutputTokens`.
-3. Sincronizzare i due `rtad_ocr.py`.
-4. Non migrare a Interactions API salvo necessità reale.
+- In `_gemini_generate_description` **non** c’è più `temperature` in
+  `generationConfig` (prima `0.2`).
+- Restano solo `maxOutputTokens`.
+- Non usiamo `thinking_budget`, `top_p`, `top_k`.
+- Gemello `Standalone/rtad_ocr.py` ↔ `addon/.../lib/rtad_ocr.py`.
+- Chiave API utente invariata; REST `generateContent` ok.
+- Non migrare a Interactions API salvo necessità reale.
 
 Vedi anche: `docs/NOTE_CONTESTO_v1.5.md`, `docs/ROADMAP_DOPO_1.5.0.md` Fase M.

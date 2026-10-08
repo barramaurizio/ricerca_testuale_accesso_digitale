@@ -1,0 +1,94 @@
+🌟 Novità della Versione 1.6.6
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.6
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Tutto sull'immagine**: dialogo unico con alt-text, descrizione, etichette e scheda tecnica.
+- **Batch cartella**: analizza tutte le immagini e può salvare `.rtad.txt` accanto a ciascuna.
+- **PDF multi-font**: ToUnicode per font (niente più testo spazzatura su PDF multilingue).
+- **Gemini API**: rimosso `temperature` (compatibilità con i modelli nuovi di Google AI Studio).
+- Restano fix web SVG/WebP e sottomenù Explorer PDF/documenti (1.6.5).
+
+## 🇬🇧 English
+
+- **Everything about the image**: single dialog with alt-text, description, labels and tech sheet.
+- **Folder batch**: analyse all images and optionally save `.rtad.txt` next to each file.
+- **Multi-font PDF**: per-font ToUnicode (no more garbage text on multilingual PDFs).
+- **Gemini API**: removed `temperature` (compatibility with new Google AI Studio models).
+- Web SVG/WebP fix and Explorer PDF/document submenu from 1.6.5 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.6.6.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.6.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.6.6
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.6.6.exe
+RicercaTestualeAccessoDigitale_Portable_v1.6.6.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Tutto sull'immagine + batch cartella; PDF multi-font (ToUnicode per font); Gemini senza temperature.
+
+Summary EN:
+Everything-about-the-image dialog + folder batch; multi-font PDF ToUnicode; Gemini without temperature.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.6/ricerca_testuale_accesso_digitale-1.6.6.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[ ] python tools/rtad_release.py check → OK
+[ ] Gemelli rtad_ocr.py / rtad_guida_pratica.py
+[ ] Test SA: dialogo unico + batch + PDF multifont
+[ ] Test Add-on: stessa cosa + Shift+G ancora ok
+[ ] make_addon / pacchetto .nvda-addon fresco
+[ ] Standalone\compila.bat → F9 setup.iss

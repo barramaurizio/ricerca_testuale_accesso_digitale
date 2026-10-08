@@ -1,3 +1,12 @@
+Novità nella Versione 1.6.6
+- Dialogo unico «Tutto sull'immagine»: alt-text, descrizione, etichette e scheda tecnica in un solo report (Strumenti / menu contestuale)
+- Batch cartella immagini: analizza tutte le foto e può salvare .rtad.txt accanto a ciascuna
+- Dialogo sezioni: pulsante «Avvia analisi» (OK/Invio chiude e parte subito); le caselle deselezionate non finiscono nel report
+- Explorer: voce «Analizza immagini di questa cartella» (+ «Tutto sull'immagine» nel sottomenù file)
+- PDF multi-font: ToUnicode per font (niente testo spazzatura su PDF multilingue)
+- Gemini API: rimosso generationConfig.temperature (compatibilità modelli nuovi Google AI Studio)
+- Restano fix web SVG/WebP e sottomenù Explorer PDF/documenti (1.6.5)
+
 Novità nella Versione 1.6.5
 - Fix web (3BMeteo e simili): niente dialogo wx «formato immagine sconosciuto» su SVG/WebP; sniff corretto; fallback cattura area (anche NVDA+Shift+G)
 - Standalone Explorer: sottomenù PDF (Apri questo PDF, Leggi testo, Copia testo, Descrivi immagini)

@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,19 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.6
+
+*(In corso — ultima pubblicata: **1.6.5**.)*
+
+- **Tutto sull'immagine**: dialogo unico con alt-text, descrizione, etichette e scheda tecnica.
+- **Batch cartella**: analizza tutte le immagini e può salvare `.rtad.txt` accanto a ciascuna.
+- **PDF multi-font**: ToUnicode per font (niente testo spazzatura su PDF multilingue).
+- **Gemini API**: rimosso `temperature` da `generationConfig` (modelli nuovi Google AI Studio).
+- Restano fix web SVG/WebP e sottomenù Explorer PDF/documenti (1.6.5).
+
 ### 🌟 Novità della Versione 1.6.5
 
-*(In corso — ultima pubblicata: **1.6.4**.)*
+*(Pubblicata.)*
 
 - **Fix icone/grafici web** (es. 3BMeteo): niente dialogo wx «formato immagine sconosciuto» su SVG/WebP; fallback cattura area (`NVDA+Shift+G`).
 - **Standalone Explorer**: sottomenù **PDF** / **documenti** (Apri con app predefinita + voce in lista, Leggi testo, Copia testo; sui PDF anche Descrivi immagini).
@@ -107,9 +117,19 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.6
+
+*(In progress — last published: **1.6.5**.)*
+
+- **Everything about the image**: single dialog with alt-text, description, labels and tech sheet.
+- **Folder batch**: analyse all images and optionally save `.rtad.txt` next to each file.
+- **Multi-font PDF**: per-font ToUnicode (no more garbage text on multilingual PDFs).
+- **Gemini API**: removed `temperature` from `generationConfig` (new Google AI Studio models).
+- Web SVG/WebP fix and Explorer PDF/document submenu from 1.6.5 remain.
+
 ### 🌟 What's New in Version 1.6.5
 
-*(In progress — last published: **1.6.4**.)*
+*(Published.)*
 
 - **Web icons/charts fix** (e.g. 3BMeteo): no wx «unknown image format» dialog on SVG/WebP; screen-area capture fallback (`NVDA+Shift+G`).
 - **Standalone Explorer**: **PDF** / **documents** submenu (Open with default app + list entry, Read text, Copy text; Describe images on PDF).

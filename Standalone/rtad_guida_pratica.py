@@ -28,29 +28,25 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.5
+Novità recenti (in parole semplici) — versione 1.6.6
 ----------------------------------------------------
-• Fix web (es. 3BMeteo): NVDA+Shift+G su icone SVG/grafici non
-  apre più il dialogo wx «formato immagine sconosciuto»; se
-  serve, usa la cattura dell’area sullo schermo.
-• Sottomenù Explorer (Standalone installata):
-  - PDF: Apri questo PDF, Leggi testo, Copia testo,
-    Descrivi immagini del PDF.
-  - Documenti (docx, txt, md, epub, html…): Apri, Leggi testo,
-    Copia testo.
-  «Apri» apre il file con l’app predefinita (es. Edge) e lo
-  mette anche in lista in RTAD (menu contestuale / INVIO).
-• Restano da 1.6.4: descrivi da URL/Appunti/cattura, Shift+G,
-  alt-text, elenco [ELENCO], sottomenù immagini.
+• «Tutto sull’immagine»: un solo dialogo per alt-text,
+  descrizione, etichette e scheda tecnica (menu Strumenti
+  o tasto applicazioni sul risultato immagine).
+• Analizza cartella immagini: elabora tutte le foto di una
+  cartella e può salvare un file .rtad.txt accanto a ciascuna.
+• PDF con più font / lingue: il testo non esce più
+  «spazzatura» (ToUnicode per font, come in Edge).
+• Gemini: aggiornato per i modelli nuovi di Google (niente
+  più parametro temperature che poteva dare errore).
+• Restano da 1.6.5: fix web SVG/WebP, sottomenù Explorer
+  PDF/documenti; da 1.6.4: URL/Appunti/cattura, Shift+G,
+  alt-text, [ELENCO].
 • Dove usare cosa:
   - Al volo su web / file sotto il cursore → Add-on (Shift+G).
-  - URL, appunti, cattura, menu Strumenti → SA e Add-on.
+  - Report completo / batch cartella → SA e Add-on (Strumenti).
   - Tasto destro in Esplora file → sottomenù shell Standalone
     (immagini, PDF, documenti).
-• Non ci sono tasti globali di sistema nella Standalone (per
-  evitare conflitti con NVDA e altri programmi): usa i menu
-  o le scorciatoie a finestra attiva (Ctrl+Shift+U / I, ecc.).
-• Restano Gemini / Vision (1.6.3), notifica (1.6.2)…
 
 
 1. A cosa serve

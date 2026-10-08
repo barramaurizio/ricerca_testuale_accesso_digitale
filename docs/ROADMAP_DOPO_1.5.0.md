@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.6.5` (GitHub + DataStore OK, 07/10/2026). **Non hotfixare 1.6.5.** Prossima = `1.6.6` (dialogo unico + batch + PDF ToUnicode + Gemini API).
+**Regola versione:** ultima pubblicata = `1.6.5` (GitHub + DataStore OK, 07/10/2026). **Non hotfixare 1.6.5.** Prossima = `1.6.6` (in corso: dialogo unico + batch + PDF ToUnicode + Gemini API).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -136,7 +136,7 @@ Contenuto previsto `1.6.0`:
 - **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone; Gemini immersivo + grounding OCR/data; finestra descrizione indipendente — **pubblicata** (GitHub + DataStore, issue #11999 → #12001).  
 - **1.6.4:** Descrivi web/URL/Appunti/cattura; NVDA+Shift+G; alt-text; PDF describe; elenco `[ELENCO]`; fix Explorer in background — **pubblicata** (06/10/2026; DataStore #12027 → #12028).  
 - **1.6.5:** polish icone/grafici web (3BMeteo/wx) + sottomenù Explorer PDF/documenti — **pubblicata** (07/10/2026; DataStore #12044 → #12045).  
-- **1.6.6:** dialogo unico + batch + PDF ToUnicode per font + Gemini API (togliere `temperature`).  
+- **1.6.6:** dialogo unico + batch + PDF ToUnicode per font + Gemini API (togliere `temperature`) — **in corso** (codice locale 08/10/2026).  
 - **Oggetti nelle foto:** avviato in 1.6.3; ampliamenti con il blocco immagini.  
 - **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.5…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
@@ -159,7 +159,7 @@ Contenuto previsto `1.6.0`:
 11. ~~**1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA)~~ **pubblicata** (`v1.6.3` / `app-v1.6.3`; DataStore OK).
 12. ~~**1.6.4** web/URL/appunti/cattura + Shift+G + alt-text + PDF + elenco~~ **pubblicata** (`v1.6.4` / `app-v1.6.4`; DataStore OK).  
 13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
-14. **1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API (`temperature`).  
+14. **1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API (`temperature`) — codice in corso.  
 15. **Dopo blocco immagini:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
@@ -176,18 +176,17 @@ Contenuto previsto `1.6.0`:
 1. ~~Fix 3BMeteo / icone web (SVG/WebP, LogNull, fallback cattura)~~.
 2. ~~Sottomenù Explorer PDF/documenti (Apri/Leggi/Copia/Descrivi)~~ — SA `setup.iss`.
 
-### Fase M — `1.6.6` (chiusura immagini + PDF testo + Gemini)
+### Fase M — `1.6.6` (chiusura immagini + PDF testo + Gemini) — IN CORSO
 
-1. Dialogo unico «Tutto sull’immagine».
-2. Batch cartella.
-3. **PDF testo multi-font / ToUnicode per font** (testo spazzatura su PDF
-   multilingue tipo `sample-multilingual-text.pdf`; Edge già OK).
-4. **Gemini API** (email Google AI Studio 07/10/2026): in
-   `rtad_ocr.py` → `_gemini_generate_description` togliere
-   `generationConfig.temperature` (oggi `0.2`). Non usiamo
-   `thinking_budget` / `top_p` / `top_k`. Presto i modelli nuovi
-   risponderanno `400` se restano. Chiave API ok; `generateContent` ok.
-   Gemello SA ↔ addon. Vedi anche `.cursor/rules/rtad-gemini-api.mdc`.
+1. ~~Dialogo unico «Tutto sull’immagine»~~ (codice).
+2. ~~Batch cartella~~ (`.rtad.txt` opzionale).
+3. ~~**PDF testo multi-font / ToUnicode per font**~~ (test
+   `docs/samples/rtad-multifont-tounicode.pdf`).
+4. ~~**Gemini API**~~: tolto `generationConfig.temperature` nei due
+   `rtad_ocr.py`. Resta `maxOutputTokens`. Vedi
+   `.cursor/rules/rtad-gemini-api.mdc`.
+5. **Manca per pubblicare:** test UX Maurizio + `compila.bat` / F9 +
+   release GitHub + DataStore.
 
 ---
 
@@ -195,7 +194,7 @@ Contenuto previsto `1.6.0`:
 
 - ~~Descrivi grafica web / URL / appunti / Shift+G / alt-text / PDF / elenco~~ → `1.6.4`  
 - ~~Polish web meteo + sottomenù PDF/documenti (Apri/Leggi/Copia)~~ → `1.6.5`  
-- Dialogo unico / batch → `1.6.6`  
+- ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` (in corso)  
 - **Descrizione audio/video** (priorità Maurizio, anche senza feedback store)  
 - **Lettore documenti strutturato** (TOC/capitoli, titoli, link, paragrafi;
   PDF lunghi / libri / libretti — oltre al testo piano attuale; dopo immagini/media)  

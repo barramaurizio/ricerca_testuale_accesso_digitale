@@ -68,7 +68,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.5"
+APP_VERSION = "1.6.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1808,7 +1808,7 @@ def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
     if not raw.startswith(b"%PDF"):
         return _pdf_fallback_crude_lines(raw)
 
-    cmap = _pdf_parse_tounicode_cmaps(raw, deadline=deadline)
+    font_cmaps, default_cmap = _pdf_build_font_cmaps(raw, deadline=deadline)
 
     pieces = []
     pos = 0
@@ -1866,7 +1866,12 @@ def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
 
         if _pdf_bytes_look_like_content(data):
             pieces.extend(
-                _pdf_text_from_content_stream(data, cmap, deadline=deadline)
+                _pdf_text_from_content_stream(
+                    data,
+                    default_cmap,
+                    font_cmaps=font_cmaps,
+                    deadline=deadline,
+                )
             )
             content_used += 1
         stream_count += 1
@@ -1974,9 +1979,76 @@ def _pdf_utf16_hex_to_str(hx):
         return data.decode("latin1", errors="ignore")
 
 
-def _pdf_parse_tounicode_cmaps(raw, deadline=None):
-    """Unisce tutte le CMap ToUnicode del PDF: codice CID (int) → carattere."""
-    merged = {}
+def _pdf_cmap_from_tounicode_data(data):
+    """Parsa beginbfchar/beginbfrange → codice CID (int) → carattere."""
+    cmap = {}
+    if not data:
+        return cmap
+    for sm in re.finditer(br"[0-9]+\s+beginbfchar(.*?)endbfchar", data, flags=re.S):
+        for src, dst in re.findall(
+            br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", sm.group(1)
+        ):
+            try:
+                cmap[int(src, 16)] = _pdf_utf16_hex_to_str(dst)
+            except Exception:
+                continue
+    for sm in re.finditer(br"[0-9]+\s+beginbfrange(.*?)endbfrange", data, flags=re.S):
+        body = sm.group(1)
+        for a, b, arr in re.findall(
+            br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[(.*?)\]", body, flags=re.S
+        ):
+            try:
+                start_c, end_c = int(a, 16), int(b, 16)
+            except Exception:
+                continue
+            dests = re.findall(br"<([0-9A-Fa-f]+)>", arr)
+            for i, code in enumerate(range(start_c, end_c + 1)):
+                if i < len(dests):
+                    cmap[code] = _pdf_utf16_hex_to_str(dests[i])
+        for a, b, dst in re.findall(
+            br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", body
+        ):
+            try:
+                start_c, end_c = int(a, 16), int(b, 16)
+                base = int(dst, 16)
+                nbytes = max(1, len(dst) // 2)
+            except Exception:
+                continue
+            for i, code in enumerate(range(start_c, end_c + 1)):
+                hx = f"{base + i:0{nbytes * 2}X}".encode("ascii")
+                cmap[code] = _pdf_utf16_hex_to_str(hx)
+    return cmap
+
+
+def _pdf_obj_num_before(raw, pos, lookback=2500):
+    """Numero oggetto più vicino prima di pos (`N 0 obj`), o -1.
+
+    lookback ampio: i font con /Widths lunghi mettono /ToUnicode a >240 byte
+    dall'intestazione oggetto (es. sample-multilingual-text.pdf).
+    """
+    window = raw[max(0, pos - max(240, int(lookback))):pos]
+    matches = list(re.finditer(br"(\d+)\s+0\s+obj", window))
+    if not matches:
+        return -1
+    try:
+        return int(matches[-1].group(1))
+    except Exception:
+        return -1
+
+
+def _pdf_build_font_cmaps(raw, deadline=None):
+    """ToUnicode per font (1.6.6).
+
+    Prima le CMap venivano fuse in una sola: su PDF multi-font lo stesso CID
+    mappa a caratteri diversi → testo spazzatura. Ora:
+      - cmap per oggetto ToUnicode
+      - associazione nome risorsa (/F1, /TT0, …) → cmap del font
+      - default solo se c'è una sola CMap (PDF mono-font)
+
+    Restituisce (font_cmaps, default_cmap).
+    """
+    obj_cmaps = {}
+    orphan_cmaps = []
     pos = 0
     while True:
         if deadline is not None and time.monotonic() > deadline:
@@ -1995,6 +2067,7 @@ def _pdf_parse_tounicode_cmaps(raw, deadline=None):
             stream = stream[:-1]
         dict_start = raw.rfind(b"<<", max(pos, start - 1600), start)
         dict_blob = raw[dict_start:start] if dict_start != -1 else b""
+        stream_pos = pos
         pos = end + 9
         if _pdf_dict_is_image(dict_blob):
             continue
@@ -2014,42 +2087,97 @@ def _pdf_parse_tounicode_cmaps(raw, deadline=None):
                     data = inflated
         if b"beginbfchar" not in data and b"beginbfrange" not in data:
             continue
-        cmap = {}
-        for sm in re.finditer(br"[0-9]+\s+beginbfchar(.*?)endbfchar", data, flags=re.S):
-            for src, dst in re.findall(
-                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", sm.group(1)
-            ):
-                try:
-                    cmap[int(src, 16)] = _pdf_utf16_hex_to_str(dst)
-                except Exception:
-                    continue
-        for sm in re.finditer(br"[0-9]+\s+beginbfrange(.*?)endbfrange", data, flags=re.S):
-            body = sm.group(1)
-            for a, b, arr in re.findall(
-                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[(.*?)\]", body, flags=re.S
-            ):
-                try:
-                    start_c, end_c = int(a, 16), int(b, 16)
-                except Exception:
-                    continue
-                dests = re.findall(br"<([0-9A-Fa-f]+)>", arr)
-                for i, code in enumerate(range(start_c, end_c + 1)):
-                    if i < len(dests):
-                        cmap[code] = _pdf_utf16_hex_to_str(dests[i])
-            for a, b, dst in re.findall(
-                br"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>", body
-            ):
-                try:
-                    start_c, end_c = int(a, 16), int(b, 16)
-                    base = int(dst, 16)
-                    nbytes = max(1, len(dst) // 2)
-                except Exception:
-                    continue
-                for i, code in enumerate(range(start_c, end_c + 1)):
-                    hx = f"{base + i:0{nbytes * 2}X}".encode("ascii")
-                    cmap[code] = _pdf_utf16_hex_to_str(hx)
-        merged.update(cmap)
-    return merged
+        cmap = _pdf_cmap_from_tounicode_data(data)
+        if not cmap:
+            continue
+        obj_n = _pdf_obj_num_before(raw, stream_pos if dict_start < 0 else dict_start)
+        if obj_n >= 0:
+            obj_cmaps[obj_n] = cmap
+        else:
+            orphan_cmaps.append(cmap)
+
+    font_obj_to_tu = {}
+    for m in re.finditer(br"/ToUnicode\s+(\d+)\s+0\s+R", raw):
+        try:
+            tu = int(m.group(1))
+        except Exception:
+            continue
+        fobj = _pdf_obj_num_before(raw, m.start())
+        if fobj >= 0:
+            font_obj_to_tu[fobj] = tu
+
+    def _map_font_resource_body(body, into):
+        for fm in re.finditer(
+            br"/([A-Za-z][#A-Za-z0-9._+\-]*)\s+(\d+)\s+0\s+R", body
+        ):
+            try:
+                name = fm.group(1).decode("latin1")
+                fobj = int(fm.group(2))
+            except Exception:
+                continue
+            tu = font_obj_to_tu.get(fobj)
+            if tu is not None and tu in obj_cmaps:
+                into[name] = obj_cmaps[tu]
+            elif fobj in obj_cmaps:
+                into[name] = obj_cmaps[fobj]
+
+    font_cmaps = {}
+    for m in re.finditer(br"/Font\s*<<((?:[^>]|>(?!>)){0,4000})>>", raw):
+        _map_font_resource_body(m.group(1), font_cmaps)
+    for m in re.finditer(br"/Font\s+(\d+)\s+0\s+R", raw):
+        try:
+            dict_obj = int(m.group(1))
+        except Exception:
+            continue
+        body = _pdf_object_dict_body(raw, dict_obj)
+        if body:
+            _map_font_resource_body(body, font_cmaps)
+
+    all_cmaps = list(obj_cmaps.values()) + orphan_cmaps
+    if len(all_cmaps) == 1:
+        default_cmap = all_cmaps[0]
+    elif len(font_cmaps) == 1:
+        default_cmap = next(iter(font_cmaps.values()))
+    else:
+        default_cmap = {}
+    return font_cmaps, default_cmap
+
+
+def _pdf_object_dict_body(raw, obj_num):
+    """Restituisce i byte interni di `N 0 obj << … >>` (best-effort, no xref)."""
+    if obj_num < 0:
+        return b""
+    m = re.search(
+        rb"(?:^|\n)" + str(obj_num).encode("ascii") + rb"\s+0\s+obj\b",
+        raw,
+    )
+    if not m:
+        return b""
+    start = raw.find(b"<<", m.end())
+    if start < 0 or start - m.end() > 80:
+        return b""
+    depth = 0
+    i = start
+    n = len(raw)
+    while i < n - 1 and i - start < 8000:
+        if raw[i:i + 2] == b"<<":
+            depth += 1
+            i += 2
+            continue
+        if raw[i:i + 2] == b">>":
+            depth -= 1
+            i += 2
+            if depth <= 0:
+                return raw[start + 2:i - 2]
+            continue
+        i += 1
+    return b""
+
+
+def _pdf_parse_tounicode_cmaps(raw, deadline=None):
+    """Compat: CMap di default (mono-font) oppure vuota se multi-font."""
+    _fonts, default_cmap = _pdf_build_font_cmaps(raw, deadline=deadline)
+    return default_cmap
 
 
 def _pdf_decode_cid_bytes(data, cmap):
@@ -2069,6 +2197,31 @@ def _pdf_decode_cid_bytes(data, cmap):
     return "".join(chars)
 
 
+def _pdf_cmap_mostly_bytes(cmap):
+    """True se la CMap è tipica di font semplici (codici 0–255), non CID."""
+    if not cmap:
+        return False
+    keys = list(cmap.keys())
+    sample = keys if len(keys) <= 64 else keys[:: max(1, len(keys) // 64)]
+    if not sample:
+        return False
+    return sum(1 for k in sample if 0 <= int(k) < 256) >= max(1, int(len(sample) * 0.85))
+
+
+def _pdf_decode_byte_cmap(data, cmap):
+    """Decodifica stringa a 1 byte con ToUnicode (TrueType/Type1 semplici)."""
+    if not data:
+        return ""
+    chars = []
+    for b in data:
+        ch = cmap.get(b)
+        if ch:
+            chars.append(ch)
+        elif 32 <= b < 127:
+            chars.append(chr(b))
+    return "".join(chars)
+
+
 def _pdf_looks_like_cid_bytes(data):
     if not data or len(data) < 2:
         return False
@@ -2082,10 +2235,19 @@ def _pdf_looks_like_cid_bytes(data):
 def _pdf_bytes_to_text(data, cmap):
     if not data:
         return ""
-    if cmap and (_pdf_looks_like_cid_bytes(data) or (len(data) % 2 == 0 and len(data) >= 2)):
-        # Preferisci CID se c'è CMap e lunghezza pari (tipico Identity-H)
-        if _pdf_looks_like_cid_bytes(data) or (cmap and len(data) % 2 == 0 and b"\x00" in data):
+    if cmap:
+        if _pdf_cmap_mostly_bytes(cmap) and not _pdf_looks_like_cid_bytes(data):
+            mapped = _pdf_decode_byte_cmap(data, cmap)
+            if mapped.strip():
+                return mapped
+        if _pdf_looks_like_cid_bytes(data) or (
+            len(data) % 2 == 0 and len(data) >= 2 and b"\x00" in data
+        ):
             mapped = _pdf_decode_cid_bytes(data, cmap)
+            if mapped.strip():
+                return mapped
+        if _pdf_cmap_mostly_bytes(cmap):
+            mapped = _pdf_decode_byte_cmap(data, cmap)
             if mapped.strip():
                 return mapped
     try:
@@ -2105,9 +2267,16 @@ def _pdf_hex_to_str(hex_body, cmap=None):
     except Exception:
         return ""
     if cmap:
-        # Codici a 2 byte tipici: <0030><0044>...
+        if _pdf_cmap_mostly_bytes(cmap) and not _pdf_looks_like_cid_bytes(data):
+            mapped = _pdf_decode_byte_cmap(data, cmap)
+            if mapped.strip():
+                return mapped
         if len(cleaned) % 4 == 0 or _pdf_looks_like_cid_bytes(data):
             mapped = _pdf_decode_cid_bytes(data, cmap)
+            if mapped.strip():
+                return mapped
+        if _pdf_cmap_mostly_bytes(cmap):
+            mapped = _pdf_decode_byte_cmap(data, cmap)
             if mapped.strip():
                 return mapped
     try:
@@ -2116,10 +2285,14 @@ def _pdf_hex_to_str(hex_body, cmap=None):
         return data.decode("latin1", errors="ignore")
 
 
-def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None) -> list:
-    """Estrae stringhe Tj/TJ con scansione lineare (niente regex catastrofiche sul binario)."""
+def _pdf_text_from_content_stream(
+    data: bytes, cmap: dict = None, font_cmaps: dict = None, deadline=None
+) -> list:
+    """Estrae stringhe Tj/TJ; rispetta /Nome size Tf per la CMap del font."""
     if cmap is None:
         cmap = {}
+    if font_cmaps is None:
+        font_cmaps = {}
     if not data:
         return []
     if len(data) > _PDF_TEXT_PARSE_MAX:
@@ -2127,6 +2300,7 @@ def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None)
     pieces = []
     n = len(data)
     i = 0
+    current_cmap = cmap
 
     def _read_literal(start_paren):
         """Legge (...) bilanciato con escape; restituisce (bytes_interni, indice_dopo_chiusura)."""
@@ -2155,15 +2329,37 @@ def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None)
         if deadline is not None and (i & 0xFFFF) == 0 and time.monotonic() > deadline:
             break
         b = data[i]
+        if b == 0x2F and font_cmaps:  # /Nome … Tf → cambia font/CMap
+            j = i + 1
+            while j < n and data[j] not in b" \t\r\n\f\0<>[]()/":
+                j += 1
+            if j > i + 1:
+                try:
+                    fname = data[i + 1:j].decode("latin1")
+                except Exception:
+                    fname = ""
+                k = _skip_ws(j)
+                num = k
+                if num < n and data[num] in b"+-.0123456789":
+                    num += 1
+                    while num < n and data[num] in b"0123456789.":
+                        num += 1
+                    k2 = _skip_ws(num)
+                    if k2 + 1 < n and data[k2:k2 + 2] == b"Tf":
+                        current_cmap = font_cmaps.get(fname, cmap)
+                        i = k2 + 2
+                        continue
+            i = j if j > i else i + 1
+            continue
         if b == 0x28:  # (
             lit, j = _read_literal(i)
             k = _skip_ws(j)
             if k + 1 < n and data[k:k + 2] == b"Tj":
-                pieces.append(_pdf_bytes_to_text(lit, cmap))
+                pieces.append(_pdf_bytes_to_text(lit, current_cmap))
                 i = k + 2
                 continue
             if k < n and data[k:k + 1] in (b"'", b'"'):
-                pieces.append(_pdf_bytes_to_text(lit, cmap))
+                pieces.append(_pdf_bytes_to_text(lit, current_cmap))
                 i = k + 1
                 continue
             i = j
@@ -2184,7 +2380,7 @@ def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None)
                 j += 1
                 k = _skip_ws(j)
                 if k + 1 < n and data[k:k + 2] == b"Tj":
-                    pieces.append(_pdf_hex_to_str(bytes(hx), cmap))
+                    pieces.append(_pdf_hex_to_str(bytes(hx), current_cmap))
                     i = k + 2
                     continue
             i += 1
@@ -2199,7 +2395,7 @@ def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None)
                     break
                 if data[j] == 0x28:  # (
                     lit, j2 = _read_literal(j)
-                    parts.append(_pdf_bytes_to_text(lit, cmap))
+                    parts.append(_pdf_bytes_to_text(lit, current_cmap))
                     j = j2
                     continue
                 if data[j] == 0x3C:  # <
@@ -2215,7 +2411,7 @@ def _pdf_text_from_content_stream(data: bytes, cmap: dict = None, deadline=None)
                         else:
                             break
                     if j2 < n and data[j2] == 0x3E:
-                        parts.append(_pdf_hex_to_str(bytes(hx), cmap))
+                        parts.append(_pdf_hex_to_str(bytes(hx), current_cmap))
                         j = j2 + 1
                         continue
                 if data[j] == 0x5B:
@@ -3163,6 +3359,7 @@ def run_image_analysis(
     copy_only=False,
     delete_after=False,
     speak=None,
+    sections=None,
 ):
     """Analisi immagine riusabile da SearchFrame e GlobalPlugin (1.6.4)."""
     speak = speak or rtad_speak
@@ -3174,7 +3371,7 @@ def run_image_analysis(
         return
     _ensure_ocr_keys()
 
-    if mode in ("describe", "copy-describe", "alt", "alt-long") and not load_gemini_api_key():
+    if mode in ("describe", "copy-describe", "alt", "alt-long", "all") and not load_gemini_api_key():
         speak(
             "Descrizione avanzata: nessuna chiave Gemini. "
             "Uso etichette Vision se disponibili. "
@@ -3187,7 +3384,17 @@ def run_image_analysis(
         title = "Immagine"
         body = ""
         try:
-            if mode == "tech":
+            if mode == "all":
+                title = "Tutto sull'immagine"
+                sec = sections or {}
+                body = rtad_ocr.format_full_image_report(
+                    file_path,
+                    include_alt=sec.get("include_alt", True),
+                    include_describe=sec.get("include_describe", True),
+                    include_labels=sec.get("include_labels", True),
+                    include_tech=sec.get("include_tech", True),
+                )
+            elif mode == "tech":
                 title = "Scheda tecnica immagine"
                 body = rtad_ocr.format_tech_sheet(rtad_ocr.get_image_tech_info(file_path))
             elif mode == "labels":
@@ -4237,6 +4444,119 @@ def capture_navigator_image():
     return materialize_image_from_snapshot(snap)
 
 
+class ImageSectionsDialog(wx.Dialog):
+    """Scelta sezioni per «Tutto sull'immagine» / batch cartella (1.6.6).
+
+    Pulsanti sul Dialog (non CreateButtonSizer su Panel): altrimenti OK/Invio
+    sembrava premuto ma non chiudeva.
+    """
+
+    def __init__(
+        self,
+        parent,
+        title="Tutto sull'immagine",
+        *,
+        batch_mode=False,
+        default_labels=True,
+        context_label="",
+        image_count=None,
+    ):
+        super().__init__(
+            parent,
+            title=title,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.batch_mode = bool(batch_mode)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        if self.batch_mode:
+            intro = "Analisi di tutte le immagini nella cartella."
+            if context_label:
+                intro += f"\nCartella: {context_label}"
+            if image_count is not None:
+                intro += f"\nImmagini trovate: {image_count}."
+            intro += "\n\nScegli le sezioni, poi Invio o «Avvia analisi»."
+        else:
+            intro = "Scegli cosa includere nel report, poi Invio o «Avvia analisi»."
+            if context_label:
+                intro += f"\nImmagine: {context_label}"
+        vbox.Add(wx.StaticText(self, label=intro), 0, wx.ALL | wx.EXPAND, 10)
+
+        self.chk_alt = wx.CheckBox(self, label="&Alt-text breve")
+        self.chk_alt.SetValue(True)
+        vbox.Add(self.chk_alt, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_describe = wx.CheckBox(self, label="&Descrizione dettagliata")
+        self.chk_describe.SetValue(True)
+        vbox.Add(self.chk_describe, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_labels = wx.CheckBox(self, label="&Etichette e oggetti")
+        self.chk_labels.SetValue(bool(default_labels) and not self.batch_mode)
+        vbox.Add(self.chk_labels, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_tech = wx.CheckBox(self, label="&Scheda tecnica")
+        self.chk_tech.SetValue(True)
+        vbox.Add(self.chk_tech, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_save = None
+        self.chk_recursive = None
+        if self.batch_mode:
+            self.chk_save = wx.CheckBox(
+                self, label="Salva un file &.rtad.txt accanto a ogni immagine"
+            )
+            self.chk_save.SetValue(True)
+            vbox.Add(self.chk_save, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+            self.chk_recursive = wx.CheckBox(
+                self, label="Includi anche le &sottocartelle"
+            )
+            self.chk_recursive.SetValue(False)
+            vbox.Add(self.chk_recursive, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+        hint = wx.StaticText(
+            self,
+            label=(
+                "Le caselle deselezionate non compaiono nel report. "
+                "Le voci singole del menu contestuale restano disponibili."
+            ),
+        )
+        vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
+
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        btn_ok = wx.Button(self, wx.ID_OK, label="&Avvia analisi")
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
+        btn_ok.SetDefault()
+        hbox.Add(btn_ok, 0, wx.ALL, 5)
+        hbox.Add(btn_cancel, 0, wx.ALL, 5)
+        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, 8)
+
+        self.SetSizerAndFit(vbox)
+        self.CentreOnParent()
+        self.Bind(wx.EVT_BUTTON, self._on_ok, btn_ok)
+        self.Bind(wx.EVT_BUTTON, self._on_cancel, btn_cancel)
+        self.chk_alt.SetFocus()
+
+    def _on_ok(self, event=None):
+        if not any(
+            [
+                self.chk_alt.GetValue(),
+                self.chk_describe.GetValue(),
+                self.chk_labels.GetValue(),
+                self.chk_tech.GetValue(),
+            ]
+        ):
+            rtad_speak("Seleziona almeno una sezione.")
+            return
+        self.EndModal(wx.ID_OK)
+
+    def _on_cancel(self, event=None):
+        self.EndModal(wx.ID_CANCEL)
+
+    def selections(self):
+        return {
+            "include_alt": self.chk_alt.GetValue(),
+            "include_describe": self.chk_describe.GetValue(),
+            "include_labels": self.chk_labels.GetValue(),
+            "include_tech": self.chk_tech.GetValue(),
+            "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
+            "recursive": bool(self.chk_recursive and self.chk_recursive.GetValue()),
+        }
+
+
 class ImageInfoFrame(wx.Frame):
     """Finestra descrizione / etichette / scheda tecnica immagine (1.6.3).
 
@@ -4318,12 +4638,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Fix icone/grafici web (es. 3BMeteo): NVDA+Shift+G su SVG\n"
-            "  non apre più il dialogo «formato immagine sconosciuto»;\n"
-            "  se serve, cattura l'area sullo schermo.\n"
-            "• Con la Standalone: sottomenù Explorer su PDF/documenti\n"
-            "  (Apri con app predefinita + voce in lista; Leggi/Copia testo).\n"
-            "• Restano Shift+G, URL/Appunti/cattura, [ELENCO], Gemini.\n"
+            "• Dialogo unico «Tutto sull'immagine»: alt-text, descrizione,\n"
+            "  etichette e scheda tecnica in un solo report.\n"
+            "• Batch cartella: analizza tutte le immagini e salva .rtad.txt.\n"
+            "• PDF multi-font: ToUnicode per font (niente più testo\n"
+            "  spazzatura su PDF multilingue).\n"
+            "• Gemini API: rimosso il parametro temperature (compatibilità\n"
+            "  con i modelli nuovi di Google AI Studio).\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -5034,6 +5355,14 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "Descrivi immagine da P&DF…"
         )
         self.Bind(wx.EVT_MENU, self.on_describe_pdf_dialog, item_desc_pdf)
+        item_all_img = tools_menu.Append(
+            wx.ID_ANY, "&Tutto sull'immagine…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_image_all_dialog, item_all_img)
+        item_batch_img = tools_menu.Append(
+            wx.ID_ANY, "Analizza &cartella immagini…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_batch_images_folder, item_batch_img)
         tools_menu.AppendSeparator()
         self.item_notify_end = tools_menu.AppendCheckItem(
             wx.ID_ANY, "&Notifica a fine ricerca (Centro notifiche Windows)"
@@ -5581,6 +5910,18 @@ class SearchFrame(wx.Frame):
             self.RequestUserAttention(wx.USER_ATTENTION_INFO)
         except Exception:
             pass
+
+        def _refocus():
+            try:
+                self.Raise()
+                if self.lst_results.GetCount() > 0:
+                    if self.lst_results.GetSelection() == wx.NOT_FOUND:
+                        self.lst_results.SetSelection(0)
+                    self.lst_results.SetFocus()
+            except Exception:
+                pass
+
+        wx.CallLater(350, _refocus)
 
         def _fallback_wx():
             try:
@@ -7699,8 +8040,10 @@ class SearchFrame(wx.Frame):
             ext_sel == ".pdf"
             or str(item_data.get("prefix", "")).startswith("[PDF")
         )
+        item_all = None
         if is_img_result:
             menu.AppendSeparator()
+            item_all = menu.Append(wx.ID_ANY, "Tutto sull'immagine…")
             item_alt = menu.Append(wx.ID_ANY, "Alt-text breve")
             item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
             item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
@@ -7736,6 +8079,12 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
+        if item_all is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_all_dialog(file_path),
+                item_all,
+            )
         if item_alt is not None:
             self.Bind(
                 wx.EVT_MENU,
@@ -7788,7 +8137,12 @@ class SearchFrame(wx.Frame):
         menu.Destroy()
 
     def show_image_analysis(
-        self, file_path, mode="describe", copy_only=False, delete_after=False
+        self,
+        file_path,
+        mode="describe",
+        copy_only=False,
+        delete_after=False,
+        sections=None,
     ):
         """Descrivi / etichette / scheda tecnica su un file immagine."""
         run_image_analysis(
@@ -7798,7 +8152,179 @@ class SearchFrame(wx.Frame):
             copy_only=copy_only,
             delete_after=delete_after,
             speak=rtad_speak,
+            sections=sections,
         )
+
+    def show_image_all_dialog(self, file_path):
+        """Dialogo unico «Tutto sull'immagine» → subito analisi dopo Avvia."""
+        if not file_path or not os.path.isfile(file_path):
+            rtad_speak("File immagine non trovato.")
+            return
+        dlg = ImageSectionsDialog(
+            self,
+            title="Tutto sull'immagine",
+            context_label=os.path.basename(file_path),
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            sel = dlg.selections()
+        finally:
+            dlg.Destroy()
+        self.show_image_analysis(file_path, mode="all", sections=sel)
+
+    def on_image_all_dialog(self, event=None):
+        """Strumenti → Tutto sull'immagine."""
+        path = ""
+        sel = self.lst_results.GetSelection()
+        if sel != wx.NOT_FOUND and sel in self.file_map:
+            cand = self.file_map[sel].get("file_path") or ""
+            ext = os.path.splitext(cand)[1].lower()
+            if cand and os.path.isfile(cand) and ext in IMG_EXTS:
+                path = cand
+        if not path:
+            with wx.FileDialog(
+                self,
+                "Scegli un'immagine",
+                wildcard=(
+                    "Immagini|"
+                    "*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
+                    "Tutti i file|*.*"
+                ),
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+            ) as fd:
+                if fd.ShowModal() != wx.ID_OK:
+                    return
+                path = fd.GetPath()
+        self.show_image_all_dialog(path)
+
+    def on_batch_images_folder(self, event=None, folder=None):
+        """Strumenti → Analizza cartella immagini (batch 1.6.6)."""
+        if rtad_ocr is None:
+            rtad_speak("Modulo immagini non disponibile.")
+            return
+        if not folder or not os.path.isdir(folder):
+            start_dir = ""
+            try:
+                cur = (self.txt_path.GetValue() or "").strip()
+                if cur and os.path.isdir(cur):
+                    start_dir = cur
+                elif cur and os.path.isfile(cur):
+                    start_dir = os.path.dirname(cur)
+            except Exception:
+                pass
+            with wx.DirDialog(
+                self,
+                "Scegli la cartella con le immagini da analizzare",
+                defaultPath=start_dir or "",
+                style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+            ) as dd:
+                if dd.ShowModal() != wx.ID_OK:
+                    return
+                folder = dd.GetPath()
+        self.start_batch_images_folder(folder)
+
+    def start_batch_images_folder(self, folder):
+        """Mostra sezioni (con conteggio) e avvia subito il batch."""
+        if rtad_ocr is None:
+            rtad_speak("Modulo immagini non disponibile.")
+            return
+        folder = os.path.abspath(folder or "")
+        if not folder or not os.path.isdir(folder):
+            rtad_speak("Cartella non trovata.")
+            return
+        preview = rtad_ocr.list_image_files_in_folder(folder, recursive=False)
+        dlg = ImageSectionsDialog(
+            self,
+            title="Analizza cartella immagini",
+            batch_mode=True,
+            default_labels=False,
+            context_label=folder,
+            image_count=len(preview),
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            sel = dlg.selections()
+        finally:
+            dlg.Destroy()
+        files = rtad_ocr.list_image_files_in_folder(
+            folder, recursive=sel.get("recursive", False)
+        )
+        if not files:
+            rtad_speak("Nessuna immagine trovata in questa cartella.")
+            return
+        rtad_speak(
+            f"Avvio analisi: {len(files)} immagini. "
+            "Può richiedere tempo se usi Gemini."
+        )
+        _ensure_ocr_keys()
+
+        def _work():
+            def _prog(i, total, path, ok):
+                name = os.path.basename(path)
+                wx.CallAfter(
+                    rtad_speak,
+                    f"Immagine {i} di {total}: {name}. "
+                    + ("Ok." if ok else "Problema."),
+                )
+
+            try:
+                summary = rtad_ocr.batch_describe_folder(
+                    folder,
+                    include_alt=sel["include_alt"],
+                    include_describe=sel["include_describe"],
+                    include_labels=sel["include_labels"],
+                    include_tech=sel["include_tech"],
+                    save_txt=sel.get("save_txt", True),
+                    recursive=sel.get("recursive", False),
+                    on_progress=_prog,
+                )
+            except Exception as e:
+                summary = {"total": 0, "ok": 0, "results": [], "error": str(e)}
+
+            lines = [
+                f"Cartella: {folder}",
+                f"Immagini trovate: {summary.get('total', 0)}",
+                f"Completate: {summary.get('ok', 0)}",
+            ]
+            if summary.get("error"):
+                lines.append(f"Errore: {summary['error']}")
+            if sel.get("save_txt"):
+                lines.append(
+                    "Accanto a ogni immagine è stato creato un file .rtad.txt "
+                    "(se l'analisi è riuscita)."
+                )
+            fails = [
+                r for r in (summary.get("results") or []) if not r.get("ok")
+            ]
+            if fails:
+                lines.append("")
+                lines.append("Con problemi:")
+                for r in fails[:30]:
+                    lines.append(
+                        f"- {os.path.basename(r.get('path') or '')}: "
+                        f"{r.get('error') or 'sconosciuto'}"
+                    )
+            body = "\n".join(lines)
+
+            def _show():
+                if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
+                    self._image_info_frames = []
+                frm = ImageInfoFrame(
+                    None, "Batch cartella immagini", body, image_path=folder
+                )
+                self._image_info_frames.append(frm)
+                frm.Show()
+                frm.Raise()
+                rtad_speak(
+                    f"Batch terminato: {summary.get('ok', 0)} di "
+                    f"{summary.get('total', 0)} ok."
+                )
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def materialize_pdf_image_temp(self, file_path):
         """Estrae la migliore immagine da un PDF su file temp. Path o ''."""

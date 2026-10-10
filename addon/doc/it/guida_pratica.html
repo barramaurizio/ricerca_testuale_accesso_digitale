@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="utf-8">
-<title>Guida pratica — Ricerca Testuale Accesso Digitale</title>
-</head>
-<body>
-<pre>\
+<!DOCTYPE html><html lang=it><head><meta charset=utf-8><title>Guida pratica</title></head><body><pre>
 Benvenuto in Ricerca Testuale Accesso Digitale
 ================================================
 
@@ -22,25 +15,67 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.6
+Novità recenti (in parole semplici) — versione 1.6.7
 ----------------------------------------------------
-• «Tutto sull’immagine»: un solo dialogo per alt-text,
-  descrizione, etichette e scheda tecnica (menu Strumenti
-  o tasto applicazioni sul risultato immagine).
-• Analizza cartella immagini: elabora tutte le foto di una
-  cartella e può salvare un file .rtad.txt accanto a ciascuna.
-• PDF con più font / lingue: il testo non esce più
-  «spazzatura» (ToUnicode per font, come in Edge).
-• Gemini: aggiornato per i modelli nuovi di Google (niente
-  più parametro temperature che poteva dare errore).
-• Restano da 1.6.5: fix web SVG/WebP, sottomenù Explorer
-  PDF/documenti; da 1.6.4: URL/Appunti/cattura, Shift+G,
-  alt-text, [ELENCO].
+• «Tutto sull’audio/video»: scheda tecnica del file (durata,
+  formato, se è uno Short o un video normale, risoluzione…),
+  più un riassunto accessibile e, se vuoi, la trascrizione
+  del parlato (con chiave Gemini).
+• Opzione timestamp [MM:SS] nella trascrizione (solo se
+  attivi anche la trascrizione).
+• Hub «Tutto sull’audio/video»: scegliendo il filtro
+  «Solo Audio e Video» si apre subito la finestra con URL,
+  file locale, sezioni del report e pulsanti yt-dlp.
+  Stessa finestra anche da Strumenti (e Ctrl+Shift+M).
+• Audio/video da URL (nel hub o Ctrl+Shift+M):
+  - link diretto a un file (.mp4, .mp3, …): funziona subito;
+  - pagina YouTube, TikTok, Instagram, X, Facebook, LinkedIn,
+    Vimeo, Twitch…: serve yt-dlp nel PATH (stessi limiti di
+    dimensione/durata dell’analisi AI).
+  Come installare yt-dlp su Windows: «winget install yt-dlp.yt-dlp»
+  oppure «pip install -U yt-dlp», poi riavvia RTAD/NVDA.
+  Per YouTube/Shorts moderni serve anche ffmpeg nel PATH
+  (unisce video e audio): «winget install Gyan.FFmpeg»,
+  poi riavvia. Senza ffmpeg RTAD prova comunque a usare
+  video+audio separati; se resta solo video muto, la
+  trascrizione viene rifiutata (evita telecronache inventate).
+  In scheda tecnica vedi Titolo/ID/URL sorgente per verificare
+  che corrisponda al link incollato.
+  Per verificare o aggiornare: nel hub i pulsanti
+  «Verifica yt-dlp» / «Aggiorna yt-dlp», oppure Strumenti
+  «Verifica / aggiorna yt-dlp…». Da terminale: «yt-dlp --version»
+  e «yt-dlp -U».
+  Limiti analisi AI = tetti Google File API: fino a circa 2 GB
+  e circa 3 ore di video (oltre i 20 MB inline: upload temporaneo).
+  Oltre non si può: è il massimo per file dell’API. File molto
+  grandi: più tempo di attesa e più consumo sulla tua chiave.
+  Se l’URL supera 2 GB, usa un file locale più corto o una qualità
+  inferiore; altrimenti yt-dlp può prendere solo la traccia audio.
+  DRM / privati / Telegram: in genere non supportati.
+  Con filtro «Solo Audio e Video»: pulsante «Analisi audio/video…»
+  sulla finestra principale (e «Nuova analisi» nel report).
+  L’URL YouTube non va nel percorso di ricerca (cartelle/feed):
+  se lo metti lì, RTAD apre comunque l’hub.
+  Una sola analisi alla volta.
+• La trascrizione non parte da sola: la scegli tu. Non c’è
+  scansione di tutto il PC con Whisper. Su video lunghi
+  RTAD chiede a Gemini di continuare se i timestamp si
+  fermano prima della fine (può richiedere più minuti).
+• Nel report: «Copia testo» e «Salva testo…» (.rtad.txt).
+• Durante analisi audio/video (file o URL): barra e stato
+  avanzamento come in ricerca (Alt+S / Tab sullo stato).
+• File troppo lunghi o grandi: il programma te lo dice e
+  lascia comunque la scheda tecnica.
+• Sottomenù Explorer (Standalone) e menu contestuale sui
+  file media; stessa funzione anche nell’Add-on.
+• Restano da 1.6.6: «Tutto sull’immagine», batch cartella,
+  PDF multi-font, Gemini senza temperature.
 • Dove usare cosa:
-  - Al volo su web / file sotto il cursore → Add-on (Shift+G).
-  - Report completo / batch cartella → SA e Add-on (Strumenti).
+  - Audio/video → filtro «Solo Audio e Video» oppure
+    Strumenti «Tutto sull’audio/video» (SA e Add-on).
+  - Immagini → dialogo unico / batch / Shift+G come in 1.6.6.
   - Tasto destro in Esplora file → sottomenù shell Standalone
-    (immagini, PDF, documenti).
+    (immagini, media, PDF, documenti).
 
 
 1. A cosa serve
@@ -197,6 +232,5 @@ Per elenco comandi, dettagli e novità di versione:
 
 Autore: Maurizio Barra (Accesso Digitale)
 Progetto: Ricerca Testuale Accesso Digitale
-</pre>
-</body>
-</html>
+
+</pre></body></html>

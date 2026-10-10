@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,20 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.7
+
+*(In corso — ultima pubblicata: **1.6.6**.)*
+
+- **Tutto sull'audio/video**: scheda (Short/verticale), riassunto, trascrizione e timestamp progressivi opt-in (Gemini).
+- **Hub audio/video**: il filtro «Solo Audio e Video» apre URL, file e sezioni; stesso dialogo da Strumenti.
+- **Audio/video da URL** (`Ctrl+Shift+M`): link diretti o YouTube/Vimeo con yt-dlp; verifica/aggiorna yt-dlp in-app; scheda con Titolo/ID/URL sorgente; evita video muti (ffmpeg consigliato); File API Gemini oltre 20 MB (tetti Google ~2 GB / ~3 h); trascrizioni lunghe con ripresa; **Salva testo…** nel report; avanzamento (barra + stato Alt+S) come in ricerca.
+- **Limiti** = tetti Google File API; niente trascrizione di massa su tutto il PC.
+- **Explorer Standalone** + menu contestuale / Strumenti (gemello Add-on) sui file media.
+- Restano dialogo immagine, batch cartella e PDF multi-font (1.6.6).
+
 ### 🌟 Novità della Versione 1.6.6
 
-*(In corso — ultima pubblicata: **1.6.5**.)*
+*(Pubblicata.)*
 
 - **Tutto sull'immagine**: dialogo unico con alt-text, descrizione, etichette e scheda tecnica.
 - **Batch cartella**: analizza tutte le immagini e può salvare `.rtad.txt` accanto a ciascuna.
@@ -117,9 +128,20 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.7
+
+*(In progress — last published: **1.6.6**.)*
+
+- **Everything about audio/video**: tech sheet (Short/vertical), summary, transcript and optional progressive timestamps (Gemini).
+- **Audio/video hub**: the “Audio and Video only” filter opens URL, file and sections; same dialog from Tools.
+- **Audio/video from URL** (`Ctrl+Shift+M`): direct links or YouTube/Vimeo with yt-dlp; in-app yt-dlp check/update; tech sheet shows source title/ID/URL; avoids silent video (ffmpeg recommended); Gemini File API above 20 MB (Google caps ~2 GB / ~3 h); long transcripts with continuation; **Save text…** in the report; progress (gauge + Alt+S status) like search.
+- Limits = Google File API caps; no mass transcription of the whole PC.
+- Standalone Explorer submenu + Tools/context menu (Add-on twin) on media files.
+- Image dialog, folder batch and multi-font PDF from 1.6.6 remain.
+
 ### 🌟 What's New in Version 1.6.6
 
-*(In progress — last published: **1.6.5**.)*
+*(Published.)*
 
 - **Everything about the image**: single dialog with alt-text, description, labels and tech sheet.
 - **Folder batch**: analyse all images and optionally save `.rtad.txt` next to each file.

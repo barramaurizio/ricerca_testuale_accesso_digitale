@@ -397,7 +397,7 @@ def cmd_bump(args: argparse.Namespace) -> None:
     if current and version_tuple(new_version) < version_tuple(current):
         die(f"La nuova versione {new_version} è inferiore a quella attuale {current}")
 
-    print(f"=== Bump versione → {new_version} ===\n")
+    print(f"=== Bump versione -> {new_version} ===\n")
     replace_app_version(FILES["standalone_app"], new_version)
     print("  OK Standalone/app_gui.py")
     replace_app_version(FILES["addon_init"], new_version)

@@ -1,0 +1,96 @@
+🌟 Novità della Versione 1.6.7
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Tutto sull'audio/video**: scheda tecnica locale (anche Short), riassunto e trascrizione opt-in con timestamp (Gemini).
+- **URL** (Ctrl+Shift+M / hub): YouTube e altri via yt-dlp; ffmpeg consigliato; Titolo/ID/URL in scheda.
+- **File API** oltre 20 MB (tetti Google ~2 GB / ~3 h); trascrizioni lunghe con ripresa automatica.
+- Report: **Copia** e **Salva testo…**; avanzamento (barra + stato Alt+S) come in ricerca.
+- Niente trascrizione di massa su tutto il PC.
+- Restano dialogo immagine, batch cartella e PDF multi-font (1.6.6).
+
+## 🇬🇧 English
+
+- **Everything about audio/video**: local tech sheet (incl. Shorts), optional Gemini summary/transcript with timestamps.
+- **URL** (Ctrl+Shift+M / hub): YouTube etc. via yt-dlp; ffmpeg recommended; source title/ID/URL in the sheet.
+- **File API** above 20 MB (Google caps ~2 GB / ~3 h); long transcripts with automatic continuation.
+- Report: **Copy** and **Save text…**; progress (gauge + Alt+S status) like search.
+- No mass transcription of the whole PC.
+- Image dialog, folder batch and multi-font PDF from 1.6.6 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.6.7.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.6.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.6.7
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.6.7.exe
+RicercaTestualeAccessoDigitale_Portable_v1.6.7.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Tutto sull'audio/video: scheda, URL/yt-dlp, File API Gemini (~2 GB), trascrizione lunga, avanzamento come in ricerca; Salva testo; niente scansione di massa.
+
+Summary EN:
+Everything about audio/video: tech sheet, URL/yt-dlp, Gemini File API (~2 GB), long transcript, progress like search; Save text; no mass scan.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.7/ricerca_testuale_accesso_digitale-1.6.7.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[ ] python tools/rtad_release.py check → OK
+[ ] Gemelli rtad_ocr.py / rtad_guida_pratica.py / rtad_media.py
+[ ] Test SA: dialogo media + scheda tecnica + (con chiave) riassunto
+[ ] Test Add-on: stessa cosa
+[ ] make_addon / pacchetto .nvda-addon fresco
+[ ] Standalone\compila.bat → F9 setup.iss

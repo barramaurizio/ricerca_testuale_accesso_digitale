@@ -42,6 +42,11 @@ except ImportError:
     rtad_ocr = None
 
 try:
+    import rtad_media
+except ImportError:
+    rtad_media = None
+
+try:
     import rtad_guida_pratica
 except ImportError:
     rtad_guida_pratica = None
@@ -56,7 +61,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.6"
+APP_VERSION = "1.6.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -72,10 +77,17 @@ if not os.path.exists(CONFIG_DIR):
 CONFIG_FILE = os.path.join(CONFIG_DIR, "settings.json")
 LOG_FILE = os.path.join(CONFIG_DIR, "rtad_debug.log")
 OCR_CACHE_DIR = os.path.join(CONFIG_DIR, "ocr_cache")
+MEDIA_CACHE_DIR = os.path.join(CONFIG_DIR, "media_cache")
 
 if rtad_ocr is not None:
     try:
         rtad_ocr.configure(OCR_CACHE_DIR)
+    except Exception:
+        pass
+
+if rtad_media is not None:
+    try:
+        rtad_media.configure(MEDIA_CACHE_DIR)
     except Exception:
         pass
 
@@ -4056,6 +4068,240 @@ class ImageSectionsDialog(wx.Dialog):
         }
 
 
+class MediaSectionsDialog(wx.Dialog):
+    """Hub «Tutto sull'audio/video»: file e/o URL + sezioni (1.6.7)."""
+
+    def __init__(
+        self,
+        parent,
+        title="Tutto sull'audio/video",
+        *,
+        context_label="",
+        show_source=True,
+        initial_path="",
+        initial_url="",
+        preset_sections=None,
+    ):
+        super().__init__(
+            parent,
+            title=title,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.show_source = bool(show_source)
+        self._picked_path = (initial_path or "").strip()
+        preset = preset_sections if isinstance(preset_sections, dict) else {}
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        intro = (
+            "Scegli la sorgente (file locale e/o URL), le sezioni del report,\n"
+            "poi Invio o «Avvia analisi».\n"
+            "Scheda tecnica: locale. Riassunto/trascrizione: Gemini opt-in.\n"
+            "Dal report usa «Nuova analisi» per riprendere l'hub "
+            "(stesse opzioni, URL vuoto). Oppure Strumenti."
+        )
+        if context_label and not self.show_source:
+            intro += f"\nFile: {context_label}"
+        lbl = wx.StaticText(self, label=intro)
+        vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 10)
+
+        self.txt_url = None
+        self.txt_file = None
+        self.lbl_ytdlp = None
+        if self.show_source:
+            vbox.Add(
+                wx.StaticText(self, label="URL audio/video (opzionale):"),
+                0,
+                wx.LEFT | wx.RIGHT | wx.TOP,
+                8,
+            )
+            self.txt_url = wx.TextCtrl(self, value=(initial_url or "").strip())
+            vbox.Add(self.txt_url, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+            vbox.Add(
+                wx.StaticText(self, label="Oppure file locale:"),
+                0,
+                wx.LEFT | wx.RIGHT | wx.TOP,
+                8,
+            )
+            h_file = wx.BoxSizer(wx.HORIZONTAL)
+            self.txt_file = wx.TextCtrl(self, value=self._picked_path)
+            h_file.Add(self.txt_file, 1, wx.EXPAND | wx.RIGHT, 5)
+            btn_browse = wx.Button(self, label="&Sfoglia…")
+            btn_browse.Bind(wx.EVT_BUTTON, self._on_browse)
+            h_file.Add(btn_browse, 0)
+            vbox.Add(h_file, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+            self.lbl_ytdlp = wx.StaticText(self, label="yt-dlp: verifica in corso…")
+            vbox.Add(self.lbl_ytdlp, 0, wx.ALL | wx.EXPAND, 8)
+            h_yt = wx.BoxSizer(wx.HORIZONTAL)
+            btn_yt_check = wx.Button(self, label="&Verifica yt-dlp")
+            btn_yt_check.Bind(wx.EVT_BUTTON, self._on_ytdlp_check)
+            h_yt.Add(btn_yt_check, 0, wx.RIGHT, 5)
+            btn_yt_up = wx.Button(self, label="A&ggiorna yt-dlp")
+            btn_yt_up.Bind(wx.EVT_BUTTON, self._on_ytdlp_update)
+            h_yt.Add(btn_yt_up, 0)
+            vbox.Add(h_yt, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+            wx.CallAfter(self._refresh_ytdlp_label)
+
+        self.chk_tech = wx.CheckBox(self, label="&Scheda tecnica")
+        self.chk_tech.SetValue(bool(preset.get("include_tech", True)))
+        vbox.Add(self.chk_tech, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_describe = wx.CheckBox(self, label="&Riassunto accessibile (Gemini)")
+        self.chk_describe.SetValue(bool(preset.get("include_describe", True)))
+        vbox.Add(self.chk_describe, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_transcript = wx.CheckBox(
+            self, label="&Trascrizione parlato (Gemini, opt-in)"
+        )
+        self.chk_transcript.SetValue(bool(preset.get("include_transcript", False)))
+        vbox.Add(self.chk_transcript, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_timestamps = wx.CheckBox(
+            self, label="Timestamp &nella trascrizione ([MM:SS], opt-in)"
+        )
+        self.chk_timestamps.SetValue(bool(preset.get("include_timestamps", False)))
+        vbox.Add(self.chk_timestamps, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+        def _sync_ts(_evt=None):
+            en = self.chk_transcript.GetValue()
+            self.chk_timestamps.Enable(en)
+            if not en:
+                self.chk_timestamps.SetValue(False)
+
+        self.chk_transcript.Bind(wx.EVT_CHECKBOX, _sync_ts)
+        _sync_ts()
+
+        hint = wx.StaticText(
+            self,
+            label=(
+                "Se compili l'URL ha priorità sul file. "
+                "Trascrizione/timestamp non attivi di default. "
+                "File oltre i limiti: resta la scheda tecnica."
+            ),
+        )
+        vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
+
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        btn_ok = wx.Button(self, wx.ID_OK, label="&Avvia analisi")
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
+        btn_ok.SetDefault()
+        hbox.Add(btn_ok, 0, wx.ALL, 5)
+        hbox.Add(btn_cancel, 0, wx.ALL, 5)
+        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, 8)
+
+        self.SetSizerAndFit(vbox)
+        self.CentreOnParent()
+        self.Bind(wx.EVT_BUTTON, self._on_ok, btn_ok)
+        self.Bind(wx.EVT_BUTTON, self._on_cancel, btn_cancel)
+        if self.txt_url is not None:
+            self.txt_url.SetFocus()
+        else:
+            self.chk_tech.SetFocus()
+
+    def _on_browse(self, event=None):
+        with wx.FileDialog(
+            self,
+            "Scegli un file audio o video",
+            wildcard=(
+                "Audio/Video|"
+                "*.mp3;*.m4a;*.aac;*.flac;*.ogg;*.opus;*.wav;*.wma;"
+                "*.mp4;*.m4v;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.mpg;*.mpeg;*.3gp|"
+                "Tutti i file|*.*"
+            ),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        ) as fd:
+            if fd.ShowModal() != wx.ID_OK:
+                return
+            path = fd.GetPath()
+        self._picked_path = path
+        if self.txt_file is not None:
+            self.txt_file.SetValue(path)
+        speak_accessible(f"File selezionato: {os.path.basename(path)}")
+
+    def _refresh_ytdlp_label(self):
+        if self.lbl_ytdlp is None or rtad_media is None:
+            return
+        try:
+            st = rtad_media.check_ytdlp_status()
+            self.lbl_ytdlp.SetLabel(st.get("message") or "yt-dlp: stato sconosciuto.")
+            self.Layout()
+            self.Fit()
+        except Exception as e:
+            self.lbl_ytdlp.SetLabel(f"yt-dlp: errore verifica ({e})")
+
+    def _on_ytdlp_check(self, event=None):
+        speak_accessible("Verifica yt-dlp…")
+        self._refresh_ytdlp_label()
+        if self.lbl_ytdlp is not None:
+            speak_accessible(self.lbl_ytdlp.GetLabel())
+
+    def _on_ytdlp_update(self, event=None):
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        speak_accessible("Aggiornamento yt-dlp in corso…")
+
+        def _work():
+            try:
+                res = rtad_media.update_ytdlp()
+            except Exception as e:
+                res = {"ok": False, "message": str(e)}
+
+            def _done():
+                msg = res.get("message") or "Aggiornamento terminato."
+                if self.lbl_ytdlp is not None:
+                    self.lbl_ytdlp.SetLabel(msg)
+                    self.Layout()
+                    self.Fit()
+                speak_accessible(msg)
+
+            wx.CallAfter(_done)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_ok(self, event=None):
+        if not any(
+            [
+                self.chk_tech.GetValue(),
+                self.chk_describe.GetValue(),
+                self.chk_transcript.GetValue(),
+            ]
+        ):
+            speak_accessible("Seleziona almeno una sezione.")
+            return
+        if self.show_source:
+            url = (self.txt_url.GetValue() if self.txt_url else "") or ""
+            url = url.strip().strip('"').strip("'")
+            path = ""
+            if self.txt_file is not None:
+                path = (self.txt_file.GetValue() or "").strip().strip('"')
+            if not path:
+                path = self._picked_path
+            if not url and not (path and os.path.isfile(path)):
+                speak_accessible(
+                    "Inserisci un URL oppure scegli un file audio/video."
+                )
+                return
+        self.EndModal(wx.ID_OK)
+
+    def _on_cancel(self, event=None):
+        self.EndModal(wx.ID_CANCEL)
+
+    def selections(self):
+        want_tr = self.chk_transcript.GetValue()
+        url = ""
+        path = self._picked_path
+        if self.show_source:
+            if self.txt_url is not None:
+                url = (self.txt_url.GetValue() or "").strip().strip('"').strip("'")
+            if self.txt_file is not None:
+                path = (self.txt_file.GetValue() or "").strip().strip('"') or path
+        return {
+            "include_tech": self.chk_tech.GetValue(),
+            "include_describe": self.chk_describe.GetValue(),
+            "include_transcript": want_tr,
+            "include_timestamps": bool(want_tr and self.chk_timestamps.GetValue()),
+            "url": url,
+            "file_path": path,
+        }
+
+
 class ImageInfoFrame(wx.Frame):
     """Finestra descrizione / etichette / scheda tecnica immagine (1.6.3).
 
@@ -4063,7 +4309,17 @@ class ImageInfoFrame(wx.Frame):
     iconizza/cambia finestra; si chiude solo con Chiudi o ESC.
     """
 
-    def __init__(self, parent, title, body_text, image_path=""):
+    def __init__(
+        self,
+        parent,
+        title,
+        body_text,
+        image_path="",
+        *,
+        action_label="",
+        action_cb=None,
+        after_close_cb=None,
+    ):
         # Ignora parent: top-level indipendente (non si chiude col dialogo padre)
         super(ImageInfoFrame, self).__init__(
             None,
@@ -4073,6 +4329,9 @@ class ImageInfoFrame(wx.Frame):
         )
         self.image_path = image_path or ""
         self.body_text = body_text or ""
+        self._action_cb = action_cb
+        self._after_close_cb = after_close_cb
+        self._after_close_done = False
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -4094,6 +4353,13 @@ class ImageInfoFrame(wx.Frame):
         btn_copy = wx.Button(panel, label="&Copia testo")
         btn_copy.Bind(wx.EVT_BUTTON, self.on_copy)
         hbox.Add(btn_copy, 0, wx.ALL, 5)
+        btn_save = wx.Button(panel, label="&Salva testo…")
+        btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
+        hbox.Add(btn_save, 0, wx.ALL, 5)
+        if action_label and callable(action_cb):
+            btn_action = wx.Button(panel, label=action_label)
+            btn_action.Bind(wx.EVT_BUTTON, self._on_action)
+            hbox.Add(btn_action, 0, wx.ALL, 5)
         btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
         hbox.Add(btn_close, 0, wx.ALL, 5)
@@ -4103,7 +4369,37 @@ class ImageInfoFrame(wx.Frame):
         self.Centre()
         self.txt_display.SetFocus()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        self.Bind(wx.EVT_CLOSE, self._on_close_frame)
         speak_accessible(f"{title}. Usa le frecce per leggere.")
+
+    def _on_action(self, event=None):
+        # Evita un secondo hub alla chiusura se già aperto da questo pulsante
+        self._after_close_cb = None
+        self._after_close_done = True
+        cb = self._action_cb
+        if callable(cb):
+            try:
+                cb()
+            except Exception:
+                pass
+
+    def _run_after_close(self):
+        if self._after_close_done:
+            return
+        self._after_close_done = True
+        cb = self._after_close_cb
+        self._after_close_cb = None
+        if callable(cb):
+            try:
+                cb()
+            except Exception:
+                pass
+
+    def _on_close_frame(self, event):
+        # CallLater: lascia chiudere la finestra prima di riaprire l'hub
+        if callable(self._after_close_cb):
+            wx.CallLater(150, self._run_after_close)
+        event.Skip()
 
     def on_copy(self, event=None):
         text = self.txt_display.GetValue()
@@ -4113,6 +4409,37 @@ class ImageInfoFrame(wx.Frame):
             speak_accessible("Testo copiato negli appunti.")
         else:
             speak_accessible("Impossibile aprire gli appunti.")
+
+    def on_save_text(self, event=None):
+        text = self.txt_display.GetValue() or ""
+        if not text.strip():
+            speak_accessible("Niente da salvare.")
+            return
+        base = os.path.basename(self.image_path) if self.image_path else "rtad_report"
+        stem = os.path.splitext(base)[0] or "rtad_report"
+        default_dir = ""
+        if self.image_path:
+            default_dir = os.path.dirname(os.path.abspath(self.image_path))
+        dlg = wx.FileDialog(
+            self,
+            "Salva testo report",
+            defaultDir=default_dir or os.path.expanduser("~"),
+            defaultFile=f"{stem}.rtad.txt",
+            wildcard="Testo (*.txt)|*.txt|Tutti i file (*.*)|*.*",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            path = dlg.GetPath()
+        finally:
+            dlg.Destroy()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            speak_accessible(f"Testo salvato: {os.path.basename(path)}")
+        except Exception as e:
+            speak_accessible(f"Salvataggio non riuscito: {e}")
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -4137,13 +4464,16 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Dialogo unico «Tutto sull'immagine»: alt-text, descrizione,\n"
-            "  etichette e scheda tecnica in un solo report.\n"
-            "• Batch cartella: analizza tutte le immagini e salva .rtad.txt.\n"
-            "• PDF multi-font: ToUnicode per font (niente più testo\n"
-            "  spazzatura su PDF multilingue).\n"
-            "• Gemini API: rimosso il parametro temperature (compatibilità\n"
-            "  con i modelli nuovi di Google AI Studio).\n"
+            "• «Tutto sull'audio/video»: scheda (anche Short), riassunto,\n"
+            "  trascrizione e timestamp progressivi opt-in (Gemini).\n"
+            "• Hub audio/video + URL (Ctrl+Shift+M); yt-dlp in-app;\n"
+            "  ffmpeg consigliato; Titolo/ID/URL sorgente in scheda.\n"
+            "• File API Gemini oltre 20 MB (tetti Google ~2 GB / ~3 h);\n"
+            "  trascrizioni lunghe con ripresa automatica.\n"
+            "• Scheda tecnica ricca (anche ffprobe); «Salva testo…» nel report.\n"
+            "• Avanzamento audio/video: barra + stato (Alt+S) come in ricerca.\n"
+            "• Restano dialogo immagine, batch cartella e PDF multi-font\n"
+            "  della 1.6.6.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -4377,6 +4707,7 @@ class MainWindow(wx.Frame):
         )
         self.combo_filter.SetSelection(0)
         self.combo_filter.Bind(wx.EVT_CHOICE, self.on_filter_changed)
+        self.combo_filter.Bind(wx.EVT_KEY_DOWN, self.on_filter_key_down)
         vbox_filter_choice.Add(self.combo_filter, 1, wx.EXPAND | wx.ALL, 5)
         hbox_filter.Add(vbox_filter_choice, 1, wx.EXPAND)
 
@@ -4499,6 +4830,15 @@ class MainWindow(wx.Frame):
         self.btn_search = wx.Button(panel, label="Avvia Ricerca")
         self.btn_search.Bind(wx.EVT_BUTTON, lambda e: self.start_search_thread())
         hbox_actions.Add(self.btn_search, 0, wx.ALL, 5)
+
+        self.btn_media_hub = wx.Button(panel, label="Analisi &audio/video…")
+        self.btn_media_hub.SetToolTip(
+            "Apre l'hub per URL o file (scheda, riassunto, trascrizione). "
+            "Visibile con filtro Solo Audio e Video."
+        )
+        self.btn_media_hub.Bind(wx.EVT_BUTTON, self.on_media_hub_button)
+        hbox_actions.Add(self.btn_media_hub, 0, wx.ALL, 5)
+        self.btn_media_hub.Enable(False)
 
         self.btn_cancel = wx.Button(panel, label="A&nnulla Ricerca")
         self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel_search)
@@ -4705,6 +5045,18 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Analizza &cartella immagini…"
         )
         self.Bind(wx.EVT_MENU, self.on_batch_images_folder, item_batch_img)
+        item_all_media = tools_menu.Append(
+            wx.ID_ANY, "Tutto sull'&audio/video…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_media_all_dialog, item_all_media)
+        item_media_url = tools_menu.Append(
+            wx.ID_ANY, "Audio/video da &URL…\tCtrl+Shift+M"
+        )
+        self.Bind(wx.EVT_MENU, self.on_media_from_url, item_media_url)
+        item_ytdlp = tools_menu.Append(
+            wx.ID_ANY, "Verifica / aggiorna &yt-dlp…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_ytdlp_tools, item_ytdlp)
         tools_menu.AppendSeparator()
         self.item_notify_end = tools_menu.AppendCheckItem(
             wx.ID_ANY, "&Notifica a fine ricerca (Centro notifiche Windows)"
@@ -5396,7 +5748,12 @@ class MainWindow(wx.Frame):
         mode = int(profile.get("filter_mode", 0) or 0)
         if mode < 0 or mode > 4:
             mode = 0
-        self.combo_filter.SetSelection(mode)
+        self._suppress_media_hub = True
+        try:
+            self.combo_filter.SetSelection(mode)
+        finally:
+            self._suppress_media_hub = False
+        self._update_media_hub_button()
         custom = profile.get("custom_ext", "") or ""
         self.txt_custom_ext.SetValue(custom)
         self.txt_custom_ext.Enable(mode == 4)
@@ -5588,11 +5945,49 @@ class MainWindow(wx.Frame):
         dlg.Show()
         dlg.Raise()
 
+    def _update_media_hub_button(self):
+        """Abilita «Analisi audio/video…» solo col filtro media."""
+        btn = getattr(self, "btn_media_hub", None)
+        if btn is None:
+            return
+        try:
+            btn.Enable(self.combo_filter.GetSelection() == 2)
+        except Exception:
+            pass
+
+    def on_media_hub_button(self, event=None):
+        """Pulsante principale → hub; se il percorso è un URL http, lo riusa."""
+        path_val = (self.txt_path.GetValue() or "").strip()
+        url = ""
+        low = path_val.lower()
+        if low.startswith("http://") or low.startswith("https://"):
+            url = path_val
+        self.open_media_hub_dialog(
+            initial_url=url, clear_source=True
+        )
+
     def on_filter_changed(self, event):
         sel = self.combo_filter.GetSelection()
         self.txt_custom_ext.Enable(sel == 4)
         if sel != 4:
             self.txt_custom_ext.SetValue("")
+        self._update_media_hub_button()
+        # Index 2 = Solo Audio e Video → hub analisi (file/URL/sezioni)
+        if sel == 2 and not getattr(self, "_suppress_media_hub", False):
+            wx.CallAfter(self.open_media_hub_dialog)
+
+    def on_filter_key_down(self, event):
+        """Invio/Spazio sul filtro già «Audio e Video» → riapre l'hub."""
+        key = event.GetKeyCode()
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER, wx.WXK_SPACE):
+            if (
+                self.combo_filter.GetSelection() == 2
+                and not getattr(self, "_suppress_media_hub", False)
+                and not getattr(self, "_media_hub_open", False)
+            ):
+                wx.CallAfter(self.open_media_hub_dialog)
+                return
+        event.Skip()
 
     def on_search_all_pc(self, event):
         drives = get_real_ready_drives()
@@ -5731,6 +6126,9 @@ class MainWindow(wx.Frame):
             return
         elif ctrl and event.ShiftDown() and key in (ord("U"), ord("u")):
             self.on_describe_from_url(None)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("M"), ord("m")):
+            self.on_media_from_url(None)
             return
         elif ctrl and event.ShiftDown() and key in (ord("I"), ord("i")):
             self.on_describe_from_clipboard(None)
@@ -6218,6 +6616,24 @@ class MainWindow(wx.Frame):
         query = self.txt_query.GetValue().strip()
         target_input = self.txt_path.GetValue().strip()
         filter_mode = self.combo_filter.GetSelection()
+        # URL YouTube/social nel percorso: non è una cartella → hub, non ricerca file
+        low_path = target_input.lower()
+        if low_path.startswith("http://") or low_path.startswith("https://"):
+            is_media_page = False
+            try:
+                if rtad_media is not None:
+                    is_media_page = bool(rtad_media.is_page_media_url(target_input))
+            except Exception:
+                is_media_page = False
+            if filter_mode == 2 or is_media_page:
+                speak_accessible(
+                    "Questo URL non va nel percorso di ricerca. "
+                    "Apro l'hub analisi audio/video."
+                )
+                self.open_media_hub_dialog(
+                    initial_url=target_input, clear_source=True
+                )
+                return
         custom_ext = self.txt_custom_ext.GetValue().strip().lower()
         if not custom_ext.startswith(".") and custom_ext:
             custom_ext = "." + custom_ext
@@ -7676,6 +8092,13 @@ class MainWindow(wx.Frame):
             or str(item_data.get("prefix", "")).startswith("[PDF")
         )
         item_all = None
+        item_media_all = None
+        item_media_tech = None
+        item_media_desc = None
+        is_media_result = (
+            ext_sel in MEDIA_EXTS
+            or str(item_data.get("prefix", "")).startswith("[MEDIA")
+        )
         if is_img_result:
             menu.AppendSeparator()
             item_all = menu.Append(wx.ID_ANY, "Tutto sull'immagine…")
@@ -7684,6 +8107,11 @@ class MainWindow(wx.Frame):
             item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
             item_labels = menu.Append(wx.ID_ANY, "Etichette e oggetti")
             item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
+        elif is_media_result:
+            menu.AppendSeparator()
+            item_media_all = menu.Append(wx.ID_ANY, "Tutto sull'audio/video…")
+            item_media_desc = menu.Append(wx.ID_ANY, "Riassunto audio/video")
+            item_media_tech = menu.Append(wx.ID_ANY, "Scheda tecnica audio/video")
         elif is_pdf_result:
             menu.AppendSeparator()
             item_pdf_describe = menu.Append(
@@ -7756,6 +8184,24 @@ class MainWindow(wx.Frame):
                 lambda e: self.show_image_analysis(file_path, mode="tech"),
                 item_tech,
             )
+        if item_media_all is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_media_all_dialog(file_path),
+                item_media_all,
+            )
+        if item_media_desc is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_media_analysis(file_path, mode="describe"),
+                item_media_desc,
+            )
+        if item_media_tech is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_media_analysis(file_path, mode="tech"),
+                item_media_tech,
+            )
         if item_pdf_describe is not None:
             self.Bind(
                 wx.EVT_MENU,
@@ -7782,20 +8228,394 @@ class MainWindow(wx.Frame):
         menu.Destroy()
 
     def _ensure_image_api_keys(self):
-        if rtad_ocr is None:
+        if rtad_ocr is None and rtad_media is None:
             return
         try:
             gkey = load_google_vision_api_key()
-            if gkey:
+            if gkey and rtad_ocr is not None:
                 rtad_ocr.set_google_api_key(gkey)
         except Exception:
             pass
         try:
             gemkey = load_gemini_api_key()
             if gemkey:
-                rtad_ocr.set_gemini_api_key(gemkey)
+                if rtad_ocr is not None:
+                    rtad_ocr.set_gemini_api_key(gemkey)
+                if rtad_media is not None:
+                    rtad_media.set_gemini_api_key(gemkey)
         except Exception:
             pass
+
+    def open_media_hub_dialog(
+        self,
+        initial_path="",
+        initial_url="",
+        preset_sections=None,
+        *,
+        clear_source=False,
+    ):
+        """Hub unificato: filtro Audio/Video, Strumenti, scorciatoia URL."""
+        if getattr(self, "_media_hub_open", False):
+            return
+        path = "" if clear_source else (initial_path or "").strip()
+        if not clear_source and not path:
+            sel = self.lst_results.GetSelection()
+            if sel != wx.NOT_FOUND and sel in self.file_map:
+                cand = self.file_map[sel].get("file_path") or ""
+                ext = os.path.splitext(cand)[1].lower()
+                if cand and os.path.isfile(cand) and ext in MEDIA_EXTS:
+                    path = cand
+        presets = preset_sections
+        if presets is None:
+            presets = getattr(self, "_last_media_sections", None)
+        self.show_media_all_dialog(
+            path if path and os.path.isfile(path) else "",
+            delete_after=False,
+            initial_url=initial_url,
+            show_source=True,
+            preset_sections=presets,
+        )
+
+    def show_media_all_dialog(
+        self,
+        file_path,
+        delete_after=False,
+        initial_url="",
+        show_source=True,
+        preset_sections=None,
+    ):
+        """Dialogo hub «Tutto sull'audio/video» → analisi dopo Avvia."""
+        if getattr(self, "_media_hub_open", False):
+            return
+        self._media_hub_open = True
+        dlg = MediaSectionsDialog(
+            self,
+            title="Tutto sull'audio/video",
+            context_label=os.path.basename(file_path) if file_path else "",
+            show_source=show_source,
+            initial_path=file_path or "",
+            initial_url=initial_url or "",
+            preset_sections=preset_sections,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                if delete_after and file_path and rtad_media is not None:
+                    try:
+                        rtad_media.cleanup_temp_media(file_path)
+                    except Exception:
+                        pass
+                if self.combo_filter.GetSelection() == 2:
+                    speak_accessible(
+                        "Hub chiuso. Per riaprirlo: Strumenti → "
+                        "Tutto sull'audio/video, oppure Invio sul filtro."
+                    )
+                return
+            sel = dlg.selections()
+        finally:
+            dlg.Destroy()
+            self._media_hub_open = False
+
+        self._last_media_sections = {
+            "include_tech": bool(sel.get("include_tech", True)),
+            "include_describe": bool(sel.get("include_describe", True)),
+            "include_transcript": bool(sel.get("include_transcript", False)),
+            "include_timestamps": bool(sel.get("include_timestamps", False)),
+        }
+        url = (sel.get("url") or "").strip()
+        path = (sel.get("file_path") or file_path or "").strip()
+        if url:
+            if rtad_media is None:
+                speak_accessible("Modulo media non disponibile.")
+                return
+            if getattr(self, "_media_analysis_busy", False):
+                speak_accessible(
+                    "Analisi già in corso. Attendi il risultato, "
+                    "poi potrai avviarne un'altra."
+                )
+                self.open_media_hub_dialog(
+                    initial_url=url, preset_sections=self._last_media_sections
+                )
+                return
+            speak_accessible("Download audio/video in corso…")
+            self._set_media_progress(3, "Download audio/video…")
+
+            def _work():
+                res = rtad_media.materialize_media_from_url(
+                    url, on_progress=self._media_progress_cb
+                )
+                if not res.get("ok") or not res.get("path"):
+                    err = res.get("error") or "Download media non riuscito."
+
+                    def _fail():
+                        self._set_media_progress(0, err)
+                        speak_accessible(err)
+                        self.open_media_hub_dialog(
+                            initial_url=url,
+                            preset_sections=self._last_media_sections,
+                        )
+
+                    wx.CallAfter(_fail)
+                    return
+                wx.CallAfter(
+                    self.show_media_analysis,
+                    res["path"],
+                    "all",
+                    sel,
+                    True,
+                )
+
+            threading.Thread(target=_work, daemon=True).start()
+            return
+
+        if not path or not os.path.isfile(path):
+            speak_accessible("File audio/video non trovato.")
+            self.open_media_hub_dialog(
+                initial_url=url, preset_sections=self._last_media_sections
+            )
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            speak_accessible(
+                "Analisi già in corso. Attendi il risultato, "
+                "poi potrai avviarne un'altra."
+            )
+            self.open_media_hub_dialog(preset_sections=self._last_media_sections)
+            return
+        self.show_media_analysis(
+            path, mode="all", sections=sel, delete_after=delete_after
+        )
+
+    def on_media_all_dialog(self, event=None):
+        """Strumenti → hub audio/video (file e/o URL + sezioni)."""
+        self.open_media_hub_dialog()
+
+    def on_ytdlp_tools(self, event=None):
+        """Strumenti → verifica / aggiorna yt-dlp."""
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        st = rtad_media.check_ytdlp_status()
+        msg = st.get("message") or "Stato yt-dlp sconosciuto."
+        buttons = wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION
+        # Sì = aggiorna, No = solo ok, Annulla = chiudi
+        dlg = wx.MessageDialog(
+            self,
+            msg
+            + "\n\nSì = aggiorna ora (yt-dlp -U)\n"
+            "No = chiudi senza aggiornare\n"
+            "Annulla = chiudi",
+            "yt-dlp",
+            buttons,
+        )
+        dlg.SetYesNoLabels("&Aggiorna", "&Chiudi")
+        choice = dlg.ShowModal()
+        dlg.Destroy()
+        if choice != wx.ID_YES:
+            speak_accessible(msg)
+            return
+        speak_accessible("Aggiornamento yt-dlp in corso…")
+
+        def _work():
+            res = rtad_media.update_ytdlp()
+            wx.CallAfter(speak_accessible, res.get("message") or "Fatto.")
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _media_progress_cb(self, percent, message):
+        """Callback thread-safe da rtad_media → UI principale."""
+        wx.CallAfter(self._set_media_progress, percent, message)
+
+    def _set_media_progress(self, percent, message):
+        """Aggiorna gauge + stato (come la ricerca); annuncia solo le fasi chiave."""
+        try:
+            pct = int(max(0, min(100, int(percent or 0))))
+        except Exception:
+            pct = 0
+        msg = (message or "").strip() or "In corso…"
+        text = f"Audio/video: {msg} ({pct}%)"
+        try:
+            if hasattr(self, "gauge") and self.gauge:
+                self.gauge.SetValue(pct)
+            if hasattr(self, "txt_status_progress") and self.txt_status_progress:
+                self.txt_status_progress.SetValue(text)
+        except Exception:
+            pass
+        # Annunci rare: evita coda sintesi durante upload lunghi
+        key = msg.split("…")[0].split("(")[0].strip().lower()
+        last = getattr(self, "_media_progress_announced", "")
+        milestones = (
+            "download",
+            "scheda tecnica",
+            "riassunto",
+            "trascrizione",
+            "upload file api",
+            "analisi gemini",
+            "ripresa trascrizione",
+            "analisi audio/video completata",
+            "download completato",
+        )
+        if key != last and any(m in key for m in milestones):
+            self._media_progress_announced = key
+            speak_accessible(f"{msg}, {pct} percento")
+
+    def show_media_analysis(
+        self, file_path, mode="describe", sections=None, delete_after=False
+    ):
+        """Scheda / riassunto / report completo su audio-video (UI o CLI)."""
+        if not file_path or not os.path.isfile(file_path):
+            speak_accessible("File audio/video non trovato.")
+            return
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            speak_accessible(
+                "Analisi audio/video già in corso. Attendi il risultato."
+            )
+            return
+        self._media_analysis_busy = True
+        self._media_analysis_gen = int(getattr(self, "_media_analysis_gen", 0) or 0) + 1
+        gen = self._media_analysis_gen
+        self._media_progress_announced = ""
+        if isinstance(sections, dict):
+            self._last_media_sections = {
+                "include_tech": bool(sections.get("include_tech", True)),
+                "include_describe": bool(sections.get("include_describe", True)),
+                "include_transcript": bool(sections.get("include_transcript", False)),
+                "include_timestamps": bool(sections.get("include_timestamps", False)),
+            }
+        self._ensure_image_api_keys()
+        if mode in ("describe", "transcript", "all") and not load_gemini_api_key():
+            if mode == "tech" or (
+                mode == "all"
+                and sections
+                and sections.get("include_tech")
+                and not sections.get("include_describe")
+                and not sections.get("include_transcript")
+            ):
+                speak_accessible("Scheda tecnica audio/video in corso…")
+            else:
+                speak_accessible(
+                    "Per riassunto o trascrizione serve la chiave Gemini "
+                    "(Strumenti). Procedo comunque con le sezioni possibili."
+                )
+        else:
+            speak_accessible("Analisi audio/video in corso…")
+        self._set_media_progress(8, "Analisi audio/video…")
+
+        def _work():
+            title = "Audio/video"
+            body = ""
+            try:
+                if mode == "all":
+                    title = "Tutto sull'audio/video"
+                    sec = sections or {}
+                    body = rtad_media.format_full_media_report(
+                        file_path,
+                        include_tech=sec.get("include_tech", True),
+                        include_describe=sec.get("include_describe", True),
+                        include_transcript=sec.get("include_transcript", False),
+                        include_timestamps=sec.get("include_timestamps", False),
+                        on_progress=self._media_progress_cb,
+                    )
+                elif mode == "tech":
+                    title = "Scheda tecnica audio/video"
+                    self._media_progress_cb(20, "Scheda tecnica…")
+                    body = rtad_media.format_media_tech_sheet(
+                        rtad_media.get_media_tech_info(file_path)
+                    )
+                    self._media_progress_cb(100, "Analisi audio/video completata.")
+                elif mode == "transcript":
+                    title = "Trascrizione audio/video"
+                    tr = rtad_media.transcribe_media_gemini(
+                        file_path,
+                        include_timestamps=bool(
+                            (sections or {}).get("include_timestamps", False)
+                        ),
+                        on_progress=self._media_progress_cb,
+                    )
+                    if tr.get("ok") and (tr.get("text") or "").strip():
+                        body = (tr.get("text") or "").strip()
+                    else:
+                        body = tr.get("error") or "Trascrizione non disponibile."
+                    self._media_progress_cb(100, "Analisi audio/video completata.")
+                else:
+                    title = "Riassunto audio/video"
+                    desc = rtad_media.describe_media_gemini(
+                        file_path, on_progress=self._media_progress_cb
+                    )
+                    if desc.get("ok") and (desc.get("text") or "").strip():
+                        body = (desc.get("text") or "").strip()
+                    else:
+                        body = desc.get("error") or "Riassunto non disponibile."
+                    self._media_progress_cb(100, "Analisi audio/video completata.")
+            except Exception as e:
+                title = "Errore analisi audio/video"
+                body = str(e)
+
+            def _show():
+                self._media_analysis_busy = False
+                if gen != getattr(self, "_media_analysis_gen", 0):
+                    return
+                if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
+                    self._image_info_frames = []
+                # Solo pulsante esplicito: niente hub automatico (rubava focus dopo Avvia)
+                want_hub = True
+                frm = ImageInfoFrame(
+                    None,
+                    title,
+                    body,
+                    image_path=file_path,
+                    action_label="&Nuova analisi…",
+                    action_cb=self._reopen_media_hub_ready_for_next,
+                    after_close_cb=None,
+                )
+
+                def _cleanup_and_list(evt, frame=frm, path=file_path, do_del=delete_after):
+                    try:
+                        if frame in self._image_info_frames:
+                            self._image_info_frames.remove(frame)
+                    except Exception:
+                        pass
+                    if do_del and rtad_media is not None:
+                        try:
+                            rtad_media.cleanup_temp_media(path)
+                        except Exception:
+                            pass
+                    evt.Skip()
+
+                frm.Bind(wx.EVT_CLOSE, _cleanup_and_list)
+                self._image_info_frames.append(frm)
+                frm.Show()
+                frm.Raise()
+                speak_accessible(
+                    "Report pronto. Per un altro URL: Nuova analisi."
+                )
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _reopen_media_hub_ready_for_next(self):
+        """Hub di nuovo: stesse opzioni, sorgente vuota (nuovo URL)."""
+        if getattr(self, "_media_hub_open", False):
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            speak_accessible(
+                "Analisi ancora in corso. Attendi, poi Nuova analisi."
+            )
+            return
+        speak_accessible(
+            "Hub audio/video: stesse opzioni, incolla un nuovo URL oppure Annulla."
+        )
+        self.open_media_hub_dialog(
+            initial_url="",
+            preset_sections=getattr(self, "_last_media_sections", None),
+            clear_source=True,
+        )
+
+    def on_media_from_url(self, event=None):
+        """Scorciatoia → stesso hub, focus sul campo URL."""
+        self.open_media_hub_dialog()
 
     def show_image_all_dialog(self, file_path):
         """Dialogo unico «Tutto sull'immagine» → subito analisi dopo Avvia."""
@@ -8832,6 +9652,11 @@ def _parse_cli_image_action(argv):
         "--describe-pdf": "describe-pdf",
         "--image-all": "image-all",
         "--batch-folder": "batch-folder",
+        "--media-all": "media-all",
+        "--media-tech": "media-tech",
+        "--describe-media": "describe-media",
+        "--transcribe-media": "transcribe-media",
+        "--media-url": "media-url",
         "--read-doc": "read-doc",
         "--read-pdf": "read-doc",
         "--copy-doc-text": "copy-doc-text",
@@ -8846,7 +9671,7 @@ def _parse_cli_image_action(argv):
         if a in flags:
             mode = flags[a]
             if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                if mode == "describe-url":
+                if mode in ("describe-url", "media-url"):
                     url = args[i + 1]
                 else:
                     path = args[i + 1]
@@ -8856,13 +9681,13 @@ def _parse_cli_image_action(argv):
             continue
         leftover.append(a)
         i += 1
-    if path is None and leftover and mode != "describe-url":
+    if path is None and leftover and mode not in ("describe-url", "media-url"):
         # Primo argomento esistente come path
         for cand in leftover:
             if os.path.exists(cand):
                 path = cand
                 break
-    if url is None and mode == "describe-url" and leftover:
+    if url is None and mode in ("describe-url", "media-url") and leftover:
         url = leftover[0]
     return mode, path, leftover, url
 
@@ -8897,6 +9722,11 @@ def main():
         "describe-pdf",
         "batch-folder",
         "image-all",
+        "media-all",
+        "media-tech",
+        "describe-media",
+        "transcribe-media",
+        "media-url",
     )
     if path_for_search and not doc_cli:
         if os.path.isfile(path_for_search):
@@ -8921,6 +9751,31 @@ def main():
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
         wx.CallLater(400, lambda: frame.show_image_all_dialog(cli_path))
+    elif cli_mode == "media-all" and cli_path and os.path.isfile(cli_path):
+        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
+        save_last_path(frame.txt_path.GetValue())
+        wx.CallLater(400, lambda: frame.show_media_all_dialog(cli_path))
+    elif cli_mode == "media-tech" and cli_path and os.path.isfile(cli_path):
+        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
+        save_last_path(frame.txt_path.GetValue())
+        wx.CallLater(
+            400,
+            lambda: frame.show_media_analysis(cli_path, mode="tech"),
+        )
+    elif cli_mode == "describe-media" and cli_path and os.path.isfile(cli_path):
+        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
+        save_last_path(frame.txt_path.GetValue())
+        wx.CallLater(
+            400,
+            lambda: frame.show_media_analysis(cli_path, mode="describe"),
+        )
+    elif cli_mode == "transcribe-media" and cli_path and os.path.isfile(cli_path):
+        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
+        save_last_path(frame.txt_path.GetValue())
+        wx.CallLater(
+            400,
+            lambda: frame.show_media_analysis(cli_path, mode="transcript"),
+        )
     elif cli_mode == "describe-url" and cli_url:
         def _cli_url():
             if rtad_ocr is None:
@@ -8947,6 +9802,26 @@ def main():
             threading.Thread(target=_work, daemon=True).start()
 
         wx.CallLater(400, _cli_url)
+    elif cli_mode == "media-url" and cli_url:
+        def _cli_media_url():
+            if rtad_media is None:
+                speak_accessible("Modulo media non disponibile.")
+                return
+            speak_accessible("Download audio/video in corso…")
+
+            def _work():
+                res = rtad_media.materialize_media_from_url(cli_url)
+                if not res.get("ok") or not res.get("path"):
+                    wx.CallAfter(
+                        speak_accessible,
+                        res.get("error") or "Download media non riuscito.",
+                    )
+                    return
+                wx.CallAfter(frame.show_media_all_dialog, res["path"], True)
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        wx.CallLater(400, _cli_media_url)
     elif cli_mode == "open-doc" and cli_path and os.path.isfile(cli_path):
         wx.CallLater(400, lambda: frame.prepare_shell_document(cli_path, announce=True))
     elif cli_mode == "read-doc" and cli_path and os.path.isfile(cli_path):

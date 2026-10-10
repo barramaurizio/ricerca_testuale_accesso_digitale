@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.6.5` (GitHub + DataStore OK, 07/10/2026). **Non hotfixare 1.6.5.** Prossima = `1.6.6` (in corso: dialogo unico + batch + PDF ToUnicode + Gemini API).
+**Regola versione:** ultima pubblicata = `1.6.6` (GitHub + DataStore OK, 08/10/2026; #12055 → #12056). **Non hotfixare 1.6.6.** Lavoro corrente = `1.6.7` (audio/video MVP); poi formattazione documenti.
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -136,11 +136,11 @@ Contenuto previsto `1.6.0`:
 - **1.6.3:** Nucleo immagini (descrizione/etichette) + ricerca contenuto visivo (A) + scheda tecnica (B); sottomenù Explorer Standalone; Gemini immersivo + grounding OCR/data; finestra descrizione indipendente — **pubblicata** (GitHub + DataStore, issue #11999 → #12001).  
 - **1.6.4:** Descrivi web/URL/Appunti/cattura; NVDA+Shift+G; alt-text; PDF describe; elenco `[ELENCO]`; fix Explorer in background — **pubblicata** (06/10/2026; DataStore #12027 → #12028).  
 - **1.6.5:** polish icone/grafici web (3BMeteo/wx) + sottomenù Explorer PDF/documenti — **pubblicata** (07/10/2026; DataStore #12044 → #12045).  
-- **1.6.6:** dialogo unico + batch + PDF ToUnicode per font + Gemini API (togliere `temperature`) — **in corso** (codice locale 08/10/2026).  
-- **Oggetti nelle foto:** avviato in 1.6.3; ampliamenti con il blocco immagini.  
-- **Chat Cursor:** nuova chat dedicata per ogni versione (es. «1.6.5…»); chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
+- **1.6.6:** dialogo unico + batch + PDF ToUnicode per font + Gemini API — **pubblicata** (08/10/2026; DataStore #12055 → #12056).
+- **Oggetti nelle foto:** avviato in 1.6.3; blocco immagini chiuso con 1.6.6.
+- **Chat Cursor:** nuova chat dedicata per ogni versione; chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
-- **Descrizione audio/video:** priorità di Maurizio anche senza feedback esterni → dopo chiusura immagini 1.6.6 (pista media/Whisper gemello).
+- **Descrizione audio/video:** avviata in **1.6.7** (media gemello; Whisper di massa resta fuori dal nucleo).
 
 ---
 
@@ -159,8 +159,9 @@ Contenuto previsto `1.6.0`:
 11. ~~**1.6.3** immagini: descrizione + ricerca visiva + scheda tecnica (+ sottomenù Explorer SA)~~ **pubblicata** (`v1.6.3` / `app-v1.6.3`; DataStore OK).
 12. ~~**1.6.4** web/URL/appunti/cattura + Shift+G + alt-text + PDF + elenco~~ **pubblicata** (`v1.6.4` / `app-v1.6.4`; DataStore OK).  
 13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
-14. **1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API (`temperature`) — codice in corso.  
-15. **Dopo blocco immagini:** descrizione audio/video (media/Whisper gemello) — voluta da Maurizio; export/stampa; OneCore native se serve.
+14. ~~**1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API~~ **pubblicata**.  
+15. **1.6.7** descrizione audio/video (MVP media gemello) — in corso.  
+16. **Poi:** completamenti media (1.6.8+); formattazione/struttura documenti; export/stampa; OneCore native se serve.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -176,17 +177,28 @@ Contenuto previsto `1.6.0`:
 1. ~~Fix 3BMeteo / icone web (SVG/WebP, LogNull, fallback cattura)~~.
 2. ~~Sottomenù Explorer PDF/documenti (Apri/Leggi/Copia/Descrivi)~~ — SA `setup.iss`.
 
-### Fase M — `1.6.6` (chiusura immagini + PDF testo + Gemini) — IN CORSO
+### Fase M — `1.6.6` (chiusura immagini + PDF testo + Gemini) — PUBBLICATA
 
-1. ~~Dialogo unico «Tutto sull’immagine»~~ (codice).
-2. ~~Batch cartella~~ (`.rtad.txt` opzionale).
-3. ~~**PDF testo multi-font / ToUnicode per font**~~ (test
-   `docs/samples/rtad-multifont-tounicode.pdf`).
-4. ~~**Gemini API**~~: tolto `generationConfig.temperature` nei due
-   `rtad_ocr.py`. Resta `maxOutputTokens`. Vedi
-   `.cursor/rules/rtad-gemini-api.mdc`.
-5. **Manca per pubblicare:** test UX Maurizio + `compila.bat` / F9 +
-   release GitHub + DataStore.
+1. ~~Dialogo unico «Tutto sull’immagine»~~.
+2. ~~Batch cartella~~ (`.rtad.txt` + Explorer «Analizza immagini…»).
+3. ~~**PDF testo multi-font / ToUnicode per font**~~.
+4. ~~**Gemini API**~~: tolto `generationConfig.temperature`.
+5. ~~GitHub `v1.6.6` + `app-v1.6.6` + DataStore #12055 → #12056~~.
+
+### Fase N — `1.6.7` (audio/video MVP) — IN CORSO
+
+Primo mattone media (come 1.6.3 per le immagini). **Niente** Whisper/ML su tutto il disco.
+
+1. Modulo gemello `rtad_media.py` (SA ↔ Add-on).
+2. **Scheda tecnica** locale: durata, formato, canali/bitrate se disponibili, dimensione, data.
+3. Dialogo **«Tutto sull’audio/video»**: scheda + riassunto/descrizione opt-in (Gemini) + trascrizione opt-in (Gemini; limiti durata/size).
+4. Menu Strumenti + menu contestuale risultati + CLI (`--media-all`, `--media-tech`, `--describe-media`).
+5. Sottomenù Explorer Standalone sui formati media principali.
+6. Guida pratica + novità IT/EN.
+7. Limiti espliciti (file troppo lungo/grande → messaggio chiaro); cache locale leggera.
+8. **Fuori da 1.6.7:** batch cartella media, ricerca nel transcript di massa, Whisper bundlato, lettore documenti strutturato.
+
+*Criterio “fatto”:* da un `.mp3`/`.mp4` apro «Tutto sull’audio/video», vedo la scheda tecnica; con chiave Gemini e file entro i limiti ottengo riassunto e/o trascrizione; stesso flusso SA e Add-on.
 
 ---
 
@@ -194,12 +206,12 @@ Contenuto previsto `1.6.0`:
 
 - ~~Descrivi grafica web / URL / appunti / Shift+G / alt-text / PDF / elenco~~ → `1.6.4`  
 - ~~Polish web meteo + sottomenù PDF/documenti (Apri/Leggi/Copia)~~ → `1.6.5`  
-- ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` (in corso)  
-- **Descrizione audio/video** (priorità Maurizio, anche senza feedback store)  
+- ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` pubblicata  
+- **Descrizione audio/video** → avviata in `1.6.7` (completamenti in 1.6.8+)  
 - **Lettore documenti strutturato** (TOC/capitoli, titoli, link, paragrafi;
-  PDF lunghi / libri / libretti — oltre al testo piano attuale; dopo immagini/media)  
+  PDF lunghi / libri / libretti — formattazione oltre al testo piano; dopo media)  
 - «Apri con» / associazione predefinita Windows (opzionale)  
-- Media/Whisper gemello; export/stampa extra; API OneCore native  
+- Batch media / ricerca nel transcript / Whisper locale opt-in; export/stampa; OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

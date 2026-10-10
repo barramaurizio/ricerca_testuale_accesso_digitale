@@ -1,3 +1,29 @@
+Novità nella Versione 1.6.7
+- «Tutto sull'audio/video»: scheda tecnica locale + riassunto Gemini opt-in + trascrizione parlato opt-in
+- Scheda: Short vs video normale (euristica durata/orientamento) + più metadati Shell se disponibili
+- Opzione timestamp [MM:SS] nella trascrizione (checkbox; attiva solo con trascrizione)
+- Parsing MP4 locale (durata/risoluzione/Short anche in Add-on) + timestamp progressivi
+- Audio/video da URL (Ctrl+Shift+M / Strumenti); link diretti o yt-dlp per YouTube/Vimeo
+- Hub unificato: filtro «Solo Audio e Video» apre URL + file + sezioni; Tools resta disponibile
+- Verifica / aggiorna yt-dlp in-app (hub e Strumenti)
+- yt-dlp: preferisce mux video+audio; sotto tetto Google (~2 GB); messaggi chiari se fallisce
+- yt-dlp: niente video muto da Shorts (mux / coppia A+V / rifiuto trascrizione inventata); scheda con Titolo/ID/URL sorgente
+- ffmpeg consigliato per merge YouTube (winget install Gyan.FFmpeg); senza ffmpeg usa video+audio separati verso Gemini
+- Hub: dopo download fallito si ripresenta con lo stesso URL; dopo chiusura del report (filtro Audio/Video) riparte con opzioni salvate e URL vuoto
+- Una sola analisi media alla volta (evita doppi report se la finestra si chiude a metà)
+- Scheda tecnica: preferenza m4a da yt-dlp + durata WebM/Matroska locale
+- Prompt distinti audio/video (l'mp3 non viene più descritto come «video»)
+- Modulo gemello rtad_media.py (Standalone ↔ Add-on); cache media locale
+- File API Gemini per media oltre 20 MB; tetti = Google (fino a ~2 GB / ~3 h); upload temporaneo
+- Limiti allineati ai massimi File API (non artificiali RTAD); niente trascrizione di massa su tutto il PC
+- Trascrizione lunga: più token di output + ripresa automatica se i timestamp si fermano prima della fine
+- Scheda tecnica: ffprobe (se installato) per durata/risoluzione su MP4 grandi; non declassare MP4 a «solo audio»
+- Report media/immagine: pulsante «Salva testo…» oltre a Copia
+- Avanzamento audio/video: gauge + stato (Alt+S) come in ricerca; fasi download/upload/riassunto/trascrizione
+- Menu Strumenti / contestuale risultati; CLI --media-all / --media-tech / --describe-media
+- Explorer Standalone: sottomenù su mp3/wav/m4a/flac/ogg/mp4/mkv/webm/avi/mov
+- Restano dialogo immagine, batch cartella e PDF multi-font (1.6.6)
+
 Novità nella Versione 1.6.6
 - Dialogo unico «Tutto sull'immagine»: alt-text, descrizione, etichette e scheda tecnica in un solo report (Strumenti / menu contestuale)
 - Batch cartella immagini: analizza tutte le foto e può salvare .rtad.txt accanto a ciascuna

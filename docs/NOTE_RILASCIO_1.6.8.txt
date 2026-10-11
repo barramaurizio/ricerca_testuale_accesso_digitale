@@ -1,0 +1,97 @@
+🌟 Novità della Versione 1.6.8
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.6.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.6.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Documenti strutturati**: DOCX (titoli + link) ed EPUB (sommario/capitoli); PDF con testo piano e messaggio onesto se il TOC non è ancora disponibile.
+- Menu **«Leggi documento (struttura e testo)»**: sommario, link (Invio / Apri link), testo con marcatori [H1]…
+- **Report media**: ricorda l’ultima cartella; nome da titolo/ID URL o dal file locale.
+- **Salvataggio automatico risultati** a fine ricerca (Strumenti + scelta cartella); ordine = lista.
+- **Sfoglia**: cartella/unità oppure singolo file (PDF/DOCX/…).
+- Restano hub audio/video 1.6.7 e dialogo immagine 1.6.6.
+
+## 🇬🇧 English
+
+- **Structured documents**: DOCX (headings + links) and EPUB (TOC/chapters); PDF plain text with an honest message if TOC is not yet available.
+- **“Read document (structure and text)”** menu: outline, links (Enter / Open link), text with [H1] markers…
+- **Media reports**: remember last folder; filename from URL title/ID or local stem.
+- **Auto-save search results** at end of search (Tools + folder choice); same order as the list.
+- **Browse**: folder/drive or a single file (PDF/DOCX/…).
+- Audio/video hub from 1.6.7 and image dialog from 1.6.6 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.6.8.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.6.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.6.8
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.6.8.exe
+RicercaTestualeAccessoDigitale_Portable_v1.6.8.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Documenti strutturati (DOCX/EPUB), Leggi documento, salvataggi report media e risultati automatici, Sfoglia file/cartella; restano audio/video 1.6.7.
+
+Summary EN:
+Structured documents (DOCX/EPUB), Read document, smarter media/result saves, Browse file/folder; audio/video from 1.6.7 remains.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.6.8/ricerca_testuale_accesso_digitale-1.6.8.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[ ] python tools/rtad_release.py check → OK
+[ ] Gemelli rtad_ocr.py / rtad_guida_pratica.py / rtad_media.py / rtad_docstruct.py
+[ ] docs/GUIDA_PRATICA.txt + addon/doc/it/guida_pratica.html sincronizzati
+[ ] Test SA: Leggi documento DOCX/EPUB + auto-save + Sfoglia file
+[ ] Test Add-on: stessa cosa (reinstall .nvda-addon)
+[ ] make_addon / pacchetto .nvda-addon fresco
+[ ] Standalone\compila.bat → F9 setup.iss

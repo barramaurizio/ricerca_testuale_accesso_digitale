@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.6.6` (GitHub + DataStore OK, 08/10/2026; #12055 → #12056). **Non hotfixare 1.6.6.** Lavoro corrente = `1.6.7` (audio/video MVP); poi formattazione documenti.
+**Regola versione:** ultima pubblicata = `1.6.7` (GitHub + DataStore OK, 10/10/2026; #12099 → #12100). **Non hotfixare 1.6.7.** `1.6.8` = **pronta al rilascio** (`NOTE_RILASCIO_1.6.8.txt`).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -140,7 +140,8 @@ Contenuto previsto `1.6.0`:
 - **Oggetti nelle foto:** avviato in 1.6.3; blocco immagini chiuso con 1.6.6.
 - **Chat Cursor:** nuova chat dedicata per ogni versione; chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
-- **Descrizione audio/video:** avviata in **1.6.7** (media gemello; Whisper di massa resta fuori dal nucleo).
+- **Descrizione audio/video:** **1.6.7 pubblicata** (media gemello; Whisper di massa resta fuori dal nucleo).  
+- **1.6.8:** documenti strutturati + UX salvataggi — **pronta al rilascio** (`NOTE_RILASCIO_1.6.8.txt`).
 
 ---
 
@@ -160,8 +161,9 @@ Contenuto previsto `1.6.0`:
 12. ~~**1.6.4** web/URL/appunti/cattura + Shift+G + alt-text + PDF + elenco~~ **pubblicata** (`v1.6.4` / `app-v1.6.4`; DataStore OK).  
 13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
 14. ~~**1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API~~ **pubblicata**.  
-15. **1.6.7** descrizione audio/video (MVP media gemello) — in corso.  
-16. **Poi:** completamenti media (1.6.8+); formattazione/struttura documenti; export/stampa; OneCore native se serve.
+15. ~~**1.6.7** descrizione audio/video (MVP media gemello)~~ **pubblicata**.  
+16. **1.6.8** documenti strutturati + UX salvataggi — pronta al rilascio (`NOTE_RILASCIO_1.6.8.txt`).  
+17. **Poi:** batch media / transcript di massa / Whisper opt-in; export/stampa; OneCore native se serve.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -185,20 +187,21 @@ Contenuto previsto `1.6.0`:
 4. ~~**Gemini API**~~: tolto `generationConfig.temperature`.
 5. ~~GitHub `v1.6.6` + `app-v1.6.6` + DataStore #12055 → #12056~~.
 
-### Fase N — `1.6.7` (audio/video MVP) — IN CORSO
+### Fase N — `1.6.7` (audio/video MVP) — PUBBLICATA
 
-Primo mattone media (come 1.6.3 per le immagini). **Niente** Whisper/ML su tutto il disco.
+1. ~~Modulo gemello `rtad_media.py`~~ + hub URL/yt-dlp + File API (~2 GB / ~3 h).  
+2. ~~Scheda tecnica~~ (ffprobe, Short, Titolo/ID/URL sorgente).  
+3. ~~«Tutto sull’audio/video»~~ + ripresa trascrizione + avanzamento + Salva testo.  
+4. ~~GitHub + DataStore~~ (#12099 → #12100).
 
-1. Modulo gemello `rtad_media.py` (SA ↔ Add-on).
-2. **Scheda tecnica** locale: durata, formato, canali/bitrate se disponibili, dimensione, data.
-3. Dialogo **«Tutto sull’audio/video»**: scheda + riassunto/descrizione opt-in (Gemini) + trascrizione opt-in (Gemini; limiti durata/size).
-4. Menu Strumenti + menu contestuale risultati + CLI (`--media-all`, `--media-tech`, `--describe-media`).
-5. Sottomenù Explorer Standalone sui formati media principali.
-6. Guida pratica + novità IT/EN.
-7. Limiti espliciti (file troppo lungo/grande → messaggio chiaro); cache locale leggera.
-8. **Fuori da 1.6.7:** batch cartella media, ricerca nel transcript di massa, Whisper bundlato, lettore documenti strutturato.
+### Fase O — `1.6.8` (documenti strutturati + UX salvataggi) — PRONTA AL RILASCIO
 
-*Criterio “fatto”:* da un `.mp3`/`.mp4` apro «Tutto sull’audio/video», vedo la scheda tecnica; con chiave Gemini e file entro i limiti ottengo riassunto e/o trascrizione; stesso flusso SA e Add-on.
+Dettaglio: **`docs/PIANO_1.6.8.md`** + **`docs/NOTE_RILASCIO_1.6.8.txt`**.
+
+1. ~~**Formattazione documenti**~~ DOCX/EPUB strutturati; PDF testo piano + messaggio onesto (TOC PDF → 1.6.9).  
+2. ~~**UX feedback**~~ report media (cartella/nome) + auto-salvataggio risultati + Sfoglia file/cartella.  
+3. ~~Guida + novità IT/EN + gemelli + `rtad_docstruct.py`~~.  
+4. Batch media / B0 ricerca transcript → **1.6.9**.
 
 ---
 
@@ -207,11 +210,11 @@ Primo mattone media (come 1.6.3 per le immagini). **Niente** Whisper/ML su tutto
 - ~~Descrivi grafica web / URL / appunti / Shift+G / alt-text / PDF / elenco~~ → `1.6.4`  
 - ~~Polish web meteo + sottomenù PDF/documenti (Apri/Leggi/Copia)~~ → `1.6.5`  
 - ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` pubblicata  
-- **Descrizione audio/video** → avviata in `1.6.7` (completamenti in 1.6.8+)  
-- **Lettore documenti strutturato** (TOC/capitoli, titoli, link, paragrafi;
-  PDF lunghi / libri / libretti — formattazione oltre al testo piano; dopo media)  
+- ~~Descrizione audio/video MVP~~ → `1.6.7` pubblicata  
+- ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`** pronta al rilascio  
+- TOC/link PDF + batch media / ricerca transcript (B0) → **`1.6.9`**  
 - «Apri con» / associazione predefinita Windows (opzionale)  
-- Batch media / ricerca nel transcript / Whisper locale opt-in; export/stampa; OneCore native  
+- Whisper locale opt-in; export/stampa; OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

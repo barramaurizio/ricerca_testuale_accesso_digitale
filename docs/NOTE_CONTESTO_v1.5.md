@@ -1,6 +1,8 @@
 # Note di contesto — Ricerca Testuale Accesso Digitale
 
-Documento di lavoro per nuove chat Cursor. Piano dettagliato: `docs/ROADMAP_DOPO_1.5.0.md`.
+Documento di lavoro per nuove chat Cursor.  
+Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
+**Piano operativo 1.6.8:** `docs/PIANO_1.6.8.md` ← aprire questo in chat nuova.
 
 ## Sorgente
 - GitHub: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -13,32 +15,30 @@ Documento di lavoro per nuove chat Cursor. Piano dettagliato: `docs/ROADMAP_DOPO
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (09/10/2026)
-- **Ultima pubblicata:** `1.6.6` — GitHub (`v1.6.6` + `app-v1.6.6`) + Add-on Store
-  (DataStore #12055 → #12056 accettata). **Non ripubblicare / non hotfixare 1.6.6.**
-- **Lavoro corrente:** `1.6.7` — audio/video MVP (Fase N in roadmap).
+## Stato attuale (11/10/2026)
+- **Ultima pubblicata:** `1.6.7` — GitHub (`v1.6.7` + `app-v1.6.7`) + Add-on Store
+  (DataStore #12099 → #12100 accettata). **Non ripubblicare / non hotfixare 1.6.7.**
+- **Pronta al rilascio:** `1.6.8` — docs/novità/guida aggiornate; vedi `docs/NOTE_RILASCIO_1.6.8.txt`
+  e piano `docs/PIANO_1.6.8.md` (C1+C2 + A documenti; B/B0 rimandati).
 - Chiavi opt-in personali: Google Vision + Gemini (AI Studio), salvate in locale
-- Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py` (nuovo), guida
+- Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_docstruct.py`, guida
 - Promemoria Cursor: `.cursor/rules/rtad-pre-release-check.mdc` (check versioni/docs prima di «vai»)
 
-### Cosa c’è in 1.6.6 (storico / pubblicata)
-1. Dialogo unico «Tutto sull’immagine» + batch cartella (`.rtad.txt`).
-2. Explorer: «Analizza immagini di questa cartella» + «Tutto sull’immagine» nel sottomenù.
-3. **PDF multi-font / ToUnicode per font** (anche `sample-multilingual-text.pdf`).
-4. **Gemini API:** tolto `temperature` da `generationConfig` (avviso AI Studio 07/10/2026).
+### Cosa c’è in 1.6.8 (da pubblicare)
+1. Documenti strutturati DOCX/EPUB + PDF onesto; «Leggi documento…» anche Add-on.
+2. UX salvataggi: report media (cartella/nome) + auto-salvataggio risultati.
+3. Sfoglia cartella **o** singolo file.
+4. Restano hub audio/video 1.6.7.
 
-### Obiettivo 1.6.7 (in corso)
-1. Modulo gemello `rtad_media.py`.
-2. Scheda tecnica audio/video (locale).
-3. Dialogo «Tutto sull’audio/video» (scheda + riassunto Gemini opt-in + trascrizione Gemini opt-in).
-4. Menu / contestuale / CLI / Explorer sui formati media principali.
-5. Guida + novità IT/EN.
-6. **No** Whisper di massa; **no** batch cartella media in questo taglio; **no** lettore documenti strutturato.
+### Cosa c’è in 1.6.7 (storico / pubblicata)
+1. Hub audio/video + URL (yt-dlp/ffmpeg) + File API Gemini (~2 GB / ~3 h).
+2. Scheda tecnica (ffprobe), Short, Titolo/ID/URL sorgente, ripresa trascrizione.
+3. Avanzamento (gauge + Alt+S) + Salva testo report.
+4. Explorer / menu / CLI gemello.
 
-### Dopo 1.6.7
-- Completamenti media (batch, ricerca nel transcript, Whisper locale opt-in) in 1.6.8+
-- **Lettore documenti strutturato** (TOC/capitoli, titoli, link — PDF lunghi / libri)
-- «Apri con» / associazione Windows — lista d’attesa
+### Dopo 1.6.8 (1.6.9+)
+- TOC/link PDF; batch media; ricerca in transcript già in cache poi «trascrivi e cerca» (B0)
+- Whisper locale opt-in; «Apri con» / associazione Windows
 - Canale YouTube **Accesso Digitale** — chat Cursor dedicata, stesso workspace OK
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`

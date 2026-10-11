@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.8)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,18 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.8
+
+- **Documenti strutturati**: DOCX (titoli + link) ed EPUB (sommario/capitoli); PDF con testo piano e messaggio onesto se il TOC non è ancora disponibile.
+- Menu **«Leggi documento (struttura e testo)»** (Standalone e Add-on): sommario, link (Invio / Apri link), testo con marcatori `[H1]`…
+- **Report media**: ricorda l’ultima cartella; nome da titolo/ID URL o dal file locale; default nella cartella del media.
+- **Salvataggio automatico risultati** a fine ricerca (Strumenti + scelta cartella); stesso ordine della lista.
+- **Sfoglia**: cartella/unità oppure singolo file (PDF/DOCX/…).
+- Restano hub audio/video 1.6.7 e dialogo immagine 1.6.6.
+
 ### 🌟 Novità della Versione 1.6.7
 
-*(In corso — ultima pubblicata: **1.6.6**.)*
+*(Pubblicata.)*
 
 - **Tutto sull'audio/video**: scheda (Short/verticale), riassunto, trascrizione e timestamp progressivi opt-in (Gemini).
 - **Hub audio/video**: il filtro «Solo Audio e Video» apre URL, file e sezioni; stesso dialogo da Strumenti.
@@ -128,9 +137,18 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.8
+
+- **Structured documents**: DOCX (headings + links) and EPUB (TOC/chapters); PDF plain text with an honest message if TOC is not yet available.
+- **“Read document (structure and text)”** menu (Standalone and Add-on): outline, links (Enter / Open link), text with `[H1]` markers…
+- **Media reports**: remember last folder; filename from URL title/ID or local stem; default to the media’s folder.
+- **Auto-save search results** at end of search (Tools + folder choice); same order as the list.
+- **Browse**: folder/drive or a single file (PDF/DOCX/…).
+- Audio/video hub from 1.6.7 and image dialog from 1.6.6 remain.
+
 ### 🌟 What's New in Version 1.6.7
 
-*(In progress — last published: **1.6.6**.)*
+*(Published.)*
 
 - **Everything about audio/video**: tech sheet (Short/vertical), summary, transcript and optional progressive timestamps (Gemini).
 - **Audio/video hub**: the “Audio and Video only” filter opens URL, file and sections; same dialog from Tools.

@@ -56,12 +56,16 @@ try:
 except ImportError:
     rtad_epub = None
 try:
+    import rtad_docstruct
+except ImportError:
+    rtad_docstruct = None
+try:
     import rtad_zip
 except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.7"
+APP_VERSION = "1.6.8"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -125,13 +129,66 @@ def normalize_search_text(txt, remove_accents=False):
     return txt.lower()
 
 def normalize_search_targets(target_input):
-    """Spezza percorsi multipli e toglie virgolette / spazi (incolla da Esplora risorse)."""
+    """Spezza percorsi multipli e toglie virgolette / spazi (incolla da Esplora risorse).
+
+    Accetta cartelle, unità (es. I:\\) e singoli file su qualsiasi unità.
+    """
     out = []
     for t in re.split(r"[;,]", target_input or ""):
-        t = (t or "").strip().strip('"').strip("'").strip()
+        t = (t or "").strip()
+        # Virgolette tipografiche / zero-width / NBSP da copia-incolla chat o Word
+        for ch in ('"', "'", "\u201c", "\u201d", "\u2018", "\u2019", "`"):
+            t = t.strip(ch)
+        t = (
+            t.replace("\u200b", "")
+            .replace("\ufeff", "")
+            .replace("\u00a0", " ")
+            .strip()
+        )
+        if t.lower().startswith("percorso:"):
+            t = t.split(":", 1)[1].strip()
+            for ch in ('"', "'", "\u201c", "\u201d"):
+                t = t.strip(ch)
+        # file:///I:/cartella/file.pdf → I:\cartella\file.pdf
+        if t.lower().startswith("file:"):
+            try:
+                from urllib.parse import unquote, urlparse
+                parsed = urlparse(t)
+                path = unquote(parsed.path or "")
+                if re.match(r"^/[A-Za-z]:", path):
+                    path = path[1:]
+                t = path.replace("/", "\\") if path else t
+            except Exception:
+                pass
         if t:
-            out.append(os.path.expandvars(t))
+            t = os.path.expandvars(os.path.expanduser(t))
+            try:
+                # Su Windows preserva le unità tipo I:\ anche se non ancora montate
+                t = os.path.normpath(t)
+            except Exception:
+                pass
+            out.append(t)
     return out
+
+
+def browse_start_dir(current_path: str) -> str:
+    """Cartella di partenza per Sfoglia: se il percorso attuale è un file → genitore."""
+    targets = normalize_search_targets(current_path or "")
+    raw = targets[0] if targets else ""
+    if not raw:
+        return os.path.expanduser("~")
+    try:
+        if os.path.isfile(raw):
+            parent = os.path.dirname(raw)
+            return parent if parent and os.path.isdir(parent) else os.path.expanduser("~")
+        if os.path.isdir(raw):
+            return raw
+        parent = os.path.dirname(raw)
+        if parent and os.path.isdir(parent):
+            return parent
+    except Exception:
+        pass
+    return os.path.expanduser("~")
 
 
 def text_matches_terms(text, terms):
@@ -3499,6 +3556,118 @@ def save_notify_search_end_preference(enabled):
     _save_settings_dict(data)
 
 
+def _safe_filename_stem(text, fallback="rtad_report", max_len=80):
+    """Riduce titolo/query a stem di nome file Windows-safe."""
+    raw = (text or "").strip()
+    if not raw:
+        return fallback
+    cleaned = []
+    for ch in raw:
+        if ch in '<>:"/\\|?*' or ord(ch) < 32:
+            cleaned.append("_")
+        else:
+            cleaned.append(ch)
+    s = re.sub(r"\s+", " ", "".join(cleaned)).strip(" .")
+    if not s:
+        return fallback
+    if len(s) > max_len:
+        s = s[:max_len].rstrip(" .")
+    return s or fallback
+
+
+def _looks_like_temp_dir(path):
+    """True per Temp Windows o cartelle download media RTAD (non usarle come default)."""
+    if not path:
+        return True
+    try:
+        p = os.path.normcase(os.path.abspath(path))
+        tmp = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
+        if p == tmp or p.startswith(tmp + os.sep):
+            return True
+        base = os.path.basename(p).lower()
+        if base.startswith("rtad_media_dl_") or "rtad_media" in base:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def load_last_media_report_dir():
+    data = _load_settings_dict()
+    p = str(data.get("last_media_report_dir", "") or "").strip()
+    return p if p and os.path.isdir(p) else ""
+
+
+def save_last_media_report_dir(path):
+    try:
+        if path and os.path.isfile(path):
+            d = os.path.dirname(os.path.abspath(path))
+        elif path and os.path.isdir(path):
+            d = os.path.abspath(path)
+        else:
+            return
+    except Exception:
+        return
+    if not d or not os.path.isdir(d):
+        return
+    data = _load_settings_dict()
+    data["last_media_report_dir"] = d
+    _save_settings_dict(data)
+
+
+def report_save_stem_for_path(file_path):
+    """Stem per «Salva testo»: file locale, oppure titolo/ID sidecar URL."""
+    base = os.path.basename(file_path) if file_path else "rtad_report"
+    stem = os.path.splitext(base)[0] or "rtad_report"
+    try:
+        if rtad_media is not None and file_path:
+            meta = rtad_media.read_media_source_meta(file_path)
+            title = str(meta.get("title") or "").strip()
+            src_id = str(meta.get("id") or "").strip()
+            if title:
+                return _safe_filename_stem(title, fallback=stem)
+            if src_id:
+                return _safe_filename_stem(src_id, fallback=stem)
+    except Exception:
+        pass
+    return _safe_filename_stem(stem, fallback="rtad_report")
+
+
+def load_auto_save_results_preference():
+    """False di default: salvataggio automatico risultati a fine ricerca."""
+    data = _load_settings_dict()
+    return bool(data.get("auto_save_results", False))
+
+
+def save_auto_save_results_preference(enabled):
+    data = _load_settings_dict()
+    data["auto_save_results"] = bool(enabled)
+    _save_settings_dict(data)
+
+
+def load_last_export_dir():
+    data = _load_settings_dict()
+    p = str(data.get("last_export_dir", "") or "").strip()
+    return p if p and os.path.isdir(p) else ""
+
+
+def save_last_export_dir(path):
+    try:
+        if path and os.path.isfile(path):
+            d = os.path.dirname(os.path.abspath(path))
+        elif path and os.path.isdir(path):
+            d = os.path.abspath(path)
+        else:
+            return
+    except Exception:
+        return
+    if not d or not os.path.isdir(d):
+        return
+    data = _load_settings_dict()
+    data["last_export_dir"] = d
+    _save_settings_dict(data)
+
+
 # Toast WinRT nel Centro notifiche (Windows+N), non il popup wx «Python»
 RTAD_TOAST_AUMID = "AccessoDigitale.RTAD.Standalone"
 
@@ -4415,15 +4584,19 @@ class ImageInfoFrame(wx.Frame):
         if not text.strip():
             speak_accessible("Niente da salvare.")
             return
-        base = os.path.basename(self.image_path) if self.image_path else "rtad_report"
-        stem = os.path.splitext(base)[0] or "rtad_report"
+        stem = report_save_stem_for_path(self.image_path)
+        # Locale: cartella del media; URL/temp: ultima cartella scelta (dialogo sempre modificabile)
         default_dir = ""
         if self.image_path:
-            default_dir = os.path.dirname(os.path.abspath(self.image_path))
+            cand = os.path.dirname(os.path.abspath(self.image_path))
+            if cand and os.path.isdir(cand) and not _looks_like_temp_dir(cand):
+                default_dir = cand
+        if not default_dir:
+            default_dir = load_last_media_report_dir() or os.path.expanduser("~")
         dlg = wx.FileDialog(
             self,
             "Salva testo report",
-            defaultDir=default_dir or os.path.expanduser("~"),
+            defaultDir=default_dir,
             defaultFile=f"{stem}.rtad.txt",
             wildcard="Testo (*.txt)|*.txt|Tutti i file (*.*)|*.*",
             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
@@ -4437,6 +4610,7 @@ class ImageInfoFrame(wx.Frame):
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(text)
+            save_last_media_report_dir(path)
             speak_accessible(f"Testo salvato: {os.path.basename(path)}")
         except Exception as e:
             speak_accessible(f"Salvataggio non riuscito: {e}")
@@ -4446,6 +4620,249 @@ class ImageInfoFrame(wx.Frame):
             self.Close()
         else:
             event.Skip()
+
+
+class DocumentStructureFrame(wx.Frame):
+    """Lettore strutturato DOCX/EPUB: sommario, link e testo (1.6.8)."""
+
+    def __init__(self, parent, file_path, struct):
+        name = os.path.basename(file_path) if file_path else "Documento"
+        super(DocumentStructureFrame, self).__init__(
+            None,
+            title=f"Documento — {name}",
+            size=(780, 620),
+            style=wx.DEFAULT_FRAME_STYLE,
+        )
+        self.file_path = file_path or ""
+        self.struct = struct or {}
+        self.outline = list(self.struct.get("outline") or [])
+        self.links = list(self.struct.get("links") or [])
+        report = ""
+        if rtad_docstruct is not None:
+            try:
+                report = rtad_docstruct.format_structure_report(self.struct)
+            except Exception:
+                report = (self.struct.get("body") or self.struct.get("plain") or "")
+        else:
+            report = (self.struct.get("body") or self.struct.get("plain") or "")
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        summary = (self.struct.get("message") or "").strip() or "Lettura documento."
+        self.lbl_summary = wx.StaticText(panel, label=summary)
+        vbox.Add(self.lbl_summary, 0, wx.ALL | wx.EXPAND, 8)
+
+        if self.outline:
+            vbox.Add(
+                wx.StaticText(panel, label="&Sommario / titoli"),
+                0,
+                wx.LEFT | wx.RIGHT,
+                8,
+            )
+            self.lst_outline = wx.ListBox(panel, style=wx.LB_SINGLE)
+            for i, item in enumerate(self.outline, 1):
+                level = int(item.get("level") or 1)
+                indent = "  " * max(0, level - 1)
+                self.lst_outline.Append(
+                    f"{i}. {indent}[H{level}] {item.get('title') or ''}"
+                )
+            vbox.Add(self.lst_outline, 0, wx.EXPAND | wx.ALL, 8)
+            self.lst_outline.Bind(wx.EVT_LISTBOX_DCLICK, self.on_outline_activate)
+        else:
+            self.lst_outline = None
+
+        if self.links:
+            vbox.Add(
+                wx.StaticText(panel, label="&Link nel documento"),
+                0,
+                wx.LEFT | wx.RIGHT,
+                8,
+            )
+            self.lst_links = wx.ListBox(panel, style=wx.LB_SINGLE)
+            for i, item in enumerate(self.links, 1):
+                self.lst_links.Append(
+                    f"{i}. {item.get('text') or ''} -> {item.get('href') or ''}"
+                )
+            vbox.Add(self.lst_links, 0, wx.EXPAND | wx.ALL, 8)
+            self.lst_links.Bind(wx.EVT_LISTBOX_DCLICK, self.on_link_activate)
+        else:
+            self.lst_links = None
+
+        vbox.Add(
+            wx.StaticText(panel, label="&Testo (con marcatori titolo [H1]…)"),
+            0,
+            wx.LEFT | wx.RIGHT,
+            8,
+        )
+        self.txt_display = wx.TextCtrl(
+            panel,
+            value=report,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+        )
+        vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
+
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.btn_open_link = None
+        if self.links:
+            self.btn_open_link = wx.Button(panel, label="Apri &link selezionato")
+            self.btn_open_link.Bind(wx.EVT_BUTTON, self.on_link_activate)
+            hbox.Add(self.btn_open_link, 0, wx.ALL, 5)
+        btn_copy = wx.Button(panel, label="&Copia testo")
+        btn_copy.Bind(wx.EVT_BUTTON, self.on_copy)
+        hbox.Add(btn_copy, 0, wx.ALL, 5)
+        btn_save = wx.Button(panel, label="&Salva testo…")
+        btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
+        hbox.Add(btn_save, 0, wx.ALL, 5)
+        btn_close = wx.Button(panel, label="Chiudi (ESC)")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
+        hbox.Add(btn_close, 0, wx.ALL, 5)
+        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        panel.SetSizer(vbox)
+        self.Centre()
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        if self.lst_outline is not None and self.lst_outline.GetCount() > 0:
+            self.lst_outline.SetSelection(0)
+            self.lst_outline.SetFocus()
+        else:
+            self.txt_display.SetFocus()
+        speak_accessible(
+            summary
+            + " Usa Tab per sommario, link e testo. Su un link: Invio o Apri link selezionato."
+        )
+
+    def on_outline_activate(self, event=None):
+        if self.lst_outline is None:
+            return
+        sel = self.lst_outline.GetSelection()
+        if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self.outline):
+            return
+        title = (self.outline[sel].get("title") or "").strip()
+        level = int(self.outline[sel].get("level") or 1)
+        needle = f"[H{level}] {title}"
+        content = self.txt_display.GetValue()
+        pos = content.find(needle)
+        if pos < 0:
+            pos = content.find(title)
+        if pos >= 0:
+            self.txt_display.SetFocus()
+            self.txt_display.SetInsertionPoint(pos)
+            try:
+                self.txt_display.ShowPosition(pos)
+                self.txt_display.SetSelection(pos, pos + len(needle if needle in content else title))
+            except Exception:
+                pass
+            speak_accessible(f"Titolo: {title}")
+        else:
+            speak_accessible(f"Titolo in sommario: {title}")
+
+    def on_link_activate(self, event=None):
+        if not self.links:
+            speak_accessible("Nessun link in questo documento.")
+            return
+        sel = 0
+        if self.lst_links is not None:
+            sel = self.lst_links.GetSelection()
+            if sel == wx.NOT_FOUND:
+                sel = 0
+                self.lst_links.SetSelection(0)
+        if sel < 0 or sel >= len(self.links):
+            return
+        href = (self.links[sel].get("href") or "").strip()
+        text = (self.links[sel].get("text") or "").strip()
+        if href.lower().startswith(("http://", "https://")):
+            opened = False
+            try:
+                if sys.platform.startswith("win"):
+                    os.startfile(href)  # più affidabile di webbrowser su Windows
+                    opened = True
+                else:
+                    opened = bool(webbrowser.open(href))
+            except Exception as e:
+                logging.debug(f"os.startfile link fallito: {e}")
+                try:
+                    opened = bool(webbrowser.open(href))
+                except Exception:
+                    opened = False
+            if opened:
+                speak_accessible(f"Apertura link: {text or href}")
+                return
+            speak_accessible(f"Impossibile aprire il link. Destinazione: {href}")
+            return
+        if href.lower().startswith("mailto:"):
+            try:
+                webbrowser.open(href)
+                speak_accessible(f"Apertura link: {text or href}")
+                return
+            except Exception:
+                pass
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(href or text))
+            wx.TheClipboard.Close()
+            speak_accessible(f"Link copiato: {href or text}")
+        else:
+            speak_accessible(f"Link: {href or text}")
+
+    def on_copy(self, event=None):
+        text = self.txt_display.GetValue()
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.Close()
+            speak_accessible("Testo copiato negli appunti.")
+        else:
+            speak_accessible("Impossibile aprire gli appunti.")
+
+    def on_save_text(self, event=None):
+        text = self.txt_display.GetValue() or ""
+        if not text.strip():
+            speak_accessible("Niente da salvare.")
+            return
+        stem = report_save_stem_for_path(self.file_path)
+        default_dir = ""
+        if self.file_path:
+            cand = os.path.dirname(os.path.abspath(self.file_path))
+            if cand and os.path.isdir(cand) and not _looks_like_temp_dir(cand):
+                default_dir = cand
+        if not default_dir:
+            default_dir = load_last_media_report_dir() or os.path.expanduser("~")
+        dlg = wx.FileDialog(
+            self,
+            "Salva testo documento",
+            defaultDir=default_dir,
+            defaultFile=f"{stem}.rtad.txt",
+            wildcard="Testo (*.txt)|*.txt|Tutti i file (*.*)|*.*",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            path = dlg.GetPath()
+        finally:
+            dlg.Destroy()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            save_last_media_report_dir(path)
+            speak_accessible(f"Testo salvato: {os.path.basename(path)}")
+        except Exception as e:
+            speak_accessible(f"Salvataggio non riuscito: {e}")
+
+    def on_char_hook(self, event):
+        key = event.GetKeyCode()
+        if key == wx.WXK_ESCAPE:
+            self.Close()
+            return
+        # Invio sulle liste: CHAR_HOOK è più affidabile del KEY_DOWN sul ListBox con NVDA
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            focused = self.FindFocus()
+            if self.lst_links is not None and focused is self.lst_links:
+                self.on_link_activate()
+                return
+            if self.lst_outline is not None and focused is self.lst_outline:
+                self.on_outline_activate()
+                return
+        event.Skip()
 
 
 class WhatsNewFrame(wx.Frame):
@@ -4464,16 +4881,17 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• «Tutto sull'audio/video»: scheda (anche Short), riassunto,\n"
-            "  trascrizione e timestamp progressivi opt-in (Gemini).\n"
-            "• Hub audio/video + URL (Ctrl+Shift+M); yt-dlp in-app;\n"
-            "  ffmpeg consigliato; Titolo/ID/URL sorgente in scheda.\n"
-            "• File API Gemini oltre 20 MB (tetti Google ~2 GB / ~3 h);\n"
-            "  trascrizioni lunghe con ripresa automatica.\n"
-            "• Scheda tecnica ricca (anche ffprobe); «Salva testo…» nel report.\n"
-            "• Avanzamento audio/video: barra + stato (Alt+S) come in ricerca.\n"
-            "• Restano dialogo immagine, batch cartella e PDF multi-font\n"
-            "  della 1.6.6.\n"
+            "• Documenti strutturati: DOCX (titoli + link) ed EPUB\n"
+            "  (sommario/capitoli); PDF: testo piano + messaggio onesto\n"
+            "  se il TOC non è ancora disponibile.\n"
+            "• Menu «Leggi documento (struttura e testo)» (anche Add-on):\n"
+            "  sommario, link (Invio / Apri link), testo con [H1]…\n"
+            "• Report media: ricorda l'ultima cartella; nome da titolo/ID\n"
+            "  URL o dal file locale; default nella cartella del media.\n"
+            "• Strumenti: salvataggio automatico risultati a fine ricerca\n"
+            "  (+ scelta cartella); ordine = lista risultati.\n"
+            "• Sfoglia: cartella/unità oppure singolo file (PDF/DOCX/…).\n"
+            "• Restano hub audio/video 1.6.7 e dialogo immagine 1.6.6.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -4720,7 +5138,13 @@ class MainWindow(wx.Frame):
         hbox_filter.Add(self.vbox_custom_ext, 1, wx.EXPAND)
         vbox.Add(hbox_filter, 0, wx.EXPAND)
 
-        lbl_path = wx.StaticText(panel, label="Percorso di ricerca (Memoria automatica o inserisci link Feed RSS):")
+        lbl_path = wx.StaticText(
+            panel,
+            label=(
+                "Percorso di ricerca (cartella, unità, singolo file, o URL Feed RSS; "
+                "memoria automatica):"
+            ),
+        )
         vbox.Add(lbl_path, 0, wx.ALL, 5)
 
         hbox_path = wx.BoxSizer(wx.HORIZONTAL)
@@ -5066,6 +5490,18 @@ class MainWindow(wx.Frame):
         except Exception:
             self.item_notify_end.Check(True)
         self.Bind(wx.EVT_MENU, self.on_toggle_notify_search_end, self.item_notify_end)
+        self.item_auto_save = tools_menu.AppendCheckItem(
+            wx.ID_ANY, "Salva &automaticamente i risultati a fine ricerca"
+        )
+        try:
+            self.item_auto_save.Check(load_auto_save_results_preference())
+        except Exception:
+            self.item_auto_save.Check(False)
+        self.Bind(wx.EVT_MENU, self.on_toggle_auto_save_results, self.item_auto_save)
+        item_auto_save_dir = tools_menu.Append(
+            wx.ID_ANY, "Cartella salvataggio &automatico risultati…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_choose_auto_save_dir, item_auto_save_dir)
         self.item_escape_closes = tools_menu.AppendCheckItem(
             wx.ID_ANY, "Esc chiude l'&applicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
         )
@@ -5540,6 +5976,59 @@ class MainWindow(wx.Frame):
         else:
             speak_accessible(
                 "Notifica di sistema a fine ricerca disattivata. Restano bip e annuncio vocale.",
+                force=True,
+            )
+
+    def on_toggle_auto_save_results(self, event=None):
+        enabled = False
+        try:
+            enabled = bool(self.item_auto_save.IsChecked())
+        except Exception:
+            enabled = not load_auto_save_results_preference()
+        dest_note = ""
+        if enabled and not load_last_export_dir():
+            chosen = self._prompt_auto_save_dir()
+            dest_note = f" Cartella: {chosen}." if chosen else ""
+        try:
+            save_auto_save_results_preference(enabled)
+        except Exception:
+            pass
+        if enabled:
+            speak_accessible(
+                "Salvataggio automatico dei risultati a fine ricerca attivato."
+                + dest_note
+                + " Per cambiare cartella: Strumenti, Cartella salvataggio automatico risultati.",
+                force=True,
+            )
+        else:
+            speak_accessible(
+                "Salvataggio automatico dei risultati disattivato.",
+                force=True,
+            )
+
+    def _prompt_auto_save_dir(self):
+        """Chiede/aggiorna la cartella di auto-salvataggio. Ritorna il path o ''."""
+        start = load_last_export_dir() or self.get_dynamic_desktop_path()
+        dlg = wx.DirDialog(
+            self,
+            "Cartella per il salvataggio automatico dei risultati",
+            defaultPath=start,
+            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+        )
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                save_last_export_dir(dlg.GetPath())
+        finally:
+            dlg.Destroy()
+        if not load_last_export_dir():
+            save_last_export_dir(start)
+        return load_last_export_dir() or start
+
+    def on_choose_auto_save_dir(self, event=None):
+        chosen = self._prompt_auto_save_dir()
+        if chosen:
+            speak_accessible(
+                f"Cartella salvataggio automatico: {chosen}.",
                 force=True,
             )
 
@@ -6330,13 +6819,68 @@ class MainWindow(wx.Frame):
         self.Destroy()
 
     def on_browse(self, event):
-        dlg = wx.DirDialog(self, "Seleziona cartella o unità", defaultPath=self.txt_path.GetValue())
-        if dlg.ShowModal() == wx.ID_OK:
-            selected_path = dlg.GetPath()
-            self.txt_path.SetValue(selected_path)
-            save_last_path(selected_path)
-            speak_accessible(f"Percorso impostato: {selected_path}.")
-        dlg.Destroy()
+        """Sfoglia: cartella/unità OPPURE singolo file (PDF/DOCX/… su qualsiasi unità)."""
+        choice_dlg = wx.SingleChoiceDialog(
+            self,
+            "Cosa vuoi impostare come percorso di ricerca?\n"
+            "(Il dialogo «solo cartella» non accetta file PDF/DOCX: scegli «Singolo file».)",
+            "Sfoglia percorso",
+            [
+                "Cartella o unità (cerca in tutta la cartella)",
+                "Singolo file (PDF, DOCX, EPUB, testo, …)",
+            ],
+        )
+        try:
+            choice_dlg.SetSelection(0)
+            if choice_dlg.ShowModal() != wx.ID_OK:
+                return
+            mode = choice_dlg.GetSelection()
+        finally:
+            choice_dlg.Destroy()
+
+        start = browse_start_dir(self.txt_path.GetValue())
+        selected_path = ""
+        if mode == 1:
+            fd = wx.FileDialog(
+                self,
+                "Seleziona file da cercare",
+                defaultDir=start,
+                wildcard=(
+                    "Documenti|*.pdf;*.docx;*.doc;*.odt;*.epub;*.txt;*.md;"
+                    "*.html;*.htm;*.rtf;*.csv;*.log|"
+                    "PDF (*.pdf)|*.pdf|"
+                    "Word (*.docx;*.doc)|*.docx;*.doc|"
+                    "EPUB (*.epub)|*.epub|"
+                    "Tutti i file (*.*)|*.*"
+                ),
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+            )
+            try:
+                if fd.ShowModal() != wx.ID_OK:
+                    return
+                selected_path = fd.GetPath()
+            finally:
+                fd.Destroy()
+        else:
+            dd = wx.DirDialog(
+                self,
+                "Seleziona cartella o unità",
+                defaultPath=start,
+                style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+            )
+            try:
+                if dd.ShowModal() != wx.ID_OK:
+                    return
+                selected_path = dd.GetPath()
+            finally:
+                dd.Destroy()
+
+        if not selected_path:
+            return
+        self.txt_path.SetValue(selected_path)
+        save_last_path(selected_path)
+        kind = "file" if os.path.isfile(selected_path) else "cartella"
+        speak_accessible(f"Percorso impostato ({kind}): {selected_path}.")
 
     def on_take_screenshot(self, event):
         try:
@@ -6359,6 +6903,44 @@ class MainWindow(wx.Frame):
             logging.error(f"Fallimento salvataggio screenshot: {e}")
             speak_accessible("Impossibile salvare lo screenshot.")
 
+    def _write_results_export_txt(self, export_file):
+        """Scrive l'elenco risultati in testo (export manuale e auto-salvataggio)."""
+        with open(export_file, "w", encoding="utf-8") as f:
+            f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
+            f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Parola cercata: {self.current_query}\n")
+            f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
+            for idx, item in enumerate(self.current_matches, 1):
+                loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
+                f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
+                if item.get("snippet"):
+                    f.write(f"    Estratto: {item['snippet']}\n")
+                f.write("-" * 50 + "\n")
+
+    def _auto_save_results_if_enabled(self):
+        """A fine ricerca completa: salva elenco se l'opzione è attiva. Ritorna il path o ''."""
+        if self._stop_search or not load_auto_save_results_preference():
+            return ""
+        dest_dir = load_last_export_dir() or self.get_dynamic_desktop_path()
+        if not dest_dir or not os.path.isdir(dest_dir):
+            dest_dir = self.get_dynamic_desktop_path()
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        qstem = _safe_filename_stem(
+            self.current_query or "ricerca", fallback="ricerca", max_len=40
+        )
+        path = os.path.join(dest_dir, f"RTAD_risultati_{stamp}_{qstem}.txt")
+        if os.path.exists(path):
+            stamp2 = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(dest_dir, f"RTAD_risultati_{stamp2}_{qstem}.txt")
+        try:
+            self._write_results_export_txt(path)
+            save_last_export_dir(path)
+            logging.info(f"Auto-salvati {len(self.current_matches)} risultati in {path}")
+            return path
+        except Exception as e:
+            logging.error(f"Errore auto-salvataggio risultati: {e}")
+            return ""
+
     def on_export_results(self, event):
         if not self.current_matches:
             speak_accessible("Nessun risultato da esportare.")
@@ -6366,8 +6948,9 @@ class MainWindow(wx.Frame):
             
         wildcard_filters = "File di Testo (*.txt)|*.txt|Pagina Web HTML (*.html)|*.html|File CSV per Tabelle (*.csv)|*.csv"
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_dir = load_last_export_dir() or self.get_dynamic_desktop_path()
         dlg = wx.FileDialog(self, message="Esporta Risultati", 
-                            defaultDir=self.get_dynamic_desktop_path(),
+                            defaultDir=default_dir,
                             defaultFile=f"Risultati_Ricerca_{timestamp}",
                             wildcard=wildcard_filters, 
                             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
@@ -6401,18 +6984,9 @@ class MainWindow(wx.Frame):
                         f.write("</body></html>")
                 
                 else: 
-                    with open(export_file, "w", encoding="utf-8") as f:
-                        f.write(f"=== {APP_TITLE} v{APP_VERSION} - Risultati Ricerca ===\n")
-                        f.write(f"Data: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
-                        f.write(f"Parola cercata: {self.current_query}\n")
-                        f.write(f"Totale risultati: {len(self.current_matches)}\n\n")
-                        for idx, item in enumerate(self.current_matches, 1):
-                            loc = f" [{item.get('location_info', '')}]" if item.get("location_info") else ""
-                            f.write(f"{idx}. {item['file_name']}{loc}\n    Percorso: {item['file_path']}\n")
-                            if item.get("snippet"):
-                                f.write(f"    Estratto: {item['snippet']}\n")
-                            f.write("-" * 50 + "\n")
+                    self._write_results_export_txt(export_file)
                 
+                save_last_export_dir(export_file)
                 logging.info(f"Esportati {len(self.current_matches)} risultati in {export_file}")
                 speak_accessible("Risultati esportati con successo nel formato scelto.")
             except Exception as e:
@@ -7770,15 +8344,26 @@ class MainWindow(wx.Frame):
             pass
         self.update_list_display()
 
-    def sort_and_display_matches(self, sort_type="recent_first"):
+    def _apply_results_sort(self, sort_type=None):
+        """Ordina current_matches come in lista (stesso criterio dell'auto-salvataggio)."""
+        if sort_type is None:
+            sort_type = getattr(self, "current_sort", None) or "recent_first"
         self.current_sort = sort_type
         if sort_type == "recent_first":
-            self.current_matches.sort(key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0), reverse=True)
+            self.current_matches.sort(
+                key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0),
+                reverse=True,
+            )
         elif sort_type == "oldest_first":
-            self.current_matches.sort(key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0), reverse=False)
+            self.current_matches.sort(
+                key=lambda x: (x.get("mtime") or 0, x.get("line_number") or 0),
+                reverse=False,
+            )
         elif sort_type == "name":
             self.current_matches.sort(key=lambda x: (x.get("file_name") or "").lower())
 
+    def sort_and_display_matches(self, sort_type="recent_first"):
+        self._apply_results_sort(sort_type)
         self.update_list_display()
 
     def update_list_display(self):
@@ -7896,6 +8481,19 @@ class MainWindow(wx.Frame):
                 )
 
         missing_targets = getattr(self, "last_missing_targets", None) or []
+        # Ordina prima del salvataggio: il .txt replica l'ordine della lista risultati
+        try:
+            self._apply_results_sort(getattr(self, "current_sort", None) or "recent_first")
+        except Exception:
+            pass
+        saved_note = ""
+        if not self._stop_search:
+            try:
+                saved_path = self._auto_save_results_if_enabled()
+                if saved_path:
+                    saved_note = f" Risultati salvati in {saved_path}."
+            except Exception:
+                pass
         if self._stop_search:
             text = (
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
@@ -7906,6 +8504,7 @@ class MainWindow(wx.Frame):
             text = (
                 f"Ricerca completata: 100% ({self.scanned_count} file). "
                 f"Trovati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}{late_note}"
+                f"{saved_note}"
             )
             if self.scanned_count == 0 and missing_targets:
                 text += (
@@ -7925,7 +8524,9 @@ class MainWindow(wx.Frame):
                 f"File grandi saltati (non posta): {skipped_large}. OCR: {ocr_stats}."
                 f" Percorsi mancanti: {missing_targets}."
             )
-            speak_accessible(f"Completata. Trovati {matches} risultati.{feed_speak}")
+            speak_accessible(
+                f"Completata. Trovati {matches} risultati.{feed_speak}{saved_note}"
+            )
         self.txt_status_progress.SetValue(text)
         self.btn_search.Enable()
         self.btn_cancel.Disable()
@@ -8122,7 +8723,9 @@ class MainWindow(wx.Frame):
         if is_shell_doc and not is_img_result:
             if not is_pdf_result:
                 menu.AppendSeparator()
-            item_read_doc = menu.Append(wx.ID_ANY, "Leggi testo del documento")
+            item_read_doc = menu.Append(
+                wx.ID_ANY, "Leggi documento (struttura e testo)"
+            )
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
         if has_att:
@@ -9010,8 +9613,27 @@ class MainWindow(wx.Frame):
                 )
         return True
 
+    def _show_document_structure_frame(self, file_path, struct):
+        """Mostra il lettore strutturato (tiene riferimento anti-GC)."""
+        if not hasattr(self, "_doc_struct_frames") or self._doc_struct_frames is None:
+            self._doc_struct_frames = []
+        frm = DocumentStructureFrame(None, file_path, struct)
+
+        def _cleanup(evt, frame=frm):
+            try:
+                if frame in self._doc_struct_frames:
+                    self._doc_struct_frames.remove(frame)
+            except Exception:
+                pass
+            evt.Skip()
+
+        frm.Bind(wx.EVT_CLOSE, _cleanup)
+        self._doc_struct_frames.append(frm)
+        frm.Show()
+        frm.Raise()
+
     def read_document_file(self, file_path):
-        """Apre una finestra con il testo estratto dal documento/PDF."""
+        """Apre lettore strutturato (DOCX/EPUB) o testo piano (PDF/altro)."""
         if not file_path or not os.path.isfile(file_path):
             speak_accessible("File non trovato.")
             return
@@ -9019,9 +9641,41 @@ class MainWindow(wx.Frame):
         speak_accessible(f"Lettura di «{name}» in corso…")
 
         def _work():
+            ext = os.path.splitext(file_path)[1].lower()
+            if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc"):
+                try:
+                    struct = rtad_docstruct.extract_document_structure(file_path)
+                except Exception as e:
+                    struct = {
+                        "ok": False,
+                        "has_structure": False,
+                        "outline": [],
+                        "links": [],
+                        "body": "",
+                        "plain": "",
+                        "message": f"Errore analisi struttura: {e}",
+                    }
+                body = (struct.get("body") or struct.get("plain") or "").strip()
+                if not body and ext in (".docx", ".epub"):
+                    plain = extract_document_text(file_path)
+                    if plain:
+                        struct["body"] = plain
+                        struct["plain"] = plain
+                        struct["ok"] = True
+                        body = plain
+                if body or struct.get("has_structure") or (struct.get("message") and ext == ".doc"):
+                    wx.CallAfter(
+                        self._show_document_structure_frame, file_path, struct
+                    )
+                    if not body and not struct.get("has_structure"):
+                        wx.CallAfter(
+                            speak_accessible,
+                            struct.get("message") or "Nessun testo estraibile.",
+                        )
+                    return
+
             text = extract_document_text(file_path)
             if not (text or "").strip():
-                ext = os.path.splitext(file_path)[1].lower()
                 if ext == ".pdf" and get_best_pdf_page_image(file_path):
                     msg = (
                         "Questo PDF sembra una scansione: nessun testo estraibile. "
@@ -9032,8 +9686,39 @@ class MainWindow(wx.Frame):
                         "Nessun testo estraibile da questo file "
                         "(formato non supportato, protetto o vuoto)."
                     )
+                if ext == ".pdf" and rtad_docstruct is not None:
+                    try:
+                        note = rtad_docstruct.extract_document_structure(file_path).get(
+                            "message"
+                        )
+                        if note:
+                            msg = note + " " + msg
+                    except Exception:
+                        pass
                 wx.CallAfter(speak_accessible, msg)
                 return
+
+            # PDF: testo piano + nota onesta su TOC non ancora supportato
+            if ext == ".pdf" and rtad_docstruct is not None:
+                try:
+                    pdf_note = rtad_docstruct.extract_document_structure(file_path)
+                    struct = {
+                        "ok": True,
+                        "format": "pdf",
+                        "has_structure": False,
+                        "outline": [],
+                        "links": [],
+                        "body": text,
+                        "plain": text,
+                        "message": pdf_note.get("message")
+                        or "PDF: testo piano (senza TOC/link in questa versione).",
+                    }
+                    wx.CallAfter(
+                        self._show_document_structure_frame, file_path, struct
+                    )
+                    return
+                except Exception:
+                    pass
 
             def _show():
                 frame = ImageInfoFrame(

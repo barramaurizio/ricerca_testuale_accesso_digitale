@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.8)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.9)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,16 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.6.9
+
+- **PDF strutturati**: sommario/TOC e link URI in «Leggi documento (struttura e testo)» (insieme a DOCX/EPUB). Con Invio: testo accessibile in RTAD (anche se Acrobat riparte dall’inizio) + app predefinita Windows alla pagina (salto se Acrobat/Sumatra). Guida pratica: escamotage Acrobat/NVDA.
+- **Report media**: titoli lunghi quasi interi nel nome `.rtad.txt` (stem fino a ~220 caratteri; non più tagliati a ~80).
+- **Ricerca parole nei video**: dopo «Salva testo…», cerca nei `.rtad.txt` come file di testo (stesso contenuto della trascrizione/descrizione, zero costi extra).
+- Restano documenti strutturati 1.6.8, hub audio/video 1.6.7, dialogo immagine 1.6.6.
+
 ### 🌟 Novità della Versione 1.6.8
+
+*(Pubblicata.)*
 
 - **Documenti strutturati**: DOCX (titoli + link) ed EPUB (sommario/capitoli); PDF con testo piano e messaggio onesto se il TOC non è ancora disponibile.
 - Menu **«Leggi documento (struttura e testo)»** (Standalone e Add-on): sommario, link (Invio / Apri link), testo con marcatori `[H1]`…
@@ -137,7 +146,16 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.6.9
+
+- **Structured PDFs**: TOC/outline and URI links in “Read document (structure and text)” (alongside DOCX/EPUB).
+- **Media reports**: long titles kept almost in full in `.rtad.txt` filenames (no longer cut at ~80 characters).
+- **Find words in videos**: after “Save text…”, search the `.rtad.txt` files as normal text (same content as the transcript/description, no extra cost).
+- Structured documents 1.6.8, audio/video hub 1.6.7, and image dialog 1.6.6 remain.
+
 ### 🌟 What's New in Version 1.6.8
+
+*(Published.)*
 
 - **Structured documents**: DOCX (headings + links) and EPUB (TOC/chapters); PDF plain text with an honest message if TOC is not yet available.
 - **“Read document (structure and text)”** menu (Standalone and Add-on): outline, links (Enter / Open link), text with `[H1]` markers…

@@ -141,7 +141,8 @@ Contenuto previsto `1.6.0`:
 - **Chat Cursor:** nuova chat dedicata per ogni versione; chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
 - **Descrizione audio/video:** **1.6.7 pubblicata** (media gemello; Whisper di massa resta fuori dal nucleo).  
-- **1.6.8:** documenti strutturati + UX salvataggi — **pronta al rilascio** (`NOTE_RILASCIO_1.6.8.txt`).
+- **1.6.8:** documenti strutturati + UX salvataggi — **pronta / da pubblicare** (`NOTE_RILASCIO_1.6.8.txt`).  
+- **1.6.9:** PDF TOC/link + titoli lunghi report + guida ricerca via `.rtad.txt` — **in corso** (`NOTE_RILASCIO_1.6.9.txt`).
 
 ---
 
@@ -162,8 +163,9 @@ Contenuto previsto `1.6.0`:
 13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
 14. ~~**1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API~~ **pubblicata**.  
 15. ~~**1.6.7** descrizione audio/video (MVP media gemello)~~ **pubblicata**.  
-16. **1.6.8** documenti strutturati + UX salvataggi — pronta al rilascio (`NOTE_RILASCIO_1.6.8.txt`).  
-17. **Poi:** batch media / transcript di massa / Whisper opt-in; export/stampa; OneCore native se serve.
+16. **1.6.8** documenti strutturati + UX salvataggi — pronta / da pubblicare.  
+17. **1.6.9** PDF TOC/link + titoli report + ricerca parole video via `.rtad.txt` — in corso.  
+18. **Poi:** batch media / B0 cache / Whisper opt-in; export/stampa; OneCore native se serve.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -194,7 +196,7 @@ Contenuto previsto `1.6.0`:
 3. ~~«Tutto sull’audio/video»~~ + ripresa trascrizione + avanzamento + Salva testo.  
 4. ~~GitHub + DataStore~~ (#12099 → #12100).
 
-### Fase O — `1.6.8` (documenti strutturati + UX salvataggi) — PRONTA AL RILASCIO
+### Fase O — `1.6.8` (documenti strutturati + UX salvataggi) — PRONTA / DA PUBBLICARE
 
 Dettaglio: **`docs/PIANO_1.6.8.md`** + **`docs/NOTE_RILASCIO_1.6.8.txt`**.
 
@@ -202,6 +204,15 @@ Dettaglio: **`docs/PIANO_1.6.8.md`** + **`docs/NOTE_RILASCIO_1.6.8.txt`**.
 2. ~~**UX feedback**~~ report media (cartella/nome) + auto-salvataggio risultati + Sfoglia file/cartella.  
 3. ~~Guida + novità IT/EN + gemelli + `rtad_docstruct.py`~~.  
 4. Batch media / B0 ricerca transcript → **1.6.9**.
+
+### Fase P — `1.6.9` (PDF TOC + polish media) — IN CORSO
+
+Dettaglio: **`docs/PIANO_1.6.9.md`** + **`docs/NOTE_RILASCIO_1.6.9.txt`**.
+
+1. ~~**PDF TOC/link**~~ in `rtad_docstruct` + «Leggi documento».  
+2. ~~**Titoli lunghi**~~ stem `.rtad.txt` fino a ~200 caratteri.  
+3. ~~**Guida**~~: ricerca parole nei video via `.rtad.txt` salvati.  
+4. Batch media / B0 MVP cache (se tempo).
 
 ---
 
@@ -211,8 +222,9 @@ Dettaglio: **`docs/PIANO_1.6.8.md`** + **`docs/NOTE_RILASCIO_1.6.8.txt`**.
 - ~~Polish web meteo + sottomenù PDF/documenti (Apri/Leggi/Copia)~~ → `1.6.5`  
 - ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` pubblicata  
 - ~~Descrizione audio/video MVP~~ → `1.6.7` pubblicata  
-- ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`** pronta al rilascio  
-- TOC/link PDF + batch media / ricerca transcript (B0) → **`1.6.9`**  
+- ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`**  
+- ~~TOC/link PDF + titoli report + guida `.rtad.txt`~~ → **`1.6.9`** in corso  
+- Batch media / B0 MVP su cache transcript  
 - «Apri con» / associazione predefinita Windows (opzionale)  
 - Whisper locale opt-in; export/stampa; OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  

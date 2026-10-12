@@ -78,7 +78,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.8"
+APP_VERSION = "1.6.9"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1973,23 +1973,29 @@ def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
     blob = " ".join(pieces)
     blob = blob.replace("\r\n", "\n").replace("\r", "\n")
     blob = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", blob)
+    blob = _pdf_trim_binary_tail(blob)
     lines = []
     for part in blob.split("\n"):
         part = re.sub(r"[ \t]+", " ", part).strip()
-        if not part or _pdf_looks_like_garbage(part):
+        if not part:
             continue
+        chunks = []
         if len(part) <= 240:
-            lines.append(part)
+            chunks.append(part)
         else:
             while part:
                 if len(part) <= 240:
-                    lines.append(part)
+                    chunks.append(part)
                     break
                 cut = part.rfind(" ", 0, 240)
                 if cut < 40:
                     cut = 240
-                lines.append(part[:cut].strip())
+                chunks.append(part[:cut].strip())
                 part = part[cut:].strip()
+        for chunk in chunks:
+            if not chunk or _pdf_looks_like_garbage(chunk):
+                continue
+            lines.append(chunk)
 
     return lines
 
@@ -2526,6 +2532,30 @@ def _pdf_text_from_content_stream(
     return [p for p in pieces if p]
 
 
+def _pdf_trim_binary_tail(text):
+    """Taglia solo la coda binaria finale (non a metà documento)."""
+    if not text or len(text) < 200:
+        return text
+    window = min(2500, len(text) // 5)
+    start = len(text) - window
+    tail = text[start:]
+    m = re.search(
+        r"""["']\s*[bB]\s*&\s*["']|"""
+        r"ÿ{2,}|"
+        r"[\x80-\x9f]{3,}|"
+        r"(?:\ufffd){2,}",
+        tail,
+    )
+    if m:
+        return text[: start + m.start()].rstrip()
+    letters = sum(1 for c in text[-120:] if c.isalpha())
+    if letters < 15:
+        cut = text.rfind(". ", 0, len(text) - 40)
+        if cut > len(text) * 0.7:
+            return text[: cut + 1]
+    return text
+
+
 def _pdf_looks_like_garbage(line: str):
     s = line.strip()
     if len(s) < 2:
@@ -2539,14 +2569,35 @@ def _pdf_looks_like_garbage(line: str):
         return True
     if re.fullmatch(r"D:\d{8,}.*", s):
         return True
-    if s in ("True", "False", "Standard", "it", "en", "Identity", "stream", "obj"):
+    if s in (
+        "True",
+        "False",
+        "Standard",
+        "it",
+        "en",
+        "Identity",
+        "stream",
+        "obj",
+        "Macintosh",
+        "Mac OS",
+    ):
         return True
-    # poca lettera/cifra rispetto alla lunghezza → binario/simboli
+    if "ÿÿÿ" in s or "\ufffd\ufffd" in s or s.count("ÿ") >= 3:
+        return True
+    if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", s):
+        return True
     alnum = sum(1 for c in s if c.isalnum() or c.isspace())
     if alnum < max(3, len(s) // 2):
         return True
-    bad = sum(1 for c in s if ord(c) < 9 or c in "\x00\ufffdþÿÎÔ")
-    if bad and bad >= max(1, len(s) // 5):
+    letters = sum(1 for c in s if c.isalpha())
+    if len(s) >= 40 and letters < len(s) // 5:
+        return True
+    bad = sum(
+        1
+        for c in s
+        if ord(c) < 9 or c in "\x00\ufffdþÿÎÔ" or (0x80 <= ord(c) <= 0x9F)
+    )
+    if bad and bad >= max(1, len(s) // 8):
         return True
     return False
 
@@ -3103,8 +3154,13 @@ def save_notify_search_end_preference(enabled):
     _save_settings_dict(data)
 
 
-def _safe_filename_stem(text, fallback="rtad_report", max_len=80):
-    """Riduce titolo/query a stem di nome file Windows-safe."""
+def _safe_filename_stem(text, fallback="rtad_report", max_len=220):
+    """Riduce titolo/query a stem di nome file Windows-safe.
+
+    max_len~220: titoli lunghi (YouTube ecc.) restano quasi interi;
+    sotto i ~255 del solo nome file (+ .rtad.txt). Il percorso intero
+    resta soggetto al MAX_PATH (~260) se LongPaths non è attivo.
+    """
     raw = (text or "").strip()
     if not raw:
         return fallback
@@ -5147,7 +5203,7 @@ class ImageInfoFrame(wx.Frame):
 
 
 class DocumentStructureFrame(wx.Frame):
-    """Lettore strutturato DOCX/EPUB: sommario, link e testo (1.6.8)."""
+    """Lettore strutturato DOCX/EPUB/PDF: sommario, link e testo."""
 
     def __init__(self, parent, file_path, struct):
         name = os.path.basename(file_path) if file_path else "Documento"
@@ -5185,11 +5241,18 @@ class DocumentStructureFrame(wx.Frame):
                 8,
             )
             self.lst_outline = wx.ListBox(panel, style=wx.LB_SINGLE)
+            try:
+                self.lst_outline.SetName("Sommario titoli")
+            except Exception:
+                pass
             for i, item in enumerate(self.outline, 1):
                 level = int(item.get("level") or 1)
                 indent = "  " * max(0, level - 1)
+                title = item.get("title") or ""
+                page = item.get("page")
+                page_bit = f" — pag. PDF {int(page)}" if page else ""
                 self.lst_outline.Append(
-                    f"{i}. {indent}[H{level}] {item.get('title') or ''}"
+                    f"{i}. {indent}[H{level}] {title}{page_bit}"
                 )
             vbox.Add(self.lst_outline, 0, wx.EXPAND | wx.ALL, 8)
             self.lst_outline.Bind(wx.EVT_LISTBOX_DCLICK, self.on_outline_activate)
@@ -5224,6 +5287,10 @@ class DocumentStructureFrame(wx.Frame):
             value=report,
             style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
         )
+        try:
+            self.txt_display.SetName("Testo del documento")
+        except Exception:
+            pass
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -5252,8 +5319,154 @@ class DocumentStructureFrame(wx.Frame):
             self.txt_display.SetFocus()
         rtad_speak(
             summary
-            + " Usa Tab per sommario, link e testo. Su un link: Invio o Apri link selezionato."
+            + " Usa Tab per sommario, link e testo. "
+            "Sul sommario: Invio va al testo della sezione qui in RTAD. "
+            "I link «Sito web» sono esterni (non sezioni del documento)."
         )
+
+    def _outline_text_needles(self, title, level=1):
+        """Candidate di ricerca nel testo per una voce di sommario."""
+        title = (title or "").strip()
+        needles = []
+        if title:
+            needles.append(f"[H{int(level) or 1}] {title}")
+            needles.append(title)
+            short = re.sub(r"\s*\(p\.\s*\d+\)\s*$", "", title, flags=re.I).strip()
+            if short and short != title:
+                needles.append(short)
+            short2 = re.sub(r"^\s*Pagina\s+\d+\s*$", "", title, flags=re.I).strip()
+            if short2 and short2 not in needles:
+                needles.append(short2)
+            compact = re.sub(r"\s+", "", title)
+            if compact and compact != title:
+                needles.append(compact)
+            if short:
+                c2 = re.sub(r"\s+", "", short)
+                if c2 and c2 not in needles:
+                    needles.append(c2)
+        return [n for n in needles if n]
+
+    def _jump_outline_in_text(self, item):
+        """Posiziona il cursore sul corpo sezione (es. «English 3»), non sull'indice a puntini.
+
+        Ritorna: 'section' | 'index_only' | False
+        """
+        title = (item.get("title") or "").strip()
+        level = int(item.get("level") or 1)
+        content = self.txt_display.GetValue() or ""
+        if not content:
+            return False
+        body_mark = "=== Testo ==="
+        body_at = content.find(body_mark)
+        search_from = body_at + len(body_mark) if body_at >= 0 else 0
+
+        label = title
+        printed = None
+        m_tp = re.match(r"^(.*?)\s*\(p\.\s*(\d+)\)\s*$", title, flags=re.I)
+        if m_tp:
+            label = m_tp.group(1).strip() or title
+            printed = m_tp.group(2)
+
+        if label and printed:
+            pat = re.compile(
+                re.escape(label) + r"([^\w\n]{1,30})" + re.escape(printed) + r"\b",
+                re.I,
+            )
+            for m in pat.finditer(content, search_from):
+                if re.search(r"\.{2,}", m.group(1) or ""):
+                    continue
+                chosen = m.start()
+                chosen_len = len(m.group(0))
+                self.txt_display.SetFocus()
+                self.txt_display.SetInsertionPoint(chosen)
+                try:
+                    self.txt_display.ShowPosition(chosen)
+                    self.txt_display.SetSelection(chosen, chosen + chosen_len)
+                except Exception:
+                    pass
+                return "section"
+
+        index_hit = None
+        index_len = 0
+        for needle in self._outline_text_needles(title, level):
+            start = search_from
+            while True:
+                p = content.find(needle, start)
+                if p < 0:
+                    break
+                after = content[p + len(needle) : p + len(needle) + 40]
+                is_index = bool(re.match(r"\s*\.{2,}\s*\d*", after))
+                before = content[max(0, p - 12) : p]
+                if re.search(r"\[H\d+\]\s*$", before):
+                    is_index = True
+                if is_index:
+                    if index_hit is None:
+                        index_hit, index_len = p, len(needle)
+                else:
+                    self.txt_display.SetFocus()
+                    self.txt_display.SetInsertionPoint(p)
+                    try:
+                        self.txt_display.ShowPosition(p)
+                        self.txt_display.SetSelection(p, p + len(needle))
+                    except Exception:
+                        pass
+                    return "section"
+                start = p + max(1, len(needle))
+
+        if index_hit is not None:
+            self.txt_display.SetFocus()
+            self.txt_display.SetInsertionPoint(index_hit)
+            try:
+                self.txt_display.ShowPosition(index_hit)
+                self.txt_display.SetSelection(index_hit, index_hit + index_len)
+            except Exception:
+                pass
+            return "index_only"
+        return False
+
+    def _open_pdf_page_from_item(self, item):
+        """Apre il PDF con l'app predefinita Windows (ritorna 'page'|'file'|'')."""
+        if not item or not self.file_path:
+            return ""
+        if os.path.splitext(self.file_path)[1].lower() != ".pdf":
+            return ""
+        if rtad_docstruct is None:
+            return ""
+        page = item.get("page")
+        if not page:
+            href = str(item.get("href") or "")
+            m = re.match(r"rtad-pdf-page:(\d+)$", href, re.I)
+            if m:
+                page = int(m.group(1))
+        if not page:
+            try:
+                os.startfile(self.file_path)
+                return "file"
+            except Exception:
+                return ""
+        named = str(item.get("anchor") or "").strip()
+        try:
+            mode = rtad_docstruct.open_pdf_at_page(
+                self.file_path, int(page), named_dest=named
+            )
+        except Exception:
+            mode = ""
+        return mode or ""
+
+    def _refocus_doc_frame(self, prefer_text=False):
+        """Riporta focus su RTAD dopo che Acrobat ha rubato la finestra."""
+        try:
+            self.Iconize(False)
+            self.Raise()
+            self.Show()
+            if prefer_text and self.txt_display is not None:
+                self.txt_display.SetFocus()
+            elif self.lst_outline is not None:
+                self.lst_outline.SetFocus()
+            elif self.txt_display is not None:
+                self.txt_display.SetFocus()
+        except Exception:
+            pass
 
     def on_outline_activate(self, event=None):
         if self.lst_outline is None:
@@ -5261,26 +5474,69 @@ class DocumentStructureFrame(wx.Frame):
         sel = self.lst_outline.GetSelection()
         if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self.outline):
             return
-        title = (self.outline[sel].get("title") or "").strip()
-        level = int(self.outline[sel].get("level") or 1)
-        needle = f"[H{level}] {title}"
-        content = self.txt_display.GetValue()
-        pos = content.find(needle)
-        if pos < 0:
-            pos = content.find(title)
-        if pos >= 0:
-            self.txt_display.SetFocus()
-            self.txt_display.SetInsertionPoint(pos)
-            try:
-                self.txt_display.ShowPosition(pos)
-                self.txt_display.SetSelection(
-                    pos, pos + len(needle if needle in content else title)
+        item = self.outline[sel]
+        title = (item.get("title") or "").strip()
+        jumped = self._jump_outline_in_text(item)
+        is_pdf = bool(
+            self.file_path
+            and os.path.splitext(self.file_path)[1].lower() == ".pdf"
+        )
+        prefer_text = jumped in ("section", "index_only")
+
+        def _after_open(open_mode=""):
+            if open_mode == "page" and jumped == "section":
+                rtad_speak(
+                    f"Sezione «{title}» nel testo RTAD e PDF aperto alla pagina. "
+                    f"Focus sul testo del documento."
                 )
-            except Exception:
-                pass
-            rtad_speak(f"Titolo: {title}")
+            elif open_mode == "page":
+                rtad_speak(
+                    f"Apro il PDF alla pagina con l'app predefinita («{title}»). "
+                    + (
+                        "In RTAD c'è solo l'indice di questa lingua. "
+                        if jumped == "index_only"
+                        else "Per leggere usa il testo qui in RTAD. "
+                    )
+                )
+            elif open_mode == "file" and jumped == "section":
+                rtad_speak(
+                    f"Testo sulla sezione «{title}»; PDF aperto con l'app predefinita "
+                    f"(senza salto pagina garantito)."
+                )
+            elif open_mode == "file":
+                rtad_speak(
+                    f"PDF aperto con l'app predefinita («{title}»). "
+                    + (
+                        "In RTAD c'è solo l'indice; vai alla pagina stampata nel visualizzatore."
+                        if jumped == "index_only"
+                        else ""
+                    )
+                )
+            elif jumped == "section":
+                rtad_speak(f"Testo sulla sezione «{title}».")
+            elif jumped == "index_only":
+                rtad_speak(
+                    f"Per «{title}» in RTAD c'è solo l'indice (corpo non estraibile). "
+                    f"Controlla l'app predefinita per i PDF in Windows e riprova Invio."
+                )
+            else:
+                rtad_speak(f"Titolo in sommario: {title}")
+            # Acrobat/preparazione tag rubano spesso il focus → «solo riquadro»
+            wx.CallLater(500, lambda: self._refocus_doc_frame(prefer_text))
+
+        if is_pdf:
+            # Apri PDF dopo il salto testo, senza bloccare l'UI
+            def _open():
+                mode = ""
+                try:
+                    mode = self._open_pdf_page_from_item(item)
+                except Exception:
+                    mode = ""
+                _after_open(mode)
+
+            wx.CallAfter(_open)
         else:
-            rtad_speak(f"Titolo in sommario: {title}")
+            _after_open("")
 
     def on_link_activate(self, event=None):
         if not self.links:
@@ -5294,8 +5550,19 @@ class DocumentStructureFrame(wx.Frame):
                 self.lst_links.SetSelection(0)
         if sel < 0 or sel >= len(self.links):
             return
-        href = (self.links[sel].get("href") or "").strip()
-        text = (self.links[sel].get("text") or "").strip()
+        item = self.links[sel]
+        href = (item.get("href") or "").strip()
+        text = (item.get("text") or "").strip()
+        if href.lower().startswith("rtad-pdf-page:") or item.get("page"):
+            mode = self._open_pdf_page_from_item(item)
+            if mode == "page":
+                rtad_speak("PDF aperto alla pagina con l'app.")
+                return
+            if mode == "file":
+                rtad_speak("PDF aperto con l'app predefinita.")
+                return
+            rtad_speak("Impossibile aprire il PDF con l'app di sistema.")
+            return
         if href.lower().startswith(("http://", "https://")):
             opened = False
             try:
@@ -5310,7 +5577,7 @@ class DocumentStructureFrame(wx.Frame):
                 except Exception:
                     opened = False
             if opened:
-                rtad_speak(f"Apertura link: {text or href}")
+                rtad_speak(f"Apertura sito web esterno: {text or href}")
                 return
             rtad_speak(f"Impossibile aprire il link. Destinazione: {href}")
             return
@@ -5404,17 +5671,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Documenti strutturati: DOCX (titoli + link) ed EPUB\n"
-            "  (sommario/capitoli); PDF: testo piano + messaggio onesto\n"
-            "  se il TOC non è ancora disponibile.\n"
-            "• Menu «Leggi documento (struttura e testo)»:\n"
-            "  sommario, link (Invio / Apri link), testo con [H1]…\n"
-            "• Report media: ricorda l'ultima cartella; nome da titolo/ID\n"
-            "  URL o dal file locale; default nella cartella del media.\n"
-            "• Strumenti: salvataggio automatico risultati a fine ricerca\n"
-            "  (+ scelta cartella); ordine = lista risultati.\n"
-            "• Sfoglia: cartella/unità oppure singolo file (PDF/DOCX/…).\n"
-            "• Restano hub audio/video 1.6.7 e dialogo immagine 1.6.6.\n"
+            "• PDF strutturati: sommario/TOC e link URI in\n"
+            "  «Leggi documento (struttura e testo)» (con DOCX/EPUB).\n"
+            "• Report audio/video: titoli lunghi salvati quasi per intero\n"
+            "  nel nome file .rtad.txt (non più tagliati a ~80 caratteri).\n"
+            "• Consigliato: per cercare parole nei video, salva il testo\n"
+            "  del report e cerca nei file .rtad.txt come testo normale.\n"
+            "• Restano documenti strutturati 1.6.8, hub media 1.6.7,\n"
+            "  dialogo immagine 1.6.6.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -9243,7 +9507,7 @@ class SearchFrame(wx.Frame):
         frm.Raise()
 
     def read_document_file(self, file_path):
-        """Apre lettore strutturato (DOCX/EPUB) o testo piano (PDF/altro)."""
+        """Apre lettore strutturato (DOCX/EPUB/PDF) o testo piano (altro)."""
         if not file_path or not os.path.isfile(file_path):
             rtad_speak("File non trovato.")
             return
@@ -9252,7 +9516,7 @@ class SearchFrame(wx.Frame):
 
         def _work():
             ext = os.path.splitext(file_path)[1].lower()
-            if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc"):
+            if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc", ".pdf"):
                 try:
                     struct = rtad_docstruct.extract_document_structure(file_path)
                 except Exception as e:
@@ -9266,70 +9530,54 @@ class SearchFrame(wx.Frame):
                         "message": f"Errore analisi struttura: {e}",
                     }
                 body = (struct.get("body") or struct.get("plain") or "").strip()
-                if not body and ext in (".docx", ".epub"):
+                if not body and ext in (".docx", ".epub", ".pdf"):
                     plain = extract_document_text(file_path)
                     if plain:
                         struct["body"] = plain
                         struct["plain"] = plain
                         struct["ok"] = True
                         body = plain
+                if ext == ".pdf" and body and hasattr(
+                    rtad_docstruct, "enrich_pdf_structure_with_text"
+                ):
+                    try:
+                        struct = rtad_docstruct.enrich_pdf_structure_with_text(
+                            struct, body
+                        )
+                        body = (
+                            struct.get("body") or struct.get("plain") or body
+                        ).strip()
+                    except Exception:
+                        pass
                 if body or struct.get("has_structure") or (
-                    struct.get("message") and ext == ".doc"
+                    struct.get("message") and ext in (".doc", ".pdf")
                 ):
                     wx.CallAfter(
                         self._show_document_structure_frame, file_path, struct
                     )
                     if not body and not struct.get("has_structure"):
-                        wx.CallAfter(
-                            rtad_speak,
-                            struct.get("message") or "Nessun testo estraibile.",
-                        )
+                        if ext == ".pdf" and get_best_pdf_page_image(file_path):
+                            wx.CallAfter(
+                                rtad_speak,
+                                (struct.get("message") or "")
+                                + " Questo PDF sembra una scansione: "
+                                "prova «Descrivi immagine da PDF» oppure Apri con Edge/NVDA.",
+                            )
+                        else:
+                            wx.CallAfter(
+                                rtad_speak,
+                                struct.get("message") or "Nessun testo estraibile.",
+                            )
                     return
 
             text = extract_document_text(file_path)
             if not (text or "").strip():
-                if ext == ".pdf" and get_best_pdf_page_image(file_path):
-                    msg = (
-                        "Questo PDF sembra una scansione: nessun testo estraibile. "
-                        "Prova «Descrivi immagine da PDF» oppure Apri con Edge/NVDA."
-                    )
-                else:
-                    msg = (
-                        "Nessun testo estraibile da questo file "
-                        "(formato non supportato, protetto o vuoto)."
-                    )
-                if ext == ".pdf" and rtad_docstruct is not None:
-                    try:
-                        note = rtad_docstruct.extract_document_structure(file_path).get(
-                            "message"
-                        )
-                        if note:
-                            msg = note + " " + msg
-                    except Exception:
-                        pass
+                msg = (
+                    "Nessun testo estraibile da questo file "
+                    "(formato non supportato, protetto o vuoto)."
+                )
                 wx.CallAfter(rtad_speak, msg)
                 return
-
-            if ext == ".pdf" and rtad_docstruct is not None:
-                try:
-                    pdf_note = rtad_docstruct.extract_document_structure(file_path)
-                    struct = {
-                        "ok": True,
-                        "format": "pdf",
-                        "has_structure": False,
-                        "outline": [],
-                        "links": [],
-                        "body": text,
-                        "plain": text,
-                        "message": pdf_note.get("message")
-                        or "PDF: testo piano (senza TOC/link in questa versione).",
-                    }
-                    wx.CallAfter(
-                        self._show_document_structure_frame, file_path, struct
-                    )
-                    return
-                except Exception:
-                    pass
 
             def _show():
                 frame = ImageInfoFrame(

@@ -65,7 +65,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.6.9"
+APP_VERSION = "1.7.0"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -2259,6 +2259,8 @@ _PDF_STRUCT_NOISE = re.compile(
 _PDF_TEXT_PARSE_MAX = 1 * 1024 * 1024
 # Max stream content da esaminare in una sola ricerca
 _PDF_MAX_CONTENT_STREAMS = 120
+# Gap TJ (millesimi di text-space): sopra soglia ≈ spazio tra parole (CID senza glyph space)
+_PDF_TJ_SPACE_THRESHOLD = 120
 # Non tentare inflate “a caso” su stream non-Flate enormi
 _PDF_GUESS_INFLATE_MAX = 256 * 1024
 # Evita inflate lunghi SOLO se ancora sospetti; i content stream utili possono superare 512KB
@@ -2416,12 +2418,23 @@ def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
             time.sleep(0)
         pos = end + 9
 
-    blob = " ".join(pieces)
+    # Unisci pezzi preservando \n da ' / " / T*; spazio solo tra pezzi sulla stessa riga
+    blob_parts = []
+    for p in pieces:
+        if not p:
+            continue
+        if blob_parts and not blob_parts[-1].endswith("\n") and not p.startswith("\n"):
+            blob_parts.append(" ")
+        blob_parts.append(p)
+    blob = "".join(blob_parts)
     blob = blob.replace("\r\n", "\n").replace("\r", "\n")
+    # Prima spazi da controlli CID, poi rimuovi altri controlli
+    blob = _pdf_normalize_control_spaces(blob)
     blob = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", blob)
     # Solo coda binaria finale: non interrompere a metà documento
     # (altrimenti spariscono sezioni tipo «Batteria interna» a pag. 16).
     blob = _pdf_trim_binary_tail(blob)
+    blob = _pdf_soften_camel_glued(blob)
     lines = []
     for part in blob.split("\n"):
         part = re.sub(r"[ \t]+", " ", part).strip()
@@ -2836,10 +2849,83 @@ def _pdf_hex_to_str(hex_body: bytes, cmap: dict = None) -> str:
         return data.decode("latin1", errors="ignore")
 
 
+def _pdf_join_tj_parts(parts, space_threshold=None):
+    """Unisce operandi TJ: numeri grandi = gap → spazio (es. Batteria[-250]interna)."""
+    if space_threshold is None:
+        space_threshold = _PDF_TJ_SPACE_THRESHOLD
+    out = []
+    for item in parts:
+        if isinstance(item, (int, float)):
+            if abs(float(item)) >= space_threshold:
+                if out and not out[-1].endswith((" ", "\n", "\t")):
+                    out.append(" ")
+            continue
+        s = item or ""
+        if not s:
+            continue
+        out.append(s)
+    return "".join(out)
+
+
+def _pdf_soften_camel_glued(text: str) -> str:
+    """Inserisce spazi su confini lower→Upper / lettera↔cifra (titoli stilizzati).
+
+    Non tocca sequenze tutte minuscole (quelle dipendono dai gap TJ).
+    """
+    if not text or len(text) < 4:
+        return text
+    text = re.sub(
+        r"([a-zàèéìòù])([A-ZÀÈÉÌÒÙ])",
+        r"\1 \2",
+        text,
+    )
+    text = re.sub(
+        r"([A-Za-zÀ-ÿ])(\d)",
+        r"\1 \2",
+        text,
+    )
+    text = re.sub(
+        r"(\d)([A-Za-zÀ-ÿ])",
+        r"\1 \2",
+        text,
+    )
+    return text
+
+
+def _pdf_normalize_control_spaces(text: str) -> str:
+    """Converte placeholder spazio (ToUnicode/custom) in spazi veri.
+
+    Ogni PDF può mappare lo spazio in modo diverso:
+    - Acer: spesso U+0000 U+0003
+    - Focus Braille / encoding custom: spesso U+0006 (ACK)
+    Se i controlli si cancellano senza sostituzione → parole attaccate.
+    """
+    if not text:
+        return text
+    # Coppie tipiche (UTF-16BE space / ETX usato come space)
+    text = text.replace("\x00\x03", " ")
+    text = text.replace("\x00\x20", " ")
+    text = text.replace("\x00\x02", " ")
+    text = text.replace("\x00\xa0", " ")  # NBSP in forma UTF-16BE spezzata
+    # Bullet / elenco spesso \x01\x8e → pallino leggibile
+    text = text.replace("\x01\x8e", " • ")
+    text = text.replace("\x8e", " • ")
+    # Altri C0 usati come glyph «spazio» (es. Focus 40 → \\x06): diventa spazio,
+    # non cancellazione (altrimenti Display\\x06braille → Displaybraille).
+    text = re.sub(r"[\x01-\x08\x0b\x0c\x0e-\x1f]+", " ", text)
+    # Null residui (padding UTF-16): via senza inserire spazi tra lettere
+    text = text.replace("\x00", "")
+    return text
+
+
 def _pdf_text_from_content_stream(
     data: bytes, cmap: dict = None, font_cmaps: dict = None, deadline=None
 ) -> list:
-    """Estrae stringhe Tj/TJ; rispetta /Nome size Tf per la CMap del font."""
+    """Estrae stringhe Tj/TJ; rispetta /Nome size Tf per la CMap del font.
+
+    Nei TJ i numeri di posizionamento grandi diventano spazi tra parole
+    (tipico CID senza glyph dello spazio → «Batteriainterna»).
+    """
     if cmap is None:
         cmap = {}
     if font_cmaps is None:
@@ -2876,6 +2962,25 @@ def _pdf_text_from_content_stream(
             j += 1
         return j
 
+    def _read_number(j):
+        """Legge numero PDF (gap TJ); ritorna (float|None, nuovo_indice)."""
+        start = j
+        if j < n and data[j] in b"+-":
+            j += 1
+        if j >= n or data[j] not in b"0123456789.":
+            return None, start
+        saw_digit = False
+        while j < n and data[j] in b"0123456789.":
+            if data[j] != 0x2E:
+                saw_digit = True
+            j += 1
+        if not saw_digit:
+            return None, start
+        try:
+            return float(data[start:j]), j
+        except ValueError:
+            return None, start
+
     while i < n:
         if deadline is not None and (i & 0xFFFF) == 0 and time.monotonic() > deadline:
             break
@@ -2902,6 +3007,10 @@ def _pdf_text_from_content_stream(
                         continue
             i = j if j > i else i + 1
             continue
+        if b == 0x54 and i + 1 < n and data[i + 1] == 0x2A:  # T* = nuova riga
+            pieces.append("\n")
+            i += 2
+            continue
         if b == 0x28:  # (
             lit, j = _read_literal(i)
             k = _skip_ws(j)
@@ -2910,7 +3019,8 @@ def _pdf_text_from_content_stream(
                 i = k + 2
                 continue
             if k < n and data[k:k + 1] in (b"'", b'"'):
-                pieces.append(_pdf_bytes_to_text(lit, current_cmap))
+                # ' e " = vai a capo e mostra testo
+                pieces.append("\n" + _pdf_bytes_to_text(lit, current_cmap))
                 i = k + 1
                 continue
             i = j
@@ -2965,6 +3075,12 @@ def _pdf_text_from_content_stream(
                         parts.append(_pdf_hex_to_str(bytes(hx), current_cmap))
                         j = j2 + 1
                         continue
+                if data[j] in b"+-.0123456789" and depth == 1:
+                    num, j2 = _read_number(j)
+                    if num is not None:
+                        parts.append(num)
+                        j = j2
+                        continue
                 if data[j] == 0x5B:
                     depth += 1
                 elif data[j] == 0x5D:
@@ -2977,7 +3093,7 @@ def _pdf_text_from_content_stream(
                     break
             k = _skip_ws(j)
             if k + 1 < n and data[k:k + 2] == b"TJ" and parts:
-                pieces.append("".join(parts))
+                pieces.append(_pdf_join_tj_parts(parts))
                 i = k + 2
                 continue
             i += 1
@@ -3762,9 +3878,10 @@ def _register_toast_aumid_display_name(aumid: str, display_name: str) -> None:
 
 
 def show_persistent_windows_notification(title: str, message: str, *, aumid: str = "") -> bool:
-    """Mostra un toast WinRT scenario=reminder: resta finché non si apre/OK.
+    """Mostra un toast WinRT breve (duration=short) in Centro notifiche.
 
-    Appare anche in Centro notifiche (Windows+N). Ritorna True se mostrato.
+    Non usa scenario=reminder (evita sticky / furto focus dal lettore documento).
+    Ritorna True se mostrato.
     """
     app_id = (aumid or RTAD_TOAST_AUMID).strip() or RTAD_TOAST_AUMID
     try:
@@ -3794,9 +3911,9 @@ def show_persistent_windows_notification(title: str, message: str, *, aumid: str
         "function Esc([string]$s) { if ($null -eq $s) { return '' }; "
         "return (($s -replace '&','&amp;') -replace '<','&lt;' -replace '>','&gt;' -replace '\"','&quot;') }; "
         "$t = Esc ([string]$o.title); $b = Esc ([string]$o.body); "
-        "$xmlText = \"<toast scenario='reminder'><visual><binding template='ToastGeneric'>"
-        "<text>$t</text><text>$b</text></binding></visual>"
-        "<actions><action content='OK' arguments='dismiss' activationType='system'/></actions></toast>\"; "
+        # Toast normale (non reminder): non resta sticky né ruba focus al lettore documento
+        "$xmlText = \"<toast duration='short'><visual><binding template='ToastGeneric'>"
+        "<text>$t</text><text>$b</text></binding></visual></toast>\"; "
         "$xml = New-Object Windows.Data.Xml.Dom.XmlDocument; $xml.LoadXml($xmlText); "
         "$toast = [Windows.UI.Notifications.ToastNotification]::new($xml); "
         "$notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier([string]$o.aumid); "
@@ -4688,13 +4805,15 @@ class ImageInfoFrame(wx.Frame):
 
 
 class DocumentStructureFrame(wx.Frame):
-    """Lettore strutturato DOCX/EPUB/PDF: sommario, link e testo."""
+    """Lettore documenti RTAD: sommario, link, testo, cerca e navigazione titoli."""
+
+    _HEADING_MARK_RE = re.compile(r"\[H([1-9])\]\s*([^\n]*)")
 
     def __init__(self, parent, file_path, struct):
         name = os.path.basename(file_path) if file_path else "Documento"
         super(DocumentStructureFrame, self).__init__(
             None,
-            title=f"Documento — {name}",
+            title=f"Lettore documento — {name}",
             size=(780, 620),
             style=wx.DEFAULT_FRAME_STYLE,
         )
@@ -4702,6 +4821,10 @@ class DocumentStructureFrame(wx.Frame):
         self.struct = struct or {}
         self.outline = list(self.struct.get("outline") or [])
         self.links = list(self.struct.get("links") or [])
+        self._find_needle = ""
+        self._last_focus_ctrl = None
+        self._saved_insert = 0
+        self._ignore_enter_until = 0.0
         report = ""
         if rtad_docstruct is not None:
             try:
@@ -4785,12 +4908,19 @@ class DocumentStructureFrame(wx.Frame):
             self.btn_open_link = wx.Button(panel, label="Apri &link selezionato")
             self.btn_open_link.Bind(wx.EVT_BUTTON, self.on_link_activate)
             hbox.Add(self.btn_open_link, 0, wx.ALL, 5)
+        btn_find = wx.Button(panel, label="Ce&rca nel testo…")
+        btn_find.Bind(wx.EVT_BUTTON, self.on_find)
+        hbox.Add(btn_find, 0, wx.ALL, 5)
         btn_copy = wx.Button(panel, label="&Copia testo")
         btn_copy.Bind(wx.EVT_BUTTON, self.on_copy)
         hbox.Add(btn_copy, 0, wx.ALL, 5)
         btn_save = wx.Button(panel, label="&Salva testo…")
         btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
         hbox.Add(btn_save, 0, wx.ALL, 5)
+        if self.file_path and os.path.isfile(self.file_path):
+            btn_ext = wx.Button(panel, label="Apri file &esterno")
+            btn_ext.Bind(wx.EVT_BUTTON, self.on_open_external)
+            hbox.Add(btn_ext, 0, wx.ALL, 5)
         btn_close = wx.Button(panel, label="Chiudi (ESC)")
         btn_close.Bind(wx.EVT_BUTTON, lambda e: self.Close())
         hbox.Add(btn_close, 0, wx.ALL, 5)
@@ -4799,6 +4929,15 @@ class DocumentStructureFrame(wx.Frame):
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+        self.Bind(wx.EVT_ACTIVATE, self._on_reader_activate)
+        self.Bind(wx.EVT_ICONIZE, self._on_reader_iconize)
+        for ctrl in (
+            self.lst_outline,
+            self.lst_links,
+            self.txt_display,
+        ):
+            if ctrl is not None:
+                ctrl.Bind(wx.EVT_SET_FOCUS, self._on_reader_child_focus)
         if self.lst_outline is not None and self.lst_outline.GetCount() > 0:
             self.lst_outline.SetSelection(0)
             self.lst_outline.SetFocus()
@@ -4806,9 +4945,11 @@ class DocumentStructureFrame(wx.Frame):
             self.txt_display.SetFocus()
         speak_accessible(
             summary
-            + " Usa Tab per sommario, link e testo. "
-            "Sul sommario: Invio va al testo della sezione qui in RTAD. "
-            "I link «Sito web» sono esterni (non sezioni del documento)."
+            + " Lettore documento RTAD. Tab: sommario, link e testo. "
+            "Invio sul sommario: sezione qui in RTAD. "
+            "Control+F: cerca. F3: ripeti (prossima occorrenza). "
+            "Control+H / Control+Shift+H: titolo successivo o precedente. "
+            "I link «Sito web» sono esterni."
         )
 
     def _outline_text_needles(self, title, level=1):
@@ -5088,6 +5229,211 @@ class DocumentStructureFrame(wx.Frame):
         else:
             speak_accessible(f"Link: {href or text}")
 
+    def _select_in_text(self, start, end, announce=""):
+        """Focus sul testo, seleziona [start, end) e annuncia."""
+        try:
+            self.txt_display.SetFocus()
+            self.txt_display.SetInsertionPoint(start)
+            self.txt_display.ShowPosition(start)
+            self.txt_display.SetSelection(start, end)
+            self._saved_insert = start
+            self._last_focus_ctrl = self.txt_display
+        except Exception:
+            pass
+        if announce:
+            speak_accessible(announce)
+
+    def _on_reader_child_focus(self, event):
+        try:
+            self._last_focus_ctrl = event.GetEventObject()
+            if self._last_focus_ctrl is self.txt_display:
+                self._saved_insert = self.txt_display.GetInsertionPoint()
+        except Exception:
+            pass
+        event.Skip()
+
+    def _remember_text_pos(self):
+        try:
+            if self.txt_display is not None:
+                self._saved_insert = self.txt_display.GetInsertionPoint()
+                self._last_focus_ctrl = self.txt_display
+        except Exception:
+            pass
+
+    def _restore_reader_focus(self):
+        """Dopo iconizza/Alt-Tab: torna sul controllo e sulla posizione testo."""
+        try:
+            if not self.IsShown() or self.IsIconized():
+                return
+            ctrl = self._last_focus_ctrl
+            if ctrl is None or not ctrl:
+                ctrl = self.txt_display
+            try:
+                ctrl.SetFocus()
+            except Exception:
+                if self.txt_display is not None:
+                    self.txt_display.SetFocus()
+                    ctrl = self.txt_display
+            if ctrl is self.txt_display and self.txt_display is not None:
+                pos = max(0, int(self._saved_insert or 0))
+                end = self.txt_display.GetLastPosition()
+                if pos > end:
+                    pos = end
+                self.txt_display.SetInsertionPoint(pos)
+                try:
+                    self.txt_display.ShowPosition(pos)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _on_reader_activate(self, event):
+        if event.GetActive():
+            wx.CallLater(80, self._restore_reader_focus)
+        else:
+            self._remember_text_pos()
+        event.Skip()
+
+    def _on_reader_iconize(self, event):
+        if event.IsIconized():
+            self._remember_text_pos()
+        else:
+            wx.CallLater(120, self._restore_reader_focus)
+        event.Skip()
+
+    def on_find(self, event=None):
+        dlg = wx.TextEntryDialog(
+            self,
+            "Parola o frase da cercare nel testo del documento:\n"
+            "(OK = prossima occorrenza dalla posizione del cursore; F3 ripete)",
+            "Cerca nel testo",
+            self._find_needle or "",
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            needle = (dlg.GetValue() or "").strip()
+        finally:
+            dlg.Destroy()
+        # Evita che Invio del dialogo arrivi al sommario e riapra Acrobat / chiuda focus
+        self._ignore_enter_until = time.monotonic() + 0.4
+        try:
+            self.txt_display.SetFocus()
+        except Exception:
+            pass
+        if not needle:
+            speak_accessible("Ricerca annullata.")
+            return
+        self._find_needle = needle
+        # Sempre in avanti dal cursore (non ripartire dall'inizio)
+        if not self._find_in_text(needle, forward=True, from_start=False):
+            speak_accessible(f"Nessuna occorrenza di «{needle}».")
+
+    def _find_in_text(self, needle, forward=True, from_start=False):
+        content = self.txt_display.GetValue() or ""
+        if not needle or not content:
+            return False
+        needle_l = needle.lower()
+        content_l = content.lower()
+        sel_start, sel_end = self.txt_display.GetSelection()
+        if from_start:
+            pos = 0
+        elif forward:
+            pos = sel_end if sel_end > sel_start else self.txt_display.GetInsertionPoint()
+            if sel_end > sel_start and content[sel_start:sel_end].lower() == needle_l:
+                pos = sel_end
+        else:
+            pos = sel_start if sel_end > sel_start else self.txt_display.GetInsertionPoint()
+            if sel_end > sel_start and content[sel_start:sel_end].lower() == needle_l:
+                pos = sel_start
+        if forward:
+            p = content_l.find(needle_l, pos)
+            if p < 0:
+                p = content_l.find(needle_l)  # wrap
+            if p < 0:
+                return False
+        else:
+            p = content_l.rfind(needle_l, 0, max(0, pos))
+            if p < 0:
+                p = content_l.rfind(needle_l)  # wrap
+            if p < 0:
+                return False
+        self._select_in_text(
+            p, p + len(needle), announce=f"Trovato: {content[p:p + len(needle)]}"
+        )
+        return True
+
+    def on_find_next(self, event=None):
+        if not self._find_needle:
+            self.on_find()
+            return
+        if not self._find_in_text(self._find_needle, forward=True):
+            speak_accessible(f"Nessuna altra occorrenza di «{self._find_needle}».")
+
+    def on_find_prev(self, event=None):
+        if not self._find_needle:
+            self.on_find()
+            return
+        if not self._find_in_text(self._find_needle, forward=False):
+            speak_accessible(f"Nessuna altra occorrenza di «{self._find_needle}».")
+
+    def on_next_heading(self, event=None):
+        self._goto_heading(forward=True)
+
+    def on_prev_heading(self, event=None):
+        self._goto_heading(forward=False)
+
+    def _goto_heading(self, forward=True):
+        content = self.txt_display.GetValue() or ""
+        matches = list(self._HEADING_MARK_RE.finditer(content))
+        if not matches:
+            speak_accessible("Nessun titolo [H] nel testo.")
+            return
+        pos = self.txt_display.GetInsertionPoint()
+        sel_start, sel_end = self.txt_display.GetSelection()
+        if sel_end > sel_start:
+            pos = sel_start
+        chosen = None
+        if forward:
+            for m in matches:
+                if m.start() > pos:
+                    chosen = m
+                    break
+            if chosen is None:
+                chosen = matches[0]
+        else:
+            for m in reversed(matches):
+                if m.start() < pos:
+                    chosen = m
+                    break
+            if chosen is None:
+                chosen = matches[-1]
+        level = chosen.group(1)
+        title = (chosen.group(2) or "").strip() or f"H{level}"
+        end = chosen.end()
+        # Seleziona riga titolo se breve
+        line_end = content.find("\n", chosen.start())
+        if line_end < 0:
+            line_end = end
+        self._select_in_text(
+            chosen.start(),
+            line_end,
+            announce=f"Titolo livello {level}: {title}",
+        )
+
+    def on_open_external(self, event=None):
+        """Apre il file con l'app predefinita Windows (azione secondaria)."""
+        if not self.file_path or not os.path.isfile(self.file_path):
+            speak_accessible("File non disponibile.")
+            return
+        try:
+            os.startfile(self.file_path)
+            speak_accessible(
+                f"Aperto con l'app predefinita: {os.path.basename(self.file_path)}"
+            )
+        except Exception as e:
+            speak_accessible(f"Apertura esterna non riuscita: {e}")
+
     def on_copy(self, event=None):
         text = self.txt_display.GetValue()
         if wx.TheClipboard.Open():
@@ -5137,8 +5483,27 @@ class DocumentStructureFrame(wx.Frame):
         if key == wx.WXK_ESCAPE:
             self.Close()
             return
+        # Ctrl+F cerca; F3 / Shift+F3 ripeti; Ctrl+H / Ctrl+Shift+H titoli
+        if event.ControlDown() and not event.AltDown():
+            if key in (ord("f"), ord("F")):
+                self.on_find()
+                return
+            if key in (ord("h"), ord("H")):
+                if event.ShiftDown():
+                    self.on_prev_heading()
+                else:
+                    self.on_next_heading()
+                return
+        if key == wx.WXK_F3:
+            if event.ShiftDown():
+                self.on_find_prev()
+            else:
+                self.on_find_next()
+            return
         # Invio sulle liste: CHAR_HOOK è più affidabile del KEY_DOWN sul ListBox con NVDA
         if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            if time.monotonic() < float(self._ignore_enter_until or 0):
+                return
             focused = self.FindFocus()
             if self.lst_links is not None and focused is self.lst_links:
                 self.on_link_activate()
@@ -5165,14 +5530,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• PDF strutturati: sommario/TOC e link URI in\n"
-            "  «Leggi documento (struttura e testo)» (con DOCX/EPUB).\n"
-            "• Report audio/video: titoli lunghi salvati quasi per intero\n"
-            "  nel nome file .rtad.txt (non più tagliati a ~80 caratteri).\n"
-            "• Consigliato: per cercare parole nei video, salva il testo\n"
-            "  del report e cerca nei file .rtad.txt come testo normale.\n"
-            "• Restano documenti strutturati 1.6.8, hub media 1.6.7,\n"
-            "  dialogo immagine 1.6.6.\n"
+            "• Lettore documento in RTAD: cerca (Control+F, F3),\n"
+            "  titoli (Control+H), Apri file esterno opzionale.\n"
+            "• Spazi nei PDF più leggibili (casi tipici Acer/braille).\n"
+            "• Notifica fine-ricerca meno invasiva (resta in Centro\n"
+            "  notifiche; con il lettore aperto solo annuncio).\n"
+            "• Restano PDF TOC/link 1.6.9, documenti 1.6.8,\n"
+            "  hub media 1.6.7, dialogo immagine 1.6.6.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6363,7 +6727,7 @@ class MainWindow(wx.Frame):
         wx.MessageBox(msg, "Svuota cache OCR", wx.OK | wx.ICON_INFORMATION)
 
     def _notify_search_end(self, matches, stopped=False):
-        """Notifica Windows persistente (Centro notifiche) a fine ricerca."""
+        """Notifica Windows a fine ricerca (toast breve; non ruba il lettore documento)."""
         try:
             if not load_notify_search_end_preference():
                 return
@@ -6375,14 +6739,34 @@ class MainWindow(wx.Frame):
             body = f"Ricerca completata: {matches} risultati."
         else:
             body = "Ricerca completata: nessun risultato."
+
+        # Se il lettore documento è aperto/attivo: solo annuncio, niente toast invasivo
+        reader_active = False
+        try:
+            for w in wx.GetTopLevelWindows():
+                if isinstance(w, DocumentStructureFrame) and w.IsShown():
+                    reader_active = True
+                    break
+        except Exception:
+            reader_active = False
+        if reader_active:
+            try:
+                speak_accessible(body)
+            except Exception:
+                pass
+            return
+
         try:
             self.RequestUserAttention(wx.USER_ATTENTION_INFO)
         except Exception:
             pass
-        # Riporta focus sulla lista risultati (il toast reminder può rubarlo;
-        # l'OK del toast non è il dialogo «Tutto sull'immagine»).
+
         def _refocus():
             try:
+                # Non sollevare la main se l'utente è sul lettore
+                for w in wx.GetTopLevelWindows():
+                    if isinstance(w, DocumentStructureFrame) and w.IsShown():
+                        return
                 self.Raise()
                 if self.lst_results.GetCount() > 0:
                     if self.lst_results.GetSelection() == wx.NOT_FOUND:
@@ -6392,6 +6776,7 @@ class MainWindow(wx.Frame):
                 pass
 
         wx.CallLater(350, _refocus)
+        wx.CallLater(1200, _refocus)
 
         def _fallback_wx():
             try:
@@ -6401,8 +6786,8 @@ class MainWindow(wx.Frame):
                     n.SetFlags(wx.ICON_INFORMATION)
                 except Exception:
                     pass
-                timeout = getattr(wx.adv.NotificationMessage, "Timeout_Never", 0)
-                n.Show(timeout=timeout)
+                # Timeout breve (non Timeout_Never)
+                n.Show(timeout=5)
             except Exception as e:
                 logging.debug(f"NotificationMessage non disponibile: {e}")
 
@@ -6411,7 +6796,7 @@ class MainWindow(wx.Frame):
             try:
                 ok = show_persistent_windows_notification(APP_TITLE, body)
             except Exception as e:
-                logging.debug(f"Toast persistente fallito: {e}")
+                logging.debug(f"Toast fine-ricerca fallito: {e}")
                 ok = False
             if not ok:
                 wx.CallAfter(_fallback_wx)

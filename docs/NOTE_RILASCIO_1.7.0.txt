@@ -1,0 +1,93 @@
+🌟 Novità della Versione 1.7.0
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.0
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.0
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Lettore documento RTAD**: «Leggi documento…» con sommario, link e testo. Ctrl+F / F3 / Shift+F3 cerca nel corpo; Ctrl+H / Ctrl+Shift+H salta i titoli; «Apri file esterno» opzionale. Dopo iconizza, se le frecce non rispondono: Tab poi Shift+Tab.
+- **Spazi PDF**: placeholder tipici (manuali Acer, braille, ecc.) → testo più leggibile. I PDF criptati restano fuori portata (serve copia senza protezione).
+- **Toast fine-ricerca** meno invasivo (banner breve; resta nel Centro notifiche). Con il lettore aperto: solo annuncio.
+- Restano PDF TOC/link 1.6.9, documenti 1.6.8, hub audio/video 1.6.7, dialogo immagine 1.6.6.
+
+## 🇬🇧 English
+
+- **In-app document reader**: “Read document…” with outline, links and body. Ctrl+F / F3 / Shift+F3 find in text; Ctrl+H / Ctrl+Shift+H jump headings; optional “Open external file”. After minimize, if arrows do nothing: Tab then Shift+Tab.
+- **PDF spacing**: common space placeholders (Acer, braille manuals, …) become readable text. Encrypted PDFs stay out of reach (need an unlocked copy).
+- **End-of-search toast** less intrusive (short banner; still in Notification Center). With the reader open: speech only.
+- PDF TOC/links 1.6.9, structured docs 1.6.8, AV hub 1.6.7, and image dialog 1.6.6 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.0.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.0
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.0
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.0.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.0.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Lettore documento in RTAD (cerca/titoli), spazi PDF tipici più leggibili, toast fine-ricerca meno invasivo; restano TOC PDF 1.6.9 e hub AV 1.6.7.
+
+Summary EN:
+In-app document reader (find/headings), typical PDF spacing fixes, less intrusive end-of-search toast; PDF TOC 1.6.9 and AV hub 1.6.7 remain.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.0/ricerca_testuale_accesso_digitale-1.7.0.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[ ] python tools/rtad_release.py check → OK
+[ ] Gemelli rtad_ocr.py / rtad_guida_pratica.py / rtad_media.py / rtad_docstruct.py
+[ ] docs/GUIDA_PRATICA.txt + addon/doc/it/guida_pratica.html sincronizzati
+[ ] Test SA: lettore PDF Acer/braille + cerca + spazi
+[ ] Test Add-on: stessa cosa (reinstall .nvda-addon)
+[ ] make_addon / pacchetto .nvda-addon fresco
+[ ] Standalone\compila.bat → F9 setup.iss

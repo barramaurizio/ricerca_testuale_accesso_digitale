@@ -1,17 +1,19 @@
 # Piano RTAD 1.6.9
 
-**Ultima pubblicata (da aggiornare al rilascio):** `1.6.8` pronta; lavoro corrente `1.6.9`.  
-**Non hotfixare 1.6.8** una volta pubblicata.  
-Vedi `docs/NOTE_RILASCIO_1.6.9.txt`.
+**Ultima pubblicata:** `1.6.9` — **PUBBLICATA** (12/10/2026).  
+GitHub: `v1.6.9` + `app-v1.6.9`. DataStore #12149 → #12150 (accepted).  
+Vedi `docs/NOTE_RILASCIO_1.6.9.txt`.  
+Lavoro successivo: **`docs/PIANO_1.7.0.md`**.
 
 ---
 
-## Obiettivo
+## Obiettivo (raggiunto)
 
-1. **PDF strutturati** (TOC/link) — pezzo rimandato da 1.6.8  
-2. **Fix titoli lunghi** nei report media (`.rtad.txt`)  
-3. **Documentare** la ricerca parole nei video tramite `.rtad.txt` già salvati (B0 step 0 / workflow utente)  
-4. *(opzionale se tempo)* batch media; MVP ricerca su transcript in cache
+1. ~~**PDF strutturati** (TOC/link)~~  
+2. ~~**Fix titoli lunghi** nei report media (`.rtad.txt`, stem ~220)~~  
+3. ~~**Documentare** ricerca parole nei video via `.rtad.txt`~~  
+4. ~~App predefinita Windows + salto pagina Acrobat/Sumatra; escamotage NVDA in guida~~  
+5. ~~Marcatori `[Hn]` / titoli senza spazi in estratto PDF~~
 
 ---
 
@@ -19,22 +21,12 @@ Vedi `docs/NOTE_RILASCIO_1.6.9.txt`.
 
 | Pezzo | Stato |
 |-------|--------|
-| Bump etichette `1.6.9` | fatto |
-| Fix `max_len` stem report (~200) | fatto |
-| `extract_structure_from_pdf` (Outlines + URI) | fatto |
-| Wiring SA/Add-on «Leggi documento» per PDF | fatto |
-| Guida + README + note + WhatsNew | fatto |
-| Batch cartella media | in lista |
-| B0 MVP: cerca solo in `.rtad.txt`/cache già presenti | in lista (workflow già documentato) |
+| Bump etichette `1.6.9` | fatto / pubblicato |
+| PDF TOC/link + Invio app predefinita | fatto / pubblicato |
+| Titoli lunghi report | fatto / pubblicato |
+| Guida Acrobat/NVDA + README | fatto / pubblicato |
+| Batch media / B0 MVP cache | rimandati → **1.7.0** |
 
 ---
 
-## Fuori scope (resta in attesa)
-
-- Whisper locale / trascrizione di massa  
-- «Trascrivi e cerca» opt-in su cartella intera (costi API)  
-- Struttura ODT / `.doc` legacy OLE  
-
----
-
-*Aggiornato 12/10/2026 all’avvio 1.6.9.*
+*Chiuso 12/10/2026.*

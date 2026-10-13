@@ -142,7 +142,8 @@ Contenuto previsto `1.6.0`:
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
 - **Descrizione audio/video:** **1.6.7 pubblicata** (media gemello; Whisper di massa resta fuori dal nucleo).  
 - **1.6.8:** documenti strutturati + UX salvataggi — **pronta / da pubblicare** (`NOTE_RILASCIO_1.6.8.txt`).  
-- **1.6.9:** PDF TOC/link + titoli lunghi report + guida ricerca via `.rtad.txt` — **in corso** (`NOTE_RILASCIO_1.6.9.txt`).
+- **1.6.9:** PDF TOC/link + app predefinita + titoli report + guida Acrobat/NVDA — **pubblicata** (12/10/2026; DataStore #12149 → #12150).  
+- **1.7.0:** lettore documento + spazi PDF + toast — **pronta al rilascio** (`NOTE_RILASCIO_1.7.0.txt`).
 
 ---
 
@@ -164,8 +165,9 @@ Contenuto previsto `1.6.0`:
 14. ~~**1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API~~ **pubblicata**.  
 15. ~~**1.6.7** descrizione audio/video (MVP media gemello)~~ **pubblicata**.  
 16. **1.6.8** documenti strutturati + UX salvataggi — pronta / da pubblicare.  
-17. **1.6.9** PDF TOC/link + titoli report + ricerca parole video via `.rtad.txt` — in corso.  
-18. **Poi:** batch media / B0 cache / Whisper opt-in; export/stampa; OneCore native se serve.
+17. ~~**1.6.9** PDF TOC/link + app predefinita + titoli report~~ **pubblicata**.  
+18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pronta al rilascio**.  
+19. **Poi (1.7.1+):** batch media / B0 cache; focus freccia post-iconizza; Whisper opt-in; export/stampa.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -196,23 +198,32 @@ Contenuto previsto `1.6.0`:
 3. ~~«Tutto sull’audio/video»~~ + ripresa trascrizione + avanzamento + Salva testo.  
 4. ~~GitHub + DataStore~~ (#12099 → #12100).
 
-### Fase O — `1.6.8` (documenti strutturati + UX salvataggi) — PRONTA / DA PUBBLICARE
+### Fase O — `1.6.8` (documenti strutturati + UX salvataggi) — PUBBLICATA
 
 Dettaglio: **`docs/PIANO_1.6.8.md`** + **`docs/NOTE_RILASCIO_1.6.8.txt`**.
 
 1. ~~**Formattazione documenti**~~ DOCX/EPUB strutturati; PDF testo piano + messaggio onesto (TOC PDF → 1.6.9).  
 2. ~~**UX feedback**~~ report media (cartella/nome) + auto-salvataggio risultati + Sfoglia file/cartella.  
 3. ~~Guida + novità IT/EN + gemelli + `rtad_docstruct.py`~~.  
-4. Batch media / B0 ricerca transcript → **1.6.9**.
 
-### Fase P — `1.6.9` (PDF TOC + polish media) — IN CORSO
+### Fase P — `1.6.9` (PDF TOC + polish media) — PUBBLICATA ✅
 
-Dettaglio: **`docs/PIANO_1.6.9.md`** + **`docs/NOTE_RILASCIO_1.6.9.txt`**.
+Dettaglio: **`docs/PIANO_1.6.9.md`** + **`docs/NOTE_RILASCIO_1.6.9.txt`**.  
+GitHub `v1.6.9` / `app-v1.6.9`; DataStore #12149 → #12150 (accepted).
 
-1. ~~**PDF TOC/link**~~ in `rtad_docstruct` + «Leggi documento».  
-2. ~~**Titoli lunghi**~~ stem `.rtad.txt` fino a ~200 caratteri.  
-3. ~~**Guida**~~: ricerca parole nei video via `.rtad.txt` salvati.  
-4. Batch media / B0 MVP cache (se tempo).
+1. ~~**PDF TOC/link**~~ + Invio con app predefinita (salto Acrobat/Sumatra).  
+2. ~~**Titoli lunghi**~~ stem `.rtad.txt` ~220.  
+3. ~~**Guida**~~ parole nei video via `.rtad.txt` + escamotage Acrobat/NVDA.  
+4. ~~Marcatori `[Hn]` / titoli senza spazi in estratto~~.  
+5. Batch media / B0 → **1.7.1+** (rimandati; 1.7.0 = lettore + spazi + toast).
+
+### Fase Q — `1.7.0` (nuovo pacchetto post-documenti) — PRONTA
+
+Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
+
+1. ~~**P0** toast + spazi PDF~~  
+2. ~~**P3 MVP** lettore documento (cerca / titoli / esterno)~~  
+3. **Poi 1.7.1+:** batch media + B0; focus freccia; (opz.) ri-salto Acrobat.
 
 ---
 
@@ -223,9 +234,10 @@ Dettaglio: **`docs/PIANO_1.6.9.md`** + **`docs/NOTE_RILASCIO_1.6.9.txt`**.
 - ~~Dialogo unico / batch / PDF ToUnicode / Gemini temperature~~ → `1.6.6` pubblicata  
 - ~~Descrizione audio/video MVP~~ → `1.6.7` pubblicata  
 - ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`**  
-- ~~TOC/link PDF + titoli report + guida `.rtad.txt`~~ → **`1.6.9`** in corso  
-- Batch media / B0 MVP su cache transcript  
-- «Apri con» / associazione predefinita Windows (opzionale)  
+- ~~TOC/link PDF + titoli report + guida `.rtad.txt`~~ → **`1.6.9`** pubblicata  
+- ~~Lettore documenti interno MVP + toast + spazi PDF~~ → **`1.7.0`** pronta  
+- Batch media / B0 MVP su cache transcript → **`1.7.1+`**  
+- Focus freccia post-iconizza / ri-salto Acrobat → **`1.7.1+`**  
 - Whisper locale opt-in; export/stampa; OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  

@@ -1196,6 +1196,47 @@ def _pdf_find_title_in_body(body: str, title: str, start: int = 0):
     return None
 
 
+def _pdf_deglue_with_phrases(text: str, phrases) -> str:
+    """Sostituisce «Batteriainterna» con «Batteria interna» usando frasi note (TOC).
+
+    Utile quando il gap TJ non c'è e il titolo nel sommario ha già gli spazi.
+    """
+    if not text or not phrases:
+        return text
+    items = []
+    for ph in phrases:
+        ph = (ph or "").strip()
+        if not ph or " " not in ph or len(ph) < 4:
+            continue
+        # Solo etichetta, senza « (p. 12)»
+        ph = re.sub(r"\s*\(p\.\s*\d+\)\s*$", "", ph, flags=re.I).strip()
+        if not ph or " " not in ph:
+            continue
+        compact = re.sub(r"\s+", "", ph)
+        if len(compact) < 4 or compact == ph:
+            continue
+        items.append((len(compact), compact, ph))
+    if not items:
+        return text
+    items.sort(key=lambda x: x[0], reverse=True)
+    for _, compact, spaced in items:
+        out = []
+        i = 0
+        while True:
+            p = text.find(compact, i)
+            if p < 0:
+                out.append(text[i:])
+                break
+            before_ok = p == 0 or not text[p - 1].isalpha()
+            after = p + len(compact)
+            after_ok = after >= len(text) or not text[after].isalpha()
+            out.append(text[i:p])
+            out.append(spaced if (before_ok and after_ok) else compact)
+            i = after
+        text = "".join(out)
+    return text
+
+
 def _pdf_annotate_body_with_outline_headings(body: str, outline: list) -> str:
     """Inserisce «\\n[Hn] Titolo» sulle occorrenze nel corpo (non sull'indice a puntini).
 
@@ -1261,6 +1302,10 @@ def enrich_pdf_structure_with_text(struct: dict, plain: str) -> dict:
         return struct
     struct = dict(struct)
     outline = list(struct.get("outline") or [])
+    # Prima: spazi dai titoli TOC (Batteriainterna → Batteria interna)
+    plain = _pdf_deglue_with_phrases(
+        plain, [it.get("title") for it in outline if isinstance(it, dict)]
+    )
     plain = _pdf_annotate_body_with_outline_headings(plain, outline)
     struct["body"] = plain
     struct["plain"] = plain

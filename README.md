@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.6.9)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.0)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,16 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.0
+
+- **Lettore documento RTAD**: «Leggi documento…» diventa un lettore accessibile (sommario, link, testo). **Ctrl+F** / F3 / Shift+F3 cerca nel corpo; **Ctrl+H** / **Ctrl+Shift+H** salta i titoli `[Hn]`; «Apri file esterno» è opzionale. Se dopo iconizza le frecce non rispondono: Tab poi Shift+Tab.
+- **Spazi PDF**: riconoscimento dei placeholder spazio tipici (es. Acer, manuali braille) → testo più leggibile. I PDF criptati restano fuori portata (Acrobat sì, RTAD no senza copia sbloccata).
+- **Toast fine-ricerca** meno invasivi (banner breve; restano nel Centro notifiche). Con il lettore aperto: solo annuncio.
+- Restano PDF TOC/link 1.6.9, documenti 1.6.8, hub audio/video 1.6.7, dialogo immagine 1.6.6.
+
 ### 🌟 Novità della Versione 1.6.9
+
+*(Pubblicata.)*
 
 - **PDF strutturati**: sommario/TOC e link URI in «Leggi documento (struttura e testo)» (insieme a DOCX/EPUB). Con Invio: testo accessibile in RTAD (anche se Acrobat riparte dall’inizio) + app predefinita Windows alla pagina (salto se Acrobat/Sumatra). Guida pratica: escamotage Acrobat/NVDA.
 - **Report media**: titoli lunghi quasi interi nel nome `.rtad.txt` (stem fino a ~220 caratteri; non più tagliati a ~80).
@@ -146,7 +155,16 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.0
+
+- **In-app document reader**: “Read document…” opens an accessible reader (outline, links, body). **Ctrl+F** / F3 / Shift+F3 find in text; **Ctrl+H** / **Ctrl+Shift+H** jump `[Hn]` headings; “Open external file” is optional. After minimize, if arrows do nothing: Tab then Shift+Tab.
+- **PDF spacing**: common space placeholders (e.g. Acer, braille manuals) become real spaces. Encrypted PDFs stay out of reach (Acrobat can open them; RTAD needs an unlocked copy).
+- **End-of-search toast** less intrusive (short banner; still in Notification Center). With the reader open: speech only.
+- PDF TOC/links 1.6.9, structured docs 1.6.8, AV hub 1.6.7, and image dialog 1.6.6 remain.
+
 ### 🌟 What's New in Version 1.6.9
+
+*(Published.)*
 
 - **Structured PDFs**: TOC/outline and URI links in “Read document (structure and text)” (alongside DOCX/EPUB).
 - **Media reports**: long titles kept almost in full in `.rtad.txt` filenames (no longer cut at ~80 characters).

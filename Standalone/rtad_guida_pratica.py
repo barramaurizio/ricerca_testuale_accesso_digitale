@@ -28,61 +28,43 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.6.9
+Novità recenti (in parole semplici) — versione 1.7.0
 ----------------------------------------------------
-• PDF con struttura: sommario (TOC) e link cliccabili,
-  come già per Word (.docx) ed EPUB, dal menu
-  «Leggi documento (struttura e testo)». Funziona anche
-  sui PDF «difficili» (senza segnalibri Acrobat): se ci
-  sono destinazioni/indice (es. lingue + pagina) o link
-  web, RTAD li ricostruisce. Nel sommario: freccia su
-  «Italiano (p. 339)» e Invio → dove possibile il testo
-  in RTAD va sulla sezione; in più RTAD apre il PDF
-  con l'app predefinita di Windows (quella che hai
-  scelto tu). Se è Acrobat o Sumatra, prova anche
-  il salto alla pagina; con Edge o altri lettori
-  apre il file e basta. Se in RTAD c'è solo l'indice
-  (corpo non estraibile), apre comunque il PDF.
-  Come usare PDF con NVDA (importante):
-  1) In RTAD apri «Leggi documento…»: il sommario
-     e il riquadro «Testo del documento» sono la
-     lettura accessibile (Invio sulla voce → il
-     testo salta alla sezione). Non dipendono da
-     Acrobat: funzionano subito.
-  2) Invio apre anche l'app predefinita Windows
-     (Acrobat, Sumatra, …) alla pagina, se possibile.
-     Chi vede la pagina sullo schermo; chi usa NVDA
-     continua a leggere nel testo di RTAD.
-  3) Acrobat a volte chiede di «preparare» il PDF
-     per lo screen reader (barra percentuale). In
-     Preferenze → Lettura togli «Conferma prima di
-     aggiungere tag ai documenti». Se NVDA in
-     Acrobat riparte dall'inizio o dice «sconosciuto»,
-     è un limite di Acrobat+tag, non di RTAD.
-  4) Se la vista Acrobat resta a pagina 1: chiudi
-     il PDF e ridai Invio in RTAD, oppure Invio una
-     seconda volta a preparazione finita.
-  5) Sumatra è leggero e salta bene la pagina, ma
-     con NVDA di solito non legge il testo.
-  6) Chiudi i popup «Ricerca completata…» (OK):
-     rubano il focus.
-  I link «Sito web» sono esterni (es. samsung.com).
-• Quando salvi il testo di un audio/video, il nome del
-  file .rtad.txt usa il titolo quasi per intero (anche
-  se è lungo), non più tagliato a metà.
-• Come cercare parole nei video senza costi extra:
-  1) apri «Tutto sull’audio/video» e fai riassunto/
-     trascrizione;
-  2) «Salva testo…» → ottieni un .rtad.txt;
-  3) cerca quella parola nella cartella dei .rtad.txt
-     (sono file di testo: RTAD li legge come gli altri).
-  È lo stesso contenuto della descrizione/trascrizione,
-  già pronto, senza dover riascoltare o ritrascrivere.
-• Restano da 1.6.8: documenti DOCX/EPUB strutturati,
-  salvataggi report/risultati, Sfoglia file/cartella.
-  Da 1.6.7: hub audio/video. Da 1.6.6: dialogo immagine.
+• Lettore documento in RTAD: dalla voce
+  «Leggi documento (struttura e testo)» si apre una
+  finestra «Lettore documento» con sommario, link e
+  testo. Puoi leggere PDF/DOCX/EPUB senza dipendere
+  da Acrobat per la lettura con NVDA.
+  Scorciatoie nel lettore:
+  - Control+F (o pulsante Cerca): cerca una parola;
+    OK / F3 = occorrenza successiva dal cursore;
+    Shift+F3 = precedente.
+  - Control+H / Control+Shift+H: titolo [H1]… successivo
+    o precedente nel testo.
+  - «Apri file esterno»: apre il PDF con l'app Windows
+    (opzionale). Invio sul sommario, come prima, va al
+    testo in RTAD e può aprire anche l'app alla pagina.
+  Se dopo aver iconizzato la finestra le frecce non
+  muovono il testo: Tab e poi Shift+Tab tornano sul
+  punto in cui eri.
+• Spazi nei PDF migliorati: molti manuali (es. Acer,
+  barre braille) mappano lo «spazio» in modi strani;
+  RTAD li riconverte in spazi leggibili quando può.
+  Non esiste un metodo al 100% per tutti i PDF del
+  mondo; i casi tipici sono coperti. PDF protetti/
+  criptati: Acrobat li legge, RTAD no — salva una
+  copia senza protezione se ti serve il testo qui.
+• Notifica «Ricerca completata»: banner breve (meno
+  invasivo). Resta comunque nel Centro notifiche
+  (Windows+N) finché non la consulti o la cancelli.
+  Se il lettore documento è aperto, RTAD annuncia
+  a voce e non spinge il toast sticky.
+• Restano da 1.6.9: PDF con TOC/link e app predefinita;
+  titoli lunghi nei report media; parole nei video via
+  .rtad.txt. Da 1.6.8: DOCX/EPUB strutturati, salvataggi,
+  Sfoglia. Da 1.6.7: hub audio/video. Da 1.6.6: immagini.
 • Dove usare cosa:
-  - Documenti/PDF → «Leggi documento…»;
+  - Documenti/PDF → «Leggi documento…» (lettore RTAD);
   - Audio/video → filtro «Solo Audio e Video» / Strumenti;
   - Parole nei video già analizzati → cerca nei .rtad.txt;
   - Immagini → dialogo unico / batch / Shift+G.

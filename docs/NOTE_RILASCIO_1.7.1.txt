@@ -27,7 +27,7 @@ Descrizione:
 - **Descrivi immagine da PDF**: «Salva testo…» usa nome e cartella del PDF originale (non del temp); nuovo «Stampa testo…» (stampante Windows / Print to PDF).
 - **Scheda tecnica** (immagini e audio/video): **Data analisi** + **Ultima modifica originale** (come in Esplora file).
 - **Lettore documento**: focus frecce dopo iconizza migliorato.
-- Restano lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7.
+- Restano lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media 1.6.7.
 
 ## 🇬🇧 English
 
@@ -35,7 +35,7 @@ Descrizione:
 - **Describe image from PDF**: “Save text…” uses the original PDF name and folder (not the temp file); new “Print text…” (Windows printer / Print to PDF).
 - **Tech sheet** (images and audio/video): **Analysis date** + **Original last modified** (as in File Explorer).
 - **Document reader**: arrow-key focus after minimize improved.
-- Reader/spacing/toast 1.7.0, PDF TOC 1.6.9, and AV hub 1.6.7 remain.
+- Reader/spacing/toast 1.7.0, PDF TOC 1.6.9, structured docs 1.6.8, and AV hub 1.6.7 remain.
 ```
 
 Asset(s):

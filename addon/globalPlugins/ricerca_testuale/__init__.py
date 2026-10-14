@@ -6151,7 +6151,7 @@ class WhatsNewFrame(wx.Frame):
             "• Scheda tecnica: Data analisi + Ultima modifica\n"
             "  originale (come in Esplora file).\n"
             "• Focus frecce nel lettore dopo iconizza migliorato.\n"
-            "• Restano lettore 1.7.0, TOC PDF 1.6.9, hub media.\n"
+            "• Restano lettore 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )

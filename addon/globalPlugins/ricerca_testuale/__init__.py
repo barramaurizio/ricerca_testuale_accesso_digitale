@@ -4,6 +4,7 @@ import datetime
 import globalPluginHandler
 import globalVars
 import json
+import logging
 import os
 import re
 import shutil
@@ -78,7 +79,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.7.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -3729,8 +3730,13 @@ def run_image_analysis(
     delete_after=False,
     speak=None,
     sections=None,
+    *,
+    source_path="",
 ):
-    """Analisi immagine riusabile da SearchFrame e GlobalPlugin (1.6.4)."""
+    """Analisi immagine riusabile da SearchFrame e GlobalPlugin (1.6.4).
+
+    source_path: PDF/originale se file_path è un temp estratto (stem/cartella).
+    """
     speak = speak or rtad_speak
     if not file_path or not os.path.isfile(file_path):
         speak("File immagine non trovato.")
@@ -3739,6 +3745,7 @@ def run_image_analysis(
         speak("Modulo immagini non disponibile.")
         return
     _ensure_ocr_keys()
+    src_path = (source_path or "").strip()
 
     if mode in ("describe", "copy-describe", "alt", "alt-long", "all") and not load_gemini_api_key():
         speak(
@@ -3762,10 +3769,13 @@ def run_image_analysis(
                     include_describe=sec.get("include_describe", True),
                     include_labels=sec.get("include_labels", True),
                     include_tech=sec.get("include_tech", True),
+                    source_path=src_path,
                 )
             elif mode == "tech":
                 title = "Scheda tecnica immagine"
-                body = rtad_ocr.format_tech_sheet(rtad_ocr.get_image_tech_info(file_path))
+                body = rtad_ocr.format_tech_sheet(
+                    rtad_ocr.get_image_tech_info(file_path, source_path=src_path)
+                )
             elif mode == "labels":
                 title = "Etichette e oggetti"
                 data = rtad_ocr.analyze_image_visual(file_path)
@@ -3786,10 +3796,12 @@ def run_image_analysis(
                     body = alt.get("error") or "Alt-text non disponibile."
             elif mode == "alt-long":
                 title = "Alt-text e descrizione"
-                body = rtad_ocr.format_alt_and_long_description(file_path)
+                body = rtad_ocr.format_alt_and_long_description(
+                    file_path, source_path=src_path
+                )
             else:
                 title = "Descrizione immagine"
-                body = rtad_ocr.describe_image(file_path)
+                body = rtad_ocr.describe_image(file_path, source_path=src_path)
         except Exception as e:
             title = "Errore analisi immagine"
             body = str(e)
@@ -3807,7 +3819,13 @@ def run_image_analysis(
                 return
             if not hasattr(host, "_image_info_frames") or host._image_info_frames is None:
                 host._image_info_frames = []
-            frm = ImageInfoFrame(None, title, body, image_path=file_path)
+            frm = ImageInfoFrame(
+                None,
+                title,
+                body,
+                image_path=file_path,
+                source_path=src_path,
+            )
 
             def _on_close(evt, frame=frm, path=file_path, do_del=delete_after):
                 try:
@@ -5165,6 +5183,9 @@ class ImageInfoFrame(wx.Frame):
 
     parent=None di proposito: resta aperta e consultabile anche se si
     iconizza/cambia finestra; si chiude solo con Chiudi o ESC.
+
+    source_path: file originale per stem/cartella «Salva testo» (es. PDF
+    da cui è stata estratta l'immagine temp in image_path).
     """
 
     def __init__(
@@ -5174,6 +5195,7 @@ class ImageInfoFrame(wx.Frame):
         body_text,
         image_path="",
         *,
+        source_path="",
         action_label="",
         action_cb=None,
         after_close_cb=None,
@@ -5186,6 +5208,7 @@ class ImageInfoFrame(wx.Frame):
             style=wx.DEFAULT_FRAME_STYLE,
         )
         self.image_path = image_path or ""
+        self.source_path = source_path or ""
         self.body_text = body_text or ""
         self._action_cb = action_cb
         self._after_close_cb = after_close_cb
@@ -5194,9 +5217,10 @@ class ImageInfoFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
+        label_path = self._save_ref_path() or self.image_path
         lbl = wx.StaticText(
             panel,
-            label=os.path.basename(self.image_path) if self.image_path else "Immagine",
+            label=os.path.basename(label_path) if label_path else "Immagine",
         )
         vbox.Add(lbl, 0, wx.ALL, 8)
 
@@ -5214,6 +5238,9 @@ class ImageInfoFrame(wx.Frame):
         btn_save = wx.Button(panel, label="&Salva testo…")
         btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
         hbox.Add(btn_save, 0, wx.ALL, 5)
+        btn_print = wx.Button(panel, label="S&tampa testo…")
+        btn_print.Bind(wx.EVT_BUTTON, self.on_print_text)
+        hbox.Add(btn_print, 0, wx.ALL, 5)
         if action_label and callable(action_cb):
             btn_action = wx.Button(panel, label=action_label)
             btn_action.Bind(wx.EVT_BUTTON, self._on_action)
@@ -5229,6 +5256,13 @@ class ImageInfoFrame(wx.Frame):
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.Bind(wx.EVT_CLOSE, self._on_close_frame)
         rtad_speak(f"{title}. Usa le frecce per leggere.")
+
+    def _save_ref_path(self):
+        """Percorso per stem/cartella: PDF/originale se valido, altrimenti image_path."""
+        src = (self.source_path or "").strip()
+        if src and (os.path.isfile(src) or os.path.isdir(src)):
+            return src
+        return (self.image_path or "").strip()
 
     def _on_action(self, event=None):
         self._after_close_cb = None
@@ -5271,11 +5305,14 @@ class ImageInfoFrame(wx.Frame):
         if not text.strip():
             rtad_speak("Niente da salvare.")
             return
-        stem = report_save_stem_for_path(self.image_path)
-        # Locale: cartella del media; URL/temp: ultima cartella scelta (dialogo sempre modificabile)
+        ref = self._save_ref_path()
+        stem = report_save_stem_for_path(ref)
+        # Locale: cartella del PDF/media originale; temp → ultima cartella scelta
         default_dir = ""
-        if self.image_path:
-            cand = os.path.dirname(os.path.abspath(self.image_path))
+        if ref:
+            cand = os.path.dirname(os.path.abspath(ref)) if os.path.isfile(ref) else (
+                os.path.abspath(ref) if os.path.isdir(ref) else ""
+            )
             if cand and os.path.isdir(cand) and not _looks_like_temp_dir(cand):
                 default_dir = cand
         if not default_dir:
@@ -5301,6 +5338,40 @@ class ImageInfoFrame(wx.Frame):
             rtad_speak(f"Testo salvato: {os.path.basename(path)}")
         except Exception as e:
             rtad_speak(f"Salvataggio non riuscito: {e}")
+
+    def on_print_text(self, event=None):
+        """Stampa il report (Notepad /p → stampante predefinita o Print to PDF)."""
+        text = self.txt_display.GetValue() or ""
+        if not text.strip():
+            rtad_speak("Niente da stampare.")
+            return
+        ref = self._save_ref_path()
+        name = os.path.basename(ref) if ref else "report"
+        temp_print_path = os.path.join(CONFIG_DIR, "stampa_report_immagine.txt")
+        try:
+            with open(temp_print_path, "w", encoding="utf-8") as f:
+                f.write(f"=== {APP_TITLE} — Report immagine ===\n")
+                f.write(f"Sorgente: {name}\n")
+                f.write(
+                    f"Data stampa: "
+                    f"{datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n"
+                )
+                f.write(text)
+            notepad_path = os.path.join(
+                os.environ.get("WINDIR", "C:\\Windows"), "System32", "notepad.exe"
+            )
+            if not os.path.exists(notepad_path):
+                notepad_path = "notepad.exe"
+            subprocess.Popen([notepad_path, "/p", temp_print_path])
+            rtad_speak(
+                "Testo inviato alla stampante predefinita. "
+                "Puoi scegliere «Microsoft Print to PDF» se serve un PDF."
+            )
+        except Exception as e:
+            logging.error(f"Stampa report immagine fallita: {e}")
+            rtad_speak(
+                "Impossibile stampare. Assicurati di avere una stampante configurata."
+            )
 
     def on_char_hook(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -5757,14 +5828,53 @@ class DocumentStructureFrame(wx.Frame):
         except Exception:
             pass
 
+    def _reader_known_ctrls(self):
+        known = set()
+        for c in (self.txt_display, self.lst_outline, self.lst_links):
+            if c is not None:
+                known.add(c)
+        return known
+
+    def _kick_text_caret(self, pos):
+        """Secondo passaggio focus: dopo iconizza le frecce a volte restano mute."""
+        try:
+            if self.IsIconized() or not self.IsShown():
+                return
+            if self.txt_display is None:
+                return
+            self.txt_display.SetFocus()
+            end = self.txt_display.GetLastPosition()
+            pos = max(0, min(int(pos or 0), end))
+            self.txt_display.SetInsertionPoint(pos)
+            self.txt_display.SetSelection(pos, pos)
+            try:
+                self.txt_display.ShowPosition(pos)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def _restore_reader_focus(self):
-        """Dopo iconizza/Alt-Tab: torna sul controllo e sulla posizione testo."""
+        """Dopo iconizza/Alt-Tab: torna sul controllo e sulla posizione testo.
+
+        Dopo ripristino da iconizza, SetFocus da solo non basta sempre perché
+        le frecce riprendano (serve Tab/Shift+Tab): Raise + caret kick.
+        """
         try:
             if not self.IsShown() or self.IsIconized():
                 return
+            try:
+                self.Raise()
+            except Exception:
+                pass
+            known = self._reader_known_ctrls()
             ctrl = self._last_focus_ctrl
-            if ctrl is None or not ctrl:
+            if ctrl not in known:
                 ctrl = self.txt_display
+            try:
+                self.SetFocus()
+            except Exception:
+                pass
             try:
                 ctrl.SetFocus()
             except Exception:
@@ -5777,8 +5887,21 @@ class DocumentStructureFrame(wx.Frame):
                 if pos > end:
                     pos = end
                 self.txt_display.SetInsertionPoint(pos)
+                self.txt_display.SetSelection(pos, pos)
                 try:
                     self.txt_display.ShowPosition(pos)
+                except Exception:
+                    pass
+                wx.CallLater(50, self._kick_text_caret, pos)
+            elif ctrl is not None:
+                try:
+                    sel = ctrl.GetSelection()
+                    if sel != wx.NOT_FOUND:
+                        ctrl.SetSelection(sel)
+                except Exception:
+                    pass
+                try:
+                    ctrl.SetFocus()
                 except Exception:
                     pass
         except Exception:
@@ -5786,7 +5909,7 @@ class DocumentStructureFrame(wx.Frame):
 
     def _on_reader_activate(self, event):
         if event.GetActive():
-            wx.CallLater(80, self._restore_reader_focus)
+            wx.CallLater(100, self._restore_reader_focus)
         else:
             self._remember_text_pos()
         event.Skip()
@@ -5795,7 +5918,7 @@ class DocumentStructureFrame(wx.Frame):
         if event.IsIconized():
             self._remember_text_pos()
         else:
-            wx.CallLater(120, self._restore_reader_focus)
+            wx.CallLater(220, self._restore_reader_focus)
         event.Skip()
 
     def on_find(self, event=None):
@@ -6021,13 +6144,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Lettore documento in RTAD: cerca (Control+F, F3),\n"
-            "  titoli (Control+H), Apri file esterno opzionale.\n"
-            "• Spazi nei PDF più leggibili (casi tipici Acer/braille).\n"
-            "• Notifica fine-ricerca meno invasiva (resta in Centro\n"
-            "  notifiche; con il lettore aperto solo annuncio).\n"
-            "• Restano PDF TOC/link 1.6.9, documenti 1.6.8,\n"
-            "  hub media 1.6.7, dialogo immagine 1.6.6.\n"
+            "• PDF scansione: se non c'è testo ma ci sono immagini,\n"
+            "  dialogo Descrivi / Apri lettore.\n"
+            "• Descrivi da PDF: Salva testo col nome/cartella del\n"
+            "  PDF originale; pulsante Stampa testo…\n"
+            "• Scheda tecnica: Data analisi + Ultima modifica\n"
+            "  originale (come in Esplora file).\n"
+            "• Focus frecce nel lettore dopo iconizza migliorato.\n"
+            "• Restano lettore 1.7.0, TOC PDF 1.6.9, hub media.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -9874,6 +9998,46 @@ class SearchFrame(wx.Frame):
         frm.Show()
         frm.Raise()
 
+    def _offer_pdf_scan_describe(self, file_path, struct=None):
+        """PDF senza testo ma con immagini: proponi Descrivi, altrimenti lettore."""
+        name = os.path.basename(file_path) if file_path else "PDF"
+        extra = ""
+        if struct and (struct.get("message") or "").strip():
+            extra = (struct.get("message") or "").strip() + "\n\n"
+        dlg = wx.MessageDialog(
+            self,
+            f"{extra}"
+            f"«{name}» non contiene testo estraibile ma contiene immagini "
+            f"(probabile scansione).\n\n"
+            f"Vuoi descrivere ora l'immagine principale?\n"
+            f"Sì = Descrivi immagine da PDF\n"
+            f"No = apri comunque il lettore documento",
+            "PDF scansione",
+            wx.YES_NO | wx.ICON_QUESTION,
+        )
+        try:
+            dlg.SetYesNoLabels("&Descrivi immagine", "&Apri lettore")
+        except Exception:
+            pass
+        try:
+            choice = dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        if choice == wx.ID_YES:
+            self.describe_image_from_pdf(file_path, mode="describe")
+            return
+        if struct is not None:
+            self._show_document_structure_frame(file_path, struct)
+            rtad_speak(
+                "Lettore aperto senza testo. "
+                "Puoi usare Strumenti → Descrivi immagine da PDF in qualsiasi momento."
+            )
+        else:
+            rtad_speak(
+                "Nessun testo estraibile. "
+                "Usa Strumenti → Descrivi immagine da PDF."
+            )
+
     def read_document_file(self, file_path):
         """Apre lettore strutturato (DOCX/EPUB/PDF) o testo piano (altro)."""
         if not file_path or not os.path.isfile(file_path):
@@ -9920,26 +10084,31 @@ class SearchFrame(wx.Frame):
                 if body or struct.get("has_structure") or (
                     struct.get("message") and ext in (".doc", ".pdf")
                 ):
+                    if (
+                        not body
+                        and not struct.get("has_structure")
+                        and ext == ".pdf"
+                        and get_best_pdf_page_image(file_path)
+                    ):
+                        wx.CallAfter(
+                            self._offer_pdf_scan_describe, file_path, struct
+                        )
+                        return
                     wx.CallAfter(
                         self._show_document_structure_frame, file_path, struct
                     )
                     if not body and not struct.get("has_structure"):
-                        if ext == ".pdf" and get_best_pdf_page_image(file_path):
-                            wx.CallAfter(
-                                rtad_speak,
-                                (struct.get("message") or "")
-                                + " Questo PDF sembra una scansione: "
-                                "prova «Descrivi immagine da PDF» oppure Apri con Edge/NVDA.",
-                            )
-                        else:
-                            wx.CallAfter(
-                                rtad_speak,
-                                struct.get("message") or "Nessun testo estraibile.",
-                            )
+                        wx.CallAfter(
+                            rtad_speak,
+                            struct.get("message") or "Nessun testo estraibile.",
+                        )
                     return
 
             text = extract_document_text(file_path)
             if not (text or "").strip():
+                if ext == ".pdf" and get_best_pdf_page_image(file_path):
+                    wx.CallAfter(self._offer_pdf_scan_describe, file_path, None)
+                    return
                 msg = (
                     "Nessun testo estraibile da questo file "
                     "(formato non supportato, protetto o vuoto)."
@@ -9968,6 +10137,8 @@ class SearchFrame(wx.Frame):
         copy_only=False,
         delete_after=False,
         sections=None,
+        *,
+        source_path="",
     ):
         """Descrivi / etichette / scheda tecnica su un file immagine."""
         run_image_analysis(
@@ -9978,6 +10149,7 @@ class SearchFrame(wx.Frame):
             delete_after=delete_after,
             speak=rtad_speak,
             sections=sections,
+            source_path=source_path,
         )
 
     def show_image_all_dialog(self, file_path):
@@ -10542,14 +10714,18 @@ class SearchFrame(wx.Frame):
         return ""
 
     def describe_image_from_pdf(self, file_path, mode="describe"):
-        """Estrae immagine dal PDF e avvia analisi (temp + delete_after)."""
+        """Estrae immagine dal PDF e avvia analisi (temp + delete_after).
+
+        Passa source_path=PDF originale così «Salva testo» usa stem/cartella del PDF.
+        """
         if not file_path or not os.path.isfile(file_path):
             rtad_speak("File PDF non trovato.")
             return
         rtad_speak("Estrazione immagine dal PDF…")
+        pdf_path = os.path.normpath(file_path)
 
         def _work():
-            tmp = self.materialize_pdf_image_temp(file_path)
+            tmp = self.materialize_pdf_image_temp(pdf_path)
             if not tmp:
                 wx.CallAfter(
                     rtad_speak,
@@ -10557,13 +10733,13 @@ class SearchFrame(wx.Frame):
                     "(solo loghi piccoli o nessuna grafica).",
                 )
                 return
-            wx.CallAfter(
-                self.show_image_analysis,
-                tmp,
-                mode,
-                False,
-                True,
-            )
+
+            def _go(p=tmp, m=mode, src=pdf_path):
+                self.show_image_analysis(
+                    p, mode=m, delete_after=True, source_path=src
+                )
+
+            wx.CallAfter(_go)
 
         threading.Thread(target=_work, daemon=True).start()
 

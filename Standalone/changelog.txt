@@ -1,3 +1,10 @@
+Novità nella Versione 1.7.1
+- PDF scansione: dialogo Descrivi immagine / Apri lettore se 0 testo ma ci sono immagini
+- Descrivi da PDF: Salva testo con stem/cartella del PDF originale; Stampa testo…
+- Scheda tecnica immagini/media: Data analisi + Ultima modifica originale (Esplora file)
+- Focus frecce nel lettore dopo iconizza migliorato
+- Restano lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7
+
 Novità nella Versione 1.7.0
 - Lettore documento RTAD: cerca (Ctrl+F / F3 / Shift+F3), titoli (Ctrl+H / Ctrl+Shift+H), Apri file esterno
 - Spazi PDF: placeholder tipici (Acer \x00\x03, encoding custom \x06, gap TJ) → testo leggibile

@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.0)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.1)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.1
+
+- **PDF scansione**: se «Leggi documento…» non trova testo ma trova immagini → dialogo **Descrivi immagine** / **Apri lettore**.
+- **Descrivi immagine da PDF**: «Salva testo…» con **nome e cartella del PDF originale**; nuovo **«Stampa testo…»** (stampante Windows / Print to PDF).
+- **Scheda tecnica** (immagini e audio/video): **Data analisi** + **Ultima modifica originale** (come in Esplora file).
+- **Lettore**: focus frecce dopo iconizza migliorato.
+- Restano lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media 1.6.7.
+
 ### 🌟 Novità della Versione 1.7.0
+
+*(Pubblicata.)*
 
 - **Lettore documento RTAD**: «Leggi documento…» diventa un lettore accessibile (sommario, link, testo). **Ctrl+F** / F3 / Shift+F3 cerca nel corpo; **Ctrl+H** / **Ctrl+Shift+H** salta i titoli `[Hn]`; «Apri file esterno» è opzionale. Se dopo iconizza le frecce non rispondono: Tab poi Shift+Tab.
 - **Spazi PDF**: riconoscimento dei placeholder spazio tipici (es. Acer, manuali braille) → testo più leggibile. I PDF criptati restano fuori portata (Acrobat sì, RTAD no senza copia sbloccata).
@@ -155,7 +165,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.1
+
+- **Scanned PDFs**: if “Read document…” finds no text but finds images → **Describe image** / **Open reader** dialog.
+- **Describe image from PDF**: “Save text…” uses the **original PDF name and folder**; new **“Print text…”** (Windows printer / Print to PDF).
+- **Tech sheet** (images and audio/video): **Analysis date** + **Original last modified** (as in File Explorer).
+- **Reader**: arrow-key focus after minimize improved.
+- Reader/spacing/toast 1.7.0, PDF TOC 1.6.9, structured docs 1.6.8, and AV hub 1.6.7 remain.
+
 ### 🌟 What's New in Version 1.7.0
+
+*(Published.)*
 
 - **In-app document reader**: “Read document…” opens an accessible reader (outline, links, body). **Ctrl+F** / F3 / Shift+F3 find in text; **Ctrl+H** / **Ctrl+Shift+H** jump `[Hn]` headings; “Open external file” is optional. After minimize, if arrows do nothing: Tab then Shift+Tab.
 - **PDF spacing**: common space placeholders (e.g. Acer, braille manuals) become real spaces. Encrypted PDFs stay out of reach (Acrobat can open them; RTAD needs an unlocked copy).

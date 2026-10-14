@@ -2828,8 +2828,24 @@ def _parse_exif_ifd(tiff: bytes, offset: int, endian: str) -> dict:
     return out
 
 
-def get_image_tech_info(path: str) -> dict:
-    """Scheda tecnica locale (B): dimensioni, formato, dimensione file, date, EXIF base."""
+def _mtime_label_for_path(path: str) -> tuple:
+    """(mtime float, etichetta gg/mm/aaaa hh:mm) oppure (0.0, "")."""
+    if not path or not os.path.isfile(path):
+        return 0.0, ""
+    try:
+        import datetime as _dt
+        mt = float(os.path.getmtime(path))
+        return mt, _dt.datetime.fromtimestamp(mt).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return 0.0, ""
+
+
+def get_image_tech_info(path: str, source_path: str = "") -> dict:
+    """Scheda tecnica locale (B): dimensioni, formato, dimensione file, date, EXIF base.
+
+    source_path: file originale (es. PDF da cui è estratto un temp) per
+    «Ultima modifica originale» come in Esplora file.
+    """
     info = {
         "path": path or "",
         "file_name": os.path.basename(path or "") or "",
@@ -2840,6 +2856,10 @@ def get_image_tech_info(path: str) -> dict:
         "size_bytes": 0,
         "mtime": 0.0,
         "mtime_label": "",
+        "source_path": "",
+        "source_name": "",
+        "source_mtime": 0.0,
+        "source_mtime_label": "",
         "exif_datetime": "",
         "exif_camera": "",
         "ok": False,
@@ -2860,14 +2880,22 @@ def get_image_tech_info(path: str) -> dict:
         info["size_bytes"] = int(os.path.getsize(path))
     except Exception:
         info["size_bytes"] = 0
-    try:
-        info["mtime"] = float(os.path.getmtime(path))
-        import datetime as _dt
-        info["mtime_label"] = _dt.datetime.fromtimestamp(info["mtime"]).strftime(
-            "%d/%m/%Y %H:%M"
-        )
-    except Exception:
-        pass
+    mt, mt_lbl = _mtime_label_for_path(path)
+    info["mtime"] = mt
+    info["mtime_label"] = mt_lbl
+    src = (source_path or "").strip()
+    if src and os.path.isfile(src):
+        info["source_path"] = src
+        info["source_name"] = os.path.basename(src)
+        smt, smt_lbl = _mtime_label_for_path(src)
+        info["source_mtime"] = smt
+        info["source_mtime_label"] = smt_lbl
+    else:
+        # Stesso file: Ultima modifica = Data file (come in Esplora file)
+        info["source_path"] = path
+        info["source_name"] = info["file_name"]
+        info["source_mtime"] = mt
+        info["source_mtime_label"] = mt_lbl
     w, h = _read_image_dimensions(path)
     info["width"], info["height"] = w, h
     if ext in (".jpg", ".jpeg", ".jfif"):
@@ -2890,10 +2918,20 @@ def format_tech_sheet(info: dict) -> str:
         return "Scheda tecnica non disponibile."
     if not info.get("ok"):
         return info.get("error") or "Scheda tecnica non disponibile."
+    display = info.get("source_name") or info.get("file_name") or "immagine"
     lines = [
-        f"Scheda tecnica: {info.get('file_name') or 'immagine'}",
+        f"Scheda tecnica: {display}",
         f"Formato: {info.get('format_label') or 'sconosciuto'}.",
     ]
+    src_p = (info.get("source_path") or "").strip()
+    ana_p = (info.get("path") or "").strip()
+    try:
+        if src_p and ana_p and os.path.normcase(os.path.abspath(src_p)) != os.path.normcase(
+            os.path.abspath(ana_p)
+        ):
+            lines.append(f"File analizzato: {info.get('file_name') or os.path.basename(ana_p)}.")
+    except Exception:
+        pass
     w, h = int(info.get("width") or 0), int(info.get("height") or 0)
     if w > 0 and h > 0:
         lines.append(f"Dimensioni: {w} per {h} pixel.")
@@ -2908,8 +2946,25 @@ def format_tech_sheet(info: dict) -> str:
         else:
             sz = f"{size_b / (1024 * 1024):.2f} MB"
         lines.append(f"Dimensione file: {sz}.")
-    if info.get("mtime_label"):
-        lines.append(f"Data file: {info['mtime_label']}.")
+    # Sempre: quando è stato fatto il report + mtime Esplora del file originale
+    try:
+        import datetime as _dt
+        now_lbl = _dt.datetime.now().strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        now_lbl = ""
+    if now_lbl:
+        lines.append(f"Data analisi: {now_lbl}.")
+    if info.get("source_mtime_label"):
+        lines.append(
+            f"Ultima modifica originale: {info['source_mtime_label']} "
+            f"(come in Esplora file)."
+        )
+    elif info.get("mtime_label"):
+        # fallback se manca source
+        lines.append(
+            f"Ultima modifica originale: {info['mtime_label']} "
+            f"(come in Esplora file)."
+        )
     if info.get("exif_datetime"):
         lines.append(f"Data scatto (EXIF): {info['exif_datetime']}.")
     if info.get("exif_camera"):
@@ -3880,7 +3935,7 @@ def describe_image_alt_text(path: str, should_abort=None, use_cache: bool = True
 
 
 def format_alt_and_long_description(
-    path: str, should_abort=None, include_tech: bool = True
+    path: str, should_abort=None, include_tech: bool = True, source_path: str = ""
 ) -> str:
     """Alt-text breve + descrizione lunga (+ scheda tecnica opzionale)."""
     return format_full_image_report(
@@ -3890,6 +3945,7 @@ def format_alt_and_long_description(
         include_labels=False,
         include_tech=include_tech,
         should_abort=should_abort,
+        source_path=source_path,
     )
 
 
@@ -3901,9 +3957,16 @@ def format_full_image_report(
     include_labels: bool = True,
     include_tech: bool = True,
     should_abort=None,
+    source_path: str = "",
 ) -> str:
     """Report unificato «Tutto sull'immagine» (sezioni a richiesta, 1.6.6)."""
-    parts = [f"Immagine: {os.path.basename(path) or 'immagine'}", ""]
+    src = (source_path or "").strip()
+    label = (
+        os.path.basename(src)
+        if src and os.path.isfile(src)
+        else (os.path.basename(path) or "immagine")
+    )
+    parts = [f"Immagine: {label}", ""]
     if include_alt:
         if should_abort and should_abort():
             return "\n".join(parts).strip() + "\n(Annullato.)"
@@ -3925,6 +3988,7 @@ def format_full_image_report(
             include_tech=False,
             include_ocr=True,
             prefer_gemini=True,
+            source_path=src,
         )
         if long_body:
             parts.extend(["=== Descrizione dettagliata ===", "", long_body.strip(), ""])
@@ -3939,7 +4003,9 @@ def format_full_image_report(
         parts.extend(["=== Etichette e oggetti ===", "", (body or "").strip(), ""])
     if include_tech:
         try:
-            tech_block = format_tech_sheet(get_image_tech_info(path))
+            tech_block = format_tech_sheet(
+                get_image_tech_info(path, source_path=src)
+            )
             if tech_block:
                 parts.extend(["=== Scheda tecnica ===", "", tech_block.strip(), ""])
         except Exception:
@@ -4036,17 +4102,29 @@ def batch_describe_folder(
     }
 
 
-def describe_image(path: str, should_abort=None, include_tech: bool = True,
-                   include_ocr: bool = True, prefer_gemini: bool = True) -> str:
+def describe_image(
+    path: str,
+    should_abort=None,
+    include_tech: bool = True,
+    include_ocr: bool = True,
+    prefer_gemini: bool = True,
+    source_path: str = "",
+) -> str:
     """Descrizione completa: Gemini (se chiave) altrimenti Vision + scheda tecnica."""
-    tech = get_image_tech_info(path)
+    src = (source_path or "").strip()
+    tech = get_image_tech_info(path, source_path=src)
     tech_block = format_tech_sheet(tech) if include_tech else ""
+    display = (
+        os.path.basename(src)
+        if src and os.path.isfile(src)
+        else (os.path.basename(path) or "immagine")
+    )
 
     if prefer_gemini and has_gemini_api_key():
         adv = describe_image_gemini(path, should_abort=should_abort, use_cache=True)
         if adv.get("ok") and (adv.get("text") or "").strip():
             parts = [
-                f"Descrizione avanzata di: {os.path.basename(path) or 'immagine'}",
+                f"Descrizione avanzata di: {display}",
                 "",
                 (adv.get("text") or "").strip(),
             ]

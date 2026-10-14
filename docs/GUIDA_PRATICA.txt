@@ -14,45 +14,29 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.0
+Novità recenti (in parole semplici) — versione 1.7.1
 ----------------------------------------------------
-• Lettore documento in RTAD: dalla voce
-  «Leggi documento (struttura e testo)» si apre una
-  finestra «Lettore documento» con sommario, link e
-  testo. Puoi leggere PDF/DOCX/EPUB senza dipendere
-  da Acrobat per la lettura con NVDA.
-  Scorciatoie nel lettore:
-  - Control+F (o pulsante Cerca): cerca una parola;
-    OK / F3 = occorrenza successiva dal cursore;
-    Shift+F3 = precedente.
-  - Control+H / Control+Shift+H: titolo [H1]… successivo
-    o precedente nel testo.
-  - «Apri file esterno»: apre il PDF con l'app Windows
-    (opzionale). Invio sul sommario, come prima, va al
-    testo in RTAD e può aprire anche l'app alla pagina.
-  Se dopo aver iconizzato la finestra le frecce non
-  muovono il testo: Tab e poi Shift+Tab tornano sul
-  punto in cui eri.
-• Spazi nei PDF migliorati: molti manuali (es. Acer,
-  barre braille) mappano lo «spazio» in modi strani;
-  RTAD li riconverte in spazi leggibili quando può.
-  Non esiste un metodo al 100% per tutti i PDF del
-  mondo; i casi tipici sono coperti. PDF protetti/
-  criptati: Acrobat li legge, RTAD no — salva una
-  copia senza protezione se ti serve il testo qui.
-• Notifica «Ricerca completata»: banner breve (meno
-  invasivo). Resta comunque nel Centro notifiche
-  (Windows+N) finché non la consulti o la cancelli.
-  Se il lettore documento è aperto, RTAD annuncia
-  a voce e non spinge il toast sticky.
-• Restano da 1.6.9: PDF con TOC/link e app predefinita;
-  titoli lunghi nei report media; parole nei video via
-  .rtad.txt. Da 1.6.8: DOCX/EPUB strutturati, salvataggi,
-  Sfoglia. Da 1.6.7: hub audio/video. Da 1.6.6: immagini.
+• PDF scansione (fatture, fogli fotografati): se
+  «Leggi documento…» non trova testo ma trova
+  immagini, RTAD propone subito «Descrivi immagine»
+  oppure aprire comunque il lettore.
+• Dopo «Descrivi immagine da PDF»: Salva testo usa
+  il nome e la cartella del PDF originale (non del
+  file temporaneo); c’è anche «Stampa testo…»
+  (stampante di Windows, anche «Microsoft Print to PDF»).
+• Scheda tecnica (immagini e audio/video):
+  «Data analisi» = quando hai fatto il report;
+  «Ultima modifica originale» = come in Esplora file.
+• Lettore documento: dopo iconizza, le frecce sul
+  testo riprendono meglio (se serve ancora: Tab e
+  Shift+Tab).
+• Restano da 1.7.0: lettore con cerca/titoli, spazi PDF,
+  toast meno invasivo. Da 1.6.9: TOC/link PDF. Da
+  1.6.7–1.6.8: hub media e documenti strutturati.
 • Dove usare cosa:
-  - Documenti/PDF → «Leggi documento…» (lettore RTAD);
-  - Audio/video → filtro «Solo Audio e Video» / Strumenti;
-  - Parole nei video già analizzati → cerca nei .rtad.txt;
+  - PDF con testo → «Leggi documento…»;
+  - PDF solo immagine → Descrivi (anche dal dialogo);
+  - Audio/video → filtro «Solo Audio e Video»;
   - Immagini → dialogo unico / batch / Shift+G.
 
 

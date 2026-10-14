@@ -1,0 +1,94 @@
+🌟 Novità della Versione 1.7.1
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.1
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **PDF scansione**: se «Leggi documento…» non trova testo ma trova immagini, dialogo per descrivere subito l’immagine principale oppure aprire comunque il lettore.
+- **Descrivi immagine da PDF**: «Salva testo…» usa nome e cartella del PDF originale (non del temp); nuovo «Stampa testo…» (stampante Windows / Print to PDF).
+- **Scheda tecnica** (immagini e audio/video): **Data analisi** + **Ultima modifica originale** (come in Esplora file).
+- **Lettore documento**: focus frecce dopo iconizza migliorato.
+- Restano lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7.
+
+## 🇬🇧 English
+
+- **Scanned PDFs**: if “Read document…” finds no text but finds images, a dialog offers Describe now or open the reader anyway.
+- **Describe image from PDF**: “Save text…” uses the original PDF name and folder (not the temp file); new “Print text…” (Windows printer / Print to PDF).
+- **Tech sheet** (images and audio/video): **Analysis date** + **Original last modified** (as in File Explorer).
+- **Document reader**: arrow-key focus after minimize improved.
+- Reader/spacing/toast 1.7.0, PDF TOC 1.6.9, and AV hub 1.6.7 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.1.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.1
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.1.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.1.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+PDF scansione: dialogo Descrivi/Apri lettore; Salva/Stampa testo dal PDF originale; scheda con Data analisi + Ultima modifica Esplora; focus lettore dopo iconizza.
+
+Summary EN:
+Scanned PDFs: Describe/Open-reader dialog; Save/Print text from the original PDF; tech sheet Analysis date + Explorer last modified; reader focus after minimize.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.1/ricerca_testuale_accesso_digitale-1.7.1.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[x] python tools/rtad_release.py check → OK
+[x] Gemelli rtad_ocr / rtad_media / rtad_guida_pratica / rtad_docstruct
+[x] docs/GUIDA_PRATICA.txt + addon/doc/it/guida_pratica.html sincronizzati
+[x] WhatsNew SA + Add-on + changelog + README
+[ ] Test Add-on: reinstalla .nvda-addon + smoke
+[ ] Standalone\compila.bat → F9 setup.iss

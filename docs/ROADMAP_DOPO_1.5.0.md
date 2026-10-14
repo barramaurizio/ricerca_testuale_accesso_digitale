@@ -143,7 +143,8 @@ Contenuto previsto `1.6.0`:
 - **Descrizione audio/video:** **1.6.7 pubblicata** (media gemello; Whisper di massa resta fuori dal nucleo).  
 - **1.6.8:** documenti strutturati + UX salvataggi — **pronta / da pubblicare** (`NOTE_RILASCIO_1.6.8.txt`).  
 - **1.6.9:** PDF TOC/link + app predefinita + titoli report + guida Acrobat/NVDA — **pubblicata** (12/10/2026; DataStore #12149 → #12150).  
-- **1.7.0:** lettore documento + spazi PDF + toast — **pronta al rilascio** (`NOTE_RILASCIO_1.7.0.txt`).
+- **1.7.0:** lettore documento + spazi PDF + toast — **pubblicata** (13/10/2026; DataStore #12178 → #12179).  
+- **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pronta al rilascio** (`PIANO_1.7.1.md`). Batch/B0 → 1.7.2+.
 
 ---
 
@@ -166,8 +167,9 @@ Contenuto previsto `1.6.0`:
 15. ~~**1.6.7** descrizione audio/video (MVP media gemello)~~ **pubblicata**.  
 16. **1.6.8** documenti strutturati + UX salvataggi — pronta / da pubblicare.  
 17. ~~**1.6.9** PDF TOC/link + app predefinita + titoli report~~ **pubblicata**.  
-18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pronta al rilascio**.  
-19. **Poi (1.7.1+):** batch media / B0 cache; focus freccia post-iconizza; Whisper opt-in; export/stampa.
+18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pubblicata**.  
+19. **1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus — **pronta** (`PIANO_1.7.1.md`).  
+20. **1.7.2+:** batch media; B0 cache; (opz.) Whisper / PDF criptati.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -235,9 +237,9 @@ Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 - ~~Descrizione audio/video MVP~~ → `1.6.7` pubblicata  
 - ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`**  
 - ~~TOC/link PDF + titoli report + guida `.rtad.txt`~~ → **`1.6.9`** pubblicata  
-- ~~Lettore documenti interno MVP + toast + spazi PDF~~ → **`1.7.0`** pronta  
-- Batch media / B0 MVP su cache transcript → **`1.7.1+`**  
-- Focus freccia post-iconizza / ri-salto Acrobat → **`1.7.1+`**  
+- ~~Lettore documenti interno MVP + toast + spazi PDF~~ → **`1.7.0`** pubblicata  
+- PDF-scansione: copia/salva testo da «Descrivi immagine da PDF» → **`1.7.1` P0**  
+- Batch media / B0 / focus freccia → **`1.7.1` P1**  
 - Whisper locale opt-in; export/stampa; OneCore native  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  

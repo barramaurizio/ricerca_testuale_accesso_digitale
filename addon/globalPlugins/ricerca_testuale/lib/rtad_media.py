@@ -725,8 +725,23 @@ def _classify_clip_form(kind: str, duration_sec: float, width: int, height: int)
     return "Video (forma non classificata)"
 
 
-def get_media_tech_info(path: str) -> dict:
-    """Scheda tecnica locale audio/video."""
+def _mtime_label_for_path(path: str) -> tuple:
+    """(mtime float, etichetta gg/mm/aaaa hh:mm) oppure (0.0, "")."""
+    if not path or not os.path.isfile(path):
+        return 0.0, ""
+    try:
+        import datetime as _dt
+        mt = float(os.path.getmtime(path))
+        return mt, _dt.datetime.fromtimestamp(mt).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return 0.0, ""
+
+
+def get_media_tech_info(path: str, source_path: str = "") -> dict:
+    """Scheda tecnica locale audio/video.
+
+    source_path: file originale se path è un temp scaricato (Ultima modifica).
+    """
     info = {
         "path": path or "",
         "file_name": os.path.basename(path or "") or "",
@@ -736,6 +751,10 @@ def get_media_tech_info(path: str) -> dict:
         "size_bytes": 0,
         "mtime": 0.0,
         "mtime_label": "",
+        "source_path": "",
+        "source_name": "",
+        "source_mtime": 0.0,
+        "source_mtime_label": "",
         "duration_sec": 0.0,
         "duration_label": "",
         "channels": 0,
@@ -787,14 +806,21 @@ def get_media_tech_info(path: str) -> dict:
         info["size_bytes"] = int(os.path.getsize(path))
     except Exception:
         info["size_bytes"] = 0
-    try:
-        info["mtime"] = float(os.path.getmtime(path))
-        import datetime as _dt
-        info["mtime_label"] = _dt.datetime.fromtimestamp(info["mtime"]).strftime(
-            "%d/%m/%Y %H:%M"
-        )
-    except Exception:
-        pass
+    mt, mt_lbl = _mtime_label_for_path(path)
+    info["mtime"] = mt
+    info["mtime_label"] = mt_lbl
+    src = (source_path or "").strip()
+    if src and os.path.isfile(src):
+        info["source_path"] = src
+        info["source_name"] = os.path.basename(src)
+        smt, smt_lbl = _mtime_label_for_path(src)
+        info["source_mtime"] = smt
+        info["source_mtime_label"] = smt_lbl
+    else:
+        info["source_path"] = path
+        info["source_name"] = info["file_name"]
+        info["source_mtime"] = mt
+        info["source_mtime_label"] = mt_lbl
 
     if ext == ".wav":
         wav = _wav_tech(path)
@@ -1032,11 +1058,23 @@ def format_media_tech_sheet(info: dict) -> str:
         return info.get("error") or "Scheda tecnica non disponibile."
     kind = info.get("kind") or "media"
     kind_it = {"audio": "Audio", "video": "Video"}.get(kind, "Media")
+    display = info.get("source_name") or info.get("file_name") or kind
     lines = [
-        f"Scheda tecnica: {info.get('file_name') or kind}",
+        f"Scheda tecnica: {display}",
         f"Tipo: {kind_it}.",
         f"Formato: {info.get('format_label') or 'sconosciuto'}.",
     ]
+    src_p = (info.get("source_path") or "").strip()
+    ana_p = (info.get("path") or "").strip()
+    try:
+        if src_p and ana_p and os.path.normcase(os.path.abspath(src_p)) != os.path.normcase(
+            os.path.abspath(ana_p)
+        ):
+            lines.append(
+                f"File analizzato: {info.get('file_name') or os.path.basename(ana_p)}."
+            )
+    except Exception:
+        pass
     if info.get("clip_form"):
         lines.append(f"Forma: {info['clip_form']}.")
     if info.get("duration_label"):
@@ -1094,8 +1132,24 @@ def format_media_tech_sheet(info: dict) -> str:
         lines.append(f"Copyright: {info['copyright']}.")
     if info.get("comment"):
         lines.append(f"Commento: {info['comment']}.")
-    if info.get("mtime_label"):
-        lines.append(f"Data file: {info['mtime_label']}.")
+    # Sempre: quando è stato fatto il report + mtime Esplora del file originale
+    try:
+        import datetime as _dt
+        now_lbl = _dt.datetime.now().strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        now_lbl = ""
+    if now_lbl:
+        lines.append(f"Data analisi: {now_lbl}.")
+    if info.get("source_mtime_label"):
+        lines.append(
+            f"Ultima modifica originale: {info['source_mtime_label']} "
+            f"(come in Esplora file)."
+        )
+    elif info.get("mtime_label"):
+        lines.append(
+            f"Ultima modifica originale: {info['mtime_label']} "
+            f"(come in Esplora file)."
+        )
     src_meta = read_media_source_meta(info.get("path") or "")
     if src_meta.get("title"):
         lines.append(f"Titolo sorgente: {src_meta['title']}.")

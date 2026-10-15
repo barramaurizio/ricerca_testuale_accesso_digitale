@@ -1,3 +1,9 @@
+Novità nella Versione 1.7.2
+- Analizza cartella audio/video…: batch locale → .rtad.txt accanto a ogni media
+- Ricerca [AV]: parole nei .rtad.txt già salvati, con snippet e timestamp [MM:SS]
+- Glossario trascrizioni (Strumenti): correzioni dopo Gemini (anche senza accenti)
+- Restano PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7
+
 Novità nella Versione 1.7.1
 - PDF scansione: dialogo Descrivi immagine / Apri lettore se 0 testo ma ci sono immagini
 - Descrivi da PDF: Salva testo con stem/cartella del PDF originale; Stampa testo…

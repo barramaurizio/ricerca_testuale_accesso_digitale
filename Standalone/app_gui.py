@@ -65,7 +65,7 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.1"
+APP_VERSION = "1.7.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -3674,6 +3674,75 @@ def load_gemini_api_key():
     return str(data.get("gemini_api_key", "") or "").strip()
 
 
+def load_transcript_glossary():
+    """(enabled, rules[{find, replace}])."""
+    data = _load_settings_dict()
+    enabled = bool(data.get("transcript_glossary_enabled", False))
+    raw = data.get("transcript_glossary", [])
+    if rtad_media is not None and hasattr(rtad_media, "normalize_glossary_rules"):
+        rules = rtad_media.normalize_glossary_rules(raw)
+    else:
+        rules = []
+        if isinstance(raw, list):
+            for item in raw:
+                if isinstance(item, dict) and str(item.get("find") or "").strip():
+                    rules.append({
+                        "find": str(item.get("find") or "").strip(),
+                        "replace": str(item.get("replace") or ""),
+                    })
+    return enabled, rules
+
+
+def save_transcript_glossary(enabled, rules):
+    data = _load_settings_dict()
+    data["transcript_glossary_enabled"] = bool(enabled)
+    if rtad_media is not None and hasattr(rtad_media, "normalize_glossary_rules"):
+        clean = rtad_media.normalize_glossary_rules(rules)
+    else:
+        clean = list(rules or [])
+    data["transcript_glossary"] = clean
+    _save_settings_dict(data)
+    sync_transcript_glossary_to_media()
+
+
+def sync_transcript_glossary_to_media():
+    """Applica a rtad_media le regole attive (lista vuota se disattivato)."""
+    if rtad_media is None or not hasattr(rtad_media, "set_transcript_glossary"):
+        return
+    try:
+        enabled, rules = load_transcript_glossary()
+        rtad_media.set_transcript_glossary(rules if enabled else [])
+    except Exception as e:
+        logging.debug(f"Sync glossario media: {e}")
+
+
+def apply_glossary_to_rtad_txt_file(file_path):
+    """Riscrive un .rtad.txt con il glossario attivo. True se il file è cambiato."""
+    path = (file_path or "").strip()
+    if not path or not os.path.isfile(path):
+        return False
+    if not path.lower().endswith(".rtad.txt"):
+        return False
+    if rtad_media is None or not hasattr(rtad_media, "apply_transcript_glossary"):
+        return False
+    try:
+        sync_transcript_glossary_to_media()
+        if not rtad_media.get_transcript_glossary():
+            return False
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            original = f.read()
+        updated = rtad_media.apply_transcript_glossary(original)
+        if updated == original:
+            return False
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(updated)
+        logging.info(f"Glossario applicato al file: {path}")
+        return True
+    except Exception as e:
+        logging.warning(f"Glossario su file non applicato ({path}): {e}")
+        return False
+
+
 def save_gemini_api_key(key):
     key = str(key or "").strip()
     data = _load_settings_dict()
@@ -3685,6 +3754,11 @@ def save_gemini_api_key(key):
     if rtad_ocr is not None:
         try:
             rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+    if rtad_media is not None:
+        try:
+            rtad_media.set_gemini_api_key(key)
         except Exception:
             pass
 
@@ -4303,6 +4377,141 @@ class MboxViewerFrame(wx.Frame):
         else:
             event.Skip()
 
+class TranscriptGlossaryDialog(wx.Dialog):
+    """Editor glossario post-trascrizione (1.7.2)."""
+
+    def __init__(self, parent):
+        super().__init__(
+            parent,
+            title="Glossario trascrizioni",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        enabled, rules = load_transcript_glossary()
+        self._rules = [dict(r) for r in (rules or [])]
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        intro = wx.StaticText(
+            self,
+            label=(
+                "Correzioni dopo Gemini su riassunto/trascrizione "
+                "(e in ricerca nei .rtad.txt se il glossario è attivo).\n"
+                "Esempio: Vlahovic → Woltemade (vale anche Vlahović).\n"
+                "Non richiama l’API. Con glossario attivo, aprendo un .rtad.txt "
+                "da un risultato la correzione viene anche scritta nel file."
+            ),
+        )
+        vbox.Add(intro, 0, wx.ALL | wx.EXPAND, 10)
+        self.chk_enabled = wx.CheckBox(
+            self, label="&Attiva glossario sulle prossime analisi"
+        )
+        self.chk_enabled.SetValue(bool(enabled))
+        vbox.Add(self.chk_enabled, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        self.lst = wx.ListBox(self, style=wx.LB_SINGLE)
+        self.lst.SetMinSize((-1, 160))
+        vbox.Add(self.lst, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        self._reload_list()
+
+        grid = wx.FlexGridSizer(2, 2, 6, 8)
+        grid.AddGrowableCol(1, 1)
+        grid.Add(wx.StaticText(self, label="&Trova:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.txt_find = wx.TextCtrl(self)
+        grid.Add(self.txt_find, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(self, label="&Sostituisci con:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.txt_repl = wx.TextCtrl(self)
+        grid.Add(self.txt_repl, 1, wx.EXPAND)
+        vbox.Add(grid, 0, wx.EXPAND | wx.ALL, 10)
+
+        h_btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_add = wx.Button(self, label="&Aggiungi / aggiorna")
+        btn_add.Bind(wx.EVT_BUTTON, self._on_add)
+        h_btns.Add(btn_add, 0, wx.RIGHT, 6)
+        btn_del = wx.Button(self, label="&Rimuovi selezionata")
+        btn_del.Bind(wx.EVT_BUTTON, self._on_remove)
+        h_btns.Add(btn_del, 0)
+        vbox.Add(h_btns, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        h_ok = wx.BoxSizer(wx.HORIZONTAL)
+        btn_ok = wx.Button(self, wx.ID_OK, label="&Salva")
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
+        btn_ok.SetDefault()
+        h_ok.Add(btn_ok, 0, wx.ALL, 5)
+        h_ok.Add(btn_cancel, 0, wx.ALL, 5)
+        vbox.Add(h_ok, 0, wx.ALIGN_CENTER | wx.BOTTOM, 8)
+
+        self.SetSizerAndFit(vbox)
+        self.SetMinSize((480, 420))
+        self.CentreOnParent()
+        self.lst.Bind(wx.EVT_LISTBOX, self._on_select)
+        self.Bind(wx.EVT_BUTTON, self._on_ok, btn_ok)
+        self.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CANCEL), btn_cancel)
+        self.txt_find.SetFocus()
+
+    def _label(self, rule):
+        find = rule.get("find") or ""
+        repl = rule.get("replace") or ""
+        return f"{find} → {repl}"
+
+    def _reload_list(self):
+        self.lst.Clear()
+        for r in self._rules:
+            self.lst.Append(self._label(r))
+
+    def _on_select(self, event=None):
+        sel = self.lst.GetSelection()
+        if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self._rules):
+            return
+        r = self._rules[sel]
+        self.txt_find.SetValue(r.get("find") or "")
+        self.txt_repl.SetValue(r.get("replace") or "")
+
+    def _on_add(self, event=None):
+        find = (self.txt_find.GetValue() or "").strip()
+        repl = self.txt_repl.GetValue() or ""
+        if not find:
+            speak_accessible("Scrivi la parola da trovare.")
+            self.txt_find.SetFocus()
+            return
+        # Aggiorna se già presente (casefold)
+        key = find.casefold()
+        updated = False
+        for r in self._rules:
+            if (r.get("find") or "").casefold() == key:
+                r["find"] = find
+                r["replace"] = repl
+                updated = True
+                break
+        if not updated:
+            self._rules.append({"find": find, "replace": repl})
+        if rtad_media is not None and hasattr(rtad_media, "normalize_glossary_rules"):
+            self._rules = rtad_media.normalize_glossary_rules(self._rules)
+        self._reload_list()
+        speak_accessible(
+            "Regola aggiornata." if updated else "Regola aggiunta."
+        )
+        self.txt_find.SetValue("")
+        self.txt_repl.SetValue("")
+        self.txt_find.SetFocus()
+
+    def _on_remove(self, event=None):
+        sel = self.lst.GetSelection()
+        if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self._rules):
+            speak_accessible("Seleziona una regola da rimuovere.")
+            return
+        removed = self._rules.pop(sel)
+        self._reload_list()
+        speak_accessible(f"Rimossa: {removed.get('find') or ''}")
+
+    def _on_ok(self, event=None):
+        # Se c’è testo in Trova non ancora aggiunto, chiedi in silenzio di aggiungerlo
+        pending = (self.txt_find.GetValue() or "").strip()
+        if pending:
+            self._on_add()
+        self.EndModal(wx.ID_OK)
+
+    def result(self):
+        return bool(self.chk_enabled.GetValue()), list(self._rules)
+
+
 class ImageSectionsDialog(wx.Dialog):
     """Scelta sezioni per «Tutto sull'immagine» / batch cartella (1.6.6).
 
@@ -4420,7 +4629,7 @@ class ImageSectionsDialog(wx.Dialog):
 
 
 class MediaSectionsDialog(wx.Dialog):
-    """Hub «Tutto sull'audio/video»: file e/o URL + sezioni (1.6.7)."""
+    """Hub «Tutto sull'audio/video» / batch cartella (1.6.7 / 1.7.2)."""
 
     def __init__(
         self,
@@ -4432,25 +4641,40 @@ class MediaSectionsDialog(wx.Dialog):
         initial_path="",
         initial_url="",
         preset_sections=None,
+        batch_mode=False,
+        media_count=None,
     ):
         super().__init__(
             parent,
             title=title,
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
-        self.show_source = bool(show_source)
+        self.batch_mode = bool(batch_mode)
+        self.show_source = bool(show_source) and not self.batch_mode
         self._picked_path = (initial_path or "").strip()
         preset = preset_sections if isinstance(preset_sections, dict) else {}
         vbox = wx.BoxSizer(wx.VERTICAL)
-        intro = (
-            "Scegli la sorgente (file locale e/o URL), le sezioni del report,\n"
-            "poi Invio o «Avvia analisi».\n"
-            "Scheda tecnica: locale. Riassunto/trascrizione: Gemini opt-in.\n"
-            "Dal report usa «Nuova analisi» per riprendere l'hub "
-            "(stesse opzioni, URL vuoto). Oppure Strumenti."
-        )
-        if context_label and not self.show_source:
-            intro += f"\nFile: {context_label}"
+        if self.batch_mode:
+            intro = "Analisi di tutti i file audio/video nella cartella."
+            if context_label:
+                intro += f"\nCartella: {context_label}"
+            if media_count is not None:
+                intro += f"\nFile media trovati: {media_count}."
+            intro += (
+                "\n\nScegli le sezioni, poi Invio o «Avvia analisi».\n"
+                "Scheda tecnica: locale. Riassunto/trascrizione: Gemini opt-in.\n"
+                "La trascrizione non è attiva di default (tempo e costi API)."
+            )
+        else:
+            intro = (
+                "Scegli la sorgente (file locale e/o URL), le sezioni del report,\n"
+                "poi Invio o «Avvia analisi».\n"
+                "Scheda tecnica: locale. Riassunto/trascrizione: Gemini opt-in.\n"
+                "Dal report usa «Nuova analisi» per riprendere l'hub "
+                "(stesse opzioni, URL vuoto). Oppure Strumenti."
+            )
+            if context_label and not self.show_source:
+                intro += f"\nFile: {context_label}"
         lbl = wx.StaticText(self, label=intro)
         vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 10)
 
@@ -4506,8 +4730,24 @@ class MediaSectionsDialog(wx.Dialog):
         self.chk_timestamps = wx.CheckBox(
             self, label="Timestamp &nella trascrizione ([MM:SS], opt-in)"
         )
-        self.chk_timestamps.SetValue(bool(preset.get("include_timestamps", False)))
+        self.chk_timestamps.SetValue(
+            bool(preset.get("include_timestamps", False)) and self.chk_transcript.GetValue()
+        )
         vbox.Add(self.chk_timestamps, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+        self.chk_save = None
+        self.chk_recursive = None
+        if self.batch_mode:
+            self.chk_save = wx.CheckBox(
+                self, label="Salva un file &.rtad.txt accanto a ogni media"
+            )
+            self.chk_save.SetValue(True)
+            vbox.Add(self.chk_save, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+            self.chk_recursive = wx.CheckBox(
+                self, label="Includi anche le &sottocartelle"
+            )
+            self.chk_recursive.SetValue(False)
+            vbox.Add(self.chk_recursive, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
 
         def _sync_ts(_evt=None):
             en = self.chk_transcript.GetValue()
@@ -4518,14 +4758,20 @@ class MediaSectionsDialog(wx.Dialog):
         self.chk_transcript.Bind(wx.EVT_CHECKBOX, _sync_ts)
         _sync_ts()
 
-        hint = wx.StaticText(
-            self,
-            label=(
+        if self.batch_mode:
+            hint_txt = (
+                "Accanto a ogni file viene creato «nome.rtad.txt» "
+                "(stesso stem del media). "
+                "Trascrizione/timestamp non attivi di default. "
+                "File oltre i limiti: resta la scheda tecnica."
+            )
+        else:
+            hint_txt = (
                 "Se compili l'URL ha priorità sul file. "
                 "Trascrizione/timestamp non attivi di default. "
                 "File oltre i limiti: resta la scheda tecnica."
-            ),
-        )
+            )
+        hint = wx.StaticText(self, label=hint_txt)
         vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
 
         hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -4616,7 +4862,7 @@ class MediaSectionsDialog(wx.Dialog):
         ):
             speak_accessible("Seleziona almeno una sezione.")
             return
-        if self.show_source:
+        if self.show_source and not self.batch_mode:
             url = (self.txt_url.GetValue() if self.txt_url else "") or ""
             url = url.strip().strip('"').strip("'")
             path = ""
@@ -4650,6 +4896,10 @@ class MediaSectionsDialog(wx.Dialog):
             "include_timestamps": bool(want_tr and self.chk_timestamps.GetValue()),
             "url": url,
             "file_path": path,
+            "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
+            "recursive": bool(
+                self.chk_recursive and self.chk_recursive.GetValue()
+            ),
         }
 
 
@@ -5635,14 +5885,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• PDF scansione: se non c'è testo ma ci sono immagini,\n"
-            "  dialogo Descrivi / Apri lettore.\n"
-            "• Descrivi da PDF: Salva testo col nome/cartella del\n"
-            "  PDF originale; pulsante Stampa testo…\n"
-            "• Scheda tecnica: Data analisi + Ultima modifica\n"
-            "  originale (come in Esplora file).\n"
-            "• Focus frecce nel lettore dopo iconizza migliorato.\n"
-            "• Restano lettore 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media.\n"
+            "• Analizza cartella audio/video…: batch locale →\n"
+            "  .rtad.txt accanto a ogni media.\n"
+            "• Ricerca [AV]: parole nei .rtad.txt già salvati,\n"
+            "  con snippet e timestamp [MM:SS] (zero costi extra).\n"
+            "• Glossario trascrizioni (Strumenti): correzioni dopo\n"
+            "  Gemini (anche senza accenti) e aggiornamento .rtad.txt.\n"
+            "• Restano PDF scansione 1.7.1, lettore 1.7.0, hub media.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -5981,6 +6230,12 @@ class MainWindow(wx.Frame):
             gemkey = load_gemini_api_key()
             if rtad_ocr is not None:
                 rtad_ocr.set_gemini_api_key(gemkey)
+            if rtad_media is not None:
+                rtad_media.set_gemini_api_key(gemkey)
+        except Exception:
+            pass
+        try:
+            sync_transcript_glossary_to_media()
         except Exception:
             pass
         self.choice_ocr_engine.SetSelection(ocr_choice_index_from_engine(eng))
@@ -6191,6 +6446,10 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Chiave API Ge&mini (descrizione avanzata)…"
         )
         self.Bind(wx.EVT_MENU, self.on_set_gemini_api_key, item_gemkey)
+        item_glossary = tools_menu.Append(
+            wx.ID_ANY, "&Glossario trascrizioni…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_transcript_glossary, item_glossary)
         item_clear_ocr = tools_menu.Append(
             wx.ID_ANY, "S&vuota cache OCR…"
         )
@@ -6224,6 +6483,10 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Tutto sull'&audio/video…"
         )
         self.Bind(wx.EVT_MENU, self.on_media_all_dialog, item_all_media)
+        item_batch_media = tools_menu.Append(
+            wx.ID_ANY, "Analizza cartella a&udio/video…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_batch_media_folder, item_batch_media)
         item_media_url = tools_menu.Append(
             wx.ID_ANY, "Audio/video da &URL…\tCtrl+Shift+M"
         )
@@ -6521,6 +6784,37 @@ class MainWindow(wx.Frame):
             )
         else:
             speak_accessible("Chiave Gemini rimossa.", force=True)
+
+    def on_transcript_glossary(self, event=None):
+        """Strumenti → Glossario trascrizioni (correzioni post-Gemini)."""
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        dlg = TranscriptGlossaryDialog(self)
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                speak_accessible("Glossario non modificato.")
+                return
+            enabled, rules = dlg.result()
+        finally:
+            dlg.Destroy()
+        try:
+            save_transcript_glossary(enabled, rules)
+        except Exception as e:
+            speak_accessible(f"Impossibile salvare il glossario: {e}", force=True)
+            return
+        n = len(rules or [])
+        if enabled and n:
+            speak_accessible(
+                f"Glossario attivo: {n} regole. "
+                "Si applicherà alle prossime analisi audio/video."
+            )
+        elif enabled:
+            speak_accessible(
+                "Glossario attivo ma senza regole. Aggiungine almeno una."
+            )
+        else:
+            speak_accessible("Glossario disattivato.")
 
     def on_ocr_engine_choice(self, event=None):
         eng = ocr_engine_from_choice_index(self.choice_ocr_engine.GetSelection())
@@ -8142,6 +8436,11 @@ class MainWindow(wx.Frame):
         ]
         norm_query = normalize_search_text(query) if query else ""
         terms = norm_query.split() if norm_query else []
+        # Glossario attivo → anche la ricerca nei .rtad.txt (Vlahović ↔ Woltemade)
+        try:
+            sync_transcript_glossary_to_media()
+        except Exception:
+            pass
         # OCR senza query solo su «Tutti» o «Solo Immagini»
         ocr_dump_all = bool(include_ocr and not terms and filter_mode in (0, 1))
         # Elenco file del tipo scelto (senza leggere il contenuto)
@@ -8152,6 +8451,12 @@ class MainWindow(wx.Frame):
         media_exts = list(MEDIA_EXTS)
         doc_exts = list(DOC_EXTS)
         feed_file_exts = {".rss", ".xml", ".atom"}
+        # B0: con filtro Solo AV (o estensione media personalizzata) cerca nei
+        # .rtad.txt già salvati accanto ai media. Su «Tutti» i .rtad.txt sono
+        # già file di testo → evita doppioni.
+        b0_wanted = filter_mode == 2 or (
+            filter_mode == 4 and custom_ext in media_exts
+        )
         # Estensione personalizzata .pdf: scansiona anche allegati nelle caselle posta
         mail_pdf_only = filter_mode == 4 and custom_ext == ".pdf"
 
@@ -8458,7 +8763,14 @@ class MainWindow(wx.Frame):
                 found_in_content = False
                 img_ocr_text = ""
                 allow_content = content_scan_allowed(file_path)
-                if not allow_content and not name_matched:
+                # B0: i video grandi non vanno letti, ma il sidecar .rtad.txt sì
+                b0_candidate = bool(
+                    b0_wanted
+                    and terms
+                    and ext in media_exts
+                    and rtad_media is not None
+                )
+                if not allow_content and not name_matched and not b0_candidate:
                     # Solo nome: file troppo grande, salta lettura contenuto
                     # (le caselle di posta non arrivano qui: content_scan_allowed=True)
                     skipped_large_files += 1
@@ -8468,7 +8780,7 @@ class MainWindow(wx.Frame):
                     )
                     bump_progress()
                     continue
-                if not allow_content:
+                if not allow_content and not b0_candidate:
                     skipped_large_files += 1
                     logging.info(
                         f"File troppo grande per scansione contenuto "
@@ -8807,14 +9119,36 @@ class MainWindow(wx.Frame):
                             text_data = raw_data.decode("latin1", errors="ignore")
                     text_data = text_data.replace('\x00', '')
                     lines = text_data.split('\n')
+                    use_glossary = bool(
+                        (file_name or "").lower().endswith(".rtad.txt")
+                        and rtad_media is not None
+                        and hasattr(rtad_media, "text_matches_with_glossary")
+                    )
                     for idx, line in enumerate(lines):
-                        if text_matches_terms(line, terms):
+                        if use_glossary:
+                            line_hit = rtad_media.text_matches_with_glossary(
+                                line, terms, text_matches_terms
+                            )
+                        else:
+                            line_hit = text_matches_terms(line, terms)
+                        if line_hit:
                             start_i, end_i = max(0, idx - 2), min(len(lines), idx + 3)
                             snippet = " ".join([l.strip() for l in lines[start_i:end_i]]).strip()
+                            loc_info = f"Riga {idx + 1}{file_date_suffix}"
+                            if use_glossary:
+                                try:
+                                    glossed_snip = rtad_media.apply_transcript_glossary(snippet)
+                                    if glossed_snip != snippet:
+                                        snippet = glossed_snip
+                                        loc_info = (
+                                            f"Riga {idx + 1} (glossario){file_date_suffix}"
+                                        )
+                                except Exception:
+                                    pass
                             raw_matches.append({
                                 "file_path": file_path, "file_name": file_name, "prefix": prefix,
                                 "mtime": mtime, "line_number": idx + 1, "paragraph_index": None,
-                                "location_info": f"Riga {idx + 1}{file_date_suffix}", "snippet": snippet,
+                                "location_info": loc_info, "snippet": snippet,
                             })
                             found_in_content = True
 
@@ -9049,6 +9383,38 @@ class MainWindow(wx.Frame):
                             "mtime": sort_ts, "line_number": None, "paragraph_index": None,
                             "location_info": f"Nome File{date_suffix}",
                             "snippet": f"Corrispondenza: '{file_name}'",
+                        })
+                        found_in_content = True
+
+                # B0 (1.7.2): parole dette già trascritte nel .rtad.txt accanto al media
+                if (
+                    not found_in_content
+                    and b0_candidate
+                ):
+                    try:
+                        media_hits = rtad_media.search_media_sidecar(
+                            file_path,
+                            terms,
+                            text_matches_fn=text_matches_terms,
+                        )
+                    except Exception as e:
+                        logging.debug(f"B0 sidecar fallito su {file_path}: {e}")
+                        media_hits = []
+                    for h in media_hits or []:
+                        side = h.get("sidecar_path") or ""
+                        if not side:
+                            continue
+                        loc = h.get("location_label") or "Report media"
+                        raw_matches.append({
+                            "file_path": side,
+                            "file_name": file_name,
+                            "prefix": "[AV]",
+                            "mtime": mtime,
+                            "line_number": h.get("line_number"),
+                            "paragraph_index": None,
+                            "location_info": f"{loc}{file_date_suffix}",
+                            "snippet": h.get("snippet") or "",
+                            "media_path": file_path,
                         })
                         found_in_content = True
 
@@ -9415,13 +9781,27 @@ class MainWindow(wx.Frame):
                 viewer.Show()
                 return
 
+            # Report media: con glossario attivo corregge il .rtad.txt prima di aprirlo
+            gloss_note = ""
+            if (file_to_open or "").lower().endswith(".rtad.txt"):
+                try:
+                    if apply_glossary_to_rtad_txt_file(file_to_open):
+                        gloss_note = " File aggiornato con il glossario."
+                except Exception as e:
+                    logging.debug(f"Glossario in apertura: {e}")
+
             if line_num:
-                speak_accessible(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
+                speak_accessible(
+                    f"Apertura alla riga {line_num}: "
+                    f"{os.path.basename(file_to_open)}.{gloss_note}"
+                )
                 jump_to_line_in_editor(file_to_open, line_num)
             else:
                 try:
                     ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
-                    speak_accessible(f"Apertura file: {os.path.basename(file_to_open)}")
+                    speak_accessible(
+                        f"Apertura file: {os.path.basename(file_to_open)}.{gloss_note}"
+                    )
                 except Exception as e:
                     logging.error(f"Errore ShellExecute su {file_to_open}: {e}")
                     speak_accessible("Errore apertura.")
@@ -9468,9 +9848,18 @@ class MainWindow(wx.Frame):
         item_media_all = None
         item_media_tech = None
         item_media_desc = None
+        media_for_actions = (
+            item_data.get("media_path")
+            if item_data.get("media_path")
+            and os.path.isfile(item_data.get("media_path") or "")
+            else file_path
+        )
+        media_ext_for_actions = os.path.splitext(media_for_actions)[1].lower()
         is_media_result = (
             ext_sel in MEDIA_EXTS
+            or media_ext_for_actions in MEDIA_EXTS
             or str(item_data.get("prefix", "")).startswith("[MEDIA")
+            or str(item_data.get("prefix", "")) == "[AV]"
         )
         if is_img_result:
             menu.AppendSeparator()
@@ -9562,19 +9951,23 @@ class MainWindow(wx.Frame):
         if item_media_all is not None:
             self.Bind(
                 wx.EVT_MENU,
-                lambda e: self.show_media_all_dialog(file_path),
+                lambda e, p=media_for_actions: self.show_media_all_dialog(p),
                 item_media_all,
             )
         if item_media_desc is not None:
             self.Bind(
                 wx.EVT_MENU,
-                lambda e: self.show_media_analysis(file_path, mode="describe"),
+                lambda e, p=media_for_actions: self.show_media_analysis(
+                    p, mode="describe"
+                ),
                 item_media_desc,
             )
         if item_media_tech is not None:
             self.Bind(
                 wx.EVT_MENU,
-                lambda e: self.show_media_analysis(file_path, mode="tech"),
+                lambda e, p=media_for_actions: self.show_media_analysis(
+                    p, mode="tech"
+                ),
                 item_media_tech,
             )
         if item_pdf_describe is not None:
@@ -9618,6 +10011,10 @@ class MainWindow(wx.Frame):
                     rtad_ocr.set_gemini_api_key(gemkey)
                 if rtad_media is not None:
                     rtad_media.set_gemini_api_key(gemkey)
+        except Exception:
+            pass
+        try:
+            sync_transcript_glossary_to_media()
         except Exception:
             pass
 
@@ -10061,6 +10458,173 @@ class MainWindow(wx.Frame):
                     return
                 folder = dd.GetPath()
         self.start_batch_images_folder(folder)
+
+    def on_batch_media_folder(self, event=None, folder=None):
+        """Strumenti / Explorer → Analizza cartella audio/video (batch 1.7.2)."""
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        if not folder or not os.path.isdir(folder):
+            start_dir = ""
+            try:
+                cur = (self.txt_path.GetValue() or "").strip()
+                if cur and os.path.isdir(cur):
+                    start_dir = cur
+                elif cur and os.path.isfile(cur):
+                    start_dir = os.path.dirname(cur)
+            except Exception:
+                pass
+            with wx.DirDialog(
+                self,
+                "Scegli la cartella con i file audio/video da analizzare",
+                defaultPath=start_dir or "",
+                style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+            ) as dd:
+                if dd.ShowModal() != wx.ID_OK:
+                    return
+                folder = dd.GetPath()
+        self.start_batch_media_folder(folder)
+
+    def start_batch_media_folder(self, folder):
+        """Mostra sezioni (con conteggio) e avvia il batch media."""
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            speak_accessible(
+                "Analisi audio/video già in corso. Attendi il risultato."
+            )
+            return
+        folder = os.path.abspath(folder or "")
+        if not folder or not os.path.isdir(folder):
+            speak_accessible("Cartella non trovata.")
+            return
+        preview = rtad_media.list_media_files_in_folder(folder, recursive=False)
+        dlg = MediaSectionsDialog(
+            self,
+            title="Analizza cartella audio/video",
+            batch_mode=True,
+            context_label=folder,
+            media_count=len(preview),
+            preset_sections={
+                "include_tech": True,
+                "include_describe": True,
+                "include_transcript": False,
+                "include_timestamps": False,
+            },
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            sel = dlg.selections()
+        finally:
+            dlg.Destroy()
+        files = rtad_media.list_media_files_in_folder(
+            folder, recursive=sel.get("recursive", False)
+        )
+        if not files:
+            speak_accessible("Nessun file audio/video trovato in questa cartella.")
+            return
+        if sel.get("include_transcript") and len(files) >= 5:
+            ask = wx.MessageDialog(
+                self,
+                (
+                    f"Hai selezionato la trascrizione su {len(files)} file.\n"
+                    "Può richiedere molto tempo e consumare quota Gemini.\n\n"
+                    "Continuare?"
+                ),
+                "Conferma batch con trascrizione",
+                wx.YES_NO | wx.ICON_WARNING,
+            )
+            choice = ask.ShowModal()
+            ask.Destroy()
+            if choice != wx.ID_YES:
+                speak_accessible("Batch annullato.")
+                return
+        speak_accessible(
+            f"Avvio analisi: {len(files)} file audio/video. "
+            "Può richiedere tempo se usi Gemini."
+        )
+        self._ensure_image_api_keys()
+        self._media_analysis_busy = True
+        self._set_media_progress(2, "Batch audio/video…")
+
+        def _work():
+            def _prog(i, total, path, ok):
+                name = os.path.basename(path)
+                wx.CallAfter(
+                    speak_accessible,
+                    f"Media {i} di {total}: {name}. "
+                    + ("Ok." if ok else "Problema."),
+                )
+                try:
+                    pct = int(max(2, min(99, round(100.0 * i / max(1, total)))))
+                except Exception:
+                    pct = 50
+                wx.CallAfter(
+                    self._set_media_progress,
+                    pct,
+                    f"Batch {i}/{total}: {name}",
+                )
+
+            try:
+                summary = rtad_media.batch_analyze_folder(
+                    folder,
+                    include_tech=sel.get("include_tech", True),
+                    include_describe=sel.get("include_describe", True),
+                    include_transcript=sel.get("include_transcript", False),
+                    include_timestamps=sel.get("include_timestamps", False),
+                    save_txt=sel.get("save_txt", True),
+                    recursive=sel.get("recursive", False),
+                    on_progress=_prog,
+                )
+            except Exception as e:
+                summary = {"total": 0, "ok": 0, "results": [], "error": str(e)}
+
+            lines = [
+                f"Cartella: {folder}",
+                f"File media trovati: {summary.get('total', 0)}",
+                f"Completati: {summary.get('ok', 0)}",
+            ]
+            if summary.get("error"):
+                lines.append(f"Errore: {summary['error']}")
+            if sel.get("save_txt"):
+                lines.append(
+                    "Accanto a ogni media è stato creato un file .rtad.txt "
+                    "(stesso stem del file, se l'analisi è riuscita)."
+                )
+            fails = [
+                r for r in (summary.get("results") or []) if not r.get("ok")
+            ]
+            if fails:
+                lines.append("")
+                lines.append("Con problemi:")
+                for r in fails[:30]:
+                    lines.append(
+                        f"- {os.path.basename(r.get('path') or '')}: "
+                        f"{r.get('error') or 'sconosciuto'}"
+                    )
+            body = "\n".join(lines)
+
+            def _show():
+                self._media_analysis_busy = False
+                self._set_media_progress(100, "Batch audio/video completato.")
+                if not hasattr(self, "_image_info_frames") or self._image_info_frames is None:
+                    self._image_info_frames = []
+                frm = ImageInfoFrame(
+                    None, "Batch cartella audio/video", body, image_path=folder
+                )
+                self._image_info_frames.append(frm)
+                frm.Show()
+                frm.Raise()
+                speak_accessible(
+                    f"Batch terminato: {summary.get('ok', 0)} di "
+                    f"{summary.get('total', 0)} completati."
+                )
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def start_batch_images_folder(self, folder):
         """Mostra sezioni (con conteggio) e avvia subito il batch."""
@@ -11160,6 +11724,7 @@ def _parse_cli_image_action(argv):
         "--describe-pdf": "describe-pdf",
         "--image-all": "image-all",
         "--batch-folder": "batch-folder",
+        "--batch-media-folder": "batch-media-folder",
         "--media-all": "media-all",
         "--media-tech": "media-tech",
         "--describe-media": "describe-media",
@@ -11229,6 +11794,7 @@ def main():
         "open-doc",
         "describe-pdf",
         "batch-folder",
+        "batch-media-folder",
         "image-all",
         "media-all",
         "media-tech",
@@ -11255,6 +11821,10 @@ def main():
         frame.txt_path.SetValue(cli_path)
         save_last_path(cli_path)
         wx.CallLater(400, lambda: frame.start_batch_images_folder(cli_path))
+    elif cli_mode == "batch-media-folder" and cli_path and os.path.isdir(cli_path):
+        frame.txt_path.SetValue(cli_path)
+        save_last_path(cli_path)
+        wx.CallLater(400, lambda: frame.start_batch_media_folder(cli_path))
     elif cli_mode == "image-all" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())

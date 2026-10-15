@@ -19,6 +19,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -203,6 +204,118 @@ def has_gemini_api_key() -> bool:
 
 def gemini_last_error() -> str:
     return _gemini_last_error or ""
+
+
+# Glossario post-trascrizione (1.7.2): sostituzioni dopo Gemini, zero API extra.
+_transcript_glossary_rules: list = []
+
+
+def _fold_glossary_key(text: str) -> str:
+    """Minuscolo senza accenti (Vlahović ≡ vlahovic)."""
+    if not text:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", str(text))
+    return "".join(c for c in nfkd if not unicodedata.combining(c)).casefold()
+
+
+def normalize_glossary_rules(rules) -> list:
+    """Lista di {find, replace} pulita (find non vuoto)."""
+    out = []
+    if not isinstance(rules, list):
+        return out
+    seen = set()
+    for item in rules:
+        if not isinstance(item, dict):
+            continue
+        find = str(item.get("find") or "").strip()
+        if not find:
+            continue
+        repl = item.get("replace")
+        if repl is None:
+            repl = ""
+        else:
+            repl = str(repl)
+        key = _fold_glossary_key(find)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append({"find": find, "replace": repl})
+    # Prima le stringhe più lunghe (evita sostituzioni parziali indesiderate)
+    out.sort(key=lambda r: len(r.get("find") or ""), reverse=True)
+    return out
+
+
+def set_transcript_glossary(rules) -> None:
+    """Imposta le regole attive (lista vuota = glossario disattivato)."""
+    global _transcript_glossary_rules
+    _transcript_glossary_rules = normalize_glossary_rules(rules)
+
+
+def get_transcript_glossary() -> list:
+    """Copia delle regole attive."""
+    return [dict(r) for r in (_transcript_glossary_rules or [])]
+
+
+def apply_transcript_glossary(text: str, rules=None) -> str:
+    """Applica Trova→Sostituisci su parole (case/accent-insensitive).
+
+    Esempio: regola Vlahovic → Woltemade corregge anche «Vlahović» / «VLAHOVIC».
+    """
+    if not text:
+        return text or ""
+    active = (
+        normalize_glossary_rules(rules)
+        if rules is not None
+        else list(_transcript_glossary_rules or [])
+    )
+    if not active:
+        return text
+    # mappa chiave piegata → testo di sostituzione
+    fmap = []
+    for rule in active:
+        find = rule.get("find") or ""
+        repl = rule.get("replace")
+        if repl is None:
+            repl = ""
+        key = _fold_glossary_key(find)
+        if key:
+            fmap.append((key, repl))
+
+    def _repl_token(m):
+        token = m.group(0)
+        folded = _fold_glossary_key(token)
+        for key, repl in fmap:
+            if folded == key:
+                return repl
+        return token
+
+    try:
+        # \w con UNICODE include lettere accentate come un'unica parola
+        return re.sub(r"(?u)\w+", _repl_token, text)
+    except Exception:
+        return text
+
+
+def text_matches_with_glossary(text: str, terms: list, match_fn) -> bool:
+    """True se i termini matchano il testo, anche via glossario attivo.
+
+    Serve in ricerca: file con «Vlahović» trovati cercando «Woltemade».
+    """
+    if not callable(match_fn):
+        return False
+    if match_fn(text, terms):
+        return True
+    if not (_transcript_glossary_rules or []):
+        return False
+    glossed = apply_transcript_glossary(text)
+    if glossed != (text or "") and match_fn(glossed, terms):
+        return True
+    return False
+
+
+def _glossary_finish_text(text: str) -> str:
+    """Helper: glossario sul testo Gemini (cache resta grezza)."""
+    return apply_transcript_glossary(text or "")
 
 
 def is_media_path(path: str) -> bool:
@@ -1801,6 +1914,7 @@ def describe_media_gemini(
             _stats["cache_hits"] = int(_stats.get("cache_hits", 0) or 0) + 1
             out = dict(cached)
             out["source"] = (out.get("source") or "gemini") + "+cache"
+            out["text"] = _glossary_finish_text(out.get("text") or "")
             return out
 
     prompt = (
@@ -1820,12 +1934,12 @@ def describe_media_gemini(
         _stats["failures"] = int(_stats.get("failures", 0) or 0) + 1
         return result
     result["ok"] = True
-    result["text"] = text
+    result["text"] = _glossary_finish_text(text)
     result["source"] = diag or "gemini"
     if use_cache:
         _cache_put(cache_key, {
             "ok": True,
-            "text": text,
+            "text": text,  # grezzo: glossario applicato in lettura
             "error": "",
             "source": result["source"],
             "path": path,
@@ -1900,6 +2014,7 @@ def transcribe_media_gemini(
             out = dict(cached)
             out["source"] = (out.get("source") or "gemini") + "+cache"
             out["timestamps"] = bool(include_timestamps)
+            out["text"] = _glossary_finish_text(out.get("text") or "")
             return out
 
     if include_timestamps:
@@ -1955,12 +2070,12 @@ def transcribe_media_gemini(
         )
         text = _ensure_progressive_timestamps_note(text)
     result["ok"] = True
-    result["text"] = text
+    result["text"] = _glossary_finish_text(text)
     result["source"] = diag or "gemini"
     if use_cache:
         _cache_put(cache_key, {
             "ok": True,
-            "text": text,
+            "text": text,  # grezzo: glossario applicato in lettura
             "error": "",
             "source": result["source"],
             "path": path,
@@ -2187,6 +2302,209 @@ def format_full_media_report(
             ])
     _emit_progress(on_progress, 100, "Analisi audio/video completata.")
     return "\n".join(parts).strip()
+
+
+def list_media_files_in_folder(folder: str, recursive: bool = False) -> list:
+    """Elenco path audio/video in una cartella (estensioni MEDIA_EXTS)."""
+    folder = os.path.abspath(folder or "")
+    if not folder or not os.path.isdir(folder):
+        return []
+    exts = set(MEDIA_EXTS)
+    out = []
+    if recursive:
+        for root, _dirs, files in os.walk(folder):
+            for name in files:
+                if os.path.splitext(name)[1].lower() in exts:
+                    out.append(os.path.join(root, name))
+    else:
+        try:
+            names = os.listdir(folder)
+        except Exception:
+            return []
+        for name in names:
+            path = os.path.join(folder, name)
+            if os.path.isfile(path) and os.path.splitext(name)[1].lower() in exts:
+                out.append(path)
+    out.sort(key=lambda p: os.path.basename(p).lower())
+    return out
+
+
+def sidecar_txt_path_for_media(media_path: str) -> str:
+    """Path «stem.rtad.txt» accanto al media (stesso stile hub / titoli lunghi)."""
+    base = os.path.abspath(media_path or "")
+    if not base:
+        return ""
+    return os.path.splitext(base)[0] + ".rtad.txt"
+
+
+def resolve_media_sidecar_path(media_path: str) -> str:
+    """Sidecar esistente: preferisce «stem.rtad.txt», poi «nome.ext.rtad.txt»."""
+    base = os.path.abspath(media_path or "")
+    if not base or not os.path.isfile(base):
+        return ""
+    primary = sidecar_txt_path_for_media(base)
+    if primary and os.path.isfile(primary):
+        return primary
+    alt = base + ".rtad.txt"
+    if os.path.isfile(alt):
+        return alt
+    return ""
+
+
+_TS_LINE_RE = re.compile(
+    r"^\s*\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]"
+)
+
+
+def _timestamp_near_line(lines: list, idx: int, lookback: int = 4) -> str:
+    """Timestamp [MM:SS] sulla riga o nelle precedenti (trascrizione Gemini)."""
+    if not lines or idx < 0:
+        return ""
+    start = max(0, idx - max(0, int(lookback)))
+    for j in range(idx, start - 1, -1):
+        m = _TS_LINE_RE.match(lines[j] or "")
+        if m:
+            return m.group(1)
+    return ""
+
+
+def search_media_sidecar(
+    media_path: str,
+    terms: list,
+    *,
+    text_matches_fn,
+    max_hits: int = 30,
+) -> list:
+    """B0: cerca termini nel .rtad.txt già salvato accanto al media (zero API).
+
+    Restituisce dict con: sidecar_path, line_number (1-based), snippet,
+    timestamp (str o ''), location_label.
+    """
+    if not media_path or not terms or not callable(text_matches_fn):
+        return []
+    side = resolve_media_sidecar_path(media_path)
+    if not side:
+        return []
+    try:
+        with open(side, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except Exception:
+        return []
+    if not text.strip():
+        return []
+    lines = text.splitlines()
+    out = []
+    limit = max(1, int(max_hits or 30))
+    for idx, line in enumerate(lines):
+        if not text_matches_with_glossary(line, terms, text_matches_fn):
+            continue
+        start_i = max(0, idx - 2)
+        end_i = min(len(lines), idx + 3)
+        # Snippet già con glossario: in anteprima/report si sente Woltemade, non Vlahović
+        snippet_raw = " ".join(
+            (l or "").strip() for l in lines[start_i:end_i] if (l or "").strip()
+        ).strip()
+        snippet = apply_transcript_glossary(snippet_raw)
+        via_glossary = bool(snippet and snippet != snippet_raw)
+        ts = _timestamp_near_line(lines, idx)
+        if ts:
+            loc = f"Trascrizione [{ts}]"
+        else:
+            loc = f"Report media riga {idx + 1}"
+        if via_glossary:
+            loc = f"{loc} (glossario)"
+        out.append(
+            {
+                "sidecar_path": side,
+                "line_number": idx + 1,
+                "snippet": snippet,
+                "timestamp": ts,
+                "location_label": loc,
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def batch_analyze_folder(
+    folder: str,
+    *,
+    include_tech: bool = True,
+    include_describe: bool = True,
+    include_transcript: bool = False,
+    include_timestamps: bool = False,
+    save_txt: bool = True,
+    recursive: bool = False,
+    should_abort=None,
+    on_progress=None,
+) -> dict:
+    """Analizza tutti i media di una cartella. Restituisce riepilogo.
+
+    on_progress(i, total, path, ok) opzionale.
+    Se save_txt: scrive «stem.rtad.txt» accanto a ogni file (non «nome.ext.rtad.txt»).
+    """
+    files = list_media_files_in_folder(folder, recursive=recursive)
+    results = []
+    ok_n = 0
+    for i, path in enumerate(files, start=1):
+        if should_abort and should_abort():
+            break
+        try:
+            body = format_full_media_report(
+                path,
+                include_tech=include_tech,
+                include_describe=include_describe,
+                include_transcript=include_transcript,
+                include_timestamps=include_timestamps,
+                should_abort=should_abort,
+            )
+            err = ""
+            txt_path = ""
+            if save_txt and body:
+                txt_path = sidecar_txt_path_for_media(path)
+                try:
+                    with open(txt_path, "w", encoding="utf-8") as f:
+                        f.write(body)
+                        f.write("\n")
+                except Exception as e:
+                    err = f"salvataggio txt: {e}"
+                    txt_path = ""
+            # Ok se c'è corpo e (se richiesto) salvataggio riuscito
+            ok = bool(body) and not err
+            if ok:
+                ok_n += 1
+            results.append(
+                {
+                    "path": path,
+                    "ok": ok,
+                    "error": err,
+                    "chars": len(body or ""),
+                    "txt_path": txt_path,
+                }
+            )
+        except Exception as e:
+            results.append(
+                {
+                    "path": path,
+                    "ok": False,
+                    "error": str(e),
+                    "chars": 0,
+                    "txt_path": "",
+                }
+            )
+            ok = False
+        if on_progress:
+            try:
+                on_progress(i, len(files), path, ok)
+            except Exception:
+                pass
+    return {
+        "folder": folder,
+        "total": len(files),
+        "ok": ok_n,
+        "results": results,
+    }
 
 
 _WEB_UA = (

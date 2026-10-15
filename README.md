@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.1)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.2)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,16 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.2
+
+- **Analizza cartella audio/video…**: batch su media locali → file `.rtad.txt` accanto a ciascuno (scheda/riassunto di default; trascrizione e timestamp a richiesta).
+- **Ricerca [AV]**: con filtro «Solo Audio e Video», cerca anche nei `.rtad.txt` già salvati; snippet e timestamp `[MM:SS]` se presenti (zero costi extra dopo l’analisi).
+- **Glossario trascrizioni** (Strumenti): correzioni dopo Gemini; confronto senza accenti; può aggiornare il `.rtad.txt` all’apertura del report.
+- Restano PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media 1.6.7.
+
 ### 🌟 Novità della Versione 1.7.1
+
+*(Pubblicata.)*
 
 - **PDF scansione**: se «Leggi documento…» non trova testo ma trova immagini → dialogo **Descrivi immagine** / **Apri lettore**.
 - **Descrivi immagine da PDF**: «Salva testo…» con **nome e cartella del PDF originale**; nuovo **«Stampa testo…»** (stampante Windows / Print to PDF).
@@ -165,7 +174,16 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.2
+
+- **Analyze audio/video folder…**: batch local media → a `.rtad.txt` next to each file (tech sheet/summary by default; transcript and timestamps opt-in).
+- **[AV] search**: with “Audio and Video only”, also searches existing `.rtad.txt` sidecars; snippets and `[MM:SS]` timestamps when present (no extra cost after analysis).
+- **Transcript glossary** (Tools): post-Gemini corrections; accent-insensitive match; can rewrite `.rtad.txt` when opening a report.
+- Scanned-PDF 1.7.1, reader/spacing/toast 1.7.0, PDF TOC 1.6.9, structured docs 1.6.8, and AV hub 1.6.7 remain.
+
 ### 🌟 What's New in Version 1.7.1
+
+*(Published.)*
 
 - **Scanned PDFs**: if “Read document…” finds no text but finds images → **Describe image** / **Open reader** dialog.
 - **Describe image from PDF**: “Save text…” uses the **original PDF name and folder**; new **“Print text…”** (Windows printer / Print to PDF).

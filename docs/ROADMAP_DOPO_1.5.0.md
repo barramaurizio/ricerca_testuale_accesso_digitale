@@ -144,7 +144,8 @@ Contenuto previsto `1.6.0`:
 - **1.6.8:** documenti strutturati + UX salvataggi — **pronta / da pubblicare** (`NOTE_RILASCIO_1.6.8.txt`).  
 - **1.6.9:** PDF TOC/link + app predefinita + titoli report + guida Acrobat/NVDA — **pubblicata** (12/10/2026; DataStore #12149 → #12150).  
 - **1.7.0:** lettore documento + spazi PDF + toast — **pubblicata** (13/10/2026; DataStore #12178 → #12179).  
-- **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pronta al rilascio** (`PIANO_1.7.1.md`). Batch/B0 → 1.7.2+.
+- **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pubblicata**.
+- **1.7.2:** batch cartella media + B0 cache + glossario — **pronta / in rilascio** (`PIANO_1.7.2.md`).
 
 ---
 
@@ -168,8 +169,9 @@ Contenuto previsto `1.6.0`:
 16. **1.6.8** documenti strutturati + UX salvataggi — pronta / da pubblicare.  
 17. ~~**1.6.9** PDF TOC/link + app predefinita + titoli report~~ **pubblicata**.  
 18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pubblicata**.  
-19. **1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus — **pronta** (`PIANO_1.7.1.md`).  
-20. **1.7.2+:** batch media; B0 cache; (opz.) Whisper / PDF criptati.
+19. ~~**1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus~~ **pubblicata**.  
+20. **1.7.2** — batch media + B0 + glossario — **pronta** (`PIANO_1.7.2.md`).  
+21. **1.7.3+:** «Trascrivi e cerca»; (opz.) Whisper / PDF criptati.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -238,9 +240,11 @@ Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 - ~~Lettore documenti strutturato + UX salvataggi~~ → **`1.6.8`**  
 - ~~TOC/link PDF + titoli report + guida `.rtad.txt`~~ → **`1.6.9`** pubblicata  
 - ~~Lettore documenti interno MVP + toast + spazi PDF~~ → **`1.7.0`** pubblicata  
-- PDF-scansione: copia/salva testo da «Descrivi immagine da PDF» → **`1.7.1` P0**  
-- Batch media / B0 / focus freccia → **`1.7.1` P1**  
-- Whisper locale opt-in; export/stampa; OneCore native  
+- ~~PDF-scansione: copia/salva testo da «Descrivi immagine da PDF»~~ → **`1.7.1`**  
+- ~~Focus freccia lettore~~ → **`1.7.1`**  
+- Batch media / B0 → **`1.7.2`** (`PIANO_1.7.2.md`)  
+- Glossario post-trascrizione (nomi propri) → **`1.7.2` P2**  
+- Whisper locale opt-in; «Trascrivi e cerca»; OneCore native → **1.7.3+**  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

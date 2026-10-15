@@ -28,30 +28,31 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.1
+Novità recenti (in parole semplici) — versione 1.7.2
 ----------------------------------------------------
-• PDF scansione (fatture, fogli fotografati): se
-  «Leggi documento…» non trova testo ma trova
-  immagini, RTAD propone subito «Descrivi immagine»
-  oppure aprire comunque il lettore.
-• Dopo «Descrivi immagine da PDF»: Salva testo usa
-  il nome e la cartella del PDF originale (non del
-  file temporaneo); c’è anche «Stampa testo…»
-  (stampante di Windows, anche «Microsoft Print to PDF»).
-• Scheda tecnica (immagini e audio/video):
-  «Data analisi» = quando hai fatto il report;
-  «Ultima modifica originale» = come in Esplora file.
-• Lettore documento: dopo iconizza, le frecce sul
-  testo riprendono meglio (se serve ancora: Tab e
-  Shift+Tab).
-• Restano da 1.7.0: lettore con cerca/titoli, spazi PDF,
-  toast meno invasivo. Da 1.6.9: TOC/link PDF. Da
-  1.6.7–1.6.8: hub media e documenti strutturati.
+• Analizza cartella audio/video… (Strumenti): come il
+  batch immagini, ma su media locali. Per ogni file
+  nasce un .rtad.txt accanto (scheda/riassunto di
+  default; trascrizione e timestamp a richiesta).
+• Ricerca [AV]: con filtro «Solo Audio e Video»,
+  RTAD cerca anche nei .rtad.txt già salvati e mostra
+  snippet e timestamp [MM:SS] se presenti. Zero costi
+  extra se hai già analizzato.
+• Glossario trascrizioni (Strumenti): correzioni dopo
+  Gemini (es. Vlahovic → Woltemade). Si applica alle
+  nuove analisi e, aprendo un report, può aggiornare
+  il .rtad.txt. Confronta senza accenti (Vlahović =
+  Vlahovic).
 • Dove usare cosa:
+  - Audio/video → prima «Analizza cartella…» o hub
+    singolo; poi cerca le parole dette (filtro Solo AV).
+    I .rtad.txt devono stare nella stessa cartella dei media.
   - PDF con testo → «Leggi documento…»;
   - PDF solo immagine → Descrivi (anche dal dialogo);
-  - Audio/video → filtro «Solo Audio e Video»;
   - Immagini → dialogo unico / batch / Shift+G.
+• Restano da 1.7.1: PDF scansione, stem/stampa, date
+  scheda, focus lettore. Da 1.7.0: lettore/spazi/toast.
+  Da 1.6.9–1.6.8: TOC PDF e documenti strutturati.
 
 
 1. A cosa serve
@@ -113,7 +114,8 @@ Tre strumenti utili, in parole povere:
 Puoi limitare la ricerca a:
 • documenti (Word, PDF, EPUB, testo…);
 • immagini;
-• audio/video (soprattutto sul nome file);
+• audio/video: nome file, e — se hai già il .rtad.txt
+  accanto al media — anche le parole della trascrizione;
 • oppure un’estensione che scegli tu (es. solo .pdf o solo .epub).
 
 Per la posta (Thunderbird e simili): il programma può cercare nei messaggi

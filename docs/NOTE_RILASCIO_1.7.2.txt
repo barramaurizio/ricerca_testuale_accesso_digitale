@@ -1,0 +1,92 @@
+🌟 Novità della Versione 1.7.2
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.2
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Analizza cartella audio/video…**: batch su media locali → file `.rtad.txt` accanto a ciascuno (scheda/riassunto di default; trascrizione e timestamp a richiesta).
+- **Ricerca [AV]**: con filtro «Solo Audio e Video», cerca anche nei `.rtad.txt` già salvati; snippet e timestamp `[MM:SS]` se presenti (zero costi extra dopo l’analisi).
+- **Glossario trascrizioni** (Strumenti): correzioni dopo Gemini (es. nomi propri); confronto senza accenti; può aggiornare il `.rtad.txt` all’apertura del report.
+- Restano PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, documenti 1.6.8, hub media 1.6.7.
+
+## 🇬🇧 English
+
+- **Analyze audio/video folder…**: batch local media → a `.rtad.txt` next to each file (tech sheet/summary by default; transcript and timestamps opt-in).
+- **[AV] search**: with “Audio and Video only”, also searches existing `.rtad.txt` sidecars; snippets and `[MM:SS]` timestamps when present (no extra cost after analysis).
+- **Transcript glossary** (Tools): post-Gemini corrections (e.g. proper names); accent-insensitive match; can rewrite `.rtad.txt` when opening a report.
+- Scanned-PDF 1.7.1, reader/spacing/toast 1.7.0, PDF TOC 1.6.9, structured docs 1.6.8, and AV hub 1.6.7 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.2.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.2
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.2.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.2.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Batch cartella audio/video → .rtad.txt; ricerca [AV] nei sidecar con timestamp; glossario trascrizioni post-Gemini (anche senza accenti).
+
+Summary EN:
+Audio/video folder batch → .rtad.txt; [AV] search in sidecars with timestamps; post-Gemini transcript glossary (accent-insensitive).
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.2/ricerca_testuale_accesso_digitale-1.7.2.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[x] python tools/rtad_release.py check → OK
+[x] Gemelli rtad_ocr / rtad_media / rtad_guida_pratica / rtad_docstruct
+[x] docs/GUIDA_PRATICA.txt + addon/doc/it/guida_pratica.html sincronizzati
+[x] WhatsNew SA + Add-on + changelog + README
+[ ] Test Add-on: reinstalla .nvda-addon + smoke
+[ ] Standalone\compila.bat → F9 setup.iss

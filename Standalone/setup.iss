@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=1.7.1
+AppVersion=1.7.2
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.7.1
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.7.2
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -38,6 +38,10 @@ Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigi
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatch"; ValueType: string; ValueData: "Analizza immagini di questa cartella (Accesso Digitale)"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatch"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatch\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --batch-folder ""%1"""
+; Batch audio/video cartella (1.7.2)
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatchMedia"; ValueType: string; ValueData: "Analizza audio/video di questa cartella (Accesso Digitale)"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatchMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\RicercaTestualeAccessoDigitaleBatchMedia\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --batch-media-folder ""%1"""
 
 ; --- INTEGRAZIONE DISCHI ---
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale"; ValueType: string; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
@@ -46,6 +50,9 @@ Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatch"; ValueType: string; ValueData: "Analizza immagini di questa cartella (Accesso Digitale)"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatch"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatch\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --batch-folder ""%1"""
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatchMedia"; ValueType: string; ValueData: "Analizza audio/video di questa cartella (Accesso Digitale)"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatchMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitaleBatchMedia\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --batch-media-folder ""%1"""
 
 ; --- FILE GENERICI (non immagini / non documenti col sottomenù) ---
 Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale"; ValueType: string; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey

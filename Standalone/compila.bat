@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Compilazione Ricerca Testuale Accesso Digitale v1.7.2
+echo Compilazione Ricerca Testuale Accesso Digitale v1.7.3
 echo ======================================================
 
 REM Prerequisito: pip install feedparser pyinstaller wxPython pywin32

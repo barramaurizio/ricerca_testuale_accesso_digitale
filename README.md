@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.3
+
+- **Sidecar `.rtad.txt`**: su media **locale**, «Salva testo…» usa lo **stem del file** sul disco; da URL/temp resta titolo/ID del download.
+- **Solo Audio/Video**: trova anche i `.rtad.txt` **orfani** (senza media gemello) con snippet e timestamp `[MM:SS]`.
+- **Excel `.xlsx`**: ricerca nel contenuto delle celle; **Invio** apre Excel alla riga del risultato; date e ore seriali rese leggibili.
+- **Trascrivi e cerca…** (Strumenti / **Ctrl+Shift+T**): cerca parole nel parlato usando i `.rtad.txt` già presenti; altrimenti trascrive con Gemini (max 30 file).
+- Restano batch/B0/glossario 1.7.2, PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7.
+
 ### 🌟 Novità della Versione 1.7.2
+
+*(Pubblicata.)*
 
 - **Analizza cartella audio/video…**: batch su media locali → file `.rtad.txt` accanto a ciascuno (scheda/riassunto di default; trascrizione e timestamp a richiesta).
 - **Ricerca [AV]**: con filtro «Solo Audio e Video», cerca anche nei `.rtad.txt` già salvati; snippet e timestamp `[MM:SS]` se presenti (zero costi extra dopo l’analisi).
@@ -174,7 +184,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.3
+
+- **`.rtad.txt` sidecar naming**: for **local** media, “Save text…” uses the **on-disk file stem**; URL/temp downloads still use title/ID.
+- **Audio/Video only**: also finds **orphan** `.rtad.txt` files (no matching media) with snippets and `[MM:SS]` timestamps.
+- **Excel `.xlsx`**: search cell contents; **Enter** opens Excel at the hit row; serial dates/times shown in readable form.
+- **Transcribe and search…** (Tools / **Ctrl+Shift+T**): find spoken words via existing `.rtad.txt` first; otherwise Gemini transcription (max 30 files).
+- Batch/B0/glossary 1.7.2, scanned-PDF 1.7.1, reader/spacing/toast 1.7.0, PDF TOC 1.6.9, and AV hub 1.6.7 remain.
+
 ### 🌟 What's New in Version 1.7.2
+
+*(Published.)*
 
 - **Analyze audio/video folder…**: batch local media → a `.rtad.txt` next to each file (tech sheet/summary by default; transcript and timestamps opt-in).
 - **[AV] search**: with “Audio and Video only”, also searches existing `.rtad.txt` sidecars; snippets and `[MM:SS]` timestamps when present (no extra cost after analysis).

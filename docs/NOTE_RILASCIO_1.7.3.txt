@@ -1,0 +1,103 @@
+🌟 Novità della Versione 1.7.3
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.3
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Sidecar `.rtad.txt`**: su media **locale**, «Salva testo…» usa lo **stem del file** sul disco; da URL/temp resta titolo/ID del download.
+- **Solo Audio/Video**: trova anche i `.rtad.txt` **orfani** (senza media gemello) con snippet e timestamp `[MM:SS]`.
+- **Excel `.xlsx`**: ricerca nel contenuto delle celle; **Invio** apre Excel alla riga del risultato; date e ore seriali rese leggibili.
+- **Trascrivi e cerca…** (Strumenti / **Ctrl+Shift+T**): cerca parole nel parlato usando i `.rtad.txt` già presenti; altrimenti trascrive con Gemini (max 30 file).
+- Restano batch/B0/glossario 1.7.2, PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7.
+
+## 🇬🇧 English
+
+- **`.rtad.txt` sidecar naming**: for **local** media, “Save text…” uses the **on-disk file stem**; URL/temp downloads still use title/ID.
+- **Audio/Video only**: also finds **orphan** `.rtad.txt` files (no matching media) with snippets and `[MM:SS]` timestamps.
+- **Excel `.xlsx`**: search cell contents; **Enter** opens Excel at the hit row; serial dates/times shown in readable form.
+- **Transcribe and search…** (Tools / **Ctrl+Shift+T**): find spoken words via existing `.rtad.txt` first; otherwise Gemini transcription (max 30 files).
+- Batch/B0/glossary 1.7.2, scanned-PDF 1.7.1, reader/spacing/toast 1.7.0, PDF TOC 1.6.9, and AV hub 1.6.7 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.3.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.3
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.3.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.3.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Sidecar stem locale + .rtad.txt orfani; Excel .xlsx (celle, salto riga, date); Trascrivi e cerca (cache poi Gemini max 30).
+
+Summary EN:
+Local sidecar stem + orphan .rtad.txt; Excel .xlsx (cells, jump-to-row, dates); Transcribe and search (cache then Gemini max 30).
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.3/ricerca_testuale_accesso_digitale-1.7.3.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist rapida
+════════════════════════════════════════════════════════
+[x] python tools/rtad_release.py check → OK (dopo sync/addon fresco)
+[x] Gemelli rtad_ocr / rtad_media / rtad_guida_pratica / rtad_docstruct
+[x] docs/GUIDA_PRATICA.txt + addon/doc/it/guida_pratica.html sincronizzati
+[x] WhatsNew SA + Add-on + changelog + README
+[ ] Test Add-on: reinstalla .nvda-addon + smoke
+[ ] Standalone\compila.bat → F9 setup.iss
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.7.3
+
+Description:
+Sidecar stem locale e ricerca .rtad.txt orfani; Excel .xlsx con salto riga;
+Trascrivi e cerca (cache poi Gemini max 30). Guida HTML completa → 1.7.4.

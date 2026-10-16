@@ -1,3 +1,10 @@
+Novità nella Versione 1.7.3
+- Sidecar .rtad.txt: media locale → stem del file; URL/temp → titolo/ID
+- Solo Audio/Video: ricerca anche nei .rtad.txt orfani (senza media gemello)
+- Excel .xlsx: ricerca contenuto celle; Invio apre Excel alla riga; date/ore leggibili
+- Trascrivi e cerca… (Ctrl+Shift+T): .rtad.txt già presenti, altrimenti Gemini (max 30)
+- Restano batch/B0/glossario 1.7.2, PDF scansione 1.7.1, lettore/spazi/toast 1.7.0
+
 Novità nella Versione 1.7.2
 - Analizza cartella audio/video…: batch locale → .rtad.txt accanto a ogni media
 - Ricerca [AV]: parole nei .rtad.txt già salvati, con snippet e timestamp [MM:SS]

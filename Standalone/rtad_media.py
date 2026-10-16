@@ -2329,6 +2329,30 @@ def list_media_files_in_folder(folder: str, recursive: bool = False) -> list:
     return out
 
 
+def list_rtad_txt_files_in_folder(folder: str, recursive: bool = False) -> list:
+    """Elenco path «*.rtad.txt» in una cartella (anche orfani senza media)."""
+    folder = os.path.abspath(folder or "")
+    if not folder or not os.path.isdir(folder):
+        return []
+    out = []
+    if recursive:
+        for root, _dirs, files in os.walk(folder):
+            for name in files:
+                if (name or "").lower().endswith(".rtad.txt"):
+                    out.append(os.path.join(root, name))
+    else:
+        try:
+            names = os.listdir(folder)
+        except Exception:
+            return []
+        for name in names:
+            path = os.path.join(folder, name)
+            if os.path.isfile(path) and (name or "").lower().endswith(".rtad.txt"):
+                out.append(path)
+    out.sort(key=lambda p: os.path.basename(p).lower())
+    return out
+
+
 def sidecar_txt_path_for_media(media_path: str) -> str:
     """Path «stem.rtad.txt» accanto al media (stesso stile hub / titoli lunghi)."""
     base = os.path.abspath(media_path or "")
@@ -2368,25 +2392,24 @@ def _timestamp_near_line(lines: list, idx: int, lookback: int = 4) -> str:
     return ""
 
 
-def search_media_sidecar(
-    media_path: str,
+def search_rtad_txt_file(
+    txt_path: str,
     terms: list,
     *,
     text_matches_fn,
     max_hits: int = 30,
 ) -> list:
-    """B0: cerca termini nel .rtad.txt già salvato accanto al media (zero API).
+    """Cerca termini in un .rtad.txt (sidecar o orfano). Zero API.
 
     Restituisce dict con: sidecar_path, line_number (1-based), snippet,
     timestamp (str o ''), location_label.
     """
-    if not media_path or not terms or not callable(text_matches_fn):
+    if not txt_path or not terms or not callable(text_matches_fn):
         return []
-    side = resolve_media_sidecar_path(media_path)
-    if not side:
+    if not os.path.isfile(txt_path):
         return []
     try:
-        with open(side, "r", encoding="utf-8", errors="replace") as f:
+        with open(txt_path, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     except Exception:
         return []
@@ -2415,7 +2438,7 @@ def search_media_sidecar(
             loc = f"{loc} (glossario)"
         out.append(
             {
-                "sidecar_path": side,
+                "sidecar_path": txt_path,
                 "line_number": idx + 1,
                 "snippet": snippet,
                 "timestamp": ts,
@@ -2424,6 +2447,222 @@ def search_media_sidecar(
         )
         if len(out) >= limit:
             break
+    return out
+
+
+def search_media_sidecar(
+    media_path: str,
+    terms: list,
+    *,
+    text_matches_fn,
+    max_hits: int = 30,
+) -> list:
+    """B0: cerca termini nel .rtad.txt già salvato accanto al media (zero API)."""
+    if not media_path or not terms or not callable(text_matches_fn):
+        return []
+    side = resolve_media_sidecar_path(media_path)
+    if not side:
+        return []
+    return search_rtad_txt_file(
+        side, terms, text_matches_fn=text_matches_fn, max_hits=max_hits
+    )
+
+
+def transcribe_and_search_folder(
+    folder: str,
+    terms: list,
+    *,
+    text_matches_fn,
+    recursive: bool = False,
+    max_transcribe: int = 30,
+    should_abort=None,
+    on_progress=None,
+) -> dict:
+    """«Trascrivi e cerca»: B0 su sidecar esistenti; Gemini solo se manca .rtad.txt.
+
+    on_progress(i, total, path, phase) con phase in
+    'cache' | 'transcribe' | 'skip' | 'done'.
+    """
+    out = {
+        "folder": folder or "",
+        "total": 0,
+        "cache_hits": 0,
+        "transcribed": 0,
+        "skipped_limit": 0,
+        "hits": [],
+        "errors": [],
+        "aborted": False,
+    }
+    if not folder or not terms or not callable(text_matches_fn):
+        return out
+    files = list_media_files_in_folder(folder, recursive=recursive)
+    rtad_files = list_rtad_txt_files_in_folder(folder, recursive=recursive)
+    out["total"] = len(files)
+    out["rtad_txt_total"] = len(rtad_files)
+    try:
+        limit = int(max_transcribe)
+    except Exception:
+        limit = 30
+    if limit < 0:
+        limit = 0
+    transcribed_n = 0
+    seen_sidecars = set()
+    work_total = max(1, len(files) + len(rtad_files))
+    step = 0
+    for path in files:
+        step += 1
+        if should_abort and should_abort():
+            out["aborted"] = True
+            break
+        name = os.path.basename(path)
+        side = resolve_media_sidecar_path(path)
+        phase = "cache"
+        try:
+            if side:
+                side_key = os.path.normcase(os.path.normpath(side))
+                seen_sidecars.add(side_key)
+                if on_progress:
+                    try:
+                        on_progress(step, work_total, path, "cache")
+                    except Exception:
+                        pass
+                hits = search_rtad_txt_file(
+                    side, terms, text_matches_fn=text_matches_fn
+                )
+                if hits:
+                    out["cache_hits"] += 1
+                for h in hits or []:
+                    out["hits"].append(
+                        {
+                            "media_path": path,
+                            "sidecar_path": h.get("sidecar_path") or side,
+                            "file_name": name,
+                            "line_number": h.get("line_number"),
+                            "snippet": h.get("snippet") or "",
+                            "timestamp": h.get("timestamp") or "",
+                            "location_label": h.get("location_label") or "Report media",
+                            "via": "cache",
+                        }
+                    )
+                if on_progress:
+                    try:
+                        on_progress(step, work_total, path, "done")
+                    except Exception:
+                        pass
+                continue
+
+            # Nessun sidecar: trascrivi (con timestamp) e salva, poi cerca
+            # limit=0 → nessuna nuova trascrizione (solo cache)
+            if transcribed_n >= limit:
+                out["skipped_limit"] += 1
+                if on_progress:
+                    try:
+                        on_progress(step, work_total, path, "skip")
+                    except Exception:
+                        pass
+                continue
+            phase = "transcribe"
+            if on_progress:
+                try:
+                    on_progress(step, work_total, path, "transcribe")
+                except Exception:
+                    pass
+            body = format_full_media_report(
+                path,
+                include_tech=True,
+                include_describe=False,
+                include_transcript=True,
+                include_timestamps=True,
+                should_abort=should_abort,
+            )
+            if should_abort and should_abort():
+                out["aborted"] = True
+                break
+            if not (body or "").strip():
+                out["errors"].append({"path": path, "error": "trascrizione vuota"})
+                continue
+            txt_path = sidecar_txt_path_for_media(path)
+            try:
+                with open(txt_path, "w", encoding="utf-8") as f:
+                    f.write(body)
+                    f.write("\n")
+            except Exception as e:
+                out["errors"].append({"path": path, "error": f"salvataggio: {e}"})
+                continue
+            transcribed_n += 1
+            out["transcribed"] = transcribed_n
+            seen_sidecars.add(os.path.normcase(os.path.normpath(txt_path)))
+            hits = search_rtad_txt_file(
+                txt_path, terms, text_matches_fn=text_matches_fn
+            )
+            for h in hits or []:
+                out["hits"].append(
+                    {
+                        "media_path": path,
+                        "sidecar_path": h.get("sidecar_path") or txt_path,
+                        "file_name": name,
+                        "line_number": h.get("line_number"),
+                        "snippet": h.get("snippet") or "",
+                        "timestamp": h.get("timestamp") or "",
+                        "location_label": h.get("location_label") or "Report media",
+                        "via": "transcript",
+                    }
+                )
+            if on_progress:
+                try:
+                    on_progress(step, work_total, path, "done")
+                except Exception:
+                    pass
+        except Exception as e:
+            out["errors"].append({"path": path, "error": str(e), "phase": phase})
+            if on_progress:
+                try:
+                    on_progress(step, work_total, path, "done")
+                except Exception:
+                    pass
+
+    # Orfani: .rtad.txt senza media gemello (o non ancora visti sopra)
+    for path in rtad_files:
+        if should_abort and should_abort():
+            out["aborted"] = True
+            break
+        step += 1
+        side_key = os.path.normcase(os.path.normpath(path))
+        if side_key in seen_sidecars:
+            continue
+        name = os.path.basename(path)
+        if on_progress:
+            try:
+                on_progress(step, work_total, path, "cache")
+            except Exception:
+                pass
+        try:
+            hits = search_rtad_txt_file(
+                path, terms, text_matches_fn=text_matches_fn
+            )
+            if hits:
+                out["cache_hits"] += 1
+            for h in hits or []:
+                out["hits"].append(
+                    {
+                        "media_path": "",
+                        "sidecar_path": h.get("sidecar_path") or path,
+                        "file_name": name,
+                        "line_number": h.get("line_number"),
+                        "snippet": h.get("snippet") or "",
+                        "timestamp": h.get("timestamp") or "",
+                        "location_label": h.get("location_label") or "Report media",
+                        "via": "cache",
+                    }
+                )
+            seen_sidecars.add(side_key)
+        except Exception as e:
+            out["errors"].append({"path": path, "error": str(e), "phase": "cache"})
+        if on_progress:
+            try:
+                on_progress(step, work_total, path, "done")
+            except Exception:
+                pass
     return out
 
 

@@ -14,31 +14,32 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.2
+Novità recenti (in parole semplici) — versione 1.7.3
 ----------------------------------------------------
-• Analizza cartella audio/video… (Strumenti): come il
-  batch immagini, ma su media locali. Per ogni file
-  nasce un .rtad.txt accanto (scheda/riassunto di
-  default; trascrizione e timestamp a richiesta).
-• Ricerca [AV]: con filtro «Solo Audio e Video»,
-  RTAD cerca anche nei .rtad.txt già salvati e mostra
-  snippet e timestamp [MM:SS] se presenti. Zero costi
-  extra se hai già analizzato.
-• Glossario trascrizioni (Strumenti): correzioni dopo
-  Gemini (es. Vlahovic → Woltemade). Si applica alle
-  nuove analisi e, aprendo un report, può aggiornare
-  il .rtad.txt. Confronta senza accenti (Vlahović =
-  Vlahovic).
+• Nome del .rtad.txt: se il media è un file sul disco,
+  «Salva testo…» usa il nome del file (es. partita.mp4
+  → partita.rtad.txt). Se arriva da URL/temp, resta
+  il titolo o l’ID del download.
+• Solo Audio/Video: trova anche i .rtad.txt «orfani»
+  (senza il video/audio accanto), con snippet e
+  timestamp [MM:SS] se ci sono.
+• Excel .xlsx: puoi cercare nelle celle dei fogli.
+  Con Invio sul risultato si apre Excel alla riga giusta;
+  date e ore si leggono in forma normale.
+• Trascrivi e cerca… (Strumenti / Ctrl+Shift+T): cerchi
+  parole nel parlato. Prima usa i .rtad.txt già fatti;
+  se manca la trascrizione, chiede a Gemini (al massimo
+  30 file per volta).
 • Dove usare cosa:
-  - Audio/video → prima «Analizza cartella…» o hub
-    singolo; poi cerca le parole dette (filtro Solo AV).
-    I .rtad.txt devono stare nella stessa cartella dei media.
+  - Audio/video → «Analizza cartella…», hub singolo,
+    oppure «Trascrivi e cerca…»; poi filtro Solo AV.
+  - Excel → filtro Documenti (include .xlsx);
   - PDF con testo → «Leggi documento…»;
   - PDF solo immagine → Descrivi (anche dal dialogo);
   - Immagini → dialogo unico / batch / Shift+G.
-• Restano da 1.7.1: PDF scansione, stem/stampa, date
-  scheda, focus lettore. Da 1.7.0: lettore/spazi/toast.
-  Da 1.6.9–1.6.8: TOC PDF e documenti strutturati.
+• Restano da 1.7.2: batch cartella AV, ricerca [AV],
+  glossario. Da 1.7.1–1.7.0: PDF scansione, lettore,
+  spazi, toast. Da 1.6.9–1.6.8: TOC PDF e documenti.
 
 
 1. A cosa serve
@@ -98,7 +99,7 @@ Tre strumenti utili, in parole povere:
 5. Tipi di file, posta e libri
 ------------------------------
 Puoi limitare la ricerca a:
-• documenti (Word, PDF, EPUB, testo…);
+• documenti (Word, Excel .xlsx, PDF, EPUB, testo…);
 • immagini;
 • audio/video: nome file, e — se hai già il .rtad.txt
   accanto al media — anche le parole della trascrizione;

@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.7.2 — Guida</title>
+    <title>Ricerca Testuale Accesso Digitale v1.7.3 — Guida</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,19 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.7.2</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.7.3</h1>
     <p>Autore: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>Componente aggiuntivo per NVDA: ricerca testuale accessibile su file, cartelle e intere unità, con salto alla riga, lettura EML nativa, feed RSS/Atom e Feed Thunderbird.</p>
 
     <div class="update">
+        <strong>Novità Versione 1.7.3</strong>
+        <ul>
+            <li><strong>Sidecar <code>.rtad.txt</code></strong>: su media locale, «Salva testo…» usa lo stem del file sul disco; da URL/temp resta titolo/ID.</li>
+            <li><strong>Solo Audio/Video</strong>: trova anche i <code>.rtad.txt</code> orfani (senza media gemello) con snippet e timestamp <code>[MM:SS]</code>.</li>
+            <li><strong>Excel <code>.xlsx</code></strong>: ricerca nelle celle; Invio apre Excel alla riga; date e ore leggibili.</li>
+            <li><strong>Trascrivi e cerca…</strong> (Strumenti / <code>Ctrl+Shift+T</code>): usa i <code>.rtad.txt</code> già presenti; altrimenti Gemini (max 30 file).</li>
+            <li>Restano batch/B0/glossario 1.7.2, PDF scansione 1.7.1, lettore/spazi/toast 1.7.0, TOC PDF 1.6.9, hub media 1.6.7.</li>
+        </ul>
         <strong>Novità Versione 1.7.2</strong>
         <ul>
             <li><strong>Analizza cartella audio/video…</strong>: batch su media locali → file <code>.rtad.txt</code> accanto a ciascuno (scheda/riassunto di default; trascrizione e timestamp a richiesta).</li>

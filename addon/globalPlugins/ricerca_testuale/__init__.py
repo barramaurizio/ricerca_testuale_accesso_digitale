@@ -79,7 +79,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.2"
+APP_VERSION = "1.7.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1246,6 +1246,7 @@ DOC_EXTS = (
     ".txt", ".log", ".csv", ".md", ".rtf",
     ".html", ".htm",
     ".docx", ".doc", ".odt",
+    ".xlsx",
     ".pdf",
     ".epub",
     ".eml", ".mbox", ".mbx",
@@ -1540,7 +1541,7 @@ def _filter_choice_labels():
         "Tutti i tipi di file",
         "Solo Immagini (.jpg, .png, .gif, .webp, .tif, …)",
         "Solo Audio e Video (.mp3, .m4a, .flac, .mp4, .mkv, .mov, …)",
-        "Solo Documenti (.txt, .pdf, .docx, .epub, .eml, .html, .md, …)",
+        "Solo Documenti (.txt, .pdf, .docx, .xlsx, .epub, .eml, .html, .md, …)",
         "Estensione Personalizzata...",
     ]
 
@@ -1750,6 +1751,10 @@ def extract_document_text(file_path):
             return "\n".join(extract_lines_from_pdf(file_path)).strip()
         if ext in (".docx", ".doc"):
             return "\n".join(extract_paragraphs_from_docx(file_path)).strip()
+        if ext == ".xlsx":
+            return "\n".join(
+                (row.get("text") or "") for row in extract_rows_from_xlsx(file_path)
+            ).strip()
         if ext == ".epub":
             if rtad_epub is None:
                 return ""
@@ -1795,6 +1800,185 @@ def extract_paragraphs_from_docx(file_path):
             return paragraphs
     except Exception:
         return []
+
+
+def _xlsx_local_tag(tag):
+    return (tag or "").rsplit("}", 1)[-1]
+
+
+def _xlsx_cell_shared_text(si_el):
+    parts = []
+    for el in si_el.iter():
+        if _xlsx_local_tag(el.tag) == "t" and el.text:
+            parts.append(el.text)
+    return "".join(parts)
+
+
+def _xlsx_format_cell_value(raw):
+    """Rende leggibili seriali data/ora Excel (es. 46175.02 → gg/mm/aaaa hh:mm)."""
+    s = (raw or "").strip()
+    if not s:
+        return s
+    try:
+        num = float(s.replace(",", "."))
+    except Exception:
+        return s
+    if s.lower() in ("nan", "inf", "-inf"):
+        return s
+    try:
+        if 0 < num < 1:
+            total_sec = int(round(num * 86400))
+            hh = total_sec // 3600
+            mm = (total_sec % 3600) // 60
+            ss = total_sec % 60
+            if ss:
+                return f"{hh:02d}:{mm:02d}:{ss:02d}"
+            return f"{hh:02d}:{mm:02d}"
+        if 20000 <= num < 100000:
+            base = datetime.datetime(1899, 12, 30)
+            dt = base + datetime.timedelta(days=num)
+            if abs(num - int(num)) < 1e-9:
+                return dt.strftime("%d/%m/%Y")
+            return dt.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return s
+    if abs(num - int(num)) < 1e-9 and abs(num) < 1e12:
+        return str(int(num))
+    return s
+
+
+def extract_rows_from_xlsx(file_path, max_rows=50000):
+    """Estrae righe di testo da .xlsx (OOXML, senza openpyxl).
+
+    Restituisce lista di dict: sheet, row (1-based), text.
+    """
+    out = []
+    if not file_path or not os.path.isfile(file_path):
+        return out
+    try:
+        magic = _read_file_magic(file_path, 4)
+        if not _is_ooxml_zip_magic(magic):
+            return out
+        with zipfile.ZipFile(file_path) as z:
+            names = set(z.namelist())
+            shared = []
+            if "xl/sharedStrings.xml" in names:
+                raw = z.read("xl/sharedStrings.xml")
+                if len(raw) > MAX_DOCX_XML_BYTES:
+                    raw = raw[:MAX_DOCX_XML_BYTES]
+                tree = ET.fromstring(raw)
+                for si in tree.iter():
+                    if _xlsx_local_tag(si.tag) == "si":
+                        shared.append(_xlsx_cell_shared_text(si))
+
+            sheet_metas = []  # (name, path)
+            if "xl/workbook.xml" in names:
+                wb_raw = z.read("xl/workbook.xml")
+                if len(wb_raw) > MAX_DOCX_XML_BYTES:
+                    wb_raw = wb_raw[:MAX_DOCX_XML_BYTES]
+                wb = ET.fromstring(wb_raw)
+                rid_to_target = {}
+                if "xl/_rels/workbook.xml.rels" in names:
+                    rel_raw = z.read("xl/_rels/workbook.xml.rels")
+                    rel_root = ET.fromstring(rel_raw)
+                    for rel in rel_root.iter():
+                        if _xlsx_local_tag(rel.tag) != "Relationship":
+                            continue
+                        rid = rel.attrib.get("Id") or ""
+                        target = (rel.attrib.get("Target") or "").replace("\\", "/")
+                        if rid and target:
+                            if not target.startswith("xl/"):
+                                target = "xl/" + target.lstrip("/")
+                            rid_to_target[rid] = target
+                for sh in wb.iter():
+                    if _xlsx_local_tag(sh.tag) != "sheet":
+                        continue
+                    name = (sh.attrib.get("name") or "Foglio").strip() or "Foglio"
+                    rid = (
+                        sh.attrib.get(
+                            "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                        )
+                        or sh.attrib.get("r:id")
+                        or ""
+                    )
+                    target = rid_to_target.get(rid) or ""
+                    if target and target in names:
+                        sheet_metas.append((name, target))
+            if not sheet_metas:
+                for n in sorted(names):
+                    if n.startswith("xl/worksheets/sheet") and n.endswith(".xml"):
+                        sheet_metas.append((os.path.basename(n), n))
+
+            limit = max(1, int(max_rows or 50000))
+            for sheet_name, sheet_path in sheet_metas:
+                if len(out) >= limit:
+                    break
+                try:
+                    info = z.getinfo(sheet_path)
+                except KeyError:
+                    continue
+                if info.file_size > MAX_DOCX_XML_BYTES:
+                    continue
+                sheet_raw = z.read(sheet_path)
+                if len(sheet_raw) > MAX_DOCX_XML_BYTES:
+                    sheet_raw = sheet_raw[:MAX_DOCX_XML_BYTES]
+                sheet_tree = ET.fromstring(sheet_raw)
+                for row_el in sheet_tree.iter():
+                    if _xlsx_local_tag(row_el.tag) != "row":
+                        continue
+                    try:
+                        row_num = int(row_el.attrib.get("r") or 0)
+                    except Exception:
+                        row_num = 0
+                    cells = []
+                    for c in row_el:
+                        if _xlsx_local_tag(c.tag) != "c":
+                            continue
+                        ctype = c.attrib.get("t") or ""
+                        val = ""
+                        if ctype == "s":
+                            v_el = None
+                            for child in c:
+                                if _xlsx_local_tag(child.tag) == "v":
+                                    v_el = child
+                                    break
+                            try:
+                                idx = int((v_el.text if v_el is not None else "") or -1)
+                            except Exception:
+                                idx = -1
+                            if 0 <= idx < len(shared):
+                                val = shared[idx]
+                        elif ctype == "inlineStr":
+                            for child in c.iter():
+                                if _xlsx_local_tag(child.tag) == "t" and child.text:
+                                    val += child.text
+                        else:
+                            v_el = None
+                            for child in c:
+                                if _xlsx_local_tag(child.tag) == "v":
+                                    v_el = child
+                                    break
+                            if v_el is not None and v_el.text:
+                                val = _xlsx_format_cell_value(v_el.text)
+                        val = (val or "").strip()
+                        if val:
+                            cells.append(val)
+                    if not cells:
+                        continue
+                    if row_num <= 0:
+                        row_num = len(out) + 1
+                    text = " | ".join(cells)
+                    out.append({
+                        "sheet": sheet_name,
+                        "row": row_num,
+                        "text": text,
+                    })
+                    if len(out) >= limit:
+                        break
+        return out
+    except Exception:
+        return []
+
 
 PDF_READ_MAX_BYTES = 40 * 1024 * 1024
 
@@ -3402,20 +3586,28 @@ def save_last_media_report_dir(path):
 
 
 def report_save_stem_for_path(file_path):
-    """Stem per «Salva testo»: file locale, oppure titolo/ID sidecar URL."""
+    """Stem per «Salva testo»: stem del file locale; titolo/ID solo su temp URL.
+
+    File sul disco (es. partita_juve.mp4) → partita_juve.rtad.txt.
+    Scarico temp yt-dlp/HTTP (rtad_media_* in Temp) → titolo o ID sorgente.
+    """
     base = os.path.basename(file_path) if file_path else "rtad_report"
     stem = os.path.splitext(base)[0] or "rtad_report"
-    try:
-        if rtad_media is not None and file_path:
-            meta = rtad_media.read_media_source_meta(file_path)
-            title = str(meta.get("title") or "").strip()
-            src_id = str(meta.get("id") or "").strip()
-            if title:
-                return _safe_filename_stem(title, fallback=stem)
-            if src_id:
-                return _safe_filename_stem(src_id, fallback=stem)
-    except Exception:
-        pass
+    # Titolo/ID solo per scarichi RTAD (prefisso rtad_media_*).
+    # Un file locale rinominato (anche con .rtad_src.json) tiene lo stem disco.
+    use_source_meta = (base or "").lower().startswith("rtad_media_")
+    if use_source_meta:
+        try:
+            if rtad_media is not None and file_path:
+                meta = rtad_media.read_media_source_meta(file_path)
+                title = str(meta.get("title") or "").strip()
+                src_id = str(meta.get("id") or "").strip()
+                if title:
+                    return _safe_filename_stem(title, fallback=stem)
+                if src_id:
+                    return _safe_filename_stem(src_id, fallback=stem)
+        except Exception:
+            pass
     return _safe_filename_stem(stem, fallback="rtad_report")
 
 
@@ -3570,6 +3762,105 @@ def jump_to_line_in_editor(file_path, line_number):
         user32.keybd_event(VK_RETURN, 0, 2, 0)
 
     threading.Thread(target=_jump_worker, daemon=True).start()
+
+
+def open_excel_at_row(file_path, row_number, sheet_name=""):
+    """Apre Excel e seleziona la riga del risultato (come Word sul paragrafo)."""
+
+    def _worker():
+        opened = False
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            import win32com.client
+
+            try:
+                excel = win32com.client.GetActiveObject("Excel.Application")
+            except Exception:
+                excel = win32com.client.DispatchEx("Excel.Application")
+            excel.Visible = True
+            excel.DisplayAlerts = False
+            abs_path = os.path.abspath(file_path)
+            wb = None
+            try:
+                for i in range(1, excel.Workbooks.Count + 1):
+                    try:
+                        wbi = excel.Workbooks(i)
+                        if os.path.normcase(os.path.abspath(wbi.FullName)) == os.path.normcase(
+                            abs_path
+                        ):
+                            wb = wbi
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                wb = None
+            if wb is None:
+                wb = excel.Workbooks.Open(abs_path)
+            time.sleep(0.35)
+
+            ws = None
+            wanted = (sheet_name or "").strip()
+            if wanted:
+                try:
+                    ws = wb.Worksheets(wanted)
+                except Exception:
+                    ws = None
+            if ws is None:
+                try:
+                    ws = wb.Worksheets(1)
+                except Exception:
+                    ws = wb.ActiveSheet
+            try:
+                ws.Activate()
+            except Exception:
+                pass
+
+            row_n = int(row_number or 0)
+            if row_n > 0:
+                target = None
+                for col in range(1, 9):
+                    try:
+                        cell = ws.Cells(row_n, col)
+                        val = cell.Value
+                        if val is not None and str(val).strip():
+                            target = cell
+                            break
+                    except Exception:
+                        continue
+                if target is None:
+                    target = ws.Cells(row_n, 1)
+                try:
+                    target.Select()
+                except Exception:
+                    try:
+                        ws.Rows(row_n).Select()
+                    except Exception:
+                        pass
+
+            try:
+                excel.Activate()
+            except Exception:
+                pass
+            try:
+                hwnd = ctypes.windll.user32.FindWindowW(None, excel.Caption)
+                if hwnd:
+                    ctypes.windll.user32.ShowWindow(hwnd, 3)
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+            opened = True
+        except Exception as e:
+            logging.error(f"Fallita apertura COM di Excel per {file_path}: {e}")
+
+        if not opened:
+            try:
+                ctypes.windll.shell32.ShellExecuteW(None, "open", file_path, None, None, 1)
+            except Exception as e:
+                logging.error(f"Fallita apertura Excel fallback: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
 
 class EmlViewerFrame(wx.Frame):
     def __init__(self, parent, file_path, search_query):
@@ -6396,13 +6687,15 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Analizza cartella audio/video…: batch locale →\n"
-            "  .rtad.txt accanto a ogni media.\n"
-            "• Ricerca [AV]: parole nei .rtad.txt già salvati,\n"
-            "  con snippet e timestamp [MM:SS] (zero costi extra).\n"
-            "• Glossario trascrizioni (Strumenti): correzioni dopo\n"
-            "  Gemini (anche senza accenti) e aggiornamento .rtad.txt.\n"
-            "• Restano PDF scansione 1.7.1, lettore 1.7.0, hub media.\n"
+            "• Sidecar .rtad.txt: su media locale «Salva testo…» usa\n"
+            "  lo stem del file; da URL/temp resta titolo/ID.\n"
+            "• Solo Audio/Video: trova anche .rtad.txt orfani\n"
+            "  (senza media gemello) con snippet e [MM:SS].\n"
+            "• Excel .xlsx: ricerca nelle celle; Invio apre Excel\n"
+            "  alla riga; date e ore leggibili.\n"
+            "• Trascrivi e cerca… (Ctrl+Shift+T): usa i .rtad.txt\n"
+            "  già presenti, altrimenti trascrive con Gemini (max 30).\n"
+            "• Restano batch/B0/glossario 1.7.2, PDF 1.7.1, lettore.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7149,6 +7442,10 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "Analizza cartella a&udio/video…"
         )
         self.Bind(wx.EVT_MENU, self.on_batch_media_folder, item_batch_media)
+        item_tr_search = tools_menu.Append(
+            wx.ID_ANY, "&Trascrivi e cerca…\tCtrl+Shift+T"
+        )
+        self.Bind(wx.EVT_MENU, self.on_transcribe_and_search, item_tr_search)
         item_media_url = tools_menu.Append(
             wx.ID_ANY, "Audio/video da &URL…\tCtrl+Shift+M"
         )
@@ -8397,10 +8694,11 @@ class SearchFrame(wx.Frame):
                 "Seleziona file da cercare",
                 defaultDir=start,
                 wildcard=(
-                    "Documenti|*.pdf;*.docx;*.doc;*.odt;*.epub;*.txt;*.md;"
+                    "Documenti|*.pdf;*.docx;*.doc;*.odt;*.xlsx;*.epub;*.txt;*.md;"
                     "*.html;*.htm;*.rtf;*.csv;*.log|"
                     "PDF (*.pdf)|*.pdf|"
                     "Word (*.docx;*.doc)|*.docx;*.doc|"
+                    "Excel (*.xlsx)|*.xlsx|"
                     "EPUB (*.epub)|*.epub|"
                     "Tutti i file (*.*)|*.*"
                 ),
@@ -8807,11 +9105,13 @@ class SearchFrame(wx.Frame):
         doc_exts = list(DOC_EXTS)
         feed_file_exts = {".rss", ".xml", ".atom"}
         # B0: con filtro Solo AV (o estensione media personalizzata) cerca nei
-        # .rtad.txt già salvati accanto ai media. Su «Tutti» i .rtad.txt sono
-        # già file di testo → evita doppioni.
+        # .rtad.txt già salvati accanto ai media, e anche negli orfani
+        # (report salvato con altro nome / media assente). Su «Tutti» i
+        # .rtad.txt sono già file di testo → evita doppioni.
         b0_wanted = filter_mode == 2 or (
             filter_mode == 4 and custom_ext in media_exts
         )
+        b0_reported_sidecars = set()
         # Estensione personalizzata .pdf: scansiona anche allegati nelle caselle posta
         mail_pdf_only = filter_mode == 4 and custom_ext == ".pdf"
 
@@ -8881,15 +9181,20 @@ class SearchFrame(wx.Frame):
                         and (is_tb or ext in (".eml", ".mbox", ".mbx"))
                     )
 
+                    is_rtad_sidecar = (file or "").lower().endswith(".rtad.txt")
                     if filter_mode == 1 and ext not in img_exts:
                         continue
                     elif filter_mode == 2 and ext not in media_exts:
-                        continue
+                        # P1: Solo AV include anche .rtad.txt orfani (B0)
+                        if not (b0_wanted and is_rtad_sidecar):
+                            continue
                     elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                         if not (include_zip and ext == ".zip"):
                             continue
                     elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
-                        continue
+                        # Estensione media: anche .rtad.txt orfani per B0
+                        if not (b0_wanted and is_rtad_sidecar):
+                            continue
                     elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                         continue
 
@@ -8991,15 +9296,18 @@ class SearchFrame(wx.Frame):
                             custom_ext == ".pdf"
                             and (is_tb or ext in (".eml", ".mbox", ".mbx"))
                         )
+                        is_rtad_sidecar = full.lower().endswith(".rtad.txt")
                         if filter_mode == 1 and ext not in img_exts:
                             continue
                         elif filter_mode == 2 and ext not in media_exts:
-                            continue
+                            if not (b0_wanted and is_rtad_sidecar):
+                                continue
                         elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                             if not (include_zip and ext == ".zip"):
                                 continue
                         elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
-                            continue
+                            if not (b0_wanted and is_rtad_sidecar):
+                                continue
                         elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                             continue
                         if ext == ".opml" or (ext in feed_file_exts and not is_thunderbird_feeds_path(full)):
@@ -9027,15 +9335,18 @@ class SearchFrame(wx.Frame):
                                 custom_ext == ".pdf"
                                 and (is_tb or ext in (".eml", ".mbox", ".mbx"))
                             )
+                            is_rtad_sidecar = (file or "").lower().endswith(".rtad.txt")
                             if filter_mode == 1 and ext not in img_exts:
                                 continue
                             elif filter_mode == 2 and ext not in media_exts:
-                                continue
+                                if not (b0_wanted and is_rtad_sidecar):
+                                    continue
                             elif filter_mode == 3 and ext not in doc_exts and not is_tb:
                                 if not (include_zip and ext == ".zip"):
                                     continue
                             elif filter_mode == 4 and ext != custom_ext and not mail_for_pdf:
-                                continue
+                                if not (b0_wanted and is_rtad_sidecar):
+                                    continue
                             elif ocr_dump_all and filter_mode == 0 and ext not in img_exts:
                                 continue
                             if ext == ".opml":
@@ -9104,6 +9415,7 @@ class SearchFrame(wx.Frame):
                 found_in_content = False
                 img_ocr_text = ""
                 allow_content = content_scan_allowed(file_path)
+                is_rtad_sidecar = (file_name or "").lower().endswith(".rtad.txt")
                 # B0: i video grandi non vanno letti, ma il sidecar .rtad.txt sì
                 b0_candidate = bool(
                     b0_wanted
@@ -9111,6 +9423,53 @@ class SearchFrame(wx.Frame):
                     and ext in media_exts
                     and rtad_media is not None
                 )
+                # P1 orfani: .rtad.txt in coda Solo AV (nome diverso dal media / media assente)
+                if (
+                    b0_wanted
+                    and terms
+                    and is_rtad_sidecar
+                    and rtad_media is not None
+                    and hasattr(rtad_media, "search_rtad_txt_file")
+                ):
+                    side_key = os.path.normcase(os.path.normpath(file_path))
+                    if side_key not in b0_reported_sidecars:
+                        try:
+                            orphan_hits = rtad_media.search_rtad_txt_file(
+                                file_path,
+                                terms,
+                                text_matches_fn=text_matches_terms,
+                            )
+                        except Exception as e:
+                            logging.debug(f"B0 orfano fallito su {file_path}: {e}")
+                            orphan_hits = []
+                        for h in orphan_hits or []:
+                            loc = h.get("location_label") or "Report media"
+                            raw_matches.append({
+                                "file_path": file_path,
+                                "file_name": file_name,
+                                "prefix": "[AV]",
+                                "mtime": mtime,
+                                "line_number": h.get("line_number"),
+                                "paragraph_index": None,
+                                "location_info": f"{loc}{file_date_suffix}",
+                                "snippet": h.get("snippet") or "",
+                            })
+                            found_in_content = True
+                        if found_in_content:
+                            b0_reported_sidecars.add(side_key)
+                    if name_matched and not found_in_content:
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": "[AV]",
+                            "mtime": mtime,
+                            "line_number": None,
+                            "paragraph_index": None,
+                            "location_info": f"Nome File{file_date_suffix}",
+                            "snippet": f"Corrispondenza: '{file_name}'",
+                        })
+                    bump_progress()
+                    continue
                 if not allow_content and not name_matched and not b0_candidate:
                     # Le caselle di posta non arrivano qui (content_scan_allowed=True)
                     skipped_large_files += 1
@@ -9562,6 +9921,36 @@ class SearchFrame(wx.Frame):
                                     found_in_content = True
                         except Exception:
                             pass
+                elif ext == ".xlsx" and allow_content:
+                    rows, timed_out = run_with_timeout(
+                        lambda: extract_rows_from_xlsx(file_path),
+                        FILE_CONTENT_SOFT_TIMEOUT_SEC,
+                        default=[],
+                    )
+                    if timed_out:
+                        rows = []
+                    for row in rows or []:
+                        p_text = (row.get("text") or "").strip()
+                        if not p_text or not text_matches_terms(p_text, terms):
+                            continue
+                        sheet = (row.get("sheet") or "Foglio").strip() or "Foglio"
+                        row_n = int(row.get("row") or 0) or None
+                        if row_n:
+                            loc = f"Foglio «{sheet}» riga {row_n}{file_date_suffix}"
+                        else:
+                            loc = f"Foglio «{sheet}»{file_date_suffix}"
+                        raw_matches.append({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "prefix": "[XLSX]",
+                            "mtime": mtime,
+                            "line_number": row_n,
+                            "paragraph_index": row_n,
+                            "xlsx_sheet": sheet,
+                            "location_info": loc,
+                            "snippet": p_text[:400],
+                        })
+                        found_in_content = True
                 elif ext == ".epub" and allow_content and rtad_epub is not None:
                     paragraphs, timed_out = run_with_timeout(
                         lambda: rtad_epub.extract_paragraphs_from_epub(file_path),
@@ -9757,7 +10146,7 @@ class SearchFrame(wx.Frame):
                         })
                         found_in_content = True
 
-                # B0 (1.7.2): parole dette già trascritte nel .rtad.txt accanto al media
+                # B0 (1.7.2+): parole dette già trascritte nel .rtad.txt accanto al media
                 if (
                     not found_in_content
                     and b0_candidate
@@ -9775,6 +10164,9 @@ class SearchFrame(wx.Frame):
                         side = h.get("sidecar_path") or ""
                         if not side:
                             continue
+                        side_key = os.path.normcase(os.path.normpath(side))
+                        if side_key in b0_reported_sidecars:
+                            continue
                         loc = h.get("location_label") or "Report media"
                         raw_matches.append({
                             "file_path": side,
@@ -9787,6 +10179,7 @@ class SearchFrame(wx.Frame):
                             "snippet": h.get("snippet") or "",
                             "media_path": file_path,
                         })
+                        b0_reported_sidecars.add(side_key)
                         found_in_content = True
 
                 if name_matched and not found_in_content:
@@ -10134,6 +10527,16 @@ class SearchFrame(wx.Frame):
                     ctypes.windll.shell32.ShellExecuteW(None, "open", file_to_open, None, None, 1)
                 except Exception:
                     pass
+                return
+
+            if ext == ".xlsx":
+                loc = item.get("location_info") or "foglio Excel"
+                sheet = (item.get("xlsx_sheet") or "").strip()
+                row_n = item.get("line_number") or item.get("paragraph_index")
+                rtad_speak(
+                    f"Apertura Excel su {loc}: {os.path.basename(file_to_open)}"
+                )
+                open_excel_at_row(file_to_open, row_n, sheet)
                 return
             
             if ext == ".eml":
@@ -11146,6 +11549,252 @@ class SearchFrame(wx.Frame):
 
         threading.Thread(target=_work, daemon=True).start()
 
+    def on_transcribe_and_search(self, event=None):
+        """Strumenti → Trascrivi e cerca (B0 + Gemini solo senza sidecar)."""
+        if rtad_media is None:
+            rtad_speak("Modulo media non disponibile.")
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            rtad_speak(
+                "Analisi audio/video già in corso. Attendi il risultato."
+            )
+            return
+        start = ""
+        try:
+            start = (self.txt_path.GetValue() or "").strip()
+        except Exception:
+            start = ""
+        if start and os.path.isfile(start):
+            start = os.path.dirname(os.path.abspath(start))
+        if not start or not os.path.isdir(start):
+            start = load_last_media_report_dir() or os.path.expanduser("~")
+        dd = wx.DirDialog(
+            self,
+            "Cartella audio/video per Trascrivi e cerca",
+            defaultPath=start,
+            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+        )
+        try:
+            if dd.ShowModal() != wx.ID_OK:
+                return
+            folder = dd.GetPath()
+        finally:
+            dd.Destroy()
+        self.start_transcribe_and_search(folder)
+
+    def start_transcribe_and_search(self, folder):
+        """Chiede termini e avvia Trascrivi e cerca sulla cartella."""
+        if rtad_media is None:
+            rtad_speak("Modulo media non disponibile.")
+            return
+        folder = os.path.abspath(folder or "")
+        if not folder or not os.path.isdir(folder):
+            rtad_speak("Cartella non trovata.")
+            return
+        files = rtad_media.list_media_files_in_folder(folder, recursive=False)
+        rtad_txts = []
+        if hasattr(rtad_media, "list_rtad_txt_files_in_folder"):
+            rtad_txts = rtad_media.list_rtad_txt_files_in_folder(
+                folder, recursive=False
+            )
+        missing = sum(
+            1 for p in files if not rtad_media.resolve_media_sidecar_path(p)
+        )
+        q_default = ""
+        try:
+            q_default = (self.txt_query.GetValue() or "").strip()
+        except Exception:
+            q_default = ""
+        dlg = wx.TextEntryDialog(
+            self,
+            (
+                f"Cartella: {folder}\n"
+                f"Media: {len(files)} (senza .rtad.txt: {missing}); "
+                f"report testo già presenti: {len(rtad_txts)}.\n\n"
+                "Parole da cercare nel parlato.\n"
+                "Se c’è già il .rtad.txt (anche da solo): ricerca a zero costo.\n"
+                "Se c’è solo audio/video senza testo: trascrizione Gemini.\n"
+                "Massimo 30 nuove trascrizioni per avvio."
+            ),
+            "Trascrivi e cerca",
+            q_default,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            query = (dlg.GetValue() or "").strip()
+        finally:
+            dlg.Destroy()
+        if not query:
+            rtad_speak("Serve almeno una parola da cercare.")
+            return
+        recursive = False
+        if files or rtad_txts:
+            ask_rec = wx.MessageDialog(
+                self,
+                "Includere anche le sottocartelle?",
+                "Trascrivi e cerca",
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+            )
+            recursive = ask_rec.ShowModal() == wx.ID_YES
+            ask_rec.Destroy()
+            if recursive:
+                files = rtad_media.list_media_files_in_folder(
+                    folder, recursive=True
+                )
+                if hasattr(rtad_media, "list_rtad_txt_files_in_folder"):
+                    rtad_txts = rtad_media.list_rtad_txt_files_in_folder(
+                        folder, recursive=True
+                    )
+                missing = sum(
+                    1
+                    for p in files
+                    if not rtad_media.resolve_media_sidecar_path(p)
+                )
+        if not files and not rtad_txts:
+            rtad_speak(
+                "Nella cartella non ci sono audio/video né file .rtad.txt."
+            )
+            return
+        if missing:
+            ask = wx.MessageDialog(
+                self,
+                (
+                    f"Verranno trascritti fino a {min(missing, 30)} file "
+                    f"senza .rtad.txt (su {missing} senza sidecar).\n"
+                    "Serve la chiave Gemini e consuma quota API.\n\n"
+                    "Continuare?"
+                ),
+                "Conferma Trascrivi e cerca",
+                wx.YES_NO | wx.ICON_WARNING,
+            )
+            choice = ask.ShowModal()
+            ask.Destroy()
+            if choice != wx.ID_YES:
+                rtad_speak("Operazione annullata.")
+                return
+        _ensure_ocr_keys()
+        try:
+            sync_transcript_glossary_to_media()
+        except Exception:
+            pass
+        norm_query = normalize_search_text(query)
+        terms = norm_query.split() if norm_query else []
+        if not terms:
+            rtad_speak("Serve almeno una parola da cercare.")
+            return
+        rtad_speak(
+            f"Trascrivi e cerca: {len(files)} media, "
+            f"{len(rtad_txts)} report testo. "
+            "Può richiedere tempo se serve Gemini."
+        )
+        self._media_analysis_busy = True
+        self._stop_search = False
+        self._set_media_progress(2, "Trascrivi e cerca…")
+        try:
+            self.txt_query.SetValue(query)
+        except Exception:
+            pass
+
+        def _work():
+            def _prog(i, total, path, phase):
+                name = os.path.basename(path)
+                if phase == "transcribe":
+                    msg = f"{i}/{total}: trascrivo {name}…"
+                elif phase == "cache":
+                    msg = f"{i}/{total}: cache {name}"
+                elif phase == "skip":
+                    msg = f"{i}/{total}: salto (limite) {name}"
+                else:
+                    msg = f"{i}/{total}: {name}"
+                try:
+                    pct = int(max(2, min(99, round(100.0 * i / max(1, total)))))
+                except Exception:
+                    pct = 50
+                wx.CallAfter(self._set_media_progress, pct, msg)
+
+            try:
+                summary = rtad_media.transcribe_and_search_folder(
+                    folder,
+                    terms,
+                    text_matches_fn=text_matches_terms,
+                    recursive=recursive,
+                    max_transcribe=30,
+                    should_abort=lambda: self._stop_search,
+                    on_progress=_prog,
+                )
+            except Exception as e:
+                summary = {
+                    "total": 0,
+                    "hits": [],
+                    "errors": [{"error": str(e)}],
+                    "cache_hits": 0,
+                    "transcribed": 0,
+                    "skipped_limit": 0,
+                    "aborted": False,
+                }
+
+            def _show():
+                self._media_analysis_busy = False
+                self._set_media_progress(100, "Trascrivi e cerca completato.")
+                raw = []
+                for h in summary.get("hits") or []:
+                    side = h.get("sidecar_path") or ""
+                    media = h.get("media_path") or ""
+                    try:
+                        mtime = os.path.getmtime(side or media) if (side or media) else 0
+                    except Exception:
+                        mtime = 0
+                    date_suffix = ""
+                    try:
+                        lab = format_file_date_label(mtime)
+                        date_suffix = f" {lab}" if lab else ""
+                    except Exception:
+                        pass
+                    via = h.get("via") or ""
+                    loc = h.get("location_label") or "Report media"
+                    if via == "transcript":
+                        loc = f"{loc} (nuova trascrizione)"
+                    raw.append({
+                        "file_path": side or media,
+                        "file_name": h.get("file_name") or os.path.basename(media),
+                        "prefix": "[AV]",
+                        "mtime": mtime,
+                        "line_number": h.get("line_number"),
+                        "paragraph_index": None,
+                        "location_info": f"{loc}{date_suffix}",
+                        "snippet": h.get("snippet") or "",
+                        "media_path": media,
+                    })
+                self.current_matches = raw
+                self.current_query = query
+                self.update_list_display()
+                n_hit = len(raw)
+                n_tr = int(summary.get("transcribed") or 0)
+                n_cache = int(summary.get("cache_hits") or 0)
+                parts = [
+                    f"Trascrivi e cerca: {n_hit} occorrenze.",
+                    f"Sidecar già presenti con match: {n_cache}.",
+                    f"Nuove trascrizioni: {n_tr}.",
+                ]
+                if summary.get("skipped_limit"):
+                    parts.append(
+                        f"Saltati per limite: {summary.get('skipped_limit')}."
+                    )
+                if summary.get("aborted"):
+                    parts.append("Interrotto.")
+                errs = summary.get("errors") or []
+                if errs:
+                    parts.append(f"Problemi: {len(errs)}.")
+                rtad_speak(" ".join(parts))
+                if self.lst_results.GetCount() > 0:
+                    self.lst_results.SetSelection(0)
+                    self.lst_results.SetFocus()
+
+            wx.CallAfter(_show)
+
+        threading.Thread(target=_work, daemon=True).start()
+
     def start_batch_images_folder(self, folder):
         """Mostra sezioni (con conteggio) e avvia subito il batch."""
         if rtad_ocr is None:
@@ -11465,6 +12114,10 @@ class SearchFrame(wx.Frame):
         if ext in [".docx", ".doc"]:
             paragraphs = extract_paragraphs_from_docx(file_path)
             text_content = "\n".join(paragraphs)
+        elif ext == ".xlsx":
+            text_content = "\n".join(
+                (row.get("text") or "") for row in extract_rows_from_xlsx(file_path)
+            )
         elif ext == ".pdf":
             ocr_txt = (item_data.get("ocr_text") or "").strip()
             lines = extract_lines_from_pdf(file_path)

@@ -145,7 +145,9 @@ Contenuto previsto `1.6.0`:
 - **1.6.9:** PDF TOC/link + app predefinita + titoli report + guida Acrobat/NVDA — **pubblicata** (12/10/2026; DataStore #12149 → #12150).  
 - **1.7.0:** lettore documento + spazi PDF + toast — **pubblicata** (13/10/2026; DataStore #12178 → #12179).  
 - **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pubblicata**.
-- **1.7.2:** batch cartella media + B0 cache + glossario — **pronta / in rilascio** (`PIANO_1.7.2.md`).
+- **1.7.2:** batch cartella media + B0 cache + glossario — **pubblicata**.  
+- **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **in rilascio** (vedi `NOTE_RILASCIO_1.7.3.txt`).  
+- **1.7.4:** guida HTML completa (Vision/Gemini) — **prossima**.
 
 ---
 
@@ -170,8 +172,9 @@ Contenuto previsto `1.6.0`:
 17. ~~**1.6.9** PDF TOC/link + app predefinita + titoli report~~ **pubblicata**.  
 18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pubblicata**.  
 19. ~~**1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus~~ **pubblicata**.  
-20. **1.7.2** — batch media + B0 + glossario — **pronta** (`PIANO_1.7.2.md`).  
-21. **1.7.3+:** «Trascrivi e cerca»; (opz.) Whisper / PDF criptati.
+20. ~~**1.7.2** — batch media + B0 + glossario~~ **pubblicata**.  
+21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ — codice/novità pronti; pubblicare.  
+22. **1.7.4+:** guida HTML completa (API Vision/Gemini passo-passo, cercabile); PDF papà se fix mirato; resto media/doc.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

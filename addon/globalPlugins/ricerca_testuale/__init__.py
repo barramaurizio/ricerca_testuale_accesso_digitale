@@ -62,6 +62,11 @@ except ImportError:
     rtad_guida_pratica = None
 
 try:
+    import rtad_guida_html
+except ImportError:
+    rtad_guida_html = None
+
+try:
     import rtad_epub
 except ImportError:
     rtad_epub = None
@@ -79,11 +84,15 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.3"
+APP_VERSION = "1.7.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
 GITHUB_API_LATEST = "https://api.github.com/repos/barramaurizio/ricerca_testuale_accesso_digitale/releases/latest"
+GITHUB_API_RELEASES = (
+    "https://api.github.com/repos/barramaurizio/"
+    "ricerca_testuale_accesso_digitale/releases?per_page=30"
+)
 EMAIL_DESTINATARIO = "mauritechstudio@gmail.com"
 
 CONFIG_DIR = os.path.join(globalVars.appArgs.configPath, "rtad_data")
@@ -6687,15 +6696,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Sidecar .rtad.txt: su media locale «Salva testo…» usa\n"
-            "  lo stem del file; da URL/temp resta titolo/ID.\n"
-            "• Solo Audio/Video: trova anche .rtad.txt orfani\n"
-            "  (senza media gemello) con snippet e [MM:SS].\n"
-            "• Excel .xlsx: ricerca nelle celle; Invio apre Excel\n"
-            "  alla riga; date e ore leggibili.\n"
-            "• Trascrivi e cerca… (Ctrl+Shift+T): usa i .rtad.txt\n"
-            "  già presenti, altrimenti trascrive con Gemini (max 30).\n"
-            "• Restano batch/B0/glossario 1.7.2, PDF 1.7.1, lettore.\n"
+            "• Verifica aggiornamenti Add-on: usa le release v…\n"
+            "  (non confonde con le release Standalone app-v…).\n"
+            "• Sfoglia → Singolo file: qualsiasi tipo (documenti,\n"
+            "  immagini, audio/video); può aprire subito l’analisi.\n"
+            "• Guida pratica aggiornata; guida HTML completa\n"
+            "  (Vision/Gemini) anche in Aiuto dello Standalone.\n"
+            "• Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch 1.7.2.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7183,6 +7190,36 @@ class SearchFrame(wx.Frame):
         dlg.Show()
         dlg.Raise()
 
+    def on_open_html_guide(self, event=None):
+        """Aiuto → Guida completa HTML (indice, Vision/Gemini)."""
+        if rtad_guida_html is None:
+            wx.CallLater(
+                200,
+                lambda: rtad_speak("Guida HTML non disponibile in questa build."),
+            )
+            return
+        try:
+            path = os.path.join(CONFIG_DIR, "guida_ricerca_testuale.html")
+            rtad_guida_html.write_guida_html(
+                path,
+                app_title=APP_TITLE,
+                app_version=APP_VERSION,
+                donation_url=DONATION_URL,
+                github_url="https://github.com/barramaurizio/ricerca_testuale_accesso_digitale",
+            )
+            webbrowser.open("file:///" + path.replace("\\", "/"))
+            wx.CallLater(
+                200,
+                lambda: rtad_speak(
+                    "Guida completa aperta nel browser. "
+                    "Con NVDA: NVDA Control F per cercare; altrimenti Control F."
+                ),
+            )
+        except Exception:
+            wx.CallLater(
+                200, lambda: rtad_speak("Impossibile aprire la guida HTML.")
+            )
+
     def show_shortcuts_dialog(self):
         dlg = ShortcutsFrame(self)
         dlg.Show()
@@ -7265,35 +7302,74 @@ class SearchFrame(wx.Frame):
             rtad_speak("Impossibile stampare la guida.")
 
     def on_check_updates(self, event=None, silent=False):
+        """Verifica aggiornamenti Add-on dalla release v* (non app-v Standalone)."""
         def _check():
             try:
                 if not silent:
                     wx.CallAfter(rtad_speak, "Verifica aggiornamenti in corso...")
                 req = urllib.request.Request(
-                    GITHUB_API_LATEST,
+                    GITHUB_API_RELEASES,
                     headers={"User-Agent": "RTAD-Addon-Updater"},
                 )
-                with urllib.request.urlopen(req, timeout=8) as response:
-                    data = json.loads(response.read().decode("utf-8"))
-                latest_tag = data.get("tag_name", "").replace("app-", "").replace("v", "").strip()
-                html_url = data.get("html_url", GITHUB_URL)
-                if not latest_tag:
+                with urllib.request.urlopen(req, timeout=12) as response:
+                    releases = json.loads(response.read().decode("utf-8"))
+                if not isinstance(releases, list):
                     if not silent:
                         wx.CallAfter(rtad_speak, "Nessuna informazione di versione online.")
                     return
+
+                best = None
+                best_ver = None
+                for rel in releases:
+                    if not isinstance(rel, dict):
+                        continue
+                    if rel.get("draft") or rel.get("prerelease"):
+                        continue
+                    tag = str(rel.get("tag_name", "")).strip()
+                    # Solo tag Add-on vX.Y.Z (non app-v…)
+                    if not tag.startswith("v") or tag.startswith("app-"):
+                        continue
+                    ver_s = tag[1:].strip()
+                    try:
+                        ver_t = tuple(int(x) for x in ver_s.split("."))
+                    except Exception:
+                        continue
+                    if best_ver is not None and ver_t <= best_ver:
+                        continue
+                    addon_url = None
+                    addon_name = None
+                    for asset in rel.get("assets") or []:
+                        if not isinstance(asset, dict):
+                            continue
+                        name = str(asset.get("name", ""))
+                        if name.endswith(".nvda-addon"):
+                            addon_url = asset.get("browser_download_url")
+                            addon_name = name
+                            break
+                    best_ver = ver_t
+                    best = {
+                        "version": ver_s,
+                        "html_url": rel.get("html_url") or GITHUB_URL,
+                        "addon_url": addon_url,
+                        "addon_name": addon_name,
+                    }
+
+                if not best:
+                    if not silent:
+                        wx.CallAfter(rtad_speak, "Nessuna release Add-on trovata online.")
+                    return
+
+                latest_tag = best["version"]
+                html_url = best["html_url"]
                 try:
                     v_online = [int(x) for x in latest_tag.split(".")]
                     v_local = [int(x) for x in APP_VERSION.split(".")]
                     is_newer = v_online > v_local
                 except Exception:
                     is_newer = latest_tag != APP_VERSION
+
                 if is_newer:
-                    addon_url = None
-                    for asset in data.get("assets", []):
-                        name = asset.get("name", "")
-                        if name.endswith(".nvda-addon"):
-                            addon_url = asset.get("browser_download_url")
-                            break
+                    addon_url = best.get("addon_url")
 
                     def _prompt():
                         dlg = wx.MessageDialog(
@@ -7490,6 +7566,9 @@ class SearchFrame(wx.Frame):
         item_practical = help_menu.Append(
             wx.ID_ANY, "Guida &pratica (per avvicinarsi al programma)"
         )
+        item_html = help_menu.Append(
+            wx.ID_ANY, "Guida completa (&HTML, cercabile)…"
+        )
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
@@ -7507,6 +7586,7 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_toggle_escape_closes, self.item_escape_closes)
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
         self.Bind(wx.EVT_MENU, lambda e: self.show_practical_guide_dialog(), item_practical)
+        self.Bind(wx.EVT_MENU, self.on_open_html_guide, item_html)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_URL), item_github)
@@ -8667,15 +8747,16 @@ class SearchFrame(wx.Frame):
         self.Destroy()
 
     def on_browse(self, event):
-        """Sfoglia: cartella/unità OPPURE singolo file (PDF/DOCX/… su qualsiasi unità)."""
+        """Sfoglia: cartella/unità OPPURE singolo file (qualsiasi tipo)."""
         choice_dlg = wx.SingleChoiceDialog(
             self,
             "Cosa vuoi impostare come percorso di ricerca?\n"
-            "(Il dialogo «solo cartella» non accetta file PDF/DOCX: scegli «Singolo file».)",
+            "(Per un solo file — PDF, immagine, audio/video o altro — "
+            "scegli «Singolo file».)",
             "Sfoglia percorso",
             [
                 "Cartella o unità (cerca in tutta la cartella)",
-                "Singolo file (PDF, DOCX, EPUB, testo, …)",
+                "Singolo file (qualsiasi tipo: documenti, immagini, audio/video, …)",
             ],
         )
         try:
@@ -8691,16 +8772,19 @@ class SearchFrame(wx.Frame):
         if mode == 1:
             fd = wx.FileDialog(
                 self,
-                "Seleziona file da cercare",
+                "Seleziona un file (documenti, immagini, audio/video, …)",
                 defaultDir=start,
                 wildcard=(
+                    "Tutti i file (*.*)|*.*|"
                     "Documenti|*.pdf;*.docx;*.doc;*.odt;*.xlsx;*.epub;*.txt;*.md;"
                     "*.html;*.htm;*.rtf;*.csv;*.log|"
+                    "Immagini|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
+                    "Audio e video|*.mp3;*.m4a;*.wav;*.flac;*.ogg;*.mp4;*.mkv;"
+                    "*.webm;*.avi;*.mov;*.m4v|"
                     "PDF (*.pdf)|*.pdf|"
                     "Word (*.docx;*.doc)|*.docx;*.doc|"
                     "Excel (*.xlsx)|*.xlsx|"
-                    "EPUB (*.epub)|*.epub|"
-                    "Tutti i file (*.*)|*.*"
+                    "EPUB (*.epub)|*.epub"
                 ),
                 style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
             )
@@ -8730,6 +8814,32 @@ class SearchFrame(wx.Frame):
         save_last_path(selected_path)
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         rtad_speak(f"Percorso impostato ({kind}): {selected_path}.")
+
+        # 1.7.4: su file immagine/media/documento, offri di aprirlo subito
+        if mode == 1 and os.path.isfile(selected_path):
+            ext = os.path.splitext(selected_path)[1].lower()
+            ask = None
+            if ext in IMG_EXTS:
+                ask = ("image", "Apri ora «Tutto sull'immagine» per questo file?")
+            elif ext in MEDIA_EXTS:
+                ask = ("media", "Apri ora «Tutto sull'audio/video» per questo file?")
+            elif ext in DOC_EXTS:
+                ask = ("doc", "Apri ora la lettura di questo documento?")
+            if ask:
+                action, msg = ask
+                dlg = wx.MessageDialog(
+                    self, msg, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
+                )
+                if dlg.ShowModal() == wx.ID_YES:
+                    dlg.Destroy()
+                    if action == "image":
+                        self.show_image_all_dialog(selected_path)
+                    elif action == "media":
+                        self.show_media_all_dialog(selected_path)
+                    else:
+                        self.read_document_file(selected_path)
+                else:
+                    dlg.Destroy()
 
     def on_take_screenshot(self, event):
         try:

@@ -1,0 +1,111 @@
+🌟 Novità della Versione 1.7.4
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.4
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Verifica aggiornamenti**: usa le release Add-on `v…` (non confonde con Standalone `app-v…`).
+- **Sfoglia → Singolo file**: qualsiasi tipo (documenti, immagini, audio/video); può aprire subito l’analisi.
+- **Guida pratica** aggiornata; guida HTML completa Vision/Gemini nello Standalone (Aiuto).
+- Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch/B0/glossario 1.7.2, PDF scansione 1.7.1.
+
+## 🇬🇧 English
+
+- **Update check**: uses Add-on `v…` releases (does not mix up with Standalone `app-v…`).
+- **Browse → Single file**: any type (documents, images, audio/video); optional immediate analysis.
+- **Practical guide** updated; full HTML Vision/Gemini guide in the Standalone (Help).
+- Sidecar/xlsx/Transcribe-and-search 1.7.3, batch/B0/glossary 1.7.2, scanned-PDF 1.7.1 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.4.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.4
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **Aggiornamenti**: Installer → solo `Setup_Ricerca…`; Portable → solo Portable (release `app-v…`).
+- **Menù Esplora file**: «Apri / analizza» apre davvero quel file; se RTAD è già aperto, niente seconda finestra.
+- **Sfoglia → Singolo file**: qualsiasi tipo; può aprire subito immagine/media/documento.
+- **Guida HTML completa** (Aiuto): indice, cercabile con Ctrl+F, passi per chiavi Google Vision e Gemini.
+- Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch/B0/glossario 1.7.2.
+
+## 🇬🇧 English
+
+- **Updates**: Installer → `Setup_Ricerca…` only; Portable → Portable only (`app-v…` release).
+- **Explorer menu**: “Open / analyze” opens that file; if RTAD is already open, no second window.
+- **Browse → Single file**: any type; optional immediate open for image/media/document.
+- **Full HTML guide** (Help): table of contents, Ctrl+F search, Vision and Gemini API steps.
+- Sidecar/xlsx/Transcribe-and-search 1.7.3 and batch/B0/glossary 1.7.2 remain.
+```
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.4.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.4.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Updater release v…; Sfoglia singolo file qualsiasi tipo; guida pratica 1.7.4; restano xlsx e Trascrivi e cerca.
+
+Summary EN:
+Update check on v… releases; Browse any single file type; practical guide 1.7.4; xlsx and Transcribe-and-search remain.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.4/ricerca_testuale_accesso_digitale-1.7.4.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+════════════════════════════════════════════════════════
+Checklist pre-rilascio
+════════════════════════════════════════════════════════
+
+[x] python tools/rtad_release.py check → OK 1.7.4
+[x] Gemelli rtad_guida_pratica / rtad_guida_html / rtad_ocr / rtad_media / docstruct / epub / zip
+[x] docs/GUIDA_PRATICA.txt + docs/GUIDA_COMPLETA.html + addon guida_pratica.html + readme it/en
+[x] Test updater + shell CLI + Sfoglia (Maurizio OK 17/10)
+[x] make_addon.py → ricerca_testuale_accesso_digitale-1.7.4.nvda-addon
+[ ] Standalone compila.bat → Inno F9 → Portable rinominata
+[ ] Tag v1.7.4 + app-v1.7.4 + DataStore

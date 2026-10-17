@@ -1,3 +1,10 @@
+Novità nella Versione 1.7.4
+- Updater SA: Installer → Setup_Ricerca…; Portable → Portable; release app-v*
+- Menù Esplora: «Apri / analizza» apre il file (img/AV/doc); singola istanza + IPC
+- Sfoglia → Singolo file: qualsiasi tipo; offerta apertura immediata
+- Guida HTML completa (indice, Ctrl+F, Vision e Gemini passo-passo)
+- Add-on: updater sulle release v*; Sfoglia allineato; guida pratica 1.7.4
+
 Novità nella Versione 1.7.3
 - Sidecar .rtad.txt: media locale → stem del file; URL/temp → titolo/ID
 - Solo Audio/Video: ricerca anche nei .rtad.txt orfani (senza media gemello)

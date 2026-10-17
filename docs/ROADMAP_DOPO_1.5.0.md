@@ -147,7 +147,7 @@ Contenuto previsto `1.6.0`:
 - **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pubblicata**.
 - **1.7.2:** batch cartella media + B0 cache + glossario — **pubblicata**.  
 - **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **in rilascio** (vedi `NOTE_RILASCIO_1.7.3.txt`).  
-- **1.7.4:** guida HTML completa (Vision/Gemini) — **prossima**.
+- **1.7.4:** **P0 updater Setup↔Portable** + guida HTML completa (Vision/Gemini) + shell «Apri» smart (SA) — **in corso** (`docs/PIANO_1.7.4.md`).
 
 ---
 
@@ -174,7 +174,11 @@ Contenuto previsto `1.6.0`:
 19. ~~**1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus~~ **pubblicata**.  
 20. ~~**1.7.2** — batch media + B0 + glossario~~ **pubblicata**.  
 21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ — codice/novità pronti; pubblicare.  
-22. **1.7.4+:** guida HTML completa (API Vision/Gemini passo-passo, cercabile); PDF papà se fix mirato; resto media/doc.
+22. **1.7.4:**  
+    - **P0** updater SA: Installer → `Setup_Ricerca…`, Portable → Portable; release `app-vX.Y.Z` (non Latest Add-on) — feedback papà 17/10/2026.  
+    - Guida HTML completa (API Vision/Gemini passo-passo, cercabile, indice).  
+    - **P1** shell Explorer: «Apri» apre/analizza il file (immagine/media/doc); + `.xlsx`; ideale singola istanza.  
+    - PDF papà se fix mirato; resto media/doc.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

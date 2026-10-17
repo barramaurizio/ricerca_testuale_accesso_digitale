@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.4
+
+- **Aggiornamenti Standalone**: Installer → solo Setup; Portable → solo Portable (release `app-v…`).
+- **Menù Esplora file (SA)**: «Apri / analizza» apre davvero quel file; se RTAD è già aperto, niente seconda finestra.
+- **Sfoglia → Singolo file**: qualsiasi tipo; può aprire subito l’analisi (immagine / audio-video / documento).
+- **Guida HTML completa** (Aiuto): indice, cercabile con Ctrl+F, passi per chiavi Google Vision e Gemini.
+- Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch/B0/glossario 1.7.2, PDF scansione 1.7.1.
+
 ### 🌟 Novità della Versione 1.7.3
+
+*(Pubblicata.)*
 
 - **Sidecar `.rtad.txt`**: su media **locale**, «Salva testo…» usa lo **stem del file** sul disco; da URL/temp resta titolo/ID del download.
 - **Solo Audio/Video**: trova anche i `.rtad.txt` **orfani** (senza media gemello) con snippet e timestamp `[MM:SS]`.
@@ -184,7 +194,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.4
+
+- **Standalone updates**: Installer → Setup only; Portable → Portable only (`app-v…` release).
+- **Explorer menu (SA)**: “Open / analyze” opens that file; if RTAD is already open, no second window.
+- **Browse → Single file**: any type; optional immediate analysis (image / AV / document).
+- **Full HTML guide** (Help): table of contents, Ctrl+F search, Vision and Gemini API steps.
+- Sidecar/xlsx/Transcribe-and-search 1.7.3, batch/B0/glossary 1.7.2, scanned-PDF 1.7.1 remain.
+
 ### 🌟 What's New in Version 1.7.3
+
+*(Published.)*
 
 - **`.rtad.txt` sidecar naming**: for **local** media, “Save text…” uses the **on-disk file stem**; URL/temp downloads still use title/ID.
 - **Audio/Video only**: also finds **orphan** `.rtad.txt` files (no matching media) with snippets and `[MM:SS]` timestamps.

@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=1.7.3
+AppVersion=1.7.4
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.7.3
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.7.4
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -57,7 +57,7 @@ Root: HKCU; Subkey: "Software\Classes\Drive\shell\RicercaTestualeAccessoDigitale
 ; --- FILE GENERICI (non immagini / non documenti col sottomenù) ---
 Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale"; ValueType: string; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
-Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale"; ValueName: "AppliesTo"; ValueType: string; ValueData: "System.Kind:<>System.Kind#Picture AND System.FileExtension:<>.pdf AND System.FileExtension:<>.docx AND System.FileExtension:<>.odt AND System.FileExtension:<>.txt AND System.FileExtension:<>.md AND System.FileExtension:<>.epub AND System.FileExtension:<>.html AND System.FileExtension:<>.htm AND System.FileExtension:<>.rtf AND System.FileExtension:<>.csv AND System.FileExtension:<>.log AND System.FileExtension:<>.mp3 AND System.FileExtension:<>.wav AND System.FileExtension:<>.m4a AND System.FileExtension:<>.flac AND System.FileExtension:<>.ogg AND System.FileExtension:<>.mp4 AND System.FileExtension:<>.mkv AND System.FileExtension:<>.webm AND System.FileExtension:<>.avi AND System.FileExtension:<>.mov"
+Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale"; ValueName: "AppliesTo"; ValueType: string; ValueData: "System.Kind:<>System.Kind#Picture AND System.FileExtension:<>.pdf AND System.FileExtension:<>.docx AND System.FileExtension:<>.xlsx AND System.FileExtension:<>.odt AND System.FileExtension:<>.txt AND System.FileExtension:<>.md AND System.FileExtension:<>.epub AND System.FileExtension:<>.html AND System.FileExtension:<>.htm AND System.FileExtension:<>.rtf AND System.FileExtension:<>.csv AND System.FileExtension:<>.log AND System.FileExtension:<>.mp3 AND System.FileExtension:<>.wav AND System.FileExtension:<>.m4a AND System.FileExtension:<>.flac AND System.FileExtension:<>.ogg AND System.FileExtension:<>.mp4 AND System.FileExtension:<>.mkv AND System.FileExtension:<>.webm AND System.FileExtension:<>.avi AND System.FileExtension:<>.mov"
 Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
 
 ; --- SOTTOMENÙ IMMAGINI (SystemFileAssociations) ---
@@ -65,8 +65,8 @@ Root: HKCU; Subkey: "Software\Classes\*\shell\RicercaTestualeAccessoDigitale\com
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -84,8 +84,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -103,8 +103,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -122,8 +122,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -140,8 +140,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -158,8 +158,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -176,8 +176,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -194,8 +194,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questa immagine"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --image-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi"; ValueType: string; ValueData: "Descrivi immagine (dettagliata)"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\02descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'immagine"
@@ -236,6 +236,18 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\RicercaTestualeAccessoDigitaleDoc\shell\02leggi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --read-doc ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\RicercaTestualeAccessoDigitaleDoc\shell\03copia"; ValueType: string; ValueData: "Copia testo del documento"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\RicercaTestualeAccessoDigitaleDoc\shell\03copia\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --copy-doc-text ""%1"""
+
+; .xlsx (1.7.4 — allineato ai documenti dopo ricerca celle 1.7.3)
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\01apri"; ValueType: string; ValueData: "Apri questo foglio di calcolo"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --open-doc ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\02leggi"; ValueType: string; ValueData: "Leggi testo del foglio"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\02leggi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --read-doc ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\03copia"; ValueType: string; ValueData: "Copia testo del foglio"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\03copia\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --copy-doc-text ""%1"""
+
 
 ; .odt
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.odt\shell\RicercaTestualeAccessoDigitaleDoc"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
@@ -338,8 +350,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -350,8 +362,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -362,8 +374,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -374,8 +386,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -386,8 +398,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -398,8 +410,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -410,8 +422,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -422,8 +434,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -434,8 +446,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"
@@ -446,8 +458,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri in Ricerca Testuale"
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi"; ValueType: string; ValueData: "Riassunto audio/video"

@@ -52,6 +52,11 @@ except ImportError:
     rtad_guida_pratica = None
 
 try:
+    import rtad_guida_html
+except ImportError:
+    rtad_guida_html = None
+
+try:
     import rtad_epub
 except ImportError:
     rtad_epub = None
@@ -65,11 +70,15 @@ except ImportError:
     rtad_zip = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.3"
+APP_VERSION = "1.7.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
 GITHUB_API_LATEST = "https://api.github.com/repos/barramaurizio/ricerca_testuale_accesso_digitale/releases/latest"
+GITHUB_API_RELEASES = (
+    "https://api.github.com/repos/barramaurizio/"
+    "ricerca_testuale_accesso_digitale/releases?per_page=30"
+)
 EMAIL_DESTINATARIO = "mauritechstudio@gmail.com"
 
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "RTAD_Standalone")
@@ -1733,81 +1742,30 @@ def check_first_run_update():
     return False
 
 def create_html_help_file():
+    """Scrive la guida HTML completa (indice + Vision/Gemini) e ne restituisce il path."""
     help_path = os.path.join(CONFIG_DIR, "guida_ricerca_testuale.html")
-    html_content = f"""<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>Guida Ufficiale - {APP_TITLE}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 30px; color: #111; background-color: #f9f9f9; max-width: 900px; }}
-        h1 {{ color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }}
-        h2 {{ color: #333; margin-top: 25px; }}
-        ul {{ margin-left: 20px; }}
-        li {{ margin-bottom: 8px; }}
-        code {{ background-color: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold; }}
-        .box {{ background-color: #eef6fc; border-left: 5px solid #005a9c; padding: 15px; margin: 20px 0; }}
-        .note {{ background: #fff8e6; border-left: 5px solid #c90; padding: 12px; margin: 16px 0; }}
-    </style>
-</head>
-<body>
-    <h1>{APP_TITLE}</h1>
-    <p><strong>Autore:</strong> Maurizio Barra (Accesso Digitale)</p>
-    <p><em>Applicazione Standalone - Versione {APP_VERSION}</em></p>
-    <div class="box">
-        <p><strong>Novit&agrave; Versione 1.6.4</strong></p>
-        <ul>
-            <li><strong>Descrivi da URL / Appunti / cattura</strong>; scorciatoie a finestra attiva.</li>
-            <li><strong>Alt-text</strong>, descrizione da PDF; elenco per tipo <code>[ELENCO]</code>.</li>
-            <li>Nell'Add-on: <code>NVDA+Shift+G</code> su figura web o file in Explorer.</li>
-            <li>Restano Gemini/Vision/Explorer 1.6.3, notifica 1.6.2, ZIP 1.6.1.</li>
-        </ul>
-        <p><code>F7</code>: Mute &middot; OCR / Visivo / ZIP: caselle opt-in &middot; Aiuto &rarr; Guida pratica.</p>
-    </div>
-    <h2>Formati supportati</h2>
-    <ul>
-        <li>Testo (<code>.txt</code>, <code>.log</code>, <code>.csv</code>), Word, PDF, EPUB, EML/MBOX, Feed RSS/Atom/Thunderbird, immagini con OCR di base.</li>
-    </ul>
-    <h2>Feed RSS e Thunderbird</h2>
-    <ul>
-        <li>Usa il pulsante <code>Feed Thunderbird</code> oppure inserisci URL/file feed/OPML nel percorso.</li>
-        <li><code>[RSS]</code> / <code>[FEED]</code>: Invio apre l'articolo nel browser.</li>
-        <li><code>[FEED-RIGA]</code> (se attiva la casella occorrenze grezze): Invio salta alla riga nel file.</li>
-    </ul>
-    <div class="note">
-        <strong>Nota:</strong> articoli distinti = risultati <code>[FEED]</code>; occorrenze grezze nel file = <code>[FEED-RIGA]</code>. Lo stato spiega entrambi i numeri.
-    </div>
-    <h2>Scorciatoie da tastiera</h2>
-    <ul>
-        <li><code>Ctrl + H</code>: cronologia testi cercati.</li>
-        <li><code>Ctrl + Shift + H</code>: cronologia percorsi usati.</li>
-        <li><code>Ctrl + F</code>: salta alla casella filtro risultati.</li>
-        <li><code>Alt + T</code>: tutto il PC (unit&agrave; attive).</li>
-        <li><code>INVIO</code> nel campo testo: avvia la ricerca.</li>
-        <li><code>Alt + N</code>: annulla ricerca e mantieni i risultati.</li>
-        <li><code>Alt + I</code>: info versione e autore.</li>
-        <li><code>Alt + P</code>: annuncia lo stato (due volte = copia negli appunti).</li>
-        <li><code>TAB</code> / <code>Alt+S</code> / <code>S</code>: campo accessibile di stato/avanzamento.</li>
-        <li><code>Alt + K</code>: screenshot in <em>Catture di schermata</em>.</li>
-        <li><code>Ctrl + P</code>: stampa risultati in lista.</li>
-        <li><code>Ctrl + D</code>: aggiungi percorso ai segnalibri.</li>
-        <li><code>Ctrl + Shift + P</code>: Salva profilo di ricerca attuale.</li>
-        <li><code>Ctrl + Shift + L</code>: Carica un profilo di ricerca.</li>
-        <li><code>SPAZIO</code> / <code>F4</code>: anteprima vocale del contesto.</li>
-        <li><code>F7</code>: attiva / disattiva sintesi vocale (Mute).</li>
-        <li><code>Ctrl + +</code> / <code>Ctrl + -</code>: velocit&agrave; sintesi pi&ugrave; rapida / pi&ugrave; lenta.</li>
-        <li><code>Ctrl + Shift + V</code>: scegli voce SAPI.</li>
-        <li>Menu <code>Voce</code>: tono, prova voce, motore SAPI/NVDA.</li>
-        <li><code>CONTROL</code>: zittisce all'istante la lettura in corso.</li>
-        <li><code>INVIO</code> sui risultati: apre file alla riga o articolo feed nel browser.</li>
-        <li><code>Tasto APPLICAZIONI</code> / <code>Shift + F10</code>: menu contestuale.</li>
-        <li><code>F1</code>: apre questa guida nel browser.</li>
-        <li><code>ESC</code>: chiude la finestra attiva.</li>
-    </ul>
-    <p>Sostieni il progetto: <a href="{DONATION_URL}">{DONATION_URL}</a></p>
-</body>
-</html>
-"""
+    try:
+        if rtad_guida_html is not None:
+            rtad_guida_html.write_guida_html(
+                help_path,
+                app_title=APP_TITLE,
+                app_version=APP_VERSION,
+                donation_url=DONATION_URL,
+                github_url="https://github.com/barramaurizio/ricerca_testuale_accesso_digitale",
+            )
+            return help_path
+    except Exception as e:
+        logging.error(f"Scrittura guida HTML completa fallita: {e}")
+    # Fallback minimo se il modulo manca
+    html_content = (
+        f"<!DOCTYPE html><html lang='it'><head><meta charset='UTF-8'>"
+        f"<title>{APP_TITLE}</title></head><body>"
+        f"<h1>{APP_TITLE} v{APP_VERSION}</h1>"
+        f"<p>Guida completa non disponibile in questa build. "
+        f"Usa Aiuto → Guida pratica oppure Guida ai Comandi.</p>"
+        f"<p><a href='{DONATION_URL}'>{DONATION_URL}</a></p>"
+        f"</body></html>"
+    )
     try:
         with open(help_path, "w", encoding="utf-8") as f:
             f.write(html_content)
@@ -1884,6 +1842,130 @@ def _save_settings_dict(data):
             json.dump(data, f)
     except Exception as e:
         logging.error(f"Errore salvataggio impostazioni: {e}")
+
+
+def _parse_version_tuple(version_str):
+    """Converte '1.7.4' in tupla di int, o None se non valida."""
+    try:
+        parts = [int(x) for x in str(version_str).strip().split(".")]
+        if not parts:
+            return None
+        return tuple(parts)
+    except Exception:
+        return None
+
+
+def detect_sa_install_channel():
+    """Canale Standalone: 'installer' oppure 'portable'.
+
+    Heuristics:
+    - Marker Inno (unins000.exe) o percorso sotto Program Files → installer
+    - Altrimenti portable (anche da sorgente Python)
+    - Se il percorso attuale contraddice chiaramente il canale salvato, si aggiorna
+      (es. da Portable a Setup in Program Files).
+    """
+    data = _load_settings_dict()
+    saved = str(data.get("install_channel", "")).strip().lower()
+
+    channel = "portable"
+    strong_installer = False
+    try:
+        if getattr(sys, "frozen", False):
+            exe_path = os.path.abspath(sys.executable)
+        else:
+            exe_path = os.path.abspath(__file__)
+        exe_dir = os.path.dirname(exe_path)
+        low = exe_dir.lower()
+        has_uninstaller = os.path.isfile(os.path.join(exe_dir, "unins000.exe"))
+        in_program_files = (
+            "\\program files\\" in low
+            or "\\program files (x86)\\" in low
+            or low.startswith("c:\\program files")
+            or low.startswith("c:\\program files (x86)")
+        )
+        strong_installer = bool(has_uninstaller or in_program_files)
+        if strong_installer:
+            channel = "installer"
+    except Exception as e:
+        logging.debug(f"detect_sa_install_channel: {e}")
+
+    if saved in ("installer", "portable"):
+        # Non restare «portable» se ora si gira chiaramente dall'installer
+        if saved == "portable" and strong_installer:
+            channel = "installer"
+        elif saved == "installer" and not strong_installer and getattr(sys, "frozen", False):
+            # Exe fuori da Program Files senza unins → probabilmente Portable
+            channel = "portable"
+        else:
+            channel = saved
+
+    if data.get("install_channel") != channel:
+        try:
+            data["install_channel"] = channel
+            _save_settings_dict(data)
+        except Exception:
+            pass
+    logging.info(f"Canale installazione SA rilevato: {channel}")
+    return channel
+
+
+def fetch_latest_standalone_release():
+    """Trova la release GitHub più recente con tag app-v*.
+
+    Restituisce dict con version, html_url, setup_*, portable_* oppure None.
+    Non usa /releases/latest (spesso è l'Add-on v*).
+    """
+    req = urllib.request.Request(
+        GITHUB_API_RELEASES,
+        headers={"User-Agent": "RTAD-Updater"},
+    )
+    with urllib.request.urlopen(req, timeout=12) as response:
+        releases = json.loads(response.read().decode("utf-8"))
+    if not isinstance(releases, list):
+        return None
+
+    best = None
+    best_ver = None
+    for rel in releases:
+        if not isinstance(rel, dict):
+            continue
+        if rel.get("draft") or rel.get("prerelease"):
+            continue
+        tag = str(rel.get("tag_name", "")).strip()
+        if not tag.startswith("app-v"):
+            continue
+        ver_s = tag[len("app-v") :].strip()
+        ver_t = _parse_version_tuple(ver_s)
+        if ver_t is None:
+            continue
+        if best_ver is not None and ver_t <= best_ver:
+            continue
+        setup_url = setup_name = None
+        portable_url = portable_name = None
+        for asset in rel.get("assets") or []:
+            if not isinstance(asset, dict):
+                continue
+            name = str(asset.get("name", ""))
+            url = asset.get("browser_download_url")
+            if not name or not url:
+                continue
+            low = name.lower()
+            if low.startswith("setup_ricerca") and low.endswith(".exe"):
+                setup_url, setup_name = url, name
+            elif "portable" in low and low.endswith(".exe"):
+                portable_url, portable_name = url, name
+        best_ver = ver_t
+        best = {
+            "version": ver_s,
+            "version_tuple": ver_t,
+            "tag": tag,
+            "html_url": rel.get("html_url") or GITHUB_REPO_URL,
+            "setup_url": setup_url,
+            "setup_name": setup_name,
+            "portable_url": portable_url,
+            "portable_name": portable_name,
+        }
+    return best
 
 
 def load_query_history():
@@ -6188,15 +6270,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Sidecar .rtad.txt: su media locale «Salva testo…» usa\n"
-            "  lo stem del file; da URL/temp resta titolo/ID.\n"
-            "• Solo Audio/Video: trova anche .rtad.txt orfani\n"
-            "  (senza media gemello) con snippet e [MM:SS].\n"
-            "• Excel .xlsx: ricerca nelle celle; Invio apre Excel\n"
-            "  alla riga; date e ore leggibili.\n"
-            "• Trascrivi e cerca… (Ctrl+Shift+T): usa i .rtad.txt\n"
-            "  già presenti, altrimenti trascrive con Gemini (max 30).\n"
-            "• Restano batch/B0/glossario 1.7.2, PDF 1.7.1, lettore.\n"
+            "• Aggiornamenti: Installer → Setup; Portable → Portable\n"
+            "  (release app-v…, non più il primo exe a caso).\n"
+            "• Menù Esplora file: «Apri / analizza» apre quel file\n"
+            "  (immagine, audio/video, documento); una sola finestra.\n"
+            "• Sfoglia → Singolo file: qualsiasi tipo; può aprire subito.\n"
+            "• Guida completa HTML (Aiuto): indice, Ctrl+F, passi\n"
+            "  per chiavi Google Vision e Gemini.\n"
+            "• Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch 1.7.2.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6331,7 +6412,8 @@ class ShortcutsFrame(wx.Frame):
             "  - Pulsante Feed Thunderbird : rileva le cartelle Feeds di Thunderbird\n"
             "  - Supporto OPML / RSS locale : file .opml, .rss, .atom, .xml nel percorso\n"
             "  - Tasto APPLICAZIONI : Menu contestuale completo\n"
-            "  - F1 : Apri la Guida HTML nel Browser\n"
+            "  - F1 : Guida ai Comandi (questa finestra)\n"
+            "  - Aiuto → Guida completa (HTML) : guida cercabile nel browser (Vision/Gemini)\n"
             "  - ESC : annulla ricerca in corso; non chiude (usa Alt+F4 / Ctrl+Q). Opzione in Strumenti.\n"
             "  - Alt+F4 / Ctrl+Q / Chiudi : esci dall'applicazione\n\n"
             "--------------------------------------------------\n"
@@ -6351,8 +6433,8 @@ class ShortcutsFrame(wx.Frame):
         btn_copy.Bind(wx.EVT_BUTTON, self.on_copy_text)
         hbox_btns.Add(btn_copy, 0, wx.ALL, 5)
 
-        btn_guide = wx.Button(panel, label="Apri &Guida Browser...")
-        btn_guide.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open(f"file:///{create_html_help_file()}"))
+        btn_guide = wx.Button(panel, label="Apri guida completa (&HTML)…")
+        btn_guide.Bind(wx.EVT_BUTTON, self.on_open_html_guide_btn)
         hbox_btns.Add(btn_guide, 0, wx.ALL, 5)
 
         btn_close = wx.Button(panel, label="Chiudi (ESC)")
@@ -6364,6 +6446,18 @@ class ShortcutsFrame(wx.Frame):
         self.Centre()
         self.txt_display.SetFocus()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+
+    def on_open_html_guide_btn(self, event=None):
+        parent = self.GetParent()
+        if parent is not None and hasattr(parent, "on_open_html_guide"):
+            parent.on_open_html_guide()
+            return
+        try:
+            path = create_html_help_file().replace("\\", "/")
+            webbrowser.open(f"file:///{path}")
+            speak_accessible("Guida completa aperta nel browser.")
+        except Exception:
+            speak_accessible("Impossibile aprire la guida HTML.")
 
     def on_copy_text(self, event):
         if wx.TheClipboard.Open():
@@ -6840,6 +6934,9 @@ class MainWindow(wx.Frame):
         item_practical = help_menu.Append(
             wx.ID_ANY, "Guida &pratica (per avvicinarsi al programma)"
         )
+        item_html = help_menu.Append(
+            wx.ID_ANY, "Guida completa (&HTML, cercabile)…"
+        )
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
@@ -6858,6 +6955,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_toggle_escape_closes, self.item_escape_closes)
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
         self.Bind(wx.EVT_MENU, lambda e: self.show_practical_guide_dialog(), item_practical)
+        self.Bind(wx.EVT_MENU, self.on_open_html_guide, item_html)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_REPO_URL), item_github)
@@ -7804,6 +7902,19 @@ class MainWindow(wx.Frame):
         dlg.Show()
         dlg.Raise()
 
+    def on_open_html_guide(self, event=None):
+        """Aiuto → Guida completa HTML (indice, Vision/Gemini, Ctrl+F nel browser)."""
+        try:
+            path = create_html_help_file()
+            webbrowser.open("file:///" + path.replace("\\", "/"))
+            speak_accessible(
+                "Guida completa aperta nel browser. "
+                "Con NVDA: NVDA Control F per cercare; altrimenti Control F."
+            )
+        except Exception as e:
+            logging.error(f"Apertura guida HTML: {e}")
+            speak_accessible("Impossibile aprire la guida HTML.")
+
     def show_shortcuts_dialog(self):
         dlg = ShortcutsFrame(self)
         dlg.Show()
@@ -8194,15 +8305,16 @@ class MainWindow(wx.Frame):
         self.Destroy()
 
     def on_browse(self, event):
-        """Sfoglia: cartella/unità OPPURE singolo file (PDF/DOCX/… su qualsiasi unità)."""
+        """Sfoglia: cartella/unità OPPURE singolo file (qualsiasi tipo)."""
         choice_dlg = wx.SingleChoiceDialog(
             self,
             "Cosa vuoi impostare come percorso di ricerca?\n"
-            "(Il dialogo «solo cartella» non accetta file PDF/DOCX: scegli «Singolo file».)",
+            "(Per un solo file — PDF, immagine, audio/video o altro — "
+            "scegli «Singolo file».)",
             "Sfoglia percorso",
             [
                 "Cartella o unità (cerca in tutta la cartella)",
-                "Singolo file (PDF, DOCX, EPUB, testo, …)",
+                "Singolo file (qualsiasi tipo: documenti, immagini, audio/video, …)",
             ],
         )
         try:
@@ -8218,16 +8330,19 @@ class MainWindow(wx.Frame):
         if mode == 1:
             fd = wx.FileDialog(
                 self,
-                "Seleziona file da cercare",
+                "Seleziona un file (documenti, immagini, audio/video, …)",
                 defaultDir=start,
                 wildcard=(
+                    "Tutti i file (*.*)|*.*|"
                     "Documenti|*.pdf;*.docx;*.doc;*.odt;*.xlsx;*.epub;*.txt;*.md;"
                     "*.html;*.htm;*.rtf;*.csv;*.log|"
+                    "Immagini|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
+                    "Audio e video|*.mp3;*.m4a;*.wav;*.flac;*.ogg;*.mp4;*.mkv;"
+                    "*.webm;*.avi;*.mov;*.m4v|"
                     "PDF (*.pdf)|*.pdf|"
                     "Word (*.docx;*.doc)|*.docx;*.doc|"
                     "Excel (*.xlsx)|*.xlsx|"
-                    "EPUB (*.epub)|*.epub|"
-                    "Tutti i file (*.*)|*.*"
+                    "EPUB (*.epub)|*.epub"
                 ),
                 style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
             )
@@ -8257,6 +8372,30 @@ class MainWindow(wx.Frame):
         save_last_path(selected_path)
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         speak_accessible(f"Percorso impostato ({kind}): {selected_path}.")
+
+        # 1.7.4: su file immagine/media/documento, offri di aprirlo subito
+        # (stesso spirito del menù contestuale Explorer).
+        if mode == 1 and os.path.isfile(selected_path):
+            ext = os.path.splitext(selected_path)[1].lower()
+            offer = None
+            if ext in IMG_EXTS:
+                offer = ("image-all", "Apri ora «Tutto sull'immagine» per questo file?")
+            elif ext in MEDIA_EXTS:
+                offer = ("media-all", "Apri ora «Tutto sull'audio/video» per questo file?")
+            elif ext in SHELL_DOCUMENT_EXTS:
+                offer = ("open-doc", "Apri ora questo documento in Ricerca Testuale?")
+            if offer:
+                action, ask = offer
+                dlg = wx.MessageDialog(
+                    self, ask, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
+                )
+                if dlg.ShowModal() == wx.ID_YES:
+                    dlg.Destroy()
+                    _dispatch_cli_action(
+                        self, action, selected_path, None, selected_path, delay_ms=200
+                    )
+                else:
+                    dlg.Destroy()
 
     def on_take_screenshot(self, event):
         try:
@@ -8503,63 +8642,118 @@ class MainWindow(wx.Frame):
             speak_accessible(f"Elemento: {riga}")
 
     def on_check_updates(self, event=None, silent=False):
+        """Verifica aggiornamenti SA dalla release app-v* (non Latest Add-on).
+
+        Installer → solo Setup_Ricerca…; Portable → solo …_Portable_….
+        """
         def _check():
             try:
                 if not silent:
                     speak_accessible("Verifica aggiornamenti in corso...")
-                req = urllib.request.Request(GITHUB_API_LATEST, headers={"User-Agent": "RTAD-Updater"})
-                with urllib.request.urlopen(req, timeout=8) as response:
-                    data = json.loads(response.read().decode("utf-8"))
-                    latest_tag = data.get("tag_name", "").replace("app-", "").replace("v", "").strip()
-                    html_url = data.get("html_url", GITHUB_REPO_URL)
-                    
-                    if latest_tag:
+                channel = detect_sa_install_channel()
+                release = fetch_latest_standalone_release()
+                if not release:
+                    if not silent:
+                        wx.CallAfter(
+                            lambda: speak_accessible(
+                                "Nessuna release Standalone trovata online."
+                            )
+                        )
+                    return
+
+                latest = release["version"]
+                v_online = release.get("version_tuple") or _parse_version_tuple(latest)
+                v_local = _parse_version_tuple(APP_VERSION)
+                if v_online is None or v_local is None:
+                    is_newer = latest != APP_VERSION
+                else:
+                    is_newer = v_online > v_local
+
+                if not is_newer:
+                    if not silent:
+                        wx.CallAfter(lambda: speak_accessible("Versione aggiornata."))
+                    return
+
+                if channel == "installer":
+                    exe_url = release.get("setup_url")
+                    exe_name = release.get("setup_name") or (
+                        f"Setup_RicercaTestualeAccessoDigitale_v{latest}.exe"
+                    )
+                    kind_lbl = "installer (Setup)"
+                else:
+                    exe_url = release.get("portable_url")
+                    exe_name = release.get("portable_name") or (
+                        f"RicercaTestualeAccessoDigitale_Portable_v{latest}.exe"
+                    )
+                    kind_lbl = "Portable"
+
+                html_url = release.get("html_url") or GITHUB_REPO_URL
+                logging.info(
+                    f"Nuova versione SA {latest} (canale={channel}, asset={exe_name})"
+                )
+
+                def _prompt():
+                    msg = (
+                        f"Nuova versione {latest} disponibile!\n\n"
+                        f"Questo PC usa la versione {kind_lbl}.\n"
+                        f"Scarico e avvio {exe_name}?"
+                    )
+                    dlg = wx.MessageDialog(
+                        self,
+                        msg,
+                        "Aggiornamento",
+                        wx.YES_NO | wx.ICON_QUESTION,
+                    )
+                    if dlg.ShowModal() != wx.ID_YES:
+                        dlg.Destroy()
+                        return
+                    dlg.Destroy()
+                    if not exe_url:
+                        speak_accessible(
+                            f"File {kind_lbl} non trovato nella release. "
+                            "Apro la pagina di download."
+                        )
+                        webbrowser.open(html_url)
+                        return
+
+                    def _dl():
                         try:
-                            v_online = [int(x) for x in latest_tag.split('.')]
-                            v_local = [int(x) for x in APP_VERSION.split('.')]
-                            is_newer = v_online > v_local
-                        except Exception:
-                            is_newer = latest_tag != APP_VERSION
-                            
-                        if is_newer:
-                            logging.info(f"Nuova versione trovata: {latest_tag}")
-                            exe_url = None
-                            for asset in data.get("assets", []):
-                                if asset.get("name", "").endswith(".exe"):
-                                    exe_url = asset.get("browser_download_url")
-                                    break
-                            def _prompt():
-                                dlg = wx.MessageDialog(self, f"Nuova versione {latest_tag} disponibile!\n\nScarico subito?", "Aggiornamento", wx.YES_NO | wx.ICON_QUESTION)
-                                if dlg.ShowModal() == wx.ID_YES:
-                                    dlg.Destroy()
-                                    if exe_url:
-                                        def _dl():
-                                            try:
-                                                speak_accessible("Download in corso, attendere...")
-                                                out = os.path.join(os.path.expanduser("~"), "Downloads", f"Ricerca_Testuale_v{latest_tag}.exe")
-                                                req2 = urllib.request.Request(exe_url, headers={"User-Agent": "Mozilla/5.0"})
-                                                with urllib.request.urlopen(req2) as resp, open(out, "wb") as f_out:
-                                                    f_out.write(resp.read())
-                                                logging.info("Download aggiornamento completato. Avvio installer.")
-                                                speak_accessible("Avvio aggiornamento.")
-                                                subprocess.Popen([out])
-                                                wx.CallAfter(self.Close)
-                                            except Exception as e:
-                                                logging.error(f"Errore download aggiornamento: {e}")
-                                                wx.CallAfter(lambda: speak_accessible("Errore download."))
-                                        threading.Thread(target=_dl, daemon=True).start()
-                                    else:
-                                        webbrowser.open(html_url)
-                                else:
-                                    dlg.Destroy()
-                            wx.CallAfter(_prompt)
-                        else:
-                            if not silent:
-                                wx.CallAfter(lambda: speak_accessible("Versione aggiornata."))
+                            speak_accessible("Download in corso, attendere...")
+                            downloads = os.path.join(
+                                os.path.expanduser("~"), "Downloads"
+                            )
+                            try:
+                                os.makedirs(downloads, exist_ok=True)
+                            except Exception:
+                                pass
+                            out = os.path.join(downloads, exe_name)
+                            req2 = urllib.request.Request(
+                                exe_url, headers={"User-Agent": "RTAD-Updater"}
+                            )
+                            with urllib.request.urlopen(req2, timeout=120) as resp, open(
+                                out, "wb"
+                            ) as f_out:
+                                f_out.write(resp.read())
+                            logging.info(
+                                f"Download aggiornamento completato ({channel}): {out}"
+                            )
+                            speak_accessible("Avvio aggiornamento.")
+                            subprocess.Popen([out])
+                            wx.CallAfter(self.Close)
+                        except Exception as e:
+                            logging.error(f"Errore download aggiornamento: {e}")
+                            wx.CallAfter(lambda: speak_accessible("Errore download."))
+
+                    threading.Thread(target=_dl, daemon=True).start()
+
+                wx.CallAfter(_prompt)
             except Exception as e:
                 logging.warning(f"Impossibile verificare aggiornamenti: {e}")
                 if not silent:
-                    wx.CallAfter(lambda: speak_accessible("Impossibile verificare connessione."))
+                    wx.CallAfter(
+                        lambda: speak_accessible("Impossibile verificare connessione.")
+                    )
+
         threading.Thread(target=_check, daemon=True).start()
 
     def start_search_thread(self):
@@ -12434,20 +12628,67 @@ def _parse_cli_image_action(argv):
     return mode, path, leftover, url
 
 
-def main():
-    try:
-        ensure_rtad_app_user_model_id()
-    except Exception:
-        pass
-    cli_mode, cli_path, leftover, cli_url = _parse_cli_image_action(sys.argv)
-    app = wx.App(False)
-    frame = MainWindow()
-    frame.Show()
-    frame.Raise()
-    frame.txt_query.SetFocus()
-    wx.CallLater(1200, frame.on_check_updates, None, True)
+RTAD_INSTANCE_MUTEX_NAME = "Local\\RTAD_Standalone_SingleInstance_v1"
+RTAD_IPC_PATH = os.path.join(CONFIG_DIR, "shell_ipc.json")
+_rtad_mutex_handle = None
 
-    # Path da Explorer (senza flag) oppure path residuo
+
+def _acquire_primary_instance():
+    """True se questa è l'istanza primaria (tiene il mutex)."""
+    global _rtad_mutex_handle
+    if sys.platform != "win32":
+        return True
+    try:
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.CreateMutexW(None, False, RTAD_INSTANCE_MUTEX_NAME)
+        if not handle:
+            return True
+        ERROR_ALREADY_EXISTS = 183
+        if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+            kernel32.CloseHandle(handle)
+            return False
+        _rtad_mutex_handle = handle
+        return True
+    except Exception as e:
+        logging.debug(f"Mutex istanza: {e}")
+        return True
+
+
+def _write_shell_ipc(payload):
+    try:
+        tmp = RTAD_IPC_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        os.replace(tmp, RTAD_IPC_PATH)
+        return True
+    except Exception as e:
+        logging.error(f"Scrittura IPC shell fallita: {e}")
+        return False
+
+
+def _read_shell_ipc():
+    try:
+        if not os.path.isfile(RTAD_IPC_PATH):
+            return None
+        with open(RTAD_IPC_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        try:
+            os.remove(RTAD_IPC_PATH)
+        except Exception:
+            pass
+        return data if isinstance(data, dict) else None
+    except Exception as e:
+        logging.debug(f"Lettura IPC shell: {e}")
+        try:
+            os.remove(RTAD_IPC_PATH)
+        except Exception:
+            pass
+        return None
+
+
+def _resolve_cli_from_argv(argv):
+    """Parse argv + auto-tipo file (1.7.4) → mode, path, leftover, url, path_for_search."""
+    cli_mode, cli_path, leftover, cli_url = _parse_cli_image_action(argv)
     path_for_search = None
     if cli_path and os.path.exists(cli_path):
         path_for_search = cli_path
@@ -12456,7 +12697,32 @@ def main():
             if os.path.exists(cand):
                 path_for_search = cand
                 break
-    # Azioni documento/batch: non pre-impostare solo la cartella (lo fa il handler)
+    if not cli_mode and path_for_search and os.path.isfile(path_for_search):
+        ext_auto = os.path.splitext(path_for_search)[1].lower()
+        if ext_auto in IMG_EXTS:
+            cli_mode = "image-all"
+            cli_path = path_for_search
+        elif ext_auto in MEDIA_EXTS:
+            cli_mode = "media-all"
+            cli_path = path_for_search
+        elif ext_auto in SHELL_DOCUMENT_EXTS:
+            cli_mode = "open-doc"
+            cli_path = path_for_search
+    return cli_mode, cli_path, leftover, cli_url, path_for_search
+
+
+def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, delay_ms=400):
+    """Esegue l'azione shell/CLI sulla finestra principale (anche da IPC)."""
+    try:
+        frame.Show()
+        frame.Raise()
+        try:
+            frame.Iconize(False)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
     doc_cli = cli_mode in (
         "read-doc",
         "copy-doc-text",
@@ -12475,10 +12741,8 @@ def main():
         if os.path.isfile(path_for_search):
             ext = os.path.splitext(path_for_search)[1].lower()
             if ext in SHELL_DOCUMENT_EXTS:
-                # Documento: percorso = file stesso (ricerca/lettura su quel file)
                 frame.txt_path.SetValue(path_for_search)
             else:
-                # Immagini / altro: cartella contenitore come prima
                 frame.txt_path.SetValue(
                     os.path.dirname(path_for_search) or path_for_search
                 )
@@ -12486,43 +12750,37 @@ def main():
             frame.txt_path.SetValue(path_for_search)
         save_last_path(frame.txt_path.GetValue())
 
+    def _later(fn):
+        wx.CallLater(delay_ms, fn)
+
     if cli_mode == "batch-folder" and cli_path and os.path.isdir(cli_path):
         frame.txt_path.SetValue(cli_path)
         save_last_path(cli_path)
-        wx.CallLater(400, lambda: frame.start_batch_images_folder(cli_path))
+        _later(lambda: frame.start_batch_images_folder(cli_path))
     elif cli_mode == "batch-media-folder" and cli_path and os.path.isdir(cli_path):
         frame.txt_path.SetValue(cli_path)
         save_last_path(cli_path)
-        wx.CallLater(400, lambda: frame.start_batch_media_folder(cli_path))
+        _later(lambda: frame.start_batch_media_folder(cli_path))
     elif cli_mode == "image-all" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
-        wx.CallLater(400, lambda: frame.show_image_all_dialog(cli_path))
+        _later(lambda: frame.show_image_all_dialog(cli_path))
     elif cli_mode == "media-all" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
-        wx.CallLater(400, lambda: frame.show_media_all_dialog(cli_path))
+        _later(lambda: frame.show_media_all_dialog(cli_path))
     elif cli_mode == "media-tech" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
-        wx.CallLater(
-            400,
-            lambda: frame.show_media_analysis(cli_path, mode="tech"),
-        )
+        _later(lambda: frame.show_media_analysis(cli_path, mode="tech"))
     elif cli_mode == "describe-media" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
-        wx.CallLater(
-            400,
-            lambda: frame.show_media_analysis(cli_path, mode="describe"),
-        )
+        _later(lambda: frame.show_media_analysis(cli_path, mode="describe"))
     elif cli_mode == "transcribe-media" and cli_path and os.path.isfile(cli_path):
         frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
         save_last_path(frame.txt_path.GetValue())
-        wx.CallLater(
-            400,
-            lambda: frame.show_media_analysis(cli_path, mode="transcript"),
-        )
+        _later(lambda: frame.show_media_analysis(cli_path, mode="transcript"))
     elif cli_mode == "describe-url" and cli_url:
         def _cli_url():
             if rtad_ocr is None:
@@ -12548,7 +12806,7 @@ def main():
 
             threading.Thread(target=_work, daemon=True).start()
 
-        wx.CallLater(400, _cli_url)
+        _later(_cli_url)
     elif cli_mode == "media-url" and cli_url:
         def _cli_media_url():
             if rtad_media is None:
@@ -12568,27 +12826,90 @@ def main():
 
             threading.Thread(target=_work, daemon=True).start()
 
-        wx.CallLater(400, _cli_media_url)
+        _later(_cli_media_url)
     elif cli_mode == "open-doc" and cli_path and os.path.isfile(cli_path):
-        wx.CallLater(400, lambda: frame.prepare_shell_document(cli_path, announce=True))
+        _later(lambda: frame.prepare_shell_document(cli_path, announce=True))
     elif cli_mode == "read-doc" and cli_path and os.path.isfile(cli_path):
-        wx.CallLater(400, lambda: frame.read_document_file(cli_path))
+        _later(lambda: frame.read_document_file(cli_path))
     elif cli_mode == "copy-doc-text" and cli_path and os.path.isfile(cli_path):
-        wx.CallLater(400, lambda: frame.copy_document_text_file(cli_path))
+        _later(lambda: frame.copy_document_text_file(cli_path))
     elif cli_mode == "describe-pdf" and cli_path and os.path.isfile(cli_path):
-        wx.CallLater(
-            400,
-            lambda: frame.describe_image_from_pdf(cli_path, mode="describe"),
-        )
+        _later(lambda: frame.describe_image_from_pdf(cli_path, mode="describe"))
     elif cli_mode and cli_path and os.path.isfile(cli_path):
         mode = "describe" if cli_mode == "copy-describe" else cli_mode
         copy_only = cli_mode == "copy-describe"
-        wx.CallLater(
-            400,
+        _later(
             lambda: frame.show_image_analysis(
                 cli_path, mode=mode, copy_only=copy_only
-            ),
+            )
         )
+    else:
+        # Solo porta in primo piano (secondo click su scorciatoia / Explorer cartella)
+        try:
+            frame.txt_query.SetFocus()
+        except Exception:
+            pass
+        if path_for_search and os.path.isdir(path_for_search):
+            frame.txt_path.SetValue(path_for_search)
+            save_last_path(path_for_search)
+
+
+def main():
+    try:
+        ensure_rtad_app_user_model_id()
+    except Exception:
+        pass
+
+    cli_mode, cli_path, leftover, cli_url, path_for_search = _resolve_cli_from_argv(
+        sys.argv
+    )
+
+    # Seconda istanza (Explorer / scorciatoia): inoltra all'istanza già aperta
+    if not _acquire_primary_instance():
+        payload = {
+            "argv": list(sys.argv),
+            "mode": cli_mode,
+            "path": cli_path,
+            "url": cli_url,
+            "path_for_search": path_for_search,
+        }
+        if _write_shell_ipc(payload):
+            logging.info("Comando shell inoltrato all'istanza già aperta.")
+        else:
+            logging.warning("Impossibile inoltrare comando all'istanza aperta.")
+        return
+
+    app = wx.App(False)
+    frame = MainWindow()
+    frame.Show()
+    frame.Raise()
+    frame.txt_query.SetFocus()
+    wx.CallLater(1200, frame.on_check_updates, None, True)
+
+    _dispatch_cli_action(
+        frame, cli_mode, cli_path, cli_url, path_for_search, delay_ms=400
+    )
+
+    def _poll_ipc(_evt=None):
+        data = _read_shell_ipc()
+        if not data:
+            return
+        argv = data.get("argv") or [sys.argv[0]]
+        m, p, _leftover, u, pfs = _resolve_cli_from_argv(argv)
+        if data.get("mode") and not m:
+            m = data.get("mode")
+            p = data.get("path") or p
+            u = data.get("url") or u
+            pfs = data.get("path_for_search") or pfs
+        logging.info(f"IPC shell ricevuto: mode={m} path={p}")
+        _dispatch_cli_action(frame, m, p, u, pfs, delay_ms=200)
+
+    try:
+        frame._ipc_timer = wx.Timer(frame)
+        frame.Bind(wx.EVT_TIMER, _poll_ipc, frame._ipc_timer)
+        frame._ipc_timer.Start(400)
+    except Exception as e:
+        logging.debug(f"Timer IPC non avviato: {e}")
 
     app.MainLoop()
 

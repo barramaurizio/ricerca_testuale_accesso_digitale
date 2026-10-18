@@ -33,8 +33,8 @@ import urllib.request
 MAX_OCR_IMAGE_BYTES = 25 * 1024 * 1024  # 25 MB
 MAX_OCR_PDF_PAGES = 8
 OCR_SOFT_TIMEOUT_SEC = 35
-# v17: Google retry anche fascia bassa/margini + merge pezzi OCR; clear cache da menu
-OCR_CACHE_VERSION = 17
+# v18: reflow OCR «una lettera per riga» → testo in orizzontale (lettura/copia)
+OCR_CACHE_VERSION = 18
 # Cache separata per etichette/descrizione Vision (1.6.3)
 VISION_CACHE_VERSION = 1
 
@@ -528,6 +528,12 @@ def ocr_image_file(path: str, should_abort=None, hint_terms=None) -> str:
             except Exception:
                 pass
 
+    if text:
+        try:
+            text = reflow_ocr_vertical_chars(text)
+        except Exception:
+            pass
+
     # Cache solo OCR riuscito (anche testo vuoto genuino). Mai i fallimenti.
     if ocr_ok:
         _cache_put(cache_key, text)
@@ -947,9 +953,56 @@ def ocr_text_matches_terms(text: str, terms) -> bool:
     return all(_one_term_ok(t) for t in terms_l)
 
 
+def reflow_ocr_vertical_chars(text: str) -> str:
+    """Ricompone testo OCR messo «in verticale» (una lettera per riga).
+
+    Windows/Vision a volte restituiscono C\\ni\\na\\no invece di «Ciao».
+    Se almeno ~55% delle righe non vuote è di 1–2 caratteri, unisce le
+    sequenze consecutive in parole orizzontali; una riga vuota spezza la parola.
+    Se il layout non sembra verticale, restituisce il testo invariato.
+    """
+    if not text or not str(text).strip():
+        return text or ""
+    raw = str(text).replace("\r\n", "\n").replace("\r", "\n")
+    lines = raw.split("\n")
+    non_empty = [ln for ln in lines if ln.strip()]
+    if len(non_empty) < 4:
+        return text
+    short_n = sum(1 for ln in non_empty if len(ln.strip()) <= 2)
+    if short_n / float(len(non_empty)) < 0.55:
+        return text
+
+    out = []
+    buf = []
+
+    def _flush():
+        if not buf:
+            return
+        out.append("".join(buf))
+        buf.clear()
+
+    for ln in lines:
+        s = ln.strip()
+        if not s:
+            _flush()
+            if out and out[-1] != "":
+                out.append("")
+            continue
+        # Una lettera / cifra / segno isolato → accumula in orizzontale
+        if len(s) == 1:
+            buf.append(s)
+            continue
+        _flush()
+        out.append(s)
+    _flush()
+    result = "\n".join(out).strip()
+    return result if result else text
+
+
 def _ocr_clipboard_light_cleanup(text: str) -> str:
     """Pulizia leggera per documenti/loghi: tiene il testo, toglie reverse e vuoti."""
     import re
+    text = reflow_ocr_vertical_chars(text)
     lines_out = []
     seen = set()
     for line in text.splitlines():
@@ -3956,6 +4009,7 @@ def format_full_image_report(
     include_describe: bool = True,
     include_labels: bool = True,
     include_tech: bool = True,
+    include_ocr: bool = False,
     should_abort=None,
     source_path: str = "",
 ) -> str:
@@ -3967,6 +4021,23 @@ def format_full_image_report(
         else (os.path.basename(path) or "immagine")
     )
     parts = [f"Immagine: {label}", ""]
+    if include_ocr:
+        if should_abort and should_abort():
+            return "\n".join(parts).strip() + "\n(Annullato.)"
+        try:
+            if engine_available():
+                txt = (ocr_image_file(path, should_abort=should_abort) or "").strip()
+                if txt:
+                    try:
+                        txt = ocr_text_for_clipboard(txt, mode="full") or txt
+                    except Exception:
+                        pass
+                body = txt.strip() or "Nessun testo rilevato nell'immagine."
+            else:
+                body = engine_status_message()
+        except Exception as e:
+            body = f"(OCR non disponibile: {e})"
+        parts.extend(["=== Testo OCR ===", "", (body or "").strip(), ""])
     if include_alt:
         if should_abort and should_abort():
             return "\n".join(parts).strip() + "\n(Annullato.)"

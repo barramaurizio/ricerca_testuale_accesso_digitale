@@ -1,0 +1,110 @@
+🌟 Novità della Versione 1.7.5
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- OCR: testo «in verticale» (una lettera per riga) ricomposto in orizzontale prima di lettura/copia.
+- Incolla percorso dagli Appunti: Ctrl+C su un file in Esplora → Incolla… / Ctrl+Alt+V / Strumenti (offerta «Apri ora» come Sfoglia).
+- Guida: ricerca parole in audio/video tramite i `.rtad.txt`; Incolla documentato.
+- Restano updater/shell/Sfoglia 1.7.4 e novità precedenti.
+
+## 🇬🇧 English
+
+- OCR: vertical one-letter-per-line text is reflowed horizontally before reading/copy.
+- Paste path from clipboard: Ctrl+C a file in Explorer → Paste… / Ctrl+Alt+V / Tools (optional “Open now” like Browse).
+- Guide: AV word search via `.rtad.txt`; Paste documented.
+- Updater/shell/Browse 1.7.4 and earlier features remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.5.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- OCR orizzontale (reflow se una lettera per riga) in «Leggi testo nell'immagine».
+- Strumenti → Trova altre copie sul PC: elenco, rapporto Desktop, rimozione sicura Setup/Portable in Download/Desktop con consenso; avviso all’avvio se serve.
+- Incolla percorso dagli Appunti (Ctrl+Alt+V / Incolla…) + trascinamento file/cartella sulla finestra.
+- Guida HTML: AV via `.rtad.txt`, sezione copie, Incolla.
+- Restano updater Setup↔Portable, shell Apri, Sfoglia 1.7.4.
+
+## 🇬🇧 English
+
+- Horizontal OCR reflow for one-letter-per-line output (“Read text in image”).
+- Tools → Find other copies on this PC: list, Desktop report, safe removal of Setup/Portable left in Downloads/Desktop (consent); startup tip when needed.
+- Paste path from clipboard (Ctrl+Alt+V / Paste…) + drag-and-drop onto the window.
+- HTML guide: AV via `.rtad.txt`, copies section, Paste.
+- Setup↔Portable updater, shell Open, Browse from 1.7.4 remain.
+```
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.5.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.5.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+OCR orizzontale, Incolla percorso dagli Appunti (Ctrl+Alt+V), guida AV/.rtad.txt.
+
+Summary EN:
+Horizontal OCR reflow, paste path from clipboard (Ctrl+Alt+V), AV/.rtad.txt guide.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.5/ricerca_testuale_accesso_digitale-1.7.5.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.7.5
+
+Description:
+OCR reflow orizzontale, Trova copie (SA), Incolla Appunti + drag&drop SA,
+guida AV/.rtad.txt e copie. Add-on gemello senza menù copie.

@@ -2,8 +2,8 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Piano corrente:** `docs/PIANO_1.7.4.md` (updater Setup/Portable + guida HTML + shell «Apri» smart).  
-Piano chiuso 1.7.3: `docs/PIANO_1.7.3.md`. Piano chiuso 1.7.2: `docs/PIANO_1.7.2.md`.
+**Piano corrente:** `docs/PIANO_1.7.6.md` (marker Installer / CD-DVD / Whisper opt-in).  
+Piano chiuso 1.7.5: `docs/PIANO_1.7.5.md`. Piano chiuso 1.7.4: `docs/PIANO_1.7.4.md`.
 
 ## Sorgente
 - GitHub: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -16,42 +16,36 @@ Piano chiuso 1.7.3: `docs/PIANO_1.7.3.md`. Piano chiuso 1.7.2: `docs/PIANO_1.7.2
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (17/10/2026)
-- **Ultima pubblicata:** `1.7.3` (GitHub SA+Add-on + DataStore, 16/10). **Non hotfixare 1.7.3.**
-- **Pronta al rilascio:** `1.7.4` — updater Setup/Portable, shell Apri smart, Sfoglia, guida HTML, singola istanza. Vedi `docs/PIANO_1.7.4.md` e `docs/NOTE_RILASCIO_1.7.4.txt`.
-- Pacchetto Add-on fresco: `ricerca_testuale_accesso_digitale-1.7.4.nvda-addon`.
-- Workflow Maurizio: install Add-on → `Standalone/compila.bat` → Inno F9 → tag `v1.7.4` + `app-v1.7.4` → DataStore.
-- Chiavi opt-in personali: Google Vision + Gemini (AI Studio), salvate in locale
-- Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_docstruct.py`, guida
+## Stato attuale (18/10/2026)
+- **In rilascio / pronta al build:** `1.7.5` — OCR orizzontale, Trova copie (SA), Incolla Appunti (+ drag SA), guida AV/.rtad.txt.  
+  Pacchetto Add-on: `ricerca_testuale_accesso_digitale-1.7.5.nvda-addon`.  
+  **Non hotfixare 1.7.4.** Dopo tag GitHub + DataStore, ultima pubblicata = 1.7.5.
+- **Prossima chat / versione:** `1.7.6` — vedi `docs/PIANO_1.7.6.md`.
+- Chiavi opt-in: Google Vision + Gemini (AI Studio), locali
+- Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_docstruct.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`
+- Solo SA: `rtad_copie.py` (Trova copie)
 - Promemoria Cursor: `.cursor/rules/rtad-pre-release-check.mdc`
+- Verifica commit prima del push: `git --no-pager show --stat -1`
 
-### Priorità 1.7.4 (vedi `docs/PIANO_1.7.4.md`)
-1. **P0 Updater SA** — Installer → sempre `Setup_Ricerca…`; Portable → solo Portable; release `app-v*` (non Latest Add-on); stesso per check silenzioso all’avvio.
-2. **P0 Guida HTML completa** — indice, cercabile in browser, Vision + Gemini passo-passo; novità aggiornate a ogni release.
-3. **P1 Shell Explorer (solo SA)** — «Apri in Ricerca Testuale» deve aprire/analizzare il file scelto (immagine/media/documento), non solo avviare il programma; + sottomenù `.xlsx`; ideale singola istanza se già aperto.
-4. PDF papà / altro — solo con campione e fix mirato.
+### Cosa c’è in 1.7.5
+1. OCR reflow verticale → orizzontale (`rtad_ocr` cache v18).
+2. Trova altre copie sul PC (elenco + rapporto + rimozione sicura con consenso).
+3. Incolla percorso Appunti (Ctrl+Alt+V) SA+Add-on; drag&drop SA.
+4. Guida HTML: AV via `.rtad.txt`, copie, Incolla.
 
-### Cosa c’è in 1.7.2 (pubblicata)
-1. **P0** Batch cartella audio/video → `.rtad.txt` accanto a ogni file.
-2. **P1** B0: ricerca mirata nei `.rtad.txt` già salvati ([AV] + timestamp).
-3. **P2** Glossario post-trascrizione (accent-fold; rewrite `.rtad.txt` all’apertura).
-
-### Cosa c’è in 1.7.1
-1. PDF scansione: dialogo Descrivi / Apri lettore; stem/cartella PDF originale; Stampa testo.
-2. Scheda tecnica: Data analisi + Ultima modifica originale (Esplora).
-3. Focus freccia lettore dopo iconizza.
-
-### Cosa c’è in 1.7.0 (pubblicata)
-1. Lettore documento (cerca/titoli/esterno).
-2. Spazi PDF tipici; toast fine-ricerca meno invasivo.
+### Priorità 1.7.6 (bozza — dettaglio in PIANO)
+1. P0 feedback 1.7.5.
+2. Marker Installer più esplicito.
+3. Unità CD/DVD in «Tutto il PC».
+4. Whisper locale opt-in (se leggero).
+5. OneCore / VIDEO_TS / profili AV → dopo se serve.
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`
 
 ## Igiene chat
-- Nuova chat per ogni versione RTAD (es. «RTAD 1.7.4»)
+- Nuova chat per ogni versione RTAD (es. «RTAD 1.7.6»)
 - Chat separata per YouTube / brand / Supporto Accessibile
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD 1.7.4: updater Setup/Portable + guida HTML + shell Apri»
-Leggere prima questo file, `docs/ROADMAP_DOPO_1.5.0.md` e `docs/PIANO_1.7.4.md`.
+«RTAD 1.7.6: leggere NOTE_CONTESTO + PIANO_1.7.6; P0 feedback poi marker/CD/Whisper»

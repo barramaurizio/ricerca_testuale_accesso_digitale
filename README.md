@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.5
+
+- **OCR orizzontale**: se il motore metteva una lettera per riga, il testo viene ricomposto prima di lettura/copia («Leggi testo nell'immagine»).
+- **Trova altre copie sul PC** (SA, Strumenti): elenco Installer/exe/scorciatoie, rapporto sul Desktop, rimozione solo Setup/Portable in Download/Desktop con consenso; avviso amichevole all’avvio se serve.
+- **Incolla percorso dagli Appunti** (SA + Add-on): Ctrl+C su un file in Esplora → Incolla… / Ctrl+Alt+V / Strumenti; offerta «Apri ora» come Sfoglia. Solo SA: trascinamento sulla finestra.
+- **Guida HTML**: ricerca parole in audio/video tramite `.rtad.txt`; sezione copie; Incolla.
+- Restano updater/shell/Sfoglia/guida 1.7.4, sidecar/xlsx/Trascrivi 1.7.3.
+
 ### 🌟 Novità della Versione 1.7.4
+
+*(Pubblicata.)*
 
 - **Aggiornamenti Standalone**: Installer → solo Setup; Portable → solo Portable (release `app-v…`).
 - **Menù Esplora file (SA)**: «Apri / analizza» apre davvero quel file; se RTAD è già aperto, niente seconda finestra.
@@ -194,7 +204,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.5
+
+- **Horizontal OCR**: if the engine returned one letter per line, text is reflowed before reading/copy (“Read text in image”).
+- **Find other copies on this PC** (SA, Tools): lists Installer/exes/shortcuts, Desktop report, safe removal of Setup/Portable left in Downloads/Desktop only (with consent); friendly startup tip when needed.
+- **Paste path from clipboard** (SA + Add-on): Ctrl+C a file in Explorer → Paste… / Ctrl+Alt+V / Tools; optional “Open now” like Browse. SA only: drag-and-drop onto the window.
+- **HTML guide**: AV word search via `.rtad.txt`; copies section; Paste.
+- Updater/shell/Browse/guide 1.7.4 and sidecar/xlsx/Transcribe 1.7.3 remain.
+
 ### 🌟 What's New in Version 1.7.4
+
+*(Published.)*
 
 - **Standalone updates**: Installer → Setup only; Portable → Portable only (`app-v…` release).
 - **Explorer menu (SA)**: “Open / analyze” opens that file; if RTAD is already open, no second window.

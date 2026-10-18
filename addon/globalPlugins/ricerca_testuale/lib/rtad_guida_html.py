@@ -105,15 +105,18 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
     <li><a href="#novita">Novità di questa versione</a></li>
     <li><a href="#cos-e">Cos’è e a chi serve</a></li>
     <li><a href="#prima-ricerca">Prima ricerca in quattro passi</a></li>
-    <li><a href="#sfoglia">Sfoglia: cartella o singolo file</a></li>
+    <li><a href="#sfoglia">Sfoglia: cartella o singolo file</a>
+      (anche <a href="#incolla-percorso">Incolla dagli Appunti</a>)</li>
     <li><a href="#ocr">Testo nelle immagini (OCR)</a></li>
     <li><a href="#vision">Chiave API Google Cloud Vision (passo-passo)</a></li>
     <li><a href="#gemini">Chiave API Gemini / Google AI Studio (passo-passo)</a></li>
     <li><a href="#immagini">Descrivere immagini e «Tutto sull’immagine»</a></li>
-    <li><a href="#media">Audio e video</a></li>
+    <li><a href="#media">Audio e video</a>
+      (anche <a href="#media-ricerca">cercare parole nel parlato</a>)</li>
     <li><a href="#documenti">Documenti, PDF, Excel, lettore</a></li>
     <li><a href="#explorer">Menù contestuale di Esplora file (solo Standalone)</a></li>
     <li><a href="#aggiornamenti">Aggiornamenti: Installer e Portable</a></li>
+    <li><a href="#copie">Trova altre copie sul PC (evitare doppioni)</a></li>
     <li><a href="#scorciatoie">Scorciatoie principali</a></li>
     <li><a href="#addon">Differenze con l’Add-on NVDA</a></li>
     <li><a href="#aiuto">Altre voci di Aiuto e supporto</a></li>
@@ -123,19 +126,22 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Aggiornamenti più chiari:</strong> se usi l’Installer (Setup),
-      il programma propone il file Setup; se usi la Portable, propone la Portable.
-      Non scarica più «il primo exe» a caso.</li>
-    <li><strong>Menù contestuale Esplora file:</strong> la voce «Apri / analizza…»
-      apre davvero quel file (immagine, audio/video o documento), non solo la finestra vuota.</li>
-    <li><strong>Una sola finestra:</strong> se il programma è già aperto, il tasto destro
-      gli passa il file invece di aprirne un’altra copia.</li>
-    <li><strong>Sfoglia → Singolo file:</strong> puoi scegliere qualsiasi tipo
-      (documenti, immagini, audio/video, …) e, se vuoi, aprirlo subito per l’analisi.</li>
-    <li><strong>Questa guida HTML:</strong> indice, cercabile, con procedure complete
-      per le chiavi Vision e Gemini.</li>
+    <li><strong>OCR orizzontale:</strong> se il motore metteva una lettera per riga,
+      il testo viene ricomposto prima di mostrarlo o leggerlo
+      («Leggi testo nell’immagine»).</li>
+    <li><strong>Trova altre copie sul PC</strong> (solo Standalone, Strumenti):
+      elenco Installer/exe/scorciatoie, rapporto sul Desktop, rimozione guidata
+      solo di Setup/Portable lasciati in Download/Desktop (con consenso).
+      Avviso amichevole all’avvio se sembra ci sia confusione.</li>
+    <li><strong>Incolla percorso dagli Appunti:</strong> Ctrl+C su un file in Esplora,
+      poi pulsante Incolla…, Strumenti, o <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>.
+      Stessa offerta «Apri ora» di Sfoglia. Solo SA: trascinamento sulla finestra.</li>
+    <li><strong>Guida:</strong> come cercare parole in audio/video con i
+      <code>.rtad.txt</code>; sezione sulle copie multiple.</li>
+    <li>Restano da 1.7.4: aggiornamenti Setup/Portable, menù Esplora «Apri / analizza»,
+      Sfoglia singolo file, guida HTML Vision/Gemini.</li>
   </ul>
-  <p class="top"><a href="#indice">↑ Torna all’indice</a></p>
+  <p class="top"><a href="#indice">↑ Indice</a></p>
 </div>
 
 <h2 id="cos-e">2. Cos’è e a chi serve</h2>
@@ -172,11 +178,28 @@ in corso senza chiudere il programma.</p>
 </ol>
 <p>Se scegli un’immagine, un media o un documento, il programma può chiederti
 se aprirlo subito (stesso spirito del menù contestuale di Esplora file).</p>
-<p>Puoi anche <strong>incollare un percorso</strong> (testo) nel campo percorso
-con Ctrl+V, se l’hai copiato da Esplora file («Copia come percorso»).</p>
+<h3 id="incolla-percorso">4.1 Incolla dagli Appunti e trascinamento</h3>
+<p>In Esplora file seleziona un file (o una cartella) e premi <kbd>Ctrl</kbd>+<kbd>C</kbd>.
+Poi in Ricerca Testuale:</p>
+<ul>
+  <li>pulsante <strong>Incolla…</strong> accanto a Sfoglia, oppure</li>
+  <li>menu <strong>Strumenti</strong> → <strong>Incolla percorso dagli Appunti…</strong>, oppure</li>
+  <li>scorciatoia <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>.</li>
+</ul>
+<p>Funziona anche se negli Appunti c’è un <strong>percorso testo</strong>
+(«Copia come percorso» / Ctrl+V nel campo). Se il file è immagine, audio/video
+o documento, può offrirti di aprirlo subito come con Sfoglia.</p>
+<p>Solo Standalone: puoi anche <strong>trascinare</strong> un file o una cartella
+sulla finestra del programma (stesso effetto).</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="ocr">5. Testo nelle immagini (OCR)</h2>
+<p>Dalla 1.7.5, se il motore grezzo restituisce una lettera per riga
+(testo «in verticale»), il programma lo ricompone in parole
+<strong>orizzontali</strong> prima di mostrarlo o leggerlo
+(anche da «Leggi testo nell’immagine» nel menù Esplora / risultati).
+La descrizione dell’immagine (Gemini) resta un percorso diverso e
+di solito già in prosa naturale.</p>
 <p>Per leggere testo «disegnato» in foto, screenshot o PDF scansionati:</p>
 <ol>
   <li>Attiva la casella <em>Includi testo in immagini e PDF scansionati</em>.</li>
@@ -283,6 +306,44 @@ audio/video (funzioni che usano Gemini).</p>
     usando i report già fatti, oppure trascrive con Gemini (limite per sessione).</li>
   <li>Con filtro «Solo Audio e Video» trovi anche i <code>.rtad.txt</code> «orfani».</li>
 </ul>
+
+<h3 id="media-ricerca">9.1 Cercare parole nel parlato: come funziona davvero</h3>
+<p>Quando cerchi una parola «dentro» un audio o un video, il programma
+<strong>non ascolta di nuovo tutti i file a ogni ricerca</strong>
+(sarebbe lentissimo e costoso). Cerca invece nel testo già salvato
+nei file <code>.rtad.txt</code> accanto al media (la trascrizione / report).</p>
+<div class="box">
+  <strong>In pratica:</strong>
+  <ol class="passi">
+    <li>Prima crei i report (una sola volta per file), con una di queste vie:
+      <ul>
+        <li>«Tutto sull’audio/video» → trascrizione e salvataggio;</li>
+        <li>«Analizza cartella audio/video…» (batch su una cartella);</li>
+        <li>«Trascrivi e cerca…» (Ctrl+Shift+T): usa i
+          <code>.rtad.txt</code> già presenti; se mancano, trascrive con Gemini
+          (c’è un limite per sessione).</li>
+      </ul>
+    </li>
+    <li>Poi cerchi la parola come fai con i documenti.</li>
+  </ol>
+</div>
+<div class="ok">
+  <strong>«Tutto il PC» funziona anche per audio/video?</strong>
+  Sì, <em>se</em> i file <code>.rtad.txt</code> esistono già da qualche parte
+  sul computer. Non serve conoscere la cartella: con percorso «tutto il PC»
+  (o Alt+T) e filtro «Solo Audio e Video» (o tutti i tipi), le parole
+  nei report vengono trovate ovunque siano.
+  Se invece hai solo i file mp3/mp4 <em>senza</em> report accanto,
+  la ricerca sul parlato non può inventare la trascrizione da sola:
+  usa prima «Trascrivi e cerca…» o il batch sulla cartella che ti interessa.
+</div>
+<div class="note">
+  <strong>Differenza utile:</strong> sul <em>nome file</em> di un video
+  la ricerca può funzionare subito (come per qualsiasi file).
+  Sul <em>contenuto parlato</em> serve il <code>.rtad.txt</code>.
+  I report «orfani» (testo senza il media gemello nella stessa cartella)
+  restano cercabili con il filtro Solo Audio/Video.
+</div>
 <p>Per scaricare da URL (YouTube e simili) serve <strong>yt-dlp</strong> aggiornato;
 il programma può segnalarlo e proporti l’aggiornamento.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
@@ -324,6 +385,47 @@ anche in automatico all’avvio in modo silenzioso.</p>
 Consiglio: tienine una sola (Setup <em>oppure</em> Portable) e aggiorna quella.</p>
 <p>L’Add-on si aggiorna dallo store NVDA o scaricando il file
 <code>.nvda-addon</code> dalla release GitHub con tag <code>v…</code> (non <code>app-v…</code>).</p>
+<p>Se sospetti di avere più copie (Installer vecchio + Portable in Download,
+scorciatoie diverse, ecc.), vedi la sezione successiva.</p>
+<p class="top"><a href="#indice">↑ Indice</a></p>
+
+<h2 id="copie">12b. Trova altre copie sul PC (evitare doppioni)</h2>
+<p>A volte sul computer restano più versioni: Setup in Program Files,
+un vecchio Installer non disinstallato, una Portable in Download,
+un exe di aggiornamento scaricato e aperto per sbaglio.
+Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata».</p>
+<p>Menu <strong>Strumenti</strong> → <strong>Trova altre copie sul PC…</strong>:</p>
+<ol class="passi">
+  <li>Il programma <strong>elenca</strong> (non cancella da solo) cosa trova:
+    voci Installer nel Registro, exe tipici in Download/Desktop/Documenti/
+    Program Files, scorciatoie sul Desktop che puntano a RTAD.</li>
+  <li>Puoi <strong>salvare un rapporto</strong> sul Desktop
+    (<code>RTAD_copie_trovate.txt</code>) da rileggere con calma.</li>
+  <li>Se vuoi ripulire: «Rimuovi copie sicure» propone solo pacchetti
+    <em>Setup / Portable</em> lasciati direttamente in Download o Desktop
+    (i file scaricati per aggiornare).
+    <strong>Non</strong> tocca l’Installer installato, né le cartelle
+    di compilazione del progetto (<code>build</code> / <code>dist</code>),
+    né le chiavi API in
+    <code>%AppData%\\Roaming\\RTAD_Standalone</code>.
+    Serve sempre il tuo consenso esplicito.</li>
+  <li>Un Installer registrato in Windows si disinstalla da
+    Impostazioni → App (o da «Disinstalla» nel rapporto), non in silenzio
+    dal programma.</li>
+</ol>
+<div class="ok">
+  <strong>Amico, non demone:</strong> all’avvio può avvisarti se sembra
+  ci siano più copie confuse, e proporti di aprire questo strumento.
+  Puoi declinare e, se vuoi, chiedere di non ripetere l’avviso.
+  L’istanza unica (già dalla 1.7.4) evita una seconda finestra se il
+  programma è già aperto; questo strumento aiuta a capire <em>quale</em>
+  copia stai usando e a tenere pulito il PC.
+</div>
+<div class="note">
+  Esiste anche lo script di supporto
+  <code>tools/rtad_trova_copie.ps1</code> (stesso spirito: elenca;
+  cancellazione solo con conferma). Utile se il programma non parte.
+</div>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="scorciatoie">13. Scorciatoie principali (Standalone)</h2>
@@ -331,6 +433,7 @@ Consiglio: tienine una sola (Setup <em>oppure</em> Portable) e aggiorna quella.<
   <li><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> — cronologia testi / percorsi</li>
   <li><kbd>Ctrl</kbd>+<kbd>F</kbd> — filtro risultati</li>
   <li><kbd>Alt</kbd>+<kbd>T</kbd> — tutto il PC</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> — Incolla percorso dagli Appunti</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> — verifica aggiornamenti</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> — Trascrivi e cerca…</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> / <kbd>L</kbd> — salva / carica profilo</li>

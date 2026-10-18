@@ -14,21 +14,22 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.4
+Novità recenti (in parole semplici) — versione 1.7.5
 ----------------------------------------------------
-• Aggiornamenti: se hai l’Installer (Setup), ti propone
-  il file Setup; se hai la Portable, solo la Portable.
-  Meno confusione se sullo stesso PC ce ne sono due.
-• Menù tasto destro (solo programma Windows): «Apri /
-  analizza» apre davvero quel file (foto, video, PDF…).
-  Se il programma è già aperto, non ne apre un altro.
-• Sfoglia → Singolo file: qualsiasi tipo (anche immagini
-  e audio/video); può chiederti se aprirlo subito.
-• Guida completa HTML (Aiuto): cercabile con Ctrl+F,
-  con indice e passi per le chiavi Google Vision e Gemini.
-• Restano da 1.7.3: nome .rtad.txt, orfani Solo AV,
-  Excel .xlsx, Trascrivi e cerca. Da 1.7.2: batch AV,
-  glossario. Da 1.7.1–1.7.0: PDF scansione, lettore.
+• OCR: se il testo dalla foto usciva «in verticale»
+  (una lettera per riga), ora viene messo in orizzontale.
+• Trova altre copie sul PC (programma Windows, Strumenti):
+  elenca Installer e file sparsi, salva un rapporto,
+  può togliere solo i Setup/Portable lasciati in Download
+  (sempre con il tuo consenso; mai le chiavi API).
+• Incolla dagli Appunti: in Esplora Ctrl+C su un file,
+  poi Incolla… / Ctrl+Alt+V / Strumenti. Come Sfoglia,
+  può chiederti se aprirlo subito. Nella Standalone
+  puoi anche trascinare il file sulla finestra.
+• Guida HTML: spiegato bene come cercare parole nei
+  video (serve il file .rtad.txt accanto).
+• Restano da 1.7.4: aggiornamenti Setup/Portable, menù
+  Esplora, Sfoglia singolo file. Da 1.7.3: Excel, Trascrivi.
 
 
 1. A cosa serve
@@ -90,8 +91,11 @@ Tre strumenti utili, in parole povere:
 Puoi limitare la ricerca a:
 • documenti (Word, Excel .xlsx, PDF, EPUB, testo…);
 • immagini;
-• audio/video: nome file, e — se hai già il .rtad.txt
-  accanto al media — anche le parole della trascrizione;
+• audio/video: sul nome file subito; sulle parole dette nel video
+  solo se hai già il file .rtad.txt accanto (la trascrizione).
+  «Tutto il PC» le trova ovunque, purché quei .rtad.txt esistano.
+  Senza trascrizione: usa «Trascrivi e cerca» o analizza la cartella
+  (non ascolta da solo tutti i video del disco a ogni ricerca).
 • oppure un’estensione che scegli tu (es. solo .pdf o solo .epub).
 
 Per la posta (Thunderbird e simili): il programma può cercare nei messaggi

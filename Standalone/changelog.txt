@@ -1,3 +1,10 @@
+Novità nella Versione 1.7.5
+- OCR: testo «in verticale» (una lettera per riga) ricomposto in orizzontale
+- Strumenti → Trova altre copie sul PC (elenco, rapporto, rimozione sicura con consenso)
+- Incolla percorso dagli Appunti (Ctrl+Alt+V / pulsante Incolla); SA: anche drag&drop
+- Guida HTML: ricerca parole in AV via .rtad.txt; sezione copie; Incolla
+- Add-on: Incolla percorso + OCR layout + guida allineata (senza menù copie SA)
+
 Novità nella Versione 1.7.4
 - Updater SA: Installer → Setup_Ricerca…; Portable → Portable; release app-v*
 - Menù Esplora: «Apri / analizza» apre il file (img/AV/doc); singola istanza + IPC

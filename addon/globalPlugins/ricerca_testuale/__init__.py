@@ -84,7 +84,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.4"
+APP_VERSION = "1.7.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -193,6 +193,52 @@ def browse_start_dir(current_path: str) -> str:
     except Exception:
         pass
     return os.path.expanduser("~")
+
+
+def paths_from_windows_clipboard():
+    """Path da Appunti: file CF_HDROP (Esplora) oppure testo percorso."""
+    found = []
+    if not wx.TheClipboard.Open():
+        return found
+    try:
+        try:
+            fmt = wx.DataFormat(wx.DF_FILENAME)
+            if wx.TheClipboard.IsSupported(fmt):
+                data = wx.FileDataObject()
+                if wx.TheClipboard.GetData(data):
+                    for name in data.GetFilenames() or []:
+                        p = (name or "").strip()
+                        if p and (os.path.isfile(p) or os.path.isdir(p)):
+                            found.append(os.path.normpath(p))
+        except Exception:
+            pass
+        if found:
+            return found
+        try:
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
+                data = wx.TextDataObject()
+                if wx.TheClipboard.GetData(data):
+                    raw = (data.GetText() or "").strip()
+                    if raw:
+                        if "\n" in raw and ";" not in raw and "," not in raw:
+                            raw = raw.splitlines()[0].strip()
+                        for t in normalize_search_targets(raw):
+                            if t and (os.path.isfile(t) or os.path.isdir(t)):
+                                found.append(t)
+        except Exception:
+            pass
+    finally:
+        try:
+            wx.TheClipboard.Close()
+        except Exception:
+            pass
+    out, seen = [], set()
+    for p in found:
+        key = os.path.normcase(p)
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
 
 
 def text_matches_terms(text, terms):
@@ -6696,13 +6742,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Verifica aggiornamenti Add-on: usa le release v…\n"
-            "  (non confonde con le release Standalone app-v…).\n"
-            "• Sfoglia → Singolo file: qualsiasi tipo (documenti,\n"
-            "  immagini, audio/video); può aprire subito l’analisi.\n"
-            "• Guida pratica aggiornata; guida HTML completa\n"
-            "  (Vision/Gemini) anche in Aiuto dello Standalone.\n"
-            "• Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch 1.7.2.\n"
+            "• OCR: testo «in verticale» (una lettera per riga)\n"
+            "  ricomposto in orizzontale (Leggi testo nell'immagine).\n"
+            "• Incolla percorso dagli Appunti: in Esplora Ctrl+C su un\n"
+            "  file, poi Incolla… / Ctrl+Alt+V / Strumenti.\n"
+            "• Guida: parole nei video via .rtad.txt; Incolla documentato.\n"
+            "• «Trova altre copie» resta nella Standalone (Installer).\n"
+            "• Restano Sfoglia/updater 1.7.4, sidecar/xlsx 1.7.3.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6983,6 +7029,14 @@ class SearchFrame(wx.Frame):
         btn_browse = wx.Button(panel, label="Sfoglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
+
+        btn_paste_path = wx.Button(panel, label="Incolla…")
+        btn_paste_path.SetToolTip(
+            "Incolla dagli Appunti un file/cartella copiati in Esplora "
+            "oppure un percorso testo (Ctrl+Alt+V)"
+        )
+        btn_paste_path.Bind(wx.EVT_BUTTON, self.on_paste_path_from_clipboard)
+        hbox_path.Add(btn_paste_path, 0, wx.ALL, 5)
 
         btn_all_pc = wx.Button(panel, label="&Tutto il PC")
         btn_all_pc.Bind(wx.EVT_BUTTON, self.on_search_all_pc)
@@ -7468,6 +7522,10 @@ class SearchFrame(wx.Frame):
         # Menu Strumenti
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...\tCtrl+U")
+        item_paste_path = tools_menu.Append(
+            wx.ID_ANY, "Incolla &percorso dagli Appunti…\tCtrl+Alt+V"
+        )
+        self.Bind(wx.EVT_MENU, self.on_paste_path_from_clipboard, item_paste_path)
         tools_menu.AppendSeparator()
         item_gkey = tools_menu.Append(
             wx.ID_ANY, "Chiave API &Google Vision…"
@@ -8698,6 +8756,9 @@ class SearchFrame(wx.Frame):
         elif alt and key in (ord("T"), ord("t")):
             self.on_search_all_pc(None)
             return
+        elif ctrl and alt and key in (ord("V"), ord("v")):
+            self.on_paste_path_from_clipboard(None)
+            return
         elif alt and key in (ord("P"), ord("p")):
             self.announce_progress()
             return
@@ -8810,36 +8871,73 @@ class SearchFrame(wx.Frame):
 
         if not selected_path:
             return
+        self.apply_search_path(
+            selected_path, offer_open=(mode == 1 and os.path.isfile(selected_path))
+        )
+
+    def apply_search_path(self, selected_path, *, offer_open=True):
+        """Imposta il percorso (Sfoglia / Appunti) e offre apertura se file."""
+        if not selected_path:
+            return
+        if isinstance(selected_path, (list, tuple)):
+            paths = [p for p in selected_path if p]
+            if not paths:
+                return
+            if len(paths) == 1:
+                selected_path = paths[0]
+            else:
+                joined = ";".join(paths)
+                self.txt_path.SetValue(joined)
+                save_last_path(joined)
+                rtad_speak(
+                    f"Impostati {len(paths)} percorsi dagli Appunti."
+                )
+                return
         self.txt_path.SetValue(selected_path)
         save_last_path(selected_path)
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         rtad_speak(f"Percorso impostato ({kind}): {selected_path}.")
 
-        # 1.7.4: su file immagine/media/documento, offri di aprirlo subito
-        if mode == 1 and os.path.isfile(selected_path):
-            ext = os.path.splitext(selected_path)[1].lower()
-            ask = None
-            if ext in IMG_EXTS:
-                ask = ("image", "Apri ora «Tutto sull'immagine» per questo file?")
-            elif ext in MEDIA_EXTS:
-                ask = ("media", "Apri ora «Tutto sull'audio/video» per questo file?")
-            elif ext in DOC_EXTS:
-                ask = ("doc", "Apri ora la lettura di questo documento?")
-            if ask:
-                action, msg = ask
-                dlg = wx.MessageDialog(
-                    self, msg, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
-                )
-                if dlg.ShowModal() == wx.ID_YES:
-                    dlg.Destroy()
-                    if action == "image":
-                        self.show_image_all_dialog(selected_path)
-                    elif action == "media":
-                        self.show_media_all_dialog(selected_path)
-                    else:
-                        self.read_document_file(selected_path)
-                else:
-                    dlg.Destroy()
+        if not offer_open or not os.path.isfile(selected_path):
+            return
+        ext = os.path.splitext(selected_path)[1].lower()
+        ask = None
+        if ext in IMG_EXTS:
+            ask = ("image", "Apri ora «Tutto sull'immagine» per questo file?")
+        elif ext in MEDIA_EXTS:
+            ask = ("media", "Apri ora «Tutto sull'audio/video» per questo file?")
+        elif ext in DOC_EXTS:
+            ask = ("doc", "Apri ora la lettura di questo documento?")
+        if not ask:
+            return
+        action, msg = ask
+        dlg = wx.MessageDialog(
+            self, msg, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
+        )
+        if dlg.ShowModal() == wx.ID_YES:
+            dlg.Destroy()
+            if action == "image":
+                self.show_image_all_dialog(selected_path)
+            elif action == "media":
+                self.show_media_all_dialog(selected_path)
+            else:
+                self.read_document_file(selected_path)
+        else:
+            dlg.Destroy()
+
+    def on_paste_path_from_clipboard(self, event=None):
+        """Strumenti / Incolla… / Ctrl+Alt+V: file o path dagli Appunti."""
+        paths = paths_from_windows_clipboard()
+        if not paths:
+            rtad_speak(
+                "Negli Appunti non c’è un file o un percorso utilizzabile. "
+                "In Esplora seleziona un file e premi Ctrl+C, oppure copia il percorso."
+            )
+            return
+        if len(paths) == 1:
+            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
+        else:
+            self.apply_search_path(paths, offer_open=False)
 
     def on_take_screenshot(self, event):
         try:

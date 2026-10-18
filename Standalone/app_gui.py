@@ -69,8 +69,13 @@ try:
 except ImportError:
     rtad_zip = None
 
+try:
+    import rtad_copie
+except ImportError:
+    rtad_copie = None
+
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.4"
+APP_VERSION = "1.7.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -198,6 +203,59 @@ def browse_start_dir(current_path: str) -> str:
     except Exception:
         pass
     return os.path.expanduser("~")
+
+
+def paths_from_windows_clipboard():
+    """Path da Appunti Windows: file copiati (CF_HDROP) oppure testo percorso.
+
+    Restituisce lista di path esistenti (file o cartella). Vuota se niente di utile.
+    """
+    found = []
+    if not wx.TheClipboard.Open():
+        return found
+    try:
+        # 1) File/cartelle copiati da Esplora (Ctrl+C sul file)
+        try:
+            fmt = wx.DataFormat(wx.DF_FILENAME)
+            if wx.TheClipboard.IsSupported(fmt):
+                data = wx.FileDataObject()
+                if wx.TheClipboard.GetData(data):
+                    for name in data.GetFilenames() or []:
+                        p = (name or "").strip()
+                        if p and (os.path.isfile(p) or os.path.isdir(p)):
+                            found.append(os.path.normpath(p))
+        except Exception:
+            pass
+        if found:
+            return found
+        # 2) Testo: un path o più separati da ; o ,
+        try:
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
+                data = wx.TextDataObject()
+                if wx.TheClipboard.GetData(data):
+                    raw = (data.GetText() or "").strip()
+                    if raw:
+                        # Una sola riga tipica da «Copia come percorso»
+                        if "\n" in raw and ";" not in raw and "," not in raw:
+                            raw = raw.splitlines()[0].strip()
+                        for t in normalize_search_targets(raw):
+                            if t and (os.path.isfile(t) or os.path.isdir(t)):
+                                found.append(t)
+        except Exception:
+            pass
+    finally:
+        try:
+            wx.TheClipboard.Close()
+        except Exception:
+            pass
+    # Dedup preservando ordine
+    out, seen = [], set()
+    for p in found:
+        key = os.path.normcase(p)
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
 
 
 def text_matches_terms(text, terms):
@@ -4082,6 +4140,18 @@ def save_notify_search_end_preference(enabled):
     _save_settings_dict(data)
 
 
+def load_copies_tip_dismissed():
+    """True se l'utente ha chiesto di non ripetere l'avviso copie multiple."""
+    data = _load_settings_dict()
+    return bool(data.get("copies_tip_dismissed", False))
+
+
+def save_copies_tip_dismissed(dismissed=True):
+    data = _load_settings_dict()
+    data["copies_tip_dismissed"] = bool(dismissed)
+    _save_settings_dict(data)
+
+
 def _safe_filename_stem(text, fallback="rtad_report", max_len=220):
     """Riduce titolo/query a stem di nome file Windows-safe.
 
@@ -4897,6 +4967,121 @@ class TranscriptGlossaryDialog(wx.Dialog):
         return bool(self.chk_enabled.GetValue()), list(self._rules)
 
 
+class FindCopiesDialog(wx.Dialog):
+    """Elenco copie RTAD + rapporto Desktop + rimozione sicura con consenso."""
+
+    def __init__(self, parent, report_text: str, safe_paths=None):
+        super().__init__(
+            parent,
+            title="Trova altre copie sul PC",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._safe_paths = list(safe_paths or [])
+        self._report_text = report_text or ""
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        intro = wx.StaticText(
+            self,
+            label=(
+                "Qui sotto trovi cosa c’è sul PC. "
+                "Niente viene cancellato finché non lo chiedi tu. "
+                "Le chiavi API in AppData non vengono mai toccate."
+            ),
+        )
+        intro.Wrap(520)
+        vbox.Add(intro, 0, wx.ALL | wx.EXPAND, 10)
+        self.txt = wx.TextCtrl(
+            self,
+            value=self._report_text,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2 | wx.HSCROLL,
+        )
+        self.txt.SetMinSize((560, 320))
+        vbox.Add(self.txt, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 10)
+
+        h = wx.BoxSizer(wx.HORIZONTAL)
+        btn_save = wx.Button(self, label="&Salva rapporto sul Desktop")
+        btn_save.Bind(wx.EVT_BUTTON, self._on_save)
+        h.Add(btn_save, 0, wx.ALL, 5)
+        # Sempre presente: se non ci sono pacchetti sicuri, spiega (non sparisce)
+        n_safe = len(self._safe_paths)
+        self.btn_del = wx.Button(
+            self,
+            label=(
+                f"&Rimuovi copie sicure… ({n_safe})"
+                if n_safe
+                else "&Rimuovi copie sicure… (nessuna)"
+            ),
+        )
+        self.btn_del.Bind(wx.EVT_BUTTON, self._on_delete_safe)
+        self.btn_del.SetToolTip(
+            "Cancella solo Setup/Portable lasciati in Download o Desktop, "
+            "dopo conferma. Non tocca Installer, progetto né chiavi API."
+        )
+        h.Add(self.btn_del, 0, wx.ALL, 5)
+        btn_close = wx.Button(self, wx.ID_CLOSE, label="&Chiudi")
+        btn_close.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE))
+        h.Add(btn_close, 0, wx.ALL, 5)
+        vbox.Add(h, 0, wx.ALIGN_CENTER | wx.BOTTOM, 8)
+        self.SetSizerAndFit(vbox)
+        self.CentreOnParent()
+        self.txt.SetFocus()
+
+    def _on_save(self, event=None):
+        if rtad_copie is None:
+            speak_accessible("Modulo copie non disponibile.")
+            return
+        try:
+            path = rtad_copie.write_report_to_desktop(self._report_text)
+            speak_accessible(f"Rapporto salvato: {os.path.basename(path)}")
+            wx.MessageBox(
+                f"Rapporto salvato sul Desktop:\n{path}",
+                "Rapporto copie",
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
+        except Exception as e:
+            logging.error(f"Salvataggio rapporto copie: {e}")
+            speak_accessible("Impossibile salvare il rapporto.")
+
+    def _on_delete_safe(self, event=None):
+        if not self._safe_paths:
+            speak_accessible("Nessuna copia Portable o in Download da rimuovere.")
+            return
+        lista = "\n".join(f"• {p}" for p in self._safe_paths)
+        msg = (
+            "Verranno cancellati SOLO questi file (Portable / Download / Desktop).\n"
+            "Non si tocca l’Installer in Program Files né le chiavi API.\n\n"
+            f"{lista}\n\n"
+            "Confermi la cancellazione?"
+        )
+        dlg = wx.MessageDialog(
+            self, msg, "Conferma rimozione sicura", wx.YES_NO | wx.ICON_WARNING
+        )
+        if dlg.ShowModal() != wx.ID_YES:
+            dlg.Destroy()
+            speak_accessible("Rimozione annullata.")
+            return
+        dlg.Destroy()
+        ok, failed = rtad_copie.delete_safe_exes(self._safe_paths)
+        self._safe_paths = [p for p in self._safe_paths if p in failed]
+        if not self._safe_paths:
+            self.btn_del.Enable(False)
+        if ok:
+            speak_accessible(f"Rimossi {len(ok)} file.")
+        if failed:
+            speak_accessible(f"Non rimossi: {len(failed)}.")
+        extra = ""
+        if ok:
+            extra += "\nCancellati:\n" + "\n".join(ok)
+        if failed:
+            extra += "\nNon cancellati:\n" + "\n".join(failed)
+        wx.MessageBox(
+            "Operazione completata." + extra,
+            "Rimozione sicura",
+            wx.OK | wx.ICON_INFORMATION,
+            self,
+        )
+
+
 class ImageSectionsDialog(wx.Dialog):
     """Scelta sezioni per «Tutto sull'immagine» / batch cartella (1.6.6).
 
@@ -4949,6 +5134,10 @@ class ImageSectionsDialog(wx.Dialog):
         self.chk_tech = wx.CheckBox(self, label="&Scheda tecnica")
         self.chk_tech.SetValue(True)
         vbox.Add(self.chk_tech, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        # Stesso percorso di «Leggi testo nell'immagine» (OCR) usato da Esplora file
+        self.chk_ocr = wx.CheckBox(self, label="&Testo OCR (leggi testo nell'immagine)")
+        self.chk_ocr.SetValue(False)
+        vbox.Add(self.chk_ocr, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self.chk_save = None
         self.chk_recursive = None
         if self.batch_mode:
@@ -4993,6 +5182,7 @@ class ImageSectionsDialog(wx.Dialog):
                 self.chk_describe.GetValue(),
                 self.chk_labels.GetValue(),
                 self.chk_tech.GetValue(),
+                self.chk_ocr.GetValue(),
             ]
         ):
             speak_accessible("Seleziona almeno una sezione.")
@@ -5008,6 +5198,7 @@ class ImageSectionsDialog(wx.Dialog):
             "include_describe": self.chk_describe.GetValue(),
             "include_labels": self.chk_labels.GetValue(),
             "include_tech": self.chk_tech.GetValue(),
+            "include_ocr": self.chk_ocr.GetValue(),
             "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
             "recursive": bool(self.chk_recursive and self.chk_recursive.GetValue()),
         }
@@ -6270,14 +6461,15 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Aggiornamenti: Installer → Setup; Portable → Portable\n"
-            "  (release app-v…, non più il primo exe a caso).\n"
-            "• Menù Esplora file: «Apri / analizza» apre quel file\n"
-            "  (immagine, audio/video, documento); una sola finestra.\n"
-            "• Sfoglia → Singolo file: qualsiasi tipo; può aprire subito.\n"
-            "• Guida completa HTML (Aiuto): indice, Ctrl+F, passi\n"
-            "  per chiavi Google Vision e Gemini.\n"
-            "• Restano sidecar/xlsx/Trascrivi e cerca 1.7.3, batch 1.7.2.\n"
+            "• OCR: testo messo «in verticale» (una lettera per riga)\n"
+            "  viene ricomposto in orizzontale (Leggi testo nell'immagine).\n"
+            "• Strumenti → Trova altre copie sul PC: elenco, rapporto,\n"
+            "  rimozione sicura solo con il tuo consenso (mai le chiavi API).\n"
+            "• Incolla percorso dagli Appunti: Ctrl+C su un file in Esplora,\n"
+            "  poi Incolla… / Ctrl+Alt+V / Strumenti (come Sfoglia).\n"
+            "• Trascinamento file/cartella sulla finestra (solo Standalone).\n"
+            "• Guida HTML: parole nei video via .rtad.txt; sezione copie.\n"
+            "• Restano updater/shell 1.7.4, sidecar/xlsx 1.7.3.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6390,7 +6582,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Ctrl + H : Cronologia testi cercati (riprendi una ricerca precedente)\n"
             "  - Ctrl + Shift + H : Cronologia percorsi usati\n"
             "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
-            "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"            "  - INVIO nel campo testo : Avvia ricerca\n"
+            "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
+            "  - Ctrl + Alt + V : Incolla percorso dagli Appunti (file o path)\n"
+            "  - INVIO nel campo testo : Avvia ricerca\n"
             "  - Alt + N : Annulla ricerca in corso e mantieni i risultati\n"
             "  - Alt + I : Info Versione e Autore\n"
             "  - Alt + P : Annuncia stato (Premi due volte velocemente per copiare negli appunti)\n"
@@ -6553,6 +6747,14 @@ class MainWindow(wx.Frame):
         btn_browse = wx.Button(panel, label="Sfoglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
+
+        btn_paste_path = wx.Button(panel, label="Incolla…")
+        btn_paste_path.SetToolTip(
+            "Incolla dagli Appunti un file/cartella copiati in Esplora "
+            "oppure un percorso testo (Ctrl+Alt+V)"
+        )
+        btn_paste_path.Bind(wx.EVT_BUTTON, self.on_paste_path_from_clipboard)
+        hbox_path.Add(btn_paste_path, 0, wx.ALL, 5)
 
         btn_all_pc = wx.Button(panel, label="&Tutto il PC")
         btn_all_pc.Bind(wx.EVT_BUTTON, self.on_search_all_pc)
@@ -6736,7 +6938,13 @@ class MainWindow(wx.Frame):
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_global_char_hook)
-        
+        # 1.7.5: trascina file/cartella sulla finestra → stesso flusso di Sfoglia
+        try:
+            self.DragAcceptFiles(True)
+            self.Bind(wx.EVT_DROP_FILES, self.on_drop_files)
+        except Exception:
+            pass
+
         if check_first_run_update():
             wx.CallLater(600, self.show_whats_new_dialog)
 
@@ -6836,6 +7044,14 @@ class MainWindow(wx.Frame):
         # Menu Strumenti
         tools_menu = wx.Menu()
         item_update = tools_menu.Append(wx.ID_ANY, "Verifica &Aggiornamenti...\tCtrl+U")
+        item_copie = tools_menu.Append(
+            wx.ID_ANY, "Trova altre &copie sul PC…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_find_other_copies, item_copie)
+        item_paste_path = tools_menu.Append(
+            wx.ID_ANY, "Incolla &percorso dagli Appunti…\tCtrl+Alt+V"
+        )
+        self.Bind(wx.EVT_MENU, self.on_paste_path_from_clipboard, item_paste_path)
         tools_menu.AppendSeparator()
         item_gkey = tools_menu.Append(
             wx.ID_ANY, "Chiave API &Google Vision…"
@@ -6874,6 +7090,10 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "&Tutto sull'immagine…"
         )
         self.Bind(wx.EVT_MENU, self.on_image_all_dialog, item_all_img)
+        item_ocr_only = tools_menu.Append(
+            wx.ID_ANY, "&Leggi testo nell'immagine (OCR)…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_image_ocr_dialog, item_ocr_only)
         item_batch_img = tools_menu.Append(
             wx.ID_ANY, "Analizza &cartella immagini…"
         )
@@ -8093,6 +8313,9 @@ class MainWindow(wx.Frame):
         elif alt and key in (ord("T"), ord("t")):
             self.on_search_all_pc(None)
             return
+        elif ctrl and alt and key in (ord("V"), ord("v")):
+            self.on_paste_path_from_clipboard(None)
+            return
         elif alt and key in (ord("K"), ord("k")) and event.ShiftDown():
             self.on_describe_from_screenshot(None)
             return
@@ -8368,34 +8591,94 @@ class MainWindow(wx.Frame):
 
         if not selected_path:
             return
+        self.apply_search_path(
+            selected_path, offer_open=(mode == 1 and os.path.isfile(selected_path))
+        )
+
+    def apply_search_path(self, selected_path, *, offer_open=True):
+        """Imposta il percorso (Sfoglia / Appunti / drop) e offre apertura se file."""
+        if not selected_path:
+            return
+        # Più path: unisci con ; (ricerca multipla già supportata)
+        if isinstance(selected_path, (list, tuple)):
+            paths = [p for p in selected_path if p]
+            if not paths:
+                return
+            if len(paths) == 1:
+                selected_path = paths[0]
+            else:
+                joined = ";".join(paths)
+                self.txt_path.SetValue(joined)
+                save_last_path(joined)
+                speak_accessible(
+                    f"Impostati {len(paths)} percorsi dagli Appunti o dal trascinamento."
+                )
+                return
         self.txt_path.SetValue(selected_path)
         save_last_path(selected_path)
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         speak_accessible(f"Percorso impostato ({kind}): {selected_path}.")
 
-        # 1.7.4: su file immagine/media/documento, offri di aprirlo subito
-        # (stesso spirito del menù contestuale Explorer).
-        if mode == 1 and os.path.isfile(selected_path):
-            ext = os.path.splitext(selected_path)[1].lower()
-            offer = None
-            if ext in IMG_EXTS:
-                offer = ("image-all", "Apri ora «Tutto sull'immagine» per questo file?")
-            elif ext in MEDIA_EXTS:
-                offer = ("media-all", "Apri ora «Tutto sull'audio/video» per questo file?")
-            elif ext in SHELL_DOCUMENT_EXTS:
-                offer = ("open-doc", "Apri ora questo documento in Ricerca Testuale?")
-            if offer:
-                action, ask = offer
-                dlg = wx.MessageDialog(
-                    self, ask, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
-                )
-                if dlg.ShowModal() == wx.ID_YES:
-                    dlg.Destroy()
-                    _dispatch_cli_action(
-                        self, action, selected_path, None, selected_path, delay_ms=200
-                    )
-                else:
-                    dlg.Destroy()
+        if not offer_open or not os.path.isfile(selected_path):
+            return
+        ext = os.path.splitext(selected_path)[1].lower()
+        offer = None
+        if ext in IMG_EXTS:
+            offer = ("image-all", "Apri ora «Tutto sull'immagine» per questo file?")
+        elif ext in MEDIA_EXTS:
+            offer = ("media-all", "Apri ora «Tutto sull'audio/video» per questo file?")
+        elif ext in SHELL_DOCUMENT_EXTS:
+            offer = ("open-doc", "Apri ora questo documento in Ricerca Testuale?")
+        if not offer:
+            return
+        action, ask = offer
+        dlg = wx.MessageDialog(
+            self, ask, "File selezionato", wx.YES_NO | wx.ICON_QUESTION
+        )
+        if dlg.ShowModal() == wx.ID_YES:
+            dlg.Destroy()
+            _dispatch_cli_action(
+                self, action, selected_path, None, selected_path, delay_ms=200
+            )
+        else:
+            dlg.Destroy()
+
+    def on_paste_path_from_clipboard(self, event=None):
+        """Strumenti / Incolla… / Ctrl+Alt+V: file o path dagli Appunti → percorso."""
+        paths = paths_from_windows_clipboard()
+        if not paths:
+            speak_accessible(
+                "Negli Appunti non c’è un file o un percorso utilizzabile. "
+                "In Esplora seleziona un file e premi Ctrl+C, oppure copia il percorso."
+            )
+            return
+        # Un solo file → offerta apertura; più path → solo campo percorso
+        if len(paths) == 1:
+            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
+        else:
+            self.apply_search_path(paths, offer_open=False)
+
+    def on_drop_files(self, event):
+        """Trascinamento sulla finestra principale (1.7.5)."""
+        try:
+            n = event.GetNumberOfFiles()
+        except Exception:
+            n = 0
+        paths = []
+        for i in range(n):
+            try:
+                p = event.GetFile(i)
+            except Exception:
+                p = ""
+            if p and (os.path.isfile(p) or os.path.isdir(p)):
+                paths.append(os.path.normpath(p))
+        if not paths:
+            speak_accessible("Nessun file o cartella riconosciuti nel trascinamento.")
+            return
+        if len(paths) == 1:
+            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
+        else:
+            self.apply_search_path(paths, offer_open=False)
 
     def on_take_screenshot(self, event):
         try:
@@ -8755,6 +9038,115 @@ class MainWindow(wx.Frame):
                     )
 
         threading.Thread(target=_check, daemon=True).start()
+
+    def on_find_other_copies(self, event=None):
+        """Strumenti → Trova altre copie sul PC (elenco + consenso)."""
+        if rtad_copie is None:
+            speak_accessible("Modulo «Trova copie» non disponibile.")
+            return
+        speak_accessible("Cerco altre copie sul PC, un momento…")
+
+        def _work():
+            try:
+                data = rtad_copie.scan_all()
+                report = rtad_copie.build_report_text(
+                    data.get("registry"), data.get("exes"), data.get("shortcuts")
+                )
+                safe = [
+                    e["path"]
+                    for e in (data.get("exes") or [])
+                    if rtad_copie.is_safe_to_delete(e.get("path", ""))
+                ]
+
+                def _show():
+                    dlg = FindCopiesDialog(self, report, safe_paths=safe)
+                    dlg.ShowModal()
+                    dlg.Destroy()
+
+                wx.CallAfter(_show)
+            except Exception as e:
+                logging.error(f"Trova copie: {e}")
+                wx.CallAfter(
+                    lambda: speak_accessible("Errore durante la ricerca delle copie.")
+                )
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def maybe_warn_other_copies(self):
+        """All’avvio: avviso amichevole se sembrano esserci più copie confuse."""
+        if rtad_copie is None:
+            return
+        if load_copies_tip_dismissed():
+            return
+
+        def _work():
+            try:
+                data = rtad_copie.scan_all()
+                if not rtad_copie.looks_like_confusion(
+                    data.get("registry") or [],
+                    data.get("exes") or [],
+                    data.get("shortcuts") or [],
+                ):
+                    return
+
+                def _ask():
+                    # Dialogo a 3 pulsanti in italiano (evita «Cancel» di Windows)
+                    dlg = wx.Dialog(
+                        self,
+                        title="Più copie sul PC?",
+                        style=wx.DEFAULT_DIALOG_STYLE,
+                    )
+                    vbox = wx.BoxSizer(wx.VERTICAL)
+                    msg = (
+                        "Sembra che sul PC ci siano più copie di "
+                        "Ricerca Testuale Accesso Digitale "
+                        "(per esempio Installer e anche un file in Download "
+                        "o una Portable).\n\n"
+                        "Questo può creare confusione: si apre una versione "
+                        "vecchia oppure se ne aggiorna un’altra.\n\n"
+                        "Vuoi aprire «Trova altre copie sul PC» per vedere "
+                        "l’elenco e, se vuoi, ripulire con il tuo consenso?"
+                    )
+                    lbl = wx.StaticText(dlg, label=msg)
+                    lbl.Wrap(480)
+                    vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 12)
+                    h = wx.BoxSizer(wx.HORIZONTAL)
+                    btn_yes = wx.Button(dlg, wx.ID_YES, label="&Sì, apri")
+                    btn_no = wx.Button(dlg, wx.ID_NO, label="&No, non ora")
+                    btn_never = wx.Button(
+                        dlg, wx.ID_CANCEL, label="Non &ricordare più"
+                    )
+                    btn_yes.SetDefault()
+                    for b in (btn_yes, btn_no, btn_never):
+                        h.Add(b, 0, wx.ALL, 5)
+                    vbox.Add(h, 0, wx.ALIGN_CENTER | wx.BOTTOM, 10)
+                    dlg.SetSizerAndFit(vbox)
+                    dlg.CentreOnParent()
+                    btn_yes.Bind(
+                        wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_YES)
+                    )
+                    btn_no.Bind(
+                        wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_NO)
+                    )
+                    btn_never.Bind(
+                        wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CANCEL)
+                    )
+                    ans = dlg.ShowModal()
+                    dlg.Destroy()
+                    if ans == wx.ID_YES:
+                        self.on_find_other_copies()
+                    elif ans == wx.ID_CANCEL:
+                        save_copies_tip_dismissed(True)
+                        speak_accessible(
+                            "Ok, non ripeterò questo avviso. "
+                            "Lo trovi sempre in Strumenti."
+                        )
+
+                wx.CallAfter(_ask)
+            except Exception as e:
+                logging.debug(f"Avviso copie: {e}")
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def start_search_thread(self):
         query = self.txt_query.GetValue().strip()
@@ -10458,6 +10850,7 @@ class MainWindow(wx.Frame):
             or str(item_data.get("prefix", "")).startswith("[PDF")
         )
         item_all = None
+        item_ocr = None
         item_media_all = None
         item_media_tech = None
         item_media_desc = None
@@ -10477,6 +10870,7 @@ class MainWindow(wx.Frame):
         if is_img_result:
             menu.AppendSeparator()
             item_all = menu.Append(wx.ID_ANY, "Tutto sull'immagine…")
+            item_ocr = menu.Append(wx.ID_ANY, "Leggi testo nell'immagine (OCR)")
             item_alt = menu.Append(wx.ID_ANY, "Alt-text breve")
             item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
             item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
@@ -10530,6 +10924,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.show_image_all_dialog(file_path),
                 item_all,
+            )
+        if item_ocr is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="ocr"),
+                item_ocr,
             )
         if item_alt is not None:
             self.Bind(
@@ -11018,11 +11418,22 @@ class MainWindow(wx.Frame):
             sel = dlg.selections()
         finally:
             dlg.Destroy()
-        # Avvio immediato: le caselle scelte guidano il report.
-        self.show_image_analysis(file_path, mode="all", sections=sel)
+        # Solo OCR (percorso papà) → stessa finestra di --ocr-quick / menù Esplora
+        only_ocr = bool(sel.get("include_ocr")) and not any(
+            [
+                sel.get("include_alt"),
+                sel.get("include_describe"),
+                sel.get("include_labels"),
+                sel.get("include_tech"),
+            ]
+        )
+        if only_ocr:
+            self.show_image_analysis(file_path, mode="ocr")
+        else:
+            self.show_image_analysis(file_path, mode="all", sections=sel)
 
-    def on_image_all_dialog(self, event=None):
-        """Strumenti → Tutto sull'immagine: file picker o risultato selezionato."""
+    def _pick_image_path_for_tools(self):
+        """Risultato selezionato se immagine, altrimenti FileDialog."""
         path = ""
         sel = self.lst_results.GetSelection()
         if sel != wx.NOT_FOUND and sel in self.file_map:
@@ -11030,21 +11441,33 @@ class MainWindow(wx.Frame):
             ext = os.path.splitext(cand)[1].lower()
             if cand and os.path.isfile(cand) and ext in IMG_EXTS:
                 path = cand
-        if not path:
-            with wx.FileDialog(
-                self,
-                "Scegli un'immagine",
-                wildcard=(
-                    "Immagini|"
-                    "*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
-                    "Tutti i file|*.*"
-                ),
-                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-            ) as fd:
-                if fd.ShowModal() != wx.ID_OK:
-                    return
-                path = fd.GetPath()
-        self.show_image_all_dialog(path)
+        if path:
+            return path
+        with wx.FileDialog(
+            self,
+            "Scegli un'immagine",
+            wildcard=(
+                "Immagini|"
+                "*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
+                "Tutti i file|*.*"
+            ),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        ) as fd:
+            if fd.ShowModal() != wx.ID_OK:
+                return ""
+            return fd.GetPath()
+
+    def on_image_all_dialog(self, event=None):
+        """Strumenti → Tutto sull'immagine: file picker o risultato selezionato."""
+        path = self._pick_image_path_for_tools()
+        if path:
+            self.show_image_all_dialog(path)
+
+    def on_image_ocr_dialog(self, event=None):
+        """Strumenti → Leggi testo nell'immagine (OCR) — stesso percorso Esplora."""
+        path = self._pick_image_path_for_tools()
+        if path:
+            self.show_image_analysis(path, mode="ocr")
 
     def on_batch_images_folder(self, event=None, folder=None):
         """Strumenti / Explorer → Analizza cartella immagini (batch 1.6.6)."""
@@ -11632,6 +12055,7 @@ class MainWindow(wx.Frame):
                         include_describe=sec.get("include_describe", True),
                         include_labels=sec.get("include_labels", True),
                         include_tech=sec.get("include_tech", True),
+                        include_ocr=sec.get("include_ocr", False),
                         source_path=src_path,
                     )
                 elif mode == "tech":
@@ -11647,6 +12071,16 @@ class MainWindow(wx.Frame):
                     title = "Testo OCR dell'immagine"
                     if rtad_ocr.engine_available():
                         txt = rtad_ocr.ocr_image_file(file_path) or ""
+                        txt = (txt or "").strip()
+                        if txt and hasattr(rtad_ocr, "ocr_text_for_clipboard"):
+                            try:
+                                # full = OCR completo ma già in orizzontale (reflow)
+                                txt = (
+                                    rtad_ocr.ocr_text_for_clipboard(txt, mode="full")
+                                    or txt
+                                )
+                            except Exception:
+                                pass
                         body = txt.strip() or "Nessun testo rilevato nell'immagine."
                     else:
                         body = rtad_ocr.engine_status_message()
@@ -12885,6 +13319,8 @@ def main():
     frame.Raise()
     frame.txt_query.SetFocus()
     wx.CallLater(1200, frame.on_check_updates, None, True)
+    # Avviso amichevole se sembrano esserci più copie (dopo WhatsNew / update)
+    wx.CallLater(3500, frame.maybe_warn_other_copies)
 
     _dispatch_cli_action(
         frame, cli_mode, cli_path, cli_url, path_for_search, delay_ms=400

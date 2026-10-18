@@ -146,8 +146,10 @@ Contenuto previsto `1.6.0`:
 - **1.7.0:** lettore documento + spazi PDF + toast — **pubblicata** (13/10/2026; DataStore #12178 → #12179).  
 - **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pubblicata**.
 - **1.7.2:** batch cartella media + B0 cache + glossario — **pubblicata**.  
-- **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **in rilascio** (vedi `NOTE_RILASCIO_1.7.3.txt`).  
-- **1.7.4:** **P0 updater Setup↔Portable** + guida HTML completa (Vision/Gemini) + shell «Apri» smart (SA) — **in corso** (`docs/PIANO_1.7.4.md`).
+- **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **pubblicata**.  
+- **1.7.4:** updater Setup↔Portable + guida HTML + shell «Apri» smart — **pubblicata** (17/10/2026; DataStore #12249 → #12250).  
+- **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pronta al rilascio** (`docs/PIANO_1.7.5.md` / `NOTE_RILASCIO_1.7.5.txt`).  
+- **1.7.6:** marker Installer / CD-DVD / Whisper opt-in — **prossima** (`docs/PIANO_1.7.6.md`).
 
 ---
 
@@ -173,12 +175,13 @@ Contenuto previsto `1.6.0`:
 18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pubblicata**.  
 19. ~~**1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus~~ **pubblicata**.  
 20. ~~**1.7.2** — batch media + B0 + glossario~~ **pubblicata**.  
-21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ — codice/novità pronti; pubblicare.  
-22. **1.7.4:**  
-    - **P0** updater SA: Installer → `Setup_Ricerca…`, Portable → Portable; release `app-vX.Y.Z` (non Latest Add-on) — feedback papà 17/10/2026.  
-    - Guida HTML completa (API Vision/Gemini passo-passo, cercabile, indice).  
-    - **P1** shell Explorer: «Apri» apre/analizza il file (immagine/media/doc); + `.xlsx`; ideale singola istanza.  
-    - PDF papà se fix mirato; resto media/doc.
+21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ **pubblicata**.  
+22. ~~**1.7.4:** updater Setup/Portable + guida HTML + shell Apri + Sfoglia + istanza unica~~ **pubblicata**.  
+23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pronta** (`NOTE_RILASCIO_1.7.5.txt`).  
+24. **1.7.6:**  
+    - P0 feedback 1.7.5.  
+    - Marker Installer; unità CD/DVD in «Tutto il PC».  
+    - Whisper locale opt-in (se leggero); VIDEO_TS / OneCore → dopo.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -251,7 +254,9 @@ Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 - ~~Focus freccia lettore~~ → **`1.7.1`**  
 - Batch media / B0 → **`1.7.2`** (`PIANO_1.7.2.md`)  
 - Glossario post-trascrizione (nomi propri) → **`1.7.2` P2**  
-- Whisper locale opt-in; «Trascrivi e cerca»; OneCore native → **1.7.3+**  
+- ~~«Trascrivi e cerca»~~ → **1.7.3**  
+- Incolla Appunti / drag&drop → **1.7.5** (`PIANO_1.7.5.md`)  
+- Whisper locale opt-in; OneCore native → **1.7.6+**  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

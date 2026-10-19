@@ -34,6 +34,24 @@ _NAME_RE = re.compile(
 )
 
 
+def managed_updates_dir() -> str:
+    """Cartella aggiornamenti SA gestita dal programma (non «copia sicura»)."""
+    local = os.environ.get("LOCALAPPDATA") or os.path.join(
+        os.path.expanduser("~"), "AppData", "Local"
+    )
+    return os.path.normpath(os.path.join(local, "RTAD_Standalone", "updates"))
+
+
+def is_managed_updates_path(path: str) -> bool:
+    """True se il file sta sotto %LocalAppData%\\RTAD_Standalone\\updates\\."""
+    prefix = os.path.normcase(managed_updates_dir())
+    try:
+        low = os.path.normcase(os.path.normpath(path or ""))
+    except Exception:
+        return False
+    return low == prefix or low.startswith(prefix + os.sep)
+
+
 def _user_roots() -> List[str]:
     home = os.path.expanduser("~")
     roots = [
@@ -43,6 +61,7 @@ def _user_roots() -> List[str]:
         os.path.join(home, "OneDrive", "Downloads"),
         os.path.join(home, "OneDrive", "Desktop"),
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),
+        managed_updates_dir(),
         os.environ.get("ProgramFiles", ""),
         os.environ.get("ProgramFiles(x86)", ""),
     ]
@@ -279,10 +298,12 @@ def _looks_like_release_package(name: str) -> bool:
 
 
 def classify_exe(path: str) -> str:
-    """'installer_dir' | 'release_download' | 'dev_build' | 'other'."""
+    """'installer_dir' | 'managed_updates' | 'release_download' | 'dev_build' | 'other'."""
     p = os.path.normpath(path or "")
     low = p.lower()
     name = os.path.basename(p)
+    if is_managed_updates_path(p):
+        return "managed_updates"
     if "\\program files" in low or "\\local\\programs\\" in low:
         return "installer_dir"
     if _is_dev_tree_path(p):
@@ -298,12 +319,15 @@ def classify_exe(path: str) -> str:
 def is_safe_to_delete(path: str) -> bool:
     """True solo per Setup/Portable lasciati in Download/Desktop.
 
-    Mai: Installer in Local\\Programs, chiavi Roaming, cartelle build/dist del progetto.
+    Mai: Installer in Local\\Programs, cartella updates gestita, chiavi Roaming,
+    cartelle build/dist del progetto.
     """
     if not path or not os.path.isfile(path):
         return False
     low = os.path.normpath(path).lower()
     if "\\appdata\\roaming\\rtad" in low:
+        return False
+    if is_managed_updates_path(path):
         return False
     if classify_exe(path) == "installer_dir":
         return False
@@ -383,6 +407,11 @@ def build_report_text(
             kind = classify_exe(e["path"])
             if kind == "installer_dir":
                 lines.append("    Tipo: Installer installato (non cancellare da qui)")
+            elif kind == "managed_updates":
+                lines.append(
+                    "    Tipo: cartella aggiornamenti RTAD (gestita in automatico; "
+                    "non «copia sicura»)"
+                )
             elif kind == "release_download":
                 lines.append(
                     "    Tipo: pacchetto Setup/Portable in Download/Desktop "
@@ -409,8 +438,11 @@ def build_report_text(
             "",
             "=== Note ===",
             "- NON cancellare: %AppData%\\Roaming\\RTAD_Standalone (chiavi API).",
+            "- NON cancellare a mano: %LocalAppData%\\RTAD_Standalone\\updates "
+            "(aggiornamenti automatici; il programma la ripulisce).",
             "- Installer: Impostazioni Windows → App → disinstalla, oppure unins000.exe.",
-            "- Portable/Download/Desktop: si possono cancellare con consenso (Strumenti).",
+            "- Portable/Download/Desktop (scaricati a mano): si possono cancellare "
+            "con consenso (Strumenti).",
             "- Consiglio: tieni UNA sola copia (Setup OPPURE Portable) e aggiorna quella.",
             "",
             "FINE RAPPORTO.",

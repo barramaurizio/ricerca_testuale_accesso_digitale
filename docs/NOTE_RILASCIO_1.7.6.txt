@@ -1,0 +1,100 @@
+🌟 Novità della Versione 1.7.6
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.6
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- CD/DVD in «Tutto il PC»; messaggio chiaro sui file .cda (CD audio).
+- Report e descrizioni a righe standard (più comodi da leggere e incollare).
+- Guida: CD audio → estrarre con Windows Media Player, poi analizzare in RTAD.
+- Restano OCR orizzontale / Incolla 1.7.5 (drag&drop e Trova copie restano SA).
+
+## 🇬🇧 English
+
+- CD/DVD drives in “Whole PC”; clear message for `.cda` audio-CD shortcuts.
+- Wrapped report lines (easier to read and paste).
+- Guide: rip audio CDs with Windows Media Player, then analyze in RTAD.
+- Horizontal OCR / Paste from 1.7.5 remain (drag-drop and Find copies stay SA).
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.6.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.6
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Drag & drop affidabile: file/cartella in qualunque punto della finestra (offerta «Apri ora»).
+- Updater: download in `%LocalAppData%\RTAD_Standalone\updates\` (non in Download) + pulizia; Trova copie non tratta quella cartella come «sicura».
+- CD/DVD in «Tutto il PC»; messaggio sui `.cda`. CD audio → Windows Media Player → poi analisi RTAD.
+- Report/descrizioni a righe standard (comodi in Word).
+- Marker Installer più esplicito; guida aggiornata.
+- Restano OCR/copie/Incolla 1.7.5.
+
+## 🇬🇧 English
+
+- Reliable drag & drop anywhere on the window (optional “Open now”).
+- Updater downloads to `%LocalAppData%\RTAD_Standalone\updates\` (not Downloads) with cleanup; Find copies ignores that folder.
+- CD/DVD in “Whole PC”; `.cda` message. Audio CDs: rip with Windows Media Player, then analyze in RTAD.
+- Wrapped reports; clearer Installer channel marker; guide updated.
+- OCR/copies/Paste from 1.7.5 remain.
+```
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.6.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.6.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+CD/DVD e .cda, report a righe standard, guida CD audio / Media Player; OCR e Incolla 1.7.5.
+
+Summary EN:
+CD/DVD and .cda messaging, wrapped reports, audio-CD guide; OCR and Paste from 1.7.5.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.6/ricerca_testuale_accesso_digitale-1.7.6.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html

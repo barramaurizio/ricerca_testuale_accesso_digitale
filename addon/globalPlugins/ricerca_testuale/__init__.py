@@ -12,6 +12,7 @@ import scriptHandler
 import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import ui
@@ -84,7 +85,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.5"
+APP_VERSION = "1.7.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1779,7 +1780,40 @@ def rtad_speak(msg, force=False):
         pass
 
 
+def wrap_report_text(s, width=72):
+    """Righe standard per report/descrizioni (UI, copia, salva)."""
+    if s is None:
+        return ""
+    text = str(s).replace("\r\n", "\n").replace("\r", "\n")
+    if not text:
+        return ""
+    out = []
+    for line in text.split("\n"):
+        if len(line) <= width:
+            out.append(line)
+            continue
+        stripped = line.strip()
+        if " " not in stripped and (
+            "://" in line
+            or "\\" in line
+            or (len(stripped) > 1 and stripped[1:3] == ":\\")
+        ):
+            out.append(line)
+            continue
+        chunks = textwrap.wrap(
+            line,
+            width=width,
+            break_long_words=False,
+            break_on_hyphens=False,
+            replace_whitespace=False,
+            drop_whitespace=False,
+        )
+        out.extend(chunks if chunks else [""])
+    return "\n".join(out)
+
+
 def get_real_ready_drives():
+    """Unità pronte: rimovibili (2), fisse (3), CD/DVD (5)."""
     drives = []
     bitmask = ctypes.windll.kernel32.GetLogicalDrives()
     for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
@@ -1788,13 +1822,38 @@ def get_real_ready_drives():
             if os.path.exists(drive_path):
                 try:
                     drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_path)
-                    if drive_type in (2, 3):  
+                    if drive_type in (2, 3, 5):
                         os.listdir(drive_path)
                         drives.append(drive_path)
                 except Exception:
                     pass
         bitmask >>= 1
     return drives
+
+
+def _path_looks_like_video_ts(path):
+    if not path:
+        return False
+    low = os.path.normpath(path).lower().replace("/", "\\")
+    if low.rstrip("\\").endswith("\\video_ts") or "\\video_ts\\" in low + "\\":
+        return True
+    try:
+        if os.path.isdir(path):
+            return os.path.isdir(os.path.join(path, "VIDEO_TS"))
+    except Exception:
+        pass
+    return False
+
+
+def message_for_cda_path(path):
+    name = os.path.basename(path or "") or "traccia.cda"
+    return (
+        f"«{name}» non è un file audio sul disco: "
+        "è un collegamento di Windows a una traccia del CD audio. "
+        "RTAD non può riprodurre né trascrivere le tracce .cda. "
+        "Se sul CD/DVD ci sono cartelle con mp3, pdf o foto, "
+        "imposta quella cartella (o l’intera unità) e cerca lì."
+    )
 
 def extract_document_text(file_path):
     """Testo leggibile da PDF/DOCX/EPUB/testo per «Leggi documento»."""
@@ -3932,7 +3991,7 @@ class EmlViewerFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.txt_display.SetValue(
             "Caricamento email in corso…\r\n"
             "Se il messaggio ha allegati grandi, attendere qualche secondo."
@@ -4018,7 +4077,7 @@ class MboxViewerFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
         if cached_text:
             self.txt_display.SetValue("Preparazione visualizzazione…\r\n")
         else:
@@ -5807,7 +5866,7 @@ class ImageInfoFrame(wx.Frame):
         )
         self.image_path = image_path or ""
         self.source_path = source_path or ""
-        self.body_text = body_text or ""
+        self.body_text = wrap_report_text(body_text or "")
         self._action_cb = action_cb
         self._after_close_cb = after_close_cb
         self._after_close_done = False
@@ -5825,7 +5884,7 @@ class ImageInfoFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=self.body_text,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
@@ -6007,6 +6066,7 @@ class DocumentStructureFrame(wx.Frame):
                 report = (self.struct.get("body") or self.struct.get("plain") or "")
         else:
             report = (self.struct.get("body") or self.struct.get("plain") or "")
+        report = wrap_report_text(report)
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -6067,7 +6127,7 @@ class DocumentStructureFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=report,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         try:
             self.txt_display.SetName("Testo del documento")
@@ -6742,13 +6802,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• OCR: testo «in verticale» (una lettera per riga)\n"
-            "  ricomposto in orizzontale (Leggi testo nell'immagine).\n"
-            "• Incolla percorso dagli Appunti: in Esplora Ctrl+C su un\n"
-            "  file, poi Incolla… / Ctrl+Alt+V / Strumenti.\n"
-            "• Guida: parole nei video via .rtad.txt; Incolla documentato.\n"
-            "• «Trova altre copie» resta nella Standalone (Installer).\n"
-            "• Restano Sfoglia/updater 1.7.4, sidecar/xlsx 1.7.3.\n"
+            "• CD/DVD: «Tutto il PC» include il lettore ottico;\n"
+            "  messaggio chiaro sui file .cda (CD audio).\n"
+            "• Report e descrizioni a righe normali (comode da\n"
+            "  selezionare e incollare).\n"
+            "• Guida: CD audio → estrai con Windows Media Player,\n"
+            "  poi analizza in RTAD; aggiornamenti SA spiegati.\n"
+            "• Trascinamento e Trova copie restano nella Standalone.\n"
+            "• Restano OCR orizzontale / Incolla 1.7.5.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6756,7 +6817,7 @@ class WhatsNewFrame(wx.Frame):
         lbl_info = wx.StaticText(panel, label="Leggi tutte le novità dell'ultimo aggiornamento:")
         vbox.Add(lbl_info, 0, wx.ALL, 8)
 
-        self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY)
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
@@ -6815,7 +6876,7 @@ class PracticalGuideFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=text_content,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
@@ -6910,7 +6971,7 @@ class ShortcutsFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=self.text_content,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
@@ -8898,9 +8959,37 @@ class SearchFrame(wx.Frame):
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         rtad_speak(f"Percorso impostato ({kind}): {selected_path}.")
 
+        ext = (
+            os.path.splitext(selected_path)[1].lower()
+            if os.path.isfile(selected_path)
+            else ""
+        )
+        if ext == ".cda":
+            msg = message_for_cda_path(selected_path)
+            rtad_speak(msg)
+            dlg = wx.MessageDialog(
+                self, msg, "Traccia CD audio (.cda)", wx.OK | wx.ICON_INFORMATION
+            )
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
+
+        if _path_looks_like_video_ts(selected_path):
+            msg = (
+                "Questa cartella sembra un DVD video (VIDEO_TS). "
+                "In questa versione RTAD cerca i file dati sul disco "
+                "(mp3, pdf, foto, ecc.), non estrae i film dal DVD commerciale."
+            )
+            rtad_speak(msg)
+            dlg = wx.MessageDialog(
+                self, msg, "DVD video", wx.OK | wx.ICON_INFORMATION
+            )
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
+
         if not offer_open or not os.path.isfile(selected_path):
             return
-        ext = os.path.splitext(selected_path)[1].lower()
         ask = None
         if ext in IMG_EXTS:
             ask = ("image", "Apri ora «Tutto sull'immagine» per questo file?")

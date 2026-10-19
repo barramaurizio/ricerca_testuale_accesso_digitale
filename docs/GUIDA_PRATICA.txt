@@ -14,22 +14,25 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.5
+Novità recenti (in parole semplici) — versione 1.7.6
 ----------------------------------------------------
-• OCR: se il testo dalla foto usciva «in verticale»
-  (una lettera per riga), ora viene messo in orizzontale.
-• Trova altre copie sul PC (programma Windows, Strumenti):
-  elenca Installer e file sparsi, salva un rapporto,
-  può togliere solo i Setup/Portable lasciati in Download
-  (sempre con il tuo consenso; mai le chiavi API).
-• Incolla dagli Appunti: in Esplora Ctrl+C su un file,
-  poi Incolla… / Ctrl+Alt+V / Strumenti. Come Sfoglia,
-  può chiederti se aprirlo subito. Nella Standalone
-  puoi anche trascinare il file sulla finestra.
-• Guida HTML: spiegato bene come cercare parole nei
-  video (serve il file .rtad.txt accanto).
-• Restano da 1.7.4: aggiornamenti Setup/Portable, menù
-  Esplora, Sfoglia singolo file. Da 1.7.3: Excel, Trascrivi.
+• Trascinamento (programma Windows): puoi lasciare un file
+  o una cartella in qualunque punto della finestra; se è
+  un file analizzabile, può chiederti di aprirlo subito.
+  Restano anche Incolla dagli Appunti (Ctrl+Alt+V) e il
+  menù destro di Esplora.
+• Aggiornamenti automatici: il Setup/Portable non resta più
+  in Download; va in una cartella gestita dal programma
+  (e «Trova altre copie» non la propone come spazzatura).
+• CD/DVD: «Tutto il PC» include anche il lettore ottico.
+  I file .cda di un CD audio non sono brani sul disco:
+  per analizzarli come gli altri audio, estraili prima con
+  Windows Media Player (o simile) in file mp3/wma, poi
+  aprili in Ricerca Testuale.
+• I report (descrizioni, OCR, documenti…) hanno righe
+  normali, comode da leggere e da incollare in Word.
+• Restano da 1.7.5: OCR «una lettera per riga» → orizzontale,
+  Trova altre copie, Incolla. Da 1.7.4: menù Esplora, Sfoglia.
 
 
 1. A cosa serve

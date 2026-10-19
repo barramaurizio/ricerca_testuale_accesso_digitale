@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,17 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.6
+
+- **Drag & drop SA**: rilascio file/cartella in qualunque punto della finestra (offerta «Apri ora» quando ha senso). Restano Incolla (Ctrl+Alt+V) e menù Esplora.
+- **Updater SA**: download in `%LocalAppData%\RTAD_Standalone\updates\` (non più in Download); pulizia automatica. Trova copie non propone quella cartella come «sicura».
+- **CD/DVD**: unità ottiche in «Tutto il PC»; messaggio chiaro sui `.cda`. Per analizzare un CD audio: estrarre con Windows Media Player in mp3/wma, poi aprire in RTAD.
+- **Report a righe standard**: descrizioni/OCR/documenti senza riga unica orizzontale (più comodi da leggere e incollare in Word).
+- Marker Installer più esplicito; guida aggiornata. Restano OCR/copie/Incolla 1.7.5.
+
 ### 🌟 Novità della Versione 1.7.5
+
+*(Pubblicata.)*
 
 - **OCR orizzontale**: se il motore metteva una lettera per riga, il testo viene ricomposto prima di lettura/copia («Leggi testo nell'immagine»).
 - **Trova altre copie sul PC** (SA, Strumenti): elenco Installer/exe/scorciatoie, rapporto sul Desktop, rimozione solo Setup/Portable in Download/Desktop con consenso; avviso amichevole all’avvio se serve.
@@ -204,7 +214,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.6
+
+- **SA drag & drop**: drop a file/folder anywhere on the window (optional “Open now”). Paste (Ctrl+Alt+V) and Explorer menu remain.
+- **SA updater**: downloads to `%LocalAppData%\RTAD_Standalone\updates\` (not Downloads); auto-cleanup. Find copies ignores that folder as “safe to delete”.
+- **CD/DVD**: optical drives in “Whole PC”; clear message for `.cda`. For audio CDs: rip with Windows Media Player to mp3/wma, then analyze in RTAD.
+- **Wrapped reports**: descriptions/OCR/documents use normal line lengths (easier to read and paste into Word).
+- Clearer Installer channel marker; guide updated. OCR/copies/Paste from 1.7.5 remain.
+
 ### 🌟 What's New in Version 1.7.5
+
+*(Published.)*
 
 - **Horizontal OCR**: if the engine returned one letter per line, text is reflowed before reading/copy (“Read text in image”).
 - **Find other copies on this PC** (SA, Tools): lists Installer/exes/shortcuts, Desktop report, safe removal of Setup/Portable left in Downloads/Desktop only (with consent); friendly startup tip when needed.

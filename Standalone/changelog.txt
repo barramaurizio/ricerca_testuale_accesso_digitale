@@ -1,3 +1,12 @@
+Novità nella Versione 1.7.6
+- Drag&drop SA affidabile (rilascio in qualunque punto della finestra)
+- Updater: download in %LocalAppData%\RTAD_Standalone\updates\ (non in Download); cleanup automatico
+- Trova copie / script: la cartella updates\ non è «copia sicura»
+- Unità CD/DVD in «Tutto il PC»; messaggio chiaro sui file .cda (CD audio)
+- Report/descrizioni a righe standard (wrap; niente riga unica orizzontale)
+- Marker Installer (rtad_install_channel.txt) per canale aggiornamenti più chiaro
+- Guida: aggiornamenti silenziosi, CD audio → estrarre con Windows Media Player, poi analizzare in RTAD
+
 Novità nella Versione 1.7.5
 - OCR: testo «in verticale» (una lettera per riga) ricomposto in orizzontale
 - Strumenti → Trova altre copie sul PC (elenco, rapporto, rimozione sicura con consenso)

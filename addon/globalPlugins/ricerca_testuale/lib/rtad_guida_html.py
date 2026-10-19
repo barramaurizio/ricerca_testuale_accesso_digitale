@@ -115,6 +115,7 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       (anche <a href="#media-ricerca">cercare parole nel parlato</a>)</li>
     <li><a href="#documenti">Documenti, PDF, Excel, lettore</a></li>
     <li><a href="#explorer">Menù contestuale di Esplora file (solo Standalone)</a></li>
+    <li><a href="#cd-audio">CD audio, DVD e file .cda</a></li>
     <li><a href="#aggiornamenti">Aggiornamenti: Installer e Portable</a></li>
     <li><a href="#copie">Trova altre copie sul PC (evitare doppioni)</a></li>
     <li><a href="#scorciatoie">Scorciatoie principali</a></li>
@@ -126,20 +127,24 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>OCR orizzontale:</strong> se il motore metteva una lettera per riga,
-      il testo viene ricomposto prima di mostrarlo o leggerlo
-      («Leggi testo nell’immagine»).</li>
-    <li><strong>Trova altre copie sul PC</strong> (solo Standalone, Strumenti):
-      elenco Installer/exe/scorciatoie, rapporto sul Desktop, rimozione guidata
-      solo di Setup/Portable lasciati in Download/Desktop (con consenso).
-      Avviso amichevole all’avvio se sembra ci sia confusione.</li>
-    <li><strong>Incolla percorso dagli Appunti:</strong> Ctrl+C su un file in Esplora,
-      poi pulsante Incolla…, Strumenti, o <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>.
-      Stessa offerta «Apri ora» di Sfoglia. Solo SA: trascinamento sulla finestra.</li>
-    <li><strong>Guida:</strong> come cercare parole in audio/video con i
-      <code>.rtad.txt</code>; sezione sulle copie multiple.</li>
-    <li>Restano da 1.7.4: aggiornamenti Setup/Portable, menù Esplora «Apri / analizza»,
-      Sfoglia singolo file, guida HTML Vision/Gemini.</li>
+    <li><strong>Trascinamento (Standalone):</strong> puoi rilasciare un file o una
+      cartella in qualunque punto della finestra; se ha senso, il programma
+      propone «Apri ora». Restano Incolla (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>)
+      e il menù di Esplora.</li>
+    <li><strong>Aggiornamenti SA:</strong> Setup/Portable vengono scaricati in
+      <code>%LocalAppData%\\RTAD_Standalone\\updates\\</code> (non in Download)
+      e quella cartella viene ripulita dal programma. «Trova altre copie» non
+      la propone come spazzatura.</li>
+    <li><strong>CD/DVD:</strong> «Tutto il PC» include le unità ottiche pronte.
+      I file <code>.cda</code> di un CD audio non sono brani sul disco: messaggio
+      chiaro. Per analizzarli come gli altri audio, estraili prima con
+      Windows Media Player (mp3/wma) e poi aprili in RTAD.
+      Vedi anche <a href="#cd-audio">CD audio</a>.</li>
+    <li><strong>Report a righe standard:</strong> descrizioni, OCR e documenti
+      non restano su una riga unica orizzontale (più comodi da leggere e
+      da incollare in Word).</li>
+    <li>Restano da 1.7.5: OCR «una lettera per riga» → orizzontale, Trova copie,
+      Incolla dagli Appunti.</li>
   </ul>
   <p class="top"><a href="#indice">↑ Indice</a></p>
 </div>
@@ -190,7 +195,31 @@ Poi in Ricerca Testuale:</p>
 («Copia come percorso» / Ctrl+V nel campo). Se il file è immagine, audio/video
 o documento, può offrirti di aprirlo subito come con Sfoglia.</p>
 <p>Solo Standalone: puoi anche <strong>trascinare</strong> un file o una cartella
-sulla finestra del programma (stesso effetto).</p>
+sulla finestra del programma (stesso effetto). Dalla 1.7.6 il rilascio funziona
+in qualunque punto della finestra (non solo sul titolo).</p>
+<p class="top"><a href="#indice">↑ Indice</a></p>
+
+<h2 id="cd-audio">4.2 CD audio, DVD e file .cda</h2>
+<p>«Tutto il PC» e Sfoglia accettano anche le unità CD/DVD quando il disco
+è pronto. I file dati sul disco (mp3, pdf, foto nelle cartelle) si cercano
+come su una chiavetta USB.</p>
+<p>Un <strong>CD audio</strong> mostra tracce <code>Track01.cda</code>, ecc.:
+non sono file audio veri sul disco, ma collegamenti di Windows alle tracce.
+RTAD lo spiega con un messaggio e non può riprodurle né trascriverle da lì.</p>
+<p><strong>Cosa fare per analizzare i brani del CD</strong> (senza installare
+programmi extra, se hai Windows Media Player):</p>
+<ol class="passi">
+  <li>Inserisci il CD audio.</li>
+  <li>Apri <strong>Windows Media Player</strong> (a volte «Lettore Windows Media
+    classico» / Legacy).</li>
+  <li>Usa <strong>Estrai</strong> / <strong>Copia da CD</strong> / <strong>Rip</strong>
+    e salva i file (meglio mp3; altrimenti wma) nella cartella Musica.</li>
+  <li>In RTAD apri quei file (Sfoglia, Incolla, trascinamento) e usa
+    «Tutto sull’audio/video» come per qualsiasi altro brano.</li>
+</ol>
+<p>Non serve masterizzare un altro CD: i file sul disco fisso bastano.
+Un DVD video commerciale (<code>VIDEO_TS</code>) non viene «rippato» da RTAD:
+si cercano solo eventuali file dati presenti sul disco.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="ocr">5. Testo nelle immagini (OCR)</h2>
@@ -381,6 +410,10 @@ anche in automatico all’avvio in modo silenzioso.</p>
   <li>Se usi la <strong>Portable</strong>: viene proposto solo
     <code>RicercaTestualeAccessoDigitale_Portable_v…exe</code>.</li>
 </ul>
+<p>Dalla 1.7.6 il download automatico non va più in Download: usa
+<code>%LocalAppData%\\RTAD_Standalone\\updates\\</code> e il programma ripulisce
+i vecchi Setup/Portable lì. I file scaricati a mano in Download restano
+affare tuo (Trova copie può proporli come «sicuri» da rimuovere).</p>
 <p>Così si evita di aggiornare «l’altra» copia se sullo stesso PC ce ne sono due.
 Consiglio: tienine una sola (Setup <em>oppure</em> Portable) e aggiorna quella.</p>
 <p>L’Add-on si aggiorna dallo store NVDA o scaricando il file

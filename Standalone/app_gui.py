@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import unicodedata
@@ -75,7 +76,7 @@ except ImportError:
     rtad_copie = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.5"
+APP_VERSION = "1.7.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -96,6 +97,12 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "settings.json")
 LOG_FILE = os.path.join(CONFIG_DIR, "rtad_debug.log")
 OCR_CACHE_DIR = os.path.join(CONFIG_DIR, "ocr_cache")
 MEDIA_CACHE_DIR = os.path.join(CONFIG_DIR, "media_cache")
+# Aggiornamenti SA: Local (binari), non Download utente (1.7.6)
+_LOCAL_APPDATA = os.environ.get("LOCALAPPDATA") or os.path.join(
+    os.path.expanduser("~"), "AppData", "Local"
+)
+UPDATES_DIR = os.path.join(_LOCAL_APPDATA, "RTAD_Standalone", "updates")
+INSTALL_CHANNEL_MARKER = "rtad_install_channel.txt"
 
 if rtad_ocr is not None:
     try:
@@ -1913,10 +1920,92 @@ def _parse_version_tuple(version_str):
         return None
 
 
+def wrap_report_text(s, width=72):
+    """Righe standard per report/descrizioni (UI, copia, salva).
+
+    Spezza a spazio senza rompere URL/path lunghi in modo aggressivo.
+    Non cambia il contenuto semantico: solo presentazione a riga.
+    """
+    if s is None:
+        return ""
+    text = str(s).replace("\r\n", "\n").replace("\r", "\n")
+    if not text:
+        return ""
+    out = []
+    for line in text.split("\n"):
+        if len(line) <= width:
+            out.append(line)
+            continue
+        # Path/URL senza spazi: non spezzare a metà carattere
+        stripped = line.strip()
+        if " " not in stripped and (
+            "://" in line
+            or "\\" in line
+            or (len(stripped) > 1 and stripped[1:3] == ":\\")
+        ):
+            out.append(line)
+            continue
+        chunks = textwrap.wrap(
+            line,
+            width=width,
+            break_long_words=False,
+            break_on_hyphens=False,
+            replace_whitespace=False,
+            drop_whitespace=False,
+        )
+        out.extend(chunks if chunks else [""])
+    return "\n".join(out)
+
+
+def get_sa_updates_dir():
+    """Cartella download aggiornamenti SA (%LocalAppData%\\RTAD_Standalone\\updates)."""
+    try:
+        os.makedirs(UPDATES_DIR, exist_ok=True)
+    except Exception as e:
+        logging.debug(f"get_sa_updates_dir: {e}")
+    return UPDATES_DIR
+
+
+def cleanup_sa_update_downloads(keep_path=None):
+    """Rimuove Setup/Portable vecchi dalla cartella updates (gestita dal programma)."""
+    updates = get_sa_updates_dir()
+    keep = None
+    if keep_path:
+        try:
+            keep = os.path.normcase(os.path.normpath(keep_path))
+        except Exception:
+            keep = None
+    markers = (
+        "setup_ricercatestualeaccessodigitale",
+        "ricercatestualeaccessodigitale_portable",
+    )
+    try:
+        for name in os.listdir(updates):
+            if not name.lower().endswith(".exe"):
+                continue
+            low = name.lower()
+            if not any(m in low for m in markers):
+                continue
+            full = os.path.join(updates, name)
+            try:
+                if keep and os.path.normcase(os.path.normpath(full)) == keep:
+                    continue
+            except Exception:
+                pass
+            try:
+                os.remove(full)
+                logging.info(f"Cleanup aggiornamento SA: rimosso {full}")
+            except OSError as e:
+                logging.debug(f"Cleanup aggiornamento SA non riuscito ({full}): {e}")
+    except OSError as e:
+        logging.debug(f"cleanup_sa_update_downloads: {e}")
+
+
 def detect_sa_install_channel():
     """Canale Standalone: 'installer' oppure 'portable'.
 
     Heuristics:
+    - Marker file rtad_install_channel.txt (Inno) → installer
     - Marker Inno (unins000.exe) o percorso sotto Program Files → installer
     - Altrimenti portable (anche da sorgente Python)
     - Se il percorso attuale contraddice chiaramente il canale salvato, si aggiorna
@@ -1934,6 +2023,18 @@ def detect_sa_install_channel():
             exe_path = os.path.abspath(__file__)
         exe_dir = os.path.dirname(exe_path)
         low = exe_dir.lower()
+        # Marker Inno solo su build frozen (il file esiste anche nel tree sorgente)
+        if getattr(sys, "frozen", False):
+            marker = os.path.join(exe_dir, INSTALL_CHANNEL_MARKER)
+            if os.path.isfile(marker):
+                try:
+                    with open(marker, "r", encoding="utf-8", errors="ignore") as f:
+                        marker_raw = (f.read() or "").strip().lower()
+                    if "installer" in marker_raw or marker_raw == "installer":
+                        strong_installer = True
+                        channel = "installer"
+                except Exception as e:
+                    logging.debug(f"Lettura marker canale: {e}")
         has_uninstaller = os.path.isfile(os.path.join(exe_dir, "unins000.exe"))
         in_program_files = (
             "\\program files\\" in low
@@ -1941,8 +2042,10 @@ def detect_sa_install_channel():
             or low.startswith("c:\\program files")
             or low.startswith("c:\\program files (x86)")
         )
-        strong_installer = bool(has_uninstaller or in_program_files)
-        if strong_installer:
+        if has_uninstaller or in_program_files:
+            strong_installer = True
+            channel = "installer"
+        elif strong_installer:
             channel = "installer"
     except Exception as e:
         logging.debug(f"detect_sa_install_channel: {e}")
@@ -2253,6 +2356,7 @@ def filter_mode_label(mode):
 
 
 def get_real_ready_drives():
+    """Unità pronte: rimovibili (2), fisse (3), CD/DVD (5)."""
     drives = []
     bitmask = ctypes.windll.kernel32.GetLogicalDrives()
     for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
@@ -2261,13 +2365,41 @@ def get_real_ready_drives():
             if os.path.exists(drive_path):
                 try:
                     drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_path)
-                    if drive_type in (2, 3):
+                    # 2=REMOVABLE, 3=FIXED, 5=CDROM
+                    if drive_type in (2, 3, 5):
                         os.listdir(drive_path)
                         drives.append(drive_path)
                 except Exception:
                     pass
         bitmask >>= 1
     return drives
+
+
+def _path_looks_like_video_ts(path):
+    """True se il percorso è (o contiene) una cartella VIDEO_TS da DVD video."""
+    if not path:
+        return False
+    low = os.path.normpath(path).lower().replace("/", "\\")
+    if low.rstrip("\\").endswith("\\video_ts") or "\\video_ts\\" in low + "\\":
+        return True
+    try:
+        if os.path.isdir(path):
+            return os.path.isdir(os.path.join(path, "VIDEO_TS"))
+    except Exception:
+        pass
+    return False
+
+
+def message_for_cda_path(path):
+    """Messaggio accessibile: .cda non è un file audio sul disco."""
+    name = os.path.basename(path or "") or "traccia.cda"
+    return (
+        f"«{name}» non è un file audio sul disco: "
+        "è un collegamento di Windows a una traccia del CD audio. "
+        "RTAD non può riprodurre né trascrivere le tracce .cda. "
+        "Se sul CD/DVD ci sono cartelle con mp3, pdf o foto, "
+        "imposta quella cartella (o l’intera unità) e cerca lì."
+    )
 
 def extract_plain_text_file(file_path):
     """Legge un file di testo (txt/md/html/…) in Unicode."""
@@ -4625,7 +4757,7 @@ class EmlViewerFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.txt_display.SetValue(
             "Caricamento email in corso…\r\n"
             "Se il messaggio ha allegati grandi, attendere qualche secondo."
@@ -4713,7 +4845,7 @@ class MboxViewerFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
         if cached_text:
             self.txt_display.SetValue(
                 "Preparazione visualizzazione…\r\n"
@@ -4991,8 +5123,8 @@ class FindCopiesDialog(wx.Dialog):
         vbox.Add(intro, 0, wx.ALL | wx.EXPAND, 10)
         self.txt = wx.TextCtrl(
             self,
-            value=self._report_text,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2 | wx.HSCROLL,
+            value=wrap_report_text(self._report_text),
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2,
         )
         self.txt.SetMinSize((560, 320))
         vbox.Add(self.txt, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 10)
@@ -5510,7 +5642,7 @@ class ImageInfoFrame(wx.Frame):
         )
         self.image_path = image_path or ""
         self.source_path = source_path or ""
-        self.body_text = body_text or ""
+        self.body_text = wrap_report_text(body_text or "")
         self._action_cb = action_cb
         self._after_close_cb = after_close_cb
         self._after_close_done = False
@@ -5528,7 +5660,7 @@ class ImageInfoFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=self.body_text,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
@@ -5712,6 +5844,7 @@ class DocumentStructureFrame(wx.Frame):
                 report = (self.struct.get("body") or self.struct.get("plain") or "")
         else:
             report = (self.struct.get("body") or self.struct.get("plain") or "")
+        report = wrap_report_text(report)
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -5773,7 +5906,7 @@ class DocumentStructureFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=report,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         try:
             self.txt_display.SetName("Testo del documento")
@@ -6461,15 +6594,15 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• OCR: testo messo «in verticale» (una lettera per riga)\n"
-            "  viene ricomposto in orizzontale (Leggi testo nell'immagine).\n"
-            "• Strumenti → Trova altre copie sul PC: elenco, rapporto,\n"
-            "  rimozione sicura solo con il tuo consenso (mai le chiavi API).\n"
-            "• Incolla percorso dagli Appunti: Ctrl+C su un file in Esplora,\n"
-            "  poi Incolla… / Ctrl+Alt+V / Strumenti (come Sfoglia).\n"
-            "• Trascinamento file/cartella sulla finestra (solo Standalone).\n"
-            "• Guida HTML: parole nei video via .rtad.txt; sezione copie.\n"
-            "• Restano updater/shell 1.7.4, sidecar/xlsx 1.7.3.\n"
+            "• Trascinamento: file o cartella in qualunque punto della\n"
+            "  finestra (offerta «Apri ora» se ha senso). Restano anche\n"
+            "  Ctrl+Alt+V / Incolla… e il menù di Esplora.\n"
+            "• Aggiornamenti: Setup/Portable in cartella gestita (non in\n"
+            "  Download); Trova copie non la tratta come spazzatura.\n"
+            "• CD/DVD in «Tutto il PC»; messaggio chiaro sui .cda.\n"
+            "  CD audio → estrai con Windows Media Player, poi analizza.\n"
+            "• Report e descrizioni a righe normali (comode in Word).\n"
+            "• Restano OCR orizzontale / copie / Incolla 1.7.5.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -6477,7 +6610,9 @@ class WhatsNewFrame(wx.Frame):
         lbl_info = wx.StaticText(panel, label="Leggi le novità dell'ultimo aggiornamento:")
         vbox.Add(lbl_info, 0, wx.ALL, 8)
 
-        self.txt_display = wx.TextCtrl(panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(
+            panel, value=text_content, style=wx.TE_MULTILINE | wx.TE_READONLY
+        )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
@@ -6536,7 +6671,7 @@ class PracticalGuideFrame(wx.Frame):
         self.txt_display = wx.TextCtrl(
             panel,
             value=text_content,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
@@ -6619,7 +6754,9 @@ class ShortcutsFrame(wx.Frame):
         lbl_info = wx.StaticText(panel, label="Usa le frecce Su/Giù e Sinistra/Destra per navigare nel testo:")
         vbox.Add(lbl_info, 0, wx.ALL, 8)
 
-        self.txt_display = wx.TextCtrl(panel, value=self.text_content, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
+        self.txt_display = wx.TextCtrl(
+            panel, value=self.text_content, style=wx.TE_MULTILINE | wx.TE_READONLY
+        )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
         hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
@@ -6695,6 +6832,7 @@ class MainWindow(wx.Frame):
         self._init_menu_bar()
 
         panel = wx.Panel(self)
+        self._main_panel = panel
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         lbl_query = wx.StaticText(panel, label="Testo o frase da cercare (supporta più termini e dialetti):")
@@ -6938,15 +7076,77 @@ class MainWindow(wx.Frame):
         panel.SetSizer(vbox)
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_global_char_hook)
-        # 1.7.5: trascina file/cartella sulla finestra → stesso flusso di Sfoglia
-        try:
-            self.DragAcceptFiles(True)
-            self.Bind(wx.EVT_DROP_FILES, self.on_drop_files)
-        except Exception:
-            pass
+        # 1.7.5: drop sui figli (Panel), non solo sul Frame — altrimenti Windows
+        # rilascia i file sul pannello e l’evento non arriva mai.
+        self._enable_file_drop_targets()
 
         if check_first_run_update():
             wx.CallLater(600, self.show_whats_new_dialog)
+
+    def _enable_file_drop_targets(self):
+        """Abilita trascinamento file/cartella (FileDropTarget, non solo DragAcceptFiles).
+
+        Su Windows i controlli figli coprono il Frame: senza DropTarget su panel e
+        campi principali il rilascio non arriva mai (cursore «vietato»).
+        """
+
+        class _RTADFileDropTarget(wx.FileDropTarget):
+            def __init__(self, owner):
+                super().__init__()
+                self._owner = owner
+
+            def OnDropFiles(self, x, y, filenames):
+                try:
+                    self._owner._apply_dropped_paths(filenames or [])
+                except Exception as e:
+                    logging.error(f"OnDropFiles: {e}")
+                return True
+
+        targets = [self]
+        panel = getattr(self, "_main_panel", None)
+        if panel is not None:
+            targets.append(panel)
+            try:
+                for child in panel.GetChildren():
+                    targets.append(child)
+            except Exception:
+                pass
+        for name in ("txt_path", "txt_query", "lst_results"):
+            w = getattr(self, name, None)
+            if w is not None:
+                targets.append(w)
+
+        seen = set()
+        for w in targets:
+            wid = id(w)
+            if wid in seen:
+                continue
+            seen.add(wid)
+            try:
+                w.SetDropTarget(_RTADFileDropTarget(self))
+            except Exception as e:
+                logging.debug(f"SetDropTarget non attivo su {w}: {e}")
+
+    def _apply_dropped_paths(self, filenames):
+        """Comune a FileDropTarget / eventuale drop nativo."""
+        paths = []
+        for p in filenames or []:
+            if not p:
+                continue
+            try:
+                p = os.path.normpath(p)
+            except Exception:
+                continue
+            if os.path.isfile(p) or os.path.isdir(p):
+                paths.append(p)
+        logging.info(f"Drop file ricevuto: n={len(paths)} paths={paths!r}")
+        if not paths:
+            speak_accessible("Nessun file o cartella riconosciuti nel trascinamento.")
+            return
+        if len(paths) == 1:
+            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
+        else:
+            self.apply_search_path(paths, offer_open=False)
 
     def _init_menu_bar(self):
         menubar = wx.MenuBar()
@@ -8619,9 +8819,37 @@ class MainWindow(wx.Frame):
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         speak_accessible(f"Percorso impostato ({kind}): {selected_path}.")
 
+        ext = (
+            os.path.splitext(selected_path)[1].lower()
+            if os.path.isfile(selected_path)
+            else ""
+        )
+        if ext == ".cda":
+            msg = message_for_cda_path(selected_path)
+            speak_accessible(msg)
+            dlg = wx.MessageDialog(
+                self, msg, "Traccia CD audio (.cda)", wx.OK | wx.ICON_INFORMATION
+            )
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
+
+        if _path_looks_like_video_ts(selected_path):
+            msg = (
+                "Questa cartella sembra un DVD video (VIDEO_TS). "
+                "In questa versione RTAD cerca i file dati sul disco "
+                "(mp3, pdf, foto, ecc.), non estrae i film dal DVD commerciale."
+            )
+            speak_accessible(msg)
+            dlg = wx.MessageDialog(
+                self, msg, "DVD video", wx.OK | wx.ICON_INFORMATION
+            )
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
+
         if not offer_open or not os.path.isfile(selected_path):
             return
-        ext = os.path.splitext(selected_path)[1].lower()
         offer = None
         if ext in IMG_EXTS:
             offer = ("image-all", "Apri ora «Tutto sull'immagine» per questo file?")
@@ -8659,26 +8887,20 @@ class MainWindow(wx.Frame):
             self.apply_search_path(paths, offer_open=False)
 
     def on_drop_files(self, event):
-        """Trascinamento sulla finestra principale (1.7.5)."""
+        """Compatibilità EVT_DROP_FILES (se presente); il path principale è FileDropTarget."""
+        paths = []
         try:
             n = event.GetNumberOfFiles()
         except Exception:
             n = 0
-        paths = []
         for i in range(n):
             try:
                 p = event.GetFile(i)
             except Exception:
                 p = ""
-            if p and (os.path.isfile(p) or os.path.isdir(p)):
-                paths.append(os.path.normpath(p))
-        if not paths:
-            speak_accessible("Nessun file o cartella riconosciuti nel trascinamento.")
-            return
-        if len(paths) == 1:
-            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
-        else:
-            self.apply_search_path(paths, offer_open=False)
+            if p:
+                paths.append(p)
+        self._apply_dropped_paths(paths)
 
     def on_take_screenshot(self, event):
         try:
@@ -8931,6 +9153,8 @@ class MainWindow(wx.Frame):
         """
         def _check():
             try:
+                # Pulizia Setup/Portable già scaricati in updates\ (non in Download)
+                cleanup_sa_update_downloads()
                 if not silent:
                     speak_accessible("Verifica aggiornamenti in corso...")
                 channel = detect_sa_install_channel()
@@ -9002,14 +9226,9 @@ class MainWindow(wx.Frame):
                     def _dl():
                         try:
                             speak_accessible("Download in corso, attendere...")
-                            downloads = os.path.join(
-                                os.path.expanduser("~"), "Downloads"
-                            )
-                            try:
-                                os.makedirs(downloads, exist_ok=True)
-                            except Exception:
-                                pass
-                            out = os.path.join(downloads, exe_name)
+                            updates = get_sa_updates_dir()
+                            cleanup_sa_update_downloads()
+                            out = os.path.join(updates, exe_name)
                             req2 = urllib.request.Request(
                                 exe_url, headers={"User-Agent": "RTAD-Updater"}
                             )
@@ -9022,6 +9241,8 @@ class MainWindow(wx.Frame):
                             )
                             speak_accessible("Avvio aggiornamento.")
                             subprocess.Popen([out])
+                            # Non cancellare subito: Setup/Portable devono leggere l'exe.
+                            # Cleanup al prossimo avvio / Verifica aggiornamenti.
                             wx.CallAfter(self.Close)
                         except Exception as e:
                             logging.error(f"Errore download aggiornamento: {e}")

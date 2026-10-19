@@ -53,6 +53,7 @@ if ($regHits -eq 0) { Out-Report "(nessuna voce Installer nel Registro)" }
 
 Out-Report ""
 Out-Report "=== 2) File .exe tipici ==="
+$updatesDir = Join-Path $env:LOCALAPPDATA "RTAD_Standalone\updates"
 $roots = @(
     (Join-Path $env:USERPROFILE "Downloads"),
     (Join-Path $env:USERPROFILE "Desktop"),
@@ -60,6 +61,7 @@ $roots = @(
     (Join-Path $env:USERPROFILE "OneDrive\Downloads"),
     (Join-Path $env:USERPROFILE "OneDrive\Desktop"),
     (Join-Path $env:LOCALAPPDATA "Programs"),
+    $updatesDir,
     $env:ProgramFiles,
     ${env:ProgramFiles(x86)}
 ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
@@ -87,6 +89,9 @@ if (-not $found -or $found.Count -eq 0) {
     foreach ($f in $found) {
         Out-Report ("- {0}" -f $f.FullName)
         Out-Report ("    Modificato: {0}  Byte: {1}" -f $f.LastWriteTime, $f.Length)
+        if ($updatesDir -and $f.FullName.StartsWith($updatesDir, [StringComparison]::OrdinalIgnoreCase)) {
+            Out-Report "    Tipo: cartella aggiornamenti RTAD (gestita in automatico; non cancellare)"
+        }
     }
 }
 
@@ -113,8 +118,9 @@ try {
 Out-Report ""
 Out-Report "=== Note ==="
 Out-Report "- NON cancellare: %AppData%\Roaming\RTAD_Standalone (chiavi API)."
+Out-Report "- NON cancellare: %LocalAppData%\RTAD_Standalone\updates (aggiornamenti automatici)."
 Out-Report "- Installer: Impostazioni Windows -> App -> disinstalla, oppure unins000.exe."
-Out-Report "- Portable/Download/Desktop: si possono cancellare."
+Out-Report "- Portable/Download/Desktop (scaricati a mano): si possono cancellare."
 Out-Report ""
 Out-Report ("FINE RAPPORTO. File: {0}" -f $reportPath)
 Write-Host ""
@@ -134,6 +140,10 @@ if ($RimuoviSicuri) {
 
     $toDelete = @()
     foreach ($f in $found) {
+        # Mai proporre la cartella updates gestita dal programma
+        if ($updatesDir -and $f.FullName.StartsWith($updatesDir, [StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
         $inSafe = $false
         foreach ($sr in $safeRoots) {
             if ($f.FullName.StartsWith($sr, [StringComparison]::OrdinalIgnoreCase)) { $inSafe = $true; break }

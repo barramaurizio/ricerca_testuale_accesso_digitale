@@ -148,8 +148,8 @@ Contenuto previsto `1.6.0`:
 - **1.7.2:** batch cartella media + B0 cache + glossario — **pubblicata**.  
 - **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **pubblicata**.  
 - **1.7.4:** updater Setup↔Portable + guida HTML + shell «Apri» smart — **pubblicata** (17/10/2026; DataStore #12249 → #12250).  
-- **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pronta al rilascio** (`docs/PIANO_1.7.5.md` / `NOTE_RILASCIO_1.7.5.txt`).  
-- **1.7.6:** marker Installer / CD-DVD / Whisper opt-in — **prossima** (`docs/PIANO_1.7.6.md`).
+- **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
+- **1.7.6:** fix drop + updater fuori Download + CD/DVD + wrap report + marker — **pronta al rilascio** (`docs/PIANO_1.7.6.md` / `NOTE_RILASCIO_1.7.6.txt`). Whisper / OCR tabelle → dopo.
 
 ---
 
@@ -177,11 +177,12 @@ Contenuto previsto `1.6.0`:
 20. ~~**1.7.2** — batch media + B0 + glossario~~ **pubblicata**.  
 21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ **pubblicata**.  
 22. ~~**1.7.4:** updater Setup/Portable + guida HTML + shell Apri + Sfoglia + istanza unica~~ **pubblicata**.  
-23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pronta** (`NOTE_RILASCIO_1.7.5.txt`).  
+23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pubblicata**.  
 24. **1.7.6:**  
-    - P0 feedback 1.7.5.  
-    - Marker Installer; unità CD/DVD in «Tutto il PC».  
-    - Whisper locale opt-in (se leggero); VIDEO_TS / OneCore → dopo.
+    - ~~P0: fix drag&drop; updater in `updates\`; Trova copie/script~~  
+    - ~~P1: CD/DVD + `.cda`; marker; wrap report~~  
+    - Guida/bump fatti; resta `compila` + tag + DataStore.  
+    - Whisper / OCR tabelle / VIDEO_TS → **1.7.7+**.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

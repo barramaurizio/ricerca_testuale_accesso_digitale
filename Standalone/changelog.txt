@@ -1,3 +1,10 @@
+Novità nella Versione 1.7.7
+- OCR: ordine di lettura riga-per-riga su tabelle/colonne (bounding box Y→X; cache v20; anche Google Vision)
+- «Leggi testo nell'immagine» / OCR in «Tutto sull'immagine»: testo più leggibile su griglie (es. programmazione TV)
+- Add-on: voce OCR in Strumenti + menù risultati; casella Testo OCR in «Tutto sull'immagine» (allineato SA)
+- Regressione OK: OCR «una lettera per riga» (CIAO) resta ricomposto in orizzontale
+- Guida / novità aggiornate; gemello SA ↔ Add-on
+
 Novità nella Versione 1.7.6
 - Drag&drop SA affidabile (rilascio in qualunque punto della finestra)
 - Updater: download in %LocalAppData%\RTAD_Standalone\updates\ (non in Download); cleanup automatico

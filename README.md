@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,7 +7,16 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
+### 🌟 Novità della Versione 1.7.7
+
+- **OCR tabelle / colonne**: «Leggi testo nell'immagine» e la sezione OCR di «Tutto sull'immagine» ricostruiscono l'ordine **riga per riga** quando il motore espone le posizioni delle parole (tipico: programmazione TV, griglie). Non inventa testo: solo riordina.
+- **Add-on**: voce «Leggi testo nell'immagine (OCR)» in Strumenti e nel menù risultati; casella Testo OCR anche in «Tutto sull'immagine» (dopo Incolla → Sì), come nello Standalone.
+- Cache OCR aggiornata (v20) così non resta un risultato «a colonne» in cache; riordino anche con motore Google Vision.
+- Restano drop/updater/CD/report 1.7.6 e OCR «una lettera per riga» 1.7.5.
+
 ### 🌟 Novità della Versione 1.7.6
+
+*(Pubblicata.)*
 
 - **Drag & drop SA**: rilascio file/cartella in qualunque punto della finestra (offerta «Apri ora» quando ha senso). Restano Incolla (Ctrl+Alt+V) e menù Esplora.
 - **Updater SA**: download in `%LocalAppData%\RTAD_Standalone\updates\` (non più in Download); pulizia automatica. Trova copie non propone quella cartella come «sicura».
@@ -214,7 +223,16 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
+### 🌟 What's New in Version 1.7.7
+
+- **OCR tables / columns**: “Read text in image” and the OCR section of “Everything about the image” rebuild **row-by-row** reading order when the engine provides word positions (e.g. TV program grids). No invented words—reorder only.
+- **Add-on**: “Read text in image (OCR)” under Tools and in the results menu; OCR checkbox also in “Everything about the image” (after Paste → Yes), matching Standalone.
+- OCR cache bumped (v20) so an old column-order result is not kept; same reorder with Google Vision engine.
+- Drop/updater/CD/report 1.7.6 and one-letter-per-line OCR 1.7.5 remain.
+
 ### 🌟 What's New in Version 1.7.6
+
+*(Published.)*
 
 - **SA drag & drop**: drop a file/folder anywhere on the window (optional “Open now”). Paste (Ctrl+Alt+V) and Explorer menu remain.
 - **SA updater**: downloads to `%LocalAppData%\RTAD_Standalone\updates\` (not Downloads); auto-cleanup. Find copies ignores that folder as “safe to delete”.

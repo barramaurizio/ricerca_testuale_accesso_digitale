@@ -127,24 +127,19 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Trascinamento (Standalone):</strong> puoi rilasciare un file o una
-      cartella in qualunque punto della finestra; se ha senso, il programma
-      propone «Apri ora». Restano Incolla (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>)
-      e il menù di Esplora.</li>
-    <li><strong>Aggiornamenti SA:</strong> Setup/Portable vengono scaricati in
-      <code>%LocalAppData%\\RTAD_Standalone\\updates\\</code> (non in Download)
-      e quella cartella viene ripulita dal programma. «Trova altre copie» non
-      la propone come spazzatura.</li>
-    <li><strong>CD/DVD:</strong> «Tutto il PC» include le unità ottiche pronte.
-      I file <code>.cda</code> di un CD audio non sono brani sul disco: messaggio
-      chiaro. Per analizzarli come gli altri audio, estraili prima con
-      Windows Media Player (mp3/wma) e poi aprili in RTAD.
-      Vedi anche <a href="#cd-audio">CD audio</a>.</li>
-    <li><strong>Report a righe standard:</strong> descrizioni, OCR e documenti
-      non restano su una riga unica orizzontale (più comodi da leggere e
-      da incollare in Word).</li>
-    <li>Restano da 1.7.5: OCR «una lettera per riga» → orizzontale, Trova copie,
-      Incolla dagli Appunti.</li>
+    <li><strong>OCR tabelle / colonne:</strong> su griglie (es. programmazione TV
+      in foto), il testo OCR viene messo in ordine <strong>riga per riga</strong>
+      quando il motore indica dove sta ogni parola. Vale per «Leggi testo
+      nell’immagine» e per la sezione OCR di «Tutto sull’immagine».
+      Non inventa parole: solo riordina. Vedi <a href="#ocr">OCR</a>.</li>
+    <li><strong>Add-on:</strong> stessa voce «Leggi testo nell’immagine (OCR)»
+      in Strumenti e nel menù risultati; casella Testo OCR anche in
+      «Tutto sull’immagine» (es. dopo Incolla → Sì).</li>
+    <li>Restano da 1.7.6: trascinamento SA, aggiornamenti in
+      <code>%LocalAppData%\\RTAD_Standalone\\updates\\</code>, CD/DVD e
+      <code>.cda</code> (vedi <a href="#cd-audio">CD audio</a>), report a
+      righe normali. Da 1.7.5: OCR «una lettera per riga» → orizzontale,
+      Trova copie, Incolla (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>).</li>
   </ul>
   <p class="top"><a href="#indice">↑ Indice</a></p>
 </div>
@@ -223,8 +218,11 @@ si cercano solo eventuali file dati presenti sul disco.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="ocr">5. Testo nelle immagini (OCR)</h2>
-<p>Dalla 1.7.5, se il motore grezzo restituisce una lettera per riga
-(testo «in verticale»), il programma lo ricompone in parole
+<p>Dalla 1.7.7, su tabelle e layout a colonne il testo OCR viene
+riordinato <strong>riga per riga</strong> (quando il motore espone le
+posizioni delle parole), così a schermo e con NVDA si legge in modo
+più naturale. Dalla 1.7.5, se il motore grezzo restituisce una lettera
+per riga (testo «in verticale»), il programma lo ricompone in parole
 <strong>orizzontali</strong> prima di mostrarlo o leggerlo
 (anche da «Leggi testo nell’immagine» nel menù Esplora / risultati).
 La descrizione dell’immagine (Gemini) resta un percorso diverso e

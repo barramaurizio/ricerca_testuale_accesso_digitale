@@ -34,7 +34,9 @@ MAX_OCR_IMAGE_BYTES = 25 * 1024 * 1024  # 25 MB
 MAX_OCR_PDF_PAGES = 8
 OCR_SOFT_TIMEOUT_SEC = 35
 # v18: reflow OCR «una lettera per riga» → testo in orizzontale (lettura/copia)
-OCR_CACHE_VERSION = 18
+# v19: ordine di lettura riga-per-riga da bounding box Windows/EasyOCR
+# v20: stesso riordino Y→X anche su Google Vision (tabelle)
+OCR_CACHE_VERSION = 20
 # Cache separata per etichette/descrizione Vision (1.6.3)
 VISION_CACHE_VERSION = 1
 
@@ -951,6 +953,70 @@ def ocr_text_matches_terms(text: str, terms) -> bool:
         return False
 
     return all(_one_term_ok(t) for t in terms_l)
+
+
+def rebuild_ocr_reading_order(words) -> str:
+    """Ricostruisce testo OCR in ordine di lettura riga-per-riga (Y poi X).
+
+    Utile su layout a griglia/tabella: Windows OCR spesso espone le «Lines»
+    colonna-per-colonna; con i bounding box delle parole si ottengono righe
+    logiche (Canale | Programma | Orario sulla stessa linea).
+
+    words: iterable di dict con chiavi ``t``/``text``, ``x``, ``y`` e
+    opzionalmente ``w``/``width``, ``h``/``height``. Non inventa parole:
+    solo riordina. Se non ci sono box utili, restituisce stringa vuota.
+    """
+    items = []
+    for raw in words or ():
+        if not isinstance(raw, dict):
+            continue
+        t = (raw.get("t") or raw.get("text") or "").strip()
+        if not t:
+            continue
+        try:
+            x = float(raw.get("x", 0) or 0)
+            y = float(raw.get("y", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        try:
+            h = float(raw.get("h") or raw.get("height") or 0)
+        except (TypeError, ValueError):
+            h = 0.0
+        try:
+            w = float(raw.get("w") or raw.get("width") or 0)
+        except (TypeError, ValueError):
+            w = 0.0
+        items.append({"t": t, "x": x, "y": y, "h": h, "w": w})
+    if not items:
+        return ""
+
+    heights = sorted(i["h"] for i in items if i["h"] > 0)
+    if heights:
+        med_h = heights[len(heights) // 2]
+    else:
+        # Stima grezza: distanza mediana tra Y consecutive
+        ys = sorted({round(i["y"], 1) for i in items})
+        gaps = [ys[i + 1] - ys[i] for i in range(len(ys) - 1) if ys[i + 1] > ys[i]]
+        med_h = (sorted(gaps)[len(gaps) // 2] * 0.7) if gaps else 20.0
+    y_tol = max(8.0, float(med_h) * 0.65)
+
+    ordered = sorted(items, key=lambda i: (i["y"], i["x"]))
+    rows = []
+    cur = []
+    cur_y = None
+    for w in ordered:
+        if cur_y is None or abs(w["y"] - cur_y) <= y_tol:
+            cur.append(w)
+            cur_y = sum(z["y"] for z in cur) / float(len(cur))
+        else:
+            rows.append(sorted(cur, key=lambda z: z["x"]))
+            cur = [w]
+            cur_y = w["y"]
+    if cur:
+        rows.append(sorted(cur, key=lambda z: z["x"]))
+
+    lines = [" ".join(z["t"] for z in row) for row in rows]
+    return "\n".join(lines).strip()
 
 
 def reflow_ocr_vertical_chars(text: str) -> str:
@@ -2005,8 +2071,61 @@ def _try_winrt_probe() -> bool:
         return False
 
 
-def _ocr_via_winrt(path: str) -> str:
-    """OCR via winrt/winsdk. Restituisce None se backend non usabile, '' se vuoto."""
+def _winrt_rect_xywh(rect) -> tuple:
+    """Estrae (x, y, w, h) da Rect winrt/winsdk. None se inutilizzabile."""
+    if rect is None:
+        return None
+    for nx, ny, nw, nh in (
+        ("x", "y", "width", "height"),
+        ("X", "Y", "Width", "Height"),
+    ):
+        try:
+            x = getattr(rect, nx, None)
+            y = getattr(rect, ny, None)
+            if x is None or y is None:
+                continue
+            w = getattr(rect, nw, 0) or 0
+            h = getattr(rect, nh, 0) or 0
+            return float(x), float(y), float(w), float(h)
+        except Exception:
+            continue
+    return None
+
+
+def _winrt_words_from_result(result) -> list:
+    """Estrae parole+box da OcrResult winrt/winsdk."""
+    words = []
+    if result is None:
+        return words
+    try:
+        lines = getattr(result, "lines", None) or []
+    except Exception:
+        lines = []
+    for line in lines:
+        try:
+            wlist = getattr(line, "words", None) or []
+        except Exception:
+            wlist = []
+        for word in wlist:
+            try:
+                t = (getattr(word, "text", None) or "").strip()
+            except Exception:
+                t = ""
+            if not t:
+                continue
+            rect = getattr(word, "bounding_rect", None)
+            if rect is None:
+                rect = getattr(word, "BoundingRect", None)
+            xywh = _winrt_rect_xywh(rect)
+            if not xywh:
+                continue
+            x, y, w, h = xywh
+            words.append({"t": t, "x": x, "y": y, "w": w, "h": h})
+    return words
+
+
+def _ocr_via_winrt_words(path: str) -> list:
+    """OCR winrt → lista parole con box. [] se vuoto; solleva se backend non usabile."""
     import asyncio
 
     async def _run():
@@ -2035,7 +2154,6 @@ def _ocr_via_winrt(path: str) -> str:
         stream = await file.open_read_async()
         decoder = await BitmapDecoder.create_async(stream)
         bitmap = await decoder.get_software_bitmap_async()
-        # Windows OCR richiede Gray8/Ignore o Bgra8
         try:
             if (
                 bitmap.bitmap_pixel_format != BitmapPixelFormat.GRAY8
@@ -2052,7 +2170,6 @@ def _ocr_via_winrt(path: str) -> str:
             except Exception:
                 pass
 
-        chunks = []
         engines = []
         try:
             e0 = OcrEngine.try_create_from_user_profile_languages()
@@ -2068,6 +2185,8 @@ def _ocr_via_winrt(path: str) -> str:
                     engines.append(eng)
             except Exception:
                 pass
+        best_words = []
+        best_text = ""
         seen_eng = set()
         for eng in engines:
             try:
@@ -2079,22 +2198,36 @@ def _ocr_via_winrt(path: str) -> str:
                 pass
             try:
                 result = await eng.recognize_async(bitmap)
-                t = (result.text or "").strip() if result else ""
-                if t:
-                    chunks.append(t)
             except Exception:
-                pass
-        return "\n".join(chunks).strip()
+                continue
+            if not result:
+                continue
+            words = _winrt_words_from_result(result)
+            t = (getattr(result, "text", None) or "").strip()
+            score = len(words) if words else (1 if t else 0)
+            if score > (len(best_words) if best_words else (1 if best_text else 0)):
+                best_words = words
+                best_text = t
+        return best_words, best_text
 
+    return asyncio.run(_run())
+
+
+def _ocr_via_winrt(path: str) -> str:
+    """OCR via winrt/winsdk. Restituisce None se backend non usabile, '' se vuoto."""
     try:
-        return asyncio.run(_run())
+        words, fallback = _ocr_via_winrt_words(path)
+        rebuilt = rebuild_ocr_reading_order(words)
+        if rebuilt:
+            return rebuilt
+        return (fallback or "").strip()
     except Exception as e:
         logging.debug(f"winrt OCR fallito: {e}")
         return None
 
 
 def _powershell_script() -> str:
-    """Script PS1: OCR Windows con bitmap Bgra8 tipizzato + lingue multiple."""
+    """Script PS1: OCR Windows + parole con bounding box (JSON per ordine lettura)."""
     return r"""
 param([Parameter(Mandatory=$true)][string]$ImagePath)
 $ErrorActionPreference = 'Stop'
@@ -2153,7 +2286,6 @@ try {
   )
 } catch {}
 
-$texts = New-Object System.Collections.Generic.List[string]
 $engines = New-Object System.Collections.Generic.List[object]
 $e0 = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
 if ($null -ne $e0) { [void]$engines.Add($e0) }
@@ -2168,17 +2300,45 @@ if ($engines.Count -eq 0) {
   Write-Error 'OcrEngine non disponibile (pacchetto lingua OCR mancante?)'
   exit 3
 }
+
+$bestText = ''
+$bestWords = New-Object System.Collections.Generic.List[object]
+$bestScore = -1
 foreach ($engine in $engines) {
   try {
     $result = Await-WinRT ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-    if ($null -ne $result) {
-      $t = [string]$result.Text
-      if (-not [string]::IsNullOrWhiteSpace($t)) { [void]$texts.Add($t.Trim()) }
+    if ($null -eq $result) { continue }
+    $t = (([string]$result.Text) -replace '[\x00-\x1F\x7F]', '').Trim()
+    $words = New-Object System.Collections.Generic.List[object]
+    foreach ($line in $result.Lines) {
+      foreach ($w in $line.Words) {
+        $r = $w.BoundingRect
+        # Togli controlli ASCII: altrimenti ConvertTo-Json produce JSON invalido
+        $wt = (([string]$w.Text) -replace '[\x00-\x1F\x7F]', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($wt)) { continue }
+        [void]$words.Add(@{
+          t = $wt
+          x = [double]$r.X
+          y = [double]$r.Y
+          w = [double]$r.Width
+          h = [double]$r.Height
+        })
+      }
+    }
+    $score = $words.Count
+    if ($score -le 0 -and -not [string]::IsNullOrWhiteSpace($t)) { $score = 1 }
+    if ($score -gt $bestScore) {
+      $bestScore = $score
+      $bestText = $t
+      $bestWords = $words
     }
   } catch {}
 }
-if ($texts.Count -eq 0) { Write-Output ''; exit 0 }
-Write-Output (($texts | Select-Object -Unique) -join "`n")
+if ($bestScore -lt 0) { Write-Output ''; exit 0 }
+# Prefisso stabile: Python ricostruisce l'ordine Y→X dai box
+Write-Output 'RTAD_OCR_JSON_V1'
+$payload = @{ text = $bestText; words = @($bestWords.ToArray()) }
+Write-Output ($payload | ConvertTo-Json -Compress -Depth 6)
 """
 
 
@@ -2285,7 +2445,107 @@ def _run_powershell_ocr(image_path: str, timeout: int = OCR_SOFT_TIMEOUT_SEC) ->
     err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
     if proc.returncode != 0 and not out:
         return "", err or f"exit {proc.returncode}"
-    return out, err
+    return _parse_windows_ocr_payload(out), err
+
+
+def _json_loads_ocr_payload(payload: str):
+    """json.loads tollerante: ConvertTo-Json PS a volte lascia char di controllo."""
+    if not payload:
+        return None
+    # Rimuovi BOM e controlli ASCII (tranne tab/LF/CR) che rompono JSON
+    cleaned = payload.lstrip("\ufeff")
+    cleaned = "".join(
+        ch if (ord(ch) >= 32 or ch in "\t\n\r") else " "
+        for ch in cleaned
+    )
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    # Secondo tentativo: solo l'oggetto {...} più esterno
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(cleaned[start : end + 1])
+        except Exception:
+            return None
+    return None
+
+
+def _parse_windows_ocr_payload(raw: str) -> str:
+    """Da stdout PowerShell (JSON v19 o testo grezzo) → testo in ordine lettura."""
+    if not raw:
+        return ""
+    text = raw.strip()
+    marker = "RTAD_OCR_JSON_V1"
+    if marker in text:
+        # Può esserci BOM / warning prima del marker
+        idx = text.find(marker)
+        payload = text[idx + len(marker) :].strip()
+        data = _json_loads_ocr_payload(payload)
+        if isinstance(data, dict):
+            words = data.get("words")
+            rebuilt = rebuild_ocr_reading_order(words) if words else ""
+            if rebuilt:
+                return rebuilt
+            fallback = (data.get("text") or "").strip()
+            if fallback:
+                return fallback
+        # JSON illeggibile: non restituire il blob grezzo all'utente
+        return ""
+    return text
+
+
+def _ocr_windows_words(path: str) -> list:
+    """Parole OCR Windows con box (per probe / debug). Lista vuota se non disponibile."""
+    if not path or not os.path.isfile(path):
+        return []
+    # Preferisci winrt se già ok; altrimenti PowerShell JSON
+    use_winrt = False
+    if _engine_ok and "winrt" in (_engine_note or "").lower():
+        use_winrt = True
+    elif _try_winrt_probe():
+        use_winrt = True
+    if use_winrt:
+        try:
+            words, _fallback = _ocr_via_winrt_words(path)
+            if words:
+                return words
+        except Exception as e:
+            logging.debug(f"winrt words fallito: {e}")
+    script = _ensure_ps_script()
+    cmd = [
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-WindowStyle",
+        "Hidden",
+        "-File",
+        script,
+        "-ImagePath",
+        os.path.abspath(path),
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=OCR_SOFT_TIMEOUT_SEC,
+            check=False,
+            **_hidden_subprocess_kwargs(),
+        )
+    except Exception:
+        return []
+    out = (proc.stdout or b"").decode("utf-8", errors="replace").strip()
+    marker = "RTAD_OCR_JSON_V1"
+    if marker not in out:
+        return []
+    idx = out.find(marker)
+    payload = out[idx + len(marker) :].strip()
+    data = _json_loads_ocr_payload(payload)
+    words = data.get("words") if isinstance(data, dict) else None
+    return list(words) if isinstance(words, list) else []
 
 
 def _quiet_torch_warnings():
@@ -2336,14 +2596,39 @@ def _ocr_via_easyocr(path: str) -> str:
         import warnings
         reader = _get_easyocr_reader()
         _quiet_torch_warnings()
-        # detail=0 → solo stringhe; paragraph unisce meglio le righe
+        # detail=1 → box; ricostruzione Y→X (tabelle) come Windows OCR v19
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            raw = reader.readtext(path, detail=1)
+        words = []
+        for item in raw or []:
+            if not item or len(item) < 2:
+                continue
+            box, txt = item[0], item[1]
+            t = (txt or "").strip()
+            if not t or not box:
+                continue
+            try:
+                xs = [float(p[0]) for p in box]
+                ys = [float(p[1]) for p in box]
+            except Exception:
+                continue
+            words.append({
+                "t": t,
+                "x": min(xs),
+                "y": min(ys),
+                "w": max(xs) - min(xs),
+                "h": max(ys) - min(ys),
+            })
+        rebuilt = rebuild_ocr_reading_order(words)
+        if rebuilt:
+            return rebuilt
+        # Fallback: API paragraph se i box non bastano
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             try:
                 lines = reader.readtext(path, detail=0, paragraph=True)
             except TypeError:
-                # API più vecchie senza paragraph=
-                raw = reader.readtext(path, detail=1)
                 lines = [t[1] for t in (raw or []) if t and len(t) > 1 and t[1]]
         if not lines:
             return ""
@@ -2353,6 +2638,57 @@ def _ocr_via_easyocr(path: str) -> str:
     except Exception as e:
         logging.debug(f"EasyOCR fallito su {path}: {e}")
         return ""
+
+
+def _vertices_xywh(vertices) -> tuple:
+    """Da lista vertici Vision {x,y} → (x, y, w, h) oppure None."""
+    if not vertices:
+        return None
+    try:
+        xs = [float(v.get("x", 0) or 0) for v in vertices]
+        ys = [float(v.get("y", 0) or 0) for v in vertices]
+    except Exception:
+        return None
+    if not xs or not ys:
+        return None
+    return min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)
+
+
+def _google_words_from_response(r0: dict) -> list:
+    """Parole + box da fullTextAnnotation / textAnnotations Vision."""
+    words = []
+    if not isinstance(r0, dict):
+        return words
+    full = r0.get("fullTextAnnotation") or {}
+    for page in full.get("pages") or []:
+        for block in page.get("blocks") or []:
+            for para in block.get("paragraphs") or []:
+                for word in para.get("words") or []:
+                    symbols = word.get("symbols") or []
+                    t = "".join((s.get("text") or "") for s in symbols).strip()
+                    if not t:
+                        continue
+                    box = word.get("boundingBox") or {}
+                    xywh = _vertices_xywh(box.get("vertices") or [])
+                    if not xywh:
+                        continue
+                    x, y, w, h = xywh
+                    words.append({"t": t, "x": x, "y": y, "w": w, "h": h})
+    if words:
+        return words
+    # Fallback: textAnnotations[0]=documento intero; i successivi sono pezzi
+    anns = r0.get("textAnnotations") or []
+    for ann in anns[1:]:
+        t = (ann.get("description") or "").strip()
+        if not t:
+            continue
+        poly = ann.get("boundingPoly") or {}
+        xywh = _vertices_xywh(poly.get("vertices") or [])
+        if not xywh:
+            continue
+        x, y, w, h = xywh
+        words.append({"t": t, "x": x, "y": y, "w": w, "h": h})
+    return words
 
 
 def _ocr_via_google(path: str) -> tuple:
@@ -2431,6 +2767,10 @@ def _ocr_via_google(path: str) -> tuple:
             anns = r0.get("textAnnotations") or []
             if anns:
                 text = (anns[0].get("description") or "").strip()
+        # Stesso ordine lettura Y→X delle tabelle (come Windows OCR v19+)
+        rebuilt = rebuild_ocr_reading_order(_google_words_from_response(r0))
+        if rebuilt:
+            text = rebuilt
         _google_last_error = ""
         return text, "google"
     except Exception as e:

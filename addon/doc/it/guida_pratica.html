@@ -15,25 +15,21 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.7.6
+Novità recenti (in parole semplici) — versione 1.7.7
 ----------------------------------------------------
-• Trascinamento (programma Windows): puoi lasciare un file
-  o una cartella in qualunque punto della finestra; se è
-  un file analizzabile, può chiederti di aprirlo subito.
-  Restano anche Incolla dagli Appunti (Ctrl+Alt+V) e il
-  menù destro di Esplora.
-• Aggiornamenti automatici: il Setup/Portable non resta più
-  in Download; va in una cartella gestita dal programma
-  (e «Trova altre copie» non la propone come spazzatura).
-• CD/DVD: «Tutto il PC» include anche il lettore ottico.
-  I file .cda di un CD audio non sono brani sul disco:
-  per analizzarli come gli altri audio, estraili prima con
-  Windows Media Player (o simile) in file mp3/wma, poi
-  aprili in Ricerca Testuale.
-• I report (descrizioni, OCR, documenti…) hanno righe
-  normali, comode da leggere e da incollare in Word.
-• Restano da 1.7.5: OCR «una lettera per riga» → orizzontale,
-  Trova altre copie, Incolla. Da 1.7.4: menù Esplora, Sfoglia.
+• OCR sulle tabelle e sul testo «a colonne» (es. programmazione
+  TV in foto): il testo viene messo in ordine riga per riga,
+  così a schermo e con NVDA si legge in modo più naturale
+  (Canale, Programma, Orario sulla stessa linea logica).
+  Vale per «Leggi testo nell'immagine» e per la parte OCR di
+  «Tutto sull'immagine». Non inventa parole: solo riordina.
+• Nell’Add-on NVDA trovi «Leggi testo nell'immagine (OCR)»
+  in Strumenti e nel menù sui risultati; in «Tutto sull'immagine»
+  c’è anche la casella Testo OCR (come nel programma Windows).
+• Restano da 1.7.6: trascinamento, aggiornamenti in cartella
+  dedicata, CD/DVD e .cda, report a righe normali.
+  Da 1.7.5: OCR «una lettera per riga» → orizzontale,
+  Trova altre copie, Incolla.
 
 
 1. A cosa serve
@@ -133,6 +129,9 @@ A volte il testo non è in un documento, ma «disegnato» in una foto
   chiave API: menu Strumenti → «Chiave API Google Vision», oppure il
   pulsante «Chiave Google». Ogni persona usa la propria chiave;
   non c’è una chiave condivisa nel programma.
+• Su tabelle e elenchi a colonne, l’ordine di lettura è riga per riga
+  (quando il motore indica dove sta ogni parola). Se invece metteva
+  una lettera per riga, viene ricomposta in orizzontale.
 • La ricerca è tollerante: anche se l’OCR legge male un titolo stilizzato
   (es. «SQUAD ST» al posto di «SQUADLIST»), spesso la trova lo stesso.
   In «Copia Testo pulito» può ripristinare la parola cercata; «Copia OCR

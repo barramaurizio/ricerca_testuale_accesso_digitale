@@ -161,7 +161,7 @@ Trova copie aggiornato; EN se tempo.
 - [x] Unità ottiche in «Tutto il PC» + comportamento onesto su `.cda`  
 - [x] Report / descrizioni con righe standard (UI wrap + testo copiabile)  
 - [x] Guida / novità / bump `1.7.6`  
-- [ ] `compila` / tag `v` + `app-v` + DataStore (Maurizio)  
+- [x] `compila` / tag `v` + `app-v` + DataStore (#12312 → #12313 accepted 19/10)  
 
 ---
 

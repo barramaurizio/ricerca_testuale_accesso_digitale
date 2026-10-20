@@ -149,7 +149,8 @@ Contenuto previsto `1.6.0`:
 - **1.7.3:** sidecar stem + Excel `.xlsx` + «Trascrivi e cerca» — **pubblicata**.  
 - **1.7.4:** updater Setup↔Portable + guida HTML + shell «Apri» smart — **pubblicata** (17/10/2026; DataStore #12249 → #12250).  
 - **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
-- **1.7.6:** fix drop + updater fuori Download + CD/DVD + wrap report + marker — **pronta al rilascio** (`docs/PIANO_1.7.6.md` / `NOTE_RILASCIO_1.7.6.txt`). Whisper / OCR tabelle → dopo.
+- **1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker — **pubblicata** (19/10/2026; DataStore #12312 → #12313).  
+- **1.7.7:** OCR ordine lettura tabelle / testo a colonne — **pronta / in pubblicazione** (20/10). Piano: `docs/PIANO_1.7.7.md`.
 
 ---
 
@@ -178,11 +179,11 @@ Contenuto previsto `1.6.0`:
 21. ~~**1.7.3:** sidecar stem + orfani Solo AV + Excel `.xlsx` + «Trascrivi e cerca»~~ **pubblicata**.  
 22. ~~**1.7.4:** updater Setup/Portable + guida HTML + shell Apri + Sfoglia + istanza unica~~ **pubblicata**.  
 23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pubblicata**.  
-24. **1.7.6:**  
-    - ~~P0: fix drag&drop; updater in `updates\`; Trova copie/script~~  
-    - ~~P1: CD/DVD + `.cda`; marker; wrap report~~  
-    - Guida/bump fatti; resta `compila` + tag + DataStore.  
-    - Whisper / OCR tabelle / VIDEO_TS → **1.7.7+**.
+24. ~~**1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker~~ — **pubblicata**.  
+25. **1.7.7:** OCR tabelle riga-per-riga (cache v19) + guida — **pronta / in pubblicazione**.  
+26. Dopo 1.7.7 (lista d’attesa, da scegliere in piano dedicato):  
+    - **Chat post-analisi (idea Maurizio 20/10):** dialogo con Gemini (opt-in, chiave già in RTAD) sul contenuto appena analizzato (immagine/audio/video/documento) — domande, curiosità, approfondimenti. Scope snello: contesto = report/OCR/trascrizione già prodotti; niente chat generica “da zero”; accessibile (campo + cronologia + Copia). Cursor resta strumento di sviluppo, non motore in-app.  
+    - Whisper opt-in leggero **oppure** `.rtad.txt`-only / VIDEO_TS; OneCore native; export multipli.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -257,7 +258,8 @@ Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 - Glossario post-trascrizione (nomi propri) → **`1.7.2` P2**  
 - ~~«Trascrivi e cerca»~~ → **1.7.3**  
 - Incolla Appunti / drag&drop → **1.7.5** (`PIANO_1.7.5.md`)  
-- Whisper locale opt-in; OneCore native → **1.7.6+**  
+- Whisper locale opt-in; OneCore native → dopo 1.7.7  
+- **Chat post-analisi Gemini** (domande sul file appena analizzato) → candidato forte post-1.7.7  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

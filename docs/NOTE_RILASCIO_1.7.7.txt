@@ -1,0 +1,93 @@
+🌟 Novità della Versione 1.7.7
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.7.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.7.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- **OCR tabelle / colonne**: ordine di lettura riga per riga quando il motore espone le posizioni delle parole (es. griglie programmazione TV).
+- **Add-on**: «Leggi testo nell'immagine (OCR)» in Strumenti e menù risultati; casella Testo OCR in «Tutto sull'immagine».
+- Cache OCR aggiornata (v20) così non resta un risultato «a colonne»; riordino anche con Google Vision.
+- Restano drop/updater/CD/report 1.7.6 e OCR «una lettera per riga» 1.7.5.
+
+## 🇬🇧 English
+
+- **OCR tables / columns**: row-by-row reading order when the engine provides word positions (e.g. TV program grids).
+- **Add-on**: “Read text in image (OCR)” under Tools and results menu; OCR checkbox in “Everything about the image”.
+- OCR cache bumped (v20); same reorder with Google Vision.
+- Drop/updater/CD/report 1.7.6 and one-letter-per-line OCR 1.7.5 remain.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.7.7.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.7.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.7.7
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.7.7.exe
+RicercaTestualeAccessoDigitale_Portable_v1.7.7.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+OCR tabelle riga-per-riga (anche Vision); Add-on voce/casella OCR come SA; cache v20.
+
+Summary EN:
+OCR tables row-by-row (incl. Vision); Add-on OCR like SA; cache v20.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.7.7/ricerca_testuale_accesso_digitale-1.7.7.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.7.7
+
+Description:
+OCR ordine lettura riga-per-riga su tabelle/colonne (bbox Y→X, cache v19).
+Guida e novità IT/EN allineate; gemello rtad_ocr SA ↔ Add-on.

@@ -85,7 +85,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.7.6"
+APP_VERSION = "1.7.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -4252,6 +4252,7 @@ def run_image_analysis(
                     include_describe=sec.get("include_describe", True),
                     include_labels=sec.get("include_labels", True),
                     include_tech=sec.get("include_tech", True),
+                    include_ocr=sec.get("include_ocr", False),
                     source_path=src_path,
                 )
             elif mode == "tech":
@@ -5496,6 +5497,10 @@ class ImageSectionsDialog(wx.Dialog):
         self.chk_tech = wx.CheckBox(self, label="&Scheda tecnica")
         self.chk_tech.SetValue(True)
         vbox.Add(self.chk_tech, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        # Stesso percorso di «Leggi testo nell'immagine» (OCR) — gemello SA
+        self.chk_ocr = wx.CheckBox(self, label="&Testo OCR (leggi testo nell'immagine)")
+        self.chk_ocr.SetValue(False)
+        vbox.Add(self.chk_ocr, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self.chk_save = None
         self.chk_recursive = None
         if self.batch_mode:
@@ -5540,6 +5545,7 @@ class ImageSectionsDialog(wx.Dialog):
                 self.chk_describe.GetValue(),
                 self.chk_labels.GetValue(),
                 self.chk_tech.GetValue(),
+                self.chk_ocr.GetValue(),
             ]
         ):
             rtad_speak("Seleziona almeno una sezione.")
@@ -5555,6 +5561,7 @@ class ImageSectionsDialog(wx.Dialog):
             "include_describe": self.chk_describe.GetValue(),
             "include_labels": self.chk_labels.GetValue(),
             "include_tech": self.chk_tech.GetValue(),
+            "include_ocr": self.chk_ocr.GetValue(),
             "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
             "recursive": bool(self.chk_recursive and self.chk_recursive.GetValue()),
         }
@@ -6802,14 +6809,14 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• CD/DVD: «Tutto il PC» include il lettore ottico;\n"
-            "  messaggio chiaro sui file .cda (CD audio).\n"
-            "• Report e descrizioni a righe normali (comode da\n"
-            "  selezionare e incollare).\n"
-            "• Guida: CD audio → estrai con Windows Media Player,\n"
-            "  poi analizza in RTAD; aggiornamenti SA spiegati.\n"
-            "• Trascinamento e Trova copie restano nella Standalone.\n"
-            "• Restano OCR orizzontale / Incolla 1.7.5.\n"
+            "• OCR tabelle / colonne: ordine di lettura riga per riga\n"
+            "  (es. programmazione TV in foto). Non inventa parole: solo riordina.\n"
+            "• Add-on: «Leggi testo nell'immagine (OCR)» in Strumenti e nel\n"
+            "  menù risultati; casella Testo OCR anche in «Tutto sull'immagine»\n"
+            "  (dopo Incolla → Sì), come nello Standalone.\n"
+            "• Restano da 1.7.6: CD/DVD e .cda, report a righe normali.\n"
+            "  Da 1.7.5: OCR «una lettera per riga» → orizzontale, Incolla.\n"
+            "  Trascinamento e Trova copie restano nella Standalone.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7625,6 +7632,10 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "&Tutto sull'immagine…"
         )
         self.Bind(wx.EVT_MENU, self.on_image_all_dialog, item_all_img)
+        item_ocr_img = tools_menu.Append(
+            wx.ID_ANY, "&Leggi testo nell'immagine (OCR)…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_image_ocr_dialog, item_ocr_img)
         item_batch_img = tools_menu.Append(
             wx.ID_ANY, "Analizza &cartella immagini…"
         )
@@ -10907,6 +10918,7 @@ class SearchFrame(wx.Frame):
             or str(item_data.get("prefix", "")).startswith("[PDF")
         )
         item_all = None
+        item_ocr = None
         item_media_all = None
         item_media_tech = None
         item_media_desc = None
@@ -10926,6 +10938,7 @@ class SearchFrame(wx.Frame):
         if is_img_result:
             menu.AppendSeparator()
             item_all = menu.Append(wx.ID_ANY, "Tutto sull'immagine…")
+            item_ocr = menu.Append(wx.ID_ANY, "Leggi testo nell'immagine (OCR)")
             item_alt = menu.Append(wx.ID_ANY, "Alt-text breve")
             item_describe = menu.Append(wx.ID_ANY, "Descrivi immagine (dettagliata)")
             item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
@@ -10991,6 +11004,12 @@ class SearchFrame(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.show_image_all_dialog(file_path),
                 item_all,
+            )
+        if item_ocr is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e: self.show_image_analysis(file_path, mode="ocr"),
+                item_ocr,
             )
         if item_alt is not None:
             self.Bind(
@@ -11260,10 +11279,22 @@ class SearchFrame(wx.Frame):
             sel = dlg.selections()
         finally:
             dlg.Destroy()
-        self.show_image_analysis(file_path, mode="all", sections=sel)
+        # Solo OCR → stessa finestra dedicata (gemello SA / percorso papà)
+        only_ocr = bool(sel.get("include_ocr")) and not any(
+            [
+                sel.get("include_alt"),
+                sel.get("include_describe"),
+                sel.get("include_labels"),
+                sel.get("include_tech"),
+            ]
+        )
+        if only_ocr:
+            self.show_image_analysis(file_path, mode="ocr")
+        else:
+            self.show_image_analysis(file_path, mode="all", sections=sel)
 
-    def on_image_all_dialog(self, event=None):
-        """Strumenti → Tutto sull'immagine."""
+    def _pick_image_path_for_tools(self):
+        """Risultato selezionato se immagine, altrimenti FileDialog."""
         path = ""
         sel = self.lst_results.GetSelection()
         if sel != wx.NOT_FOUND and sel in self.file_map:
@@ -11271,21 +11302,33 @@ class SearchFrame(wx.Frame):
             ext = os.path.splitext(cand)[1].lower()
             if cand and os.path.isfile(cand) and ext in IMG_EXTS:
                 path = cand
-        if not path:
-            with wx.FileDialog(
-                self,
-                "Scegli un'immagine",
-                wildcard=(
-                    "Immagini|"
-                    "*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
-                    "Tutti i file|*.*"
-                ),
-                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-            ) as fd:
-                if fd.ShowModal() != wx.ID_OK:
-                    return
-                path = fd.GetPath()
-        self.show_image_all_dialog(path)
+        if path:
+            return path
+        with wx.FileDialog(
+            self,
+            "Scegli un'immagine",
+            wildcard=(
+                "Immagini|"
+                "*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.jfif|"
+                "Tutti i file|*.*"
+            ),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        ) as fd:
+            if fd.ShowModal() != wx.ID_OK:
+                return ""
+            return fd.GetPath()
+
+    def on_image_all_dialog(self, event=None):
+        """Strumenti → Tutto sull'immagine."""
+        path = self._pick_image_path_for_tools()
+        if path:
+            self.show_image_all_dialog(path)
+
+    def on_image_ocr_dialog(self, event=None):
+        """Strumenti → Leggi testo nell'immagine (OCR) — gemello SA."""
+        path = self._pick_image_path_for_tools()
+        if path:
+            self.show_image_analysis(path, mode="ocr")
 
     def open_media_hub_dialog(
         self,

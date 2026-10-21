@@ -1,3 +1,12 @@
+Novità nella Versione 1.8.0
+- Conversazione Gemini sul file già aperto (immagine, documento, audio/video sul report)
+- Cronologia sul PC, copia, salva .chat.txt, stampa, nuova conversazione
+- Web acceso: «Nel file» / «Approfondimento»; Apri fonte (Alt+F); Invio sull'elenco non apre il browser
+- Domanda a capo, Invio invia; Esc annulla la richiesta
+- URL: la chat resta col titolo del video, non col file temporaneo; Salva usa l'ultima cartella
+- Pulsante e Strumenti (Ctrl+Shift+G); menu risultato Chiedi/Riprendi; stesso sull'Add-on (cronologie separate)
+- Resta OCR tabelle 1.7.7
+
 Novità nella Versione 1.7.7
 - OCR: ordine di lettura riga-per-riga su tabelle/colonne (bounding box Y→X; cache v20; anche Google Vision)
 - «Leggi testo nell'immagine» / OCR in «Tutto sull'immagine»: testo più leggibile su griglie (es. programmazione TV)

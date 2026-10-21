@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.8.0
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.0
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.0
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Conversazione con Gemini sul file già aperto: immagine, documento e audio/video sul report. Più domande, data di oggi, cronologia sul PC, copia, salva e stampa.
+- Pulsante «Conversazioni Gemini» e Strumenti (Ctrl+Shift+G); «Chiedi a Gemini» (Alt+G); dal menu di un risultato, Chiedi o Riprendi. Stesso sull’Add-on. Le cronologie dei due programmi restano separate.
+- Web acceso: «Nel file» e «Approfondimento». Per un link: Tab fino a Apri fonte, poi Invio. Alt+F fa lo stesso, anche sull’elenco. Invio sull’elenco non apre il browser.
+- La domanda va a capo; Invio invia. Da un URL la chat resta col titolo del video, non col file temporaneo.
+
+## 🇬🇧 English
+
+- Gemini conversation on a file already open: image, document, and audio/video from the report on screen. Follow-up questions, today’s date, history on this PC, copy, save and print.
+- “Gemini conversations” button and Tools (Ctrl+Shift+G); “Ask Gemini” (Alt+G); from a result’s menu, Ask or Resume. Same in the add-on. The two programs keep separate histories.
+- Web on: “In the file” and “Further reading”. To open a link: Tab to Open source, then Enter. Alt+F does the same even on the list. Enter on the list does not open the browser.
+- The question wraps; Enter sends. From a URL the chat keeps the video title, not the temporary file name.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.0.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.0
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.0
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.0.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.0.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Conversazione con Gemini sul file già aperto: più domande, cronologia, link con Apri fonte.
+
+Summary EN:
+Gemini conversation on an open file: follow-up questions, history, links via Open source.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.0/ricerca_testuale_accesso_digitale-1.8.0.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.0
+
+Description:
+Conversazione Gemini sul file (immagine, documento, audio/video), cronologia locale, salva e stampa, web con fonti separate. Link solo da Apri fonte (Alt+F). SA e Add-on allineati, cronologie separate. OCR tabelle 1.7.7 invariato.

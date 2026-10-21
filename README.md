@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.7.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.0)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.0
+
+- **Conversazione con Gemini** sul file già aperto: immagine, documento (PDF, Word, EPUB…) e audio/video sul report già prodotto. Più domande, data di oggi, cronologia sul PC. Copia, Salva, Stampa.
+- **Dove:** pulsante «Conversazioni Gemini» e Strumenti (**Ctrl+Shift+G**); «Chiedi a Gemini» (**Alt+G**) sul report e nel lettore; dal menu di un risultato, Chiedi oppure Riprendi. Stesso sull’Add-on. Le cronologie di Standalone e Add-on restano separate.
+- **Web** acceso di default: risposte divise in «Nel file» e «Approfondimento». Per aprire un link: Tab fino a **Apri fonte**, poi Invio. **Alt+F** fa lo stesso, anche se il focus è sull’elenco. Invio sull’elenco non apre il browser.
+- La domanda va a capo mentre si scrive; Invio invia. Da un URL la chat resta col **titolo del video**, non col nome temporaneo; Salva propone l’ultima cartella usata.
+- Resta l’OCR tabelle riga-per-riga della 1.7.7. Chiave Gemini personale (AI Studio); il programma non addebita nulla.
 
 ### 🌟 Novità della Versione 1.7.7
 
@@ -222,6 +230,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.0
+
+- **Gemini conversation** on a file already open: image, document (PDF, Word, EPUB…) and audio/video using the report already on screen. Follow-up questions, today’s date, history on this PC. Copy, Save, Print.
+- **Where:** “Gemini conversations” button and Tools (**Ctrl+Shift+G**); “Ask Gemini” (**Alt+G**) on a report or in the document reader; from a result’s menu, Ask or Resume. Same in the add-on. Standalone and add-on keep separate histories.
+- **Web** on by default: answers split into “In the file” and “Further reading”. To open a link: Tab to **Open source**, then Enter. **Alt+F** does the same even when focus is on the list. Enter on the list does not open the browser.
+- The question wraps while you type; Enter sends. From a URL the chat keeps the **video title**, not the temporary file name; Save offers the last folder you used.
+- Table OCR from 1.7.7 remains. Personal Gemini key (AI Studio); the program does not bill you.
 
 ### 🌟 What's New in Version 1.7.7
 

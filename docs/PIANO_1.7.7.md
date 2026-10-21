@@ -1,8 +1,10 @@
 # Piano RTAD 1.7.7
 
-**Ultima pubblicata:** `1.7.6` — drop SA, updater `updates\`, CD/DVD+.cda, wrap report, marker, guide.  
-GitHub `v1.7.6` / `app-v1.7.6`; DataStore #12312 → #12313 (accepted 19/10/2026).  
-**Questa versione:** `1.7.7`. **Non hotfixare 1.7.6.**
+**Stato:** **pubblicata** 20/10/2026 — GitHub `v1.7.7` / `app-v1.7.7`; DataStore #12333 → #12334 (accepted). Feedback papà: OK. **Non hotfixare 1.7.7.**  
+Cache OCR uscita in **v20** (anche Vision). Nel testo sotto, scritto in bozza, compare ancora «v19»: è la bozza, non il codice pubblicato.  
+Prossima: `docs/PIANO_1.8.0.md`.
+
+**All’apertura del piano (19/10):** ultima pubblicata `1.7.6` — drop SA, updater `updates\`, CD/DVD+.cda, wrap report, marker, guide. DataStore #12312 → #12313.
 
 Vedi `docs/ROADMAP_DOPO_1.5.0.md` e `docs/NOTE_CONTESTO_v1.5.md`.
 
@@ -90,9 +92,9 @@ Documentare: OCR tabelle / ordine lettura; EN se tempo.
 
 - [x] OCR tabella campione: ordine riga-per-riga (o netto miglioramento) — smoke OK 20/10  
 - [x] Regressione fixture CIAO / una lettera per riga ancora OK  
-- [x] Gemello `rtad_ocr` + cache bump v19  
+- [x] Gemello `rtad_ocr` + cache bump (bozza v19, **pubblicato v20**)  
 - [x] Guida / novità / bump `1.7.7` (testi)  
-- [ ] `make_addon` fresco / `compila` / tag `v` + `app-v` + DataStore (dopo prova papà)  
+- [x] `make_addon` / `compila` / tag `v1.7.7` + `app-v1.7.7` + DataStore #12333 → #12334 (20/10/2026)  
 
 ---
 

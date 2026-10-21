@@ -34,6 +34,10 @@ def main() -> int:
     shutil.copy2(
         ROOT / "Standalone" / "rtad_docstruct.py", LIB / "rtad_docstruct.py"
     )
+    shutil.copy2(ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py")
+    shutil.copy2(
+        ROOT / "Standalone" / "rtad_guida_html.py", LIB / "rtad_guida_html.py"
+    )
 
     pairs = [
         ("rtad_ocr.py", ROOT / "Standalone" / "rtad_ocr.py", LIB / "rtad_ocr.py"),
@@ -45,6 +49,12 @@ def main() -> int:
             LIB / "rtad_docstruct.py",
         ),
         ("rtad_epub.py", ROOT / "Standalone" / "rtad_epub.py", LIB / "rtad_epub.py"),
+        ("rtad_chat.py", ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py"),
+        (
+            "rtad_guida_html.py",
+            ROOT / "Standalone" / "rtad_guida_html.py",
+            LIB / "rtad_guida_html.py",
+        ),
     ]
     all_ok = True
     for name, a, b in pairs:

@@ -109,7 +109,8 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       (anche <a href="#incolla-percorso">Incolla dagli Appunti</a>)</li>
     <li><a href="#ocr">Testo nelle immagini (OCR)</a></li>
     <li><a href="#vision">Chiave API Google Cloud Vision (passo-passo)</a></li>
-    <li><a href="#gemini">Chiave API Gemini / Google AI Studio (passo-passo)</a></li>
+    <li><a href="#gemini">Chiave API Gemini / Google AI Studio (passo-passo)</a>
+      (anche <a href="#chat">conversazione sul file</a>)</li>
     <li><a href="#immagini">Descrivere immagini e «Tutto sull’immagine»</a></li>
     <li><a href="#media">Audio e video</a>
       (anche <a href="#media-ricerca">cercare parole nel parlato</a>)</li>
@@ -127,19 +128,16 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>OCR tabelle / colonne:</strong> su griglie (es. programmazione TV
-      in foto), il testo OCR viene messo in ordine <strong>riga per riga</strong>
-      quando il motore indica dove sta ogni parola. Vale per «Leggi testo
-      nell’immagine» e per la sezione OCR di «Tutto sull’immagine».
-      Non inventa parole: solo riordina. Vedi <a href="#ocr">OCR</a>.</li>
-    <li><strong>Add-on:</strong> stessa voce «Leggi testo nell’immagine (OCR)»
-      in Strumenti e nel menù risultati; casella Testo OCR anche in
-      «Tutto sull’immagine» (es. dopo Incolla → Sì).</li>
-    <li>Restano da 1.7.6: trascinamento SA, aggiornamenti in
-      <code>%LocalAppData%\\RTAD_Standalone\\updates\\</code>, CD/DVD e
-      <code>.cda</code> (vedi <a href="#cd-audio">CD audio</a>), report a
-      righe normali. Da 1.7.5: OCR «una lettera per riga» → orizzontale,
-      Trova copie, Incolla (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>).</li>
+    <li><strong>Conversazione con Gemini</strong> sul file già aperto
+      (immagine, documento, audio/video sul report). Più domande, data di
+      oggi, cronologia sul PC, copia, salva e stampa.
+      Vedi <a href="#chat">conversazione sul file</a>.</li>
+    <li><strong>Link:</strong> Tab fino a «Apri fonte», poi Invio.
+      <kbd>Alt</kbd>+<kbd>F</kbd> fa lo stesso, anche se sei sull’elenco.
+      Invio sull’elenco non apre il browser.</li>
+    <li>Da un URL la chat resta col titolo del video. Standalone e Add-on
+      hanno cronologie separate. Resta l’OCR tabelle della 1.7.7
+      (vedi <a href="#ocr">OCR</a>).</li>
   </ul>
   <p class="top"><a href="#indice">↑ Indice</a></p>
 </div>
@@ -282,7 +280,8 @@ attivi le relative opzioni.</p>
 
 <h2 id="gemini">7. Chiave API Gemini / Google AI Studio (passo-passo)</h2>
 <p>Serve per la descrizione avanzata delle immagini, riassunti e trascrizioni
-audio/video (funzioni che usano Gemini).</p>
+audio/video, e — dalla 1.8.0 — per la
+<a href="#chat">conversazione sul file già aperto</a>.</p>
 
 <div class="note">
   <strong>Importante:</strong> l’abbonamento Gemini Plus/Pro dell’app chat
@@ -311,6 +310,40 @@ audio/video (funzioni che usano Gemini).</p>
   «Descrivi» (serve connessione). Su un audio/video puoi provare riassunto
   o trascrizione (opt-in) dall’hub «Tutto sull’audio/video».
 </div>
+<h3 id="chat">Conversazione sul file (dalla 1.8.0)</h3>
+<p>Non è una chat vuota. Parla di un file che RTAD ha già aperto:
+una foto, un documento, oppure un audio o un video di cui c’è già
+il resoconto a schermo.</p>
+<ul>
+  <li>Pulsante <strong>Conversazioni Gemini</strong> accanto ad Avvia ricerca,
+    e menù Strumenti (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>).</li>
+  <li>Sul resoconto immagine o audio/video, e nel lettore documento:
+    <strong>Chiedi a Gemini</strong> (<kbd>Alt</kbd>+<kbd>G</kbd>).</li>
+  <li>Tasto Applicazioni su un risultato: Chiedi, oppure Riprendi se
+    la conversazione c’è già. Un file <code>.chat.txt</code> salvato
+    si riapre qui, se il titolo coincide.</li>
+</ul>
+<p>Mentre scrivi, la domanda va a capo. Invio invia.
+Esc annulla la richiesta in corso; a riposo chiude la finestra.
+Ci sono domande pronte, Copia, Salva, Stampa, Nuova conversazione
+e Cronologia.</p>
+<p>La casella <strong>Consulta anche il web</strong> è accesa: puoi spegnerla.
+Quando è accesa, la risposta separa «Nel file» da «Approfondimento».</p>
+<div class="note">
+  <strong>Aprire un link.</strong> L’elenco Fonti e link non apre il browser
+  con Invio né con il doppio clic. Per aprirne una: Tab fino al pulsante
+  <strong>Apri fonte</strong>, poi Invio. Alt+F fa lo stesso, anche se sei
+  sull’elenco.
+</div>
+<p>Se il file arriva da un indirizzo Internet, la conversazione resta
+col <strong>titolo del video</strong> e con quell’indirizzo, non col nome
+del file temporaneo. Salva propone l’ultima cartella che hai usato.</p>
+<p>La cronologia sta su questo PC e non contiene la chiave API.
+Il programma Windows e l’Add-on NVDA fanno la stessa cosa, ma
+le conversazioni già fatte in uno non compaiono nell’altro.</p>
+<p>Serve la tua chiave di Google AI Studio (sopra). RTAD non addebita
+nulla: eventuali costi sono quelli del tuo account Google.
+Il modello usato è Flash.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="immagini">8. Descrivere immagini e «Tutto sull’immagine»</h2>
@@ -467,6 +500,9 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> — Incolla percorso dagli Appunti</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> — verifica aggiornamenti</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> — Trascrivi e cerca…</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> — Conversazioni Gemini</li>
+  <li><kbd>Alt</kbd>+<kbd>G</kbd> — Chiedi a Gemini (report o lettore)</li>
+  <li><kbd>Alt</kbd>+<kbd>F</kbd> — Apri la fonte selezionata</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> / <kbd>L</kbd> — salva / carica profilo</li>
   <li><kbd>F4</kbd> / Spazio — anteprima vocale del risultato</li>
   <li><kbd>F7</kbd> — Mute</li>

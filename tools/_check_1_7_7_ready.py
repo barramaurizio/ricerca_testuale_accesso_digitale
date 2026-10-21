@@ -45,7 +45,7 @@ checks = {
     "Standalone/compila.bat": [r"v1\.7\.7"],
     "Standalone/changelog.txt": [r"Versione 1\.7\.7", r"riga-per-riga"],
     "Standalone/rtad_ocr.py": [
-        r"OCR_CACHE_VERSION = 19",
+        r"OCR_CACHE_VERSION = 20",
         r"rebuild_ocr_reading_order",
     ],
     "Standalone/rtad_guida_pratica.py": [r"versione 1\.7\.7", r"tabelle"],

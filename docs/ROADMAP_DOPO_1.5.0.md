@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.6.7` (GitHub + DataStore OK, 10/10/2026; #12099 → #12100). **Non hotfixare 1.6.7.** `1.6.8` = **pronta al rilascio** (`NOTE_RILASCIO_1.6.8.txt`).
+**Regola versione:** ultima pubblicata = `1.7.7` (GitHub `v1.7.7` / `app-v1.7.7`; DataStore #12333 → #12334, 20/10/2026). **Non hotfixare 1.7.7.** `1.8.0` pronta in locale (prove 21/10), non ancora su GitHub (`docs/PIANO_1.8.0.md`).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -141,7 +141,7 @@ Contenuto previsto `1.6.0`:
 - **Chat Cursor:** nuova chat dedicata per ogni versione; chat **separata** per canale YouTube Accesso Digitale (stesso workspace OK).  
 - **Canale YouTube Accesso Digitale:** ripresa futura (banner, tag, contenuti tech originali); non mescolare con i cicli release RTAD.  
 - **Descrizione audio/video:** **1.6.7 pubblicata** (media gemello; Whisper di massa resta fuori dal nucleo).  
-- **1.6.8:** documenti strutturati + UX salvataggi — **pronta / da pubblicare** (`NOTE_RILASCIO_1.6.8.txt`).  
+- **1.6.8:** documenti strutturati + UX salvataggi — **pubblicata**.  
 - **1.6.9:** PDF TOC/link + app predefinita + titoli report + guida Acrobat/NVDA — **pubblicata** (12/10/2026; DataStore #12149 → #12150).  
 - **1.7.0:** lettore documento + spazi PDF + toast — **pubblicata** (13/10/2026; DataStore #12178 → #12179).  
 - **1.7.1:** PDF-scansione (stem/stampa/UX + date scheda + focus lettore) — **pubblicata**.
@@ -150,7 +150,8 @@ Contenuto previsto `1.6.0`:
 - **1.7.4:** updater Setup↔Portable + guida HTML + shell «Apri» smart — **pubblicata** (17/10/2026; DataStore #12249 → #12250).  
 - **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
 - **1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker — **pubblicata** (19/10/2026; DataStore #12312 → #12313).  
-- **1.7.7:** OCR ordine lettura tabelle / testo a colonne — **pronta / in pubblicazione** (20/10). Piano: `docs/PIANO_1.7.7.md`.
+- **1.7.7:** OCR tabelle riga-per-riga (cache v20 + Vision) + Add-on OCR — **pubblicata** (20/10; DataStore #12333 → #12334).  
+- **Prossima:** `1.8.0` chat Gemini sul file cercato o analizzato — piano `docs/PIANO_1.8.0.md` (21/10/2026). Non serve “riempire” 1.7.8/1.7.9.
 
 ---
 
@@ -171,7 +172,7 @@ Contenuto previsto `1.6.0`:
 13. ~~**1.6.5** polish grafici web + sottomenù PDF/documenti~~ **pubblicata**.  
 14. ~~**1.6.6** dialogo unico + batch + PDF ToUnicode + Gemini API~~ **pubblicata**.  
 15. ~~**1.6.7** descrizione audio/video (MVP media gemello)~~ **pubblicata**.  
-16. **1.6.8** documenti strutturati + UX salvataggi — pronta / da pubblicare.  
+16. ~~**1.6.8** documenti strutturati + UX salvataggi~~ **pubblicata**.  
 17. ~~**1.6.9** PDF TOC/link + app predefinita + titoli report~~ **pubblicata**.  
 18. ~~**1.7.0** lettore + spazi PDF + toast~~ **pubblicata**.  
 19. ~~**1.7.1** — PDF-scansione stem/stampa/UX + date scheda + focus~~ **pubblicata**.  
@@ -180,10 +181,10 @@ Contenuto previsto `1.6.0`:
 22. ~~**1.7.4:** updater Setup/Portable + guida HTML + shell Apri + Sfoglia + istanza unica~~ **pubblicata**.  
 23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pubblicata**.  
 24. ~~**1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker~~ — **pubblicata**.  
-25. **1.7.7:** OCR tabelle riga-per-riga (cache v19) + guida — **pronta / in pubblicazione**.  
-26. Dopo 1.7.7 (lista d’attesa, da scegliere in piano dedicato):  
-    - **Chat post-analisi (idea Maurizio 20/10):** dialogo con Gemini (opt-in, chiave già in RTAD) sul contenuto appena analizzato (immagine/audio/video/documento) — domande, curiosità, approfondimenti. Scope snello: contesto = report/OCR/trascrizione già prodotti; niente chat generica “da zero”; accessibile (campo + cronologia + Copia). Cursor resta strumento di sviluppo, non motore in-app.  
-    - Whisper opt-in leggero **oppure** `.rtad.txt`-only / VIDEO_TS; OneCore native; export multipli.
+25. ~~**1.7.7:** OCR tabelle + Add-on OCR~~ — **pubblicata**.  
+26. **`1.8.0`:** chat Gemini sul file cercato o analizzato (immagini, audio/video, PDF e documenti, risultati di ricerca). Contesto = ciò che RTAD ha già letto; cronologia locale; salva/stampa; data di oggi; web opt-in. Piano: `docs/PIANO_1.8.0.md`. Cursor non è il motore in-app.  
+27. Lista d’attesa (se feedback o dopo 1.8): Whisper opt-in leggero; `.rtad.txt`-only; VIDEO_TS; OneCore native; export multipli.  
+28. Patch `1.7.8` solo se arriva bug/feedback urgente su 1.7.7 (non “per riempire”).
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 
@@ -233,7 +234,7 @@ GitHub `v1.6.9` / `app-v1.6.9`; DataStore #12149 → #12150 (accepted).
 4. ~~Marcatori `[Hn]` / titoli senza spazi in estratto~~.  
 5. Batch media / B0 → **1.7.1+** (rimandati; 1.7.0 = lettore + spazi + toast).
 
-### Fase Q — `1.7.0` (nuovo pacchetto post-documenti) — PRONTA
+### Fase Q — `1.7.0` (nuovo pacchetto post-documenti) — PUBBLICATA
 
 Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 
@@ -259,7 +260,7 @@ Dettaglio: **`docs/PIANO_1.7.0.md`**, note **`docs/NOTE_RILASCIO_1.7.0.txt`**.
 - ~~«Trascrivi e cerca»~~ → **1.7.3**  
 - Incolla Appunti / drag&drop → **1.7.5** (`PIANO_1.7.5.md`)  
 - Whisper locale opt-in; OneCore native → dopo 1.7.7  
-- **Chat post-analisi Gemini** (domande sul file appena analizzato) → candidato forte post-1.7.7  
+- **Chat Gemini sul file** (domande, cronologia, salva/stampa, web) → **`1.8.0`** (`docs/PIANO_1.8.0.md`)  
 - Canale YouTube Accesso Digitale (banner, SEO, contenuti) — chat dedicata  
 - Feedback esterni → aggiornano priorità qui  
 

@@ -89,5 +89,5 @@ Summary:
 Aggiornamento Standalone e Add-on alla v1.7.7
 
 Description:
-OCR ordine lettura riga-per-riga su tabelle/colonne (bbox Y→X, cache v19).
+OCR ordine lettura riga-per-riga su tabelle/colonne (bbox Y→X, cache v20).
 Guida e novità IT/EN allineate; gemello rtad_ocr SA ↔ Add-on.

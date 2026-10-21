@@ -81,7 +81,7 @@ except ImportError:
     rtad_chat = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.0"
+APP_VERSION = "1.8.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -6124,6 +6124,7 @@ class GeminiChatFrame(wx.Frame):
         self._busy = False
         self._abort = False
         self._gen = 0
+        self._live = None
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -6264,6 +6265,12 @@ class GeminiChatFrame(wx.Frame):
             text = rtad_chat.transcript(self.session)
         except Exception:
             text = ""
+        live = getattr(self, "_live", None)
+        if live:
+            question, body = live
+            if not (self.session.get("turns") or []):
+                text = (text or "").replace("(Nessuno scambio ancora.)", "")
+            text = (text or "").rstrip() + f"\n\nTu:\n{question}\n\nGemini:\n{body}\n"
         self.txt_history.SetValue(text or "")
         idx = (text or "").rfind("\nGemini:\n")
         if idx < 0:
@@ -6342,7 +6349,8 @@ class GeminiChatFrame(wx.Frame):
 
     def on_send(self, event=None, question=None):
         if self._busy:
-            speak_accessible("Richiesta già in corso. Esc annulla.")
+            if (self.txt_q.GetValue() or "").strip():
+                speak_accessible("Richiesta già in corso. Esc annulla.")
             return
         if question is None:
             question = self.txt_q.GetValue() or ""
@@ -6368,6 +6376,8 @@ class GeminiChatFrame(wx.Frame):
         session = self.session
         self._set_busy(True)
         self.txt_q.SetValue("")
+        self._live = (question, "In attesa della risposta…")
+        self._render()
         speak_accessible("Gemini sta rispondendo. Esc annulla.")
 
         def _work():
@@ -6397,18 +6407,31 @@ class GeminiChatFrame(wx.Frame):
     def _on_answer(self, gen, question, result):
         if gen != self._gen:
             return
-        self._set_busy(False)
         result = result or {}
         if result.get("aborted") or self._abort:
+            if question:
+                self._live = (question, "Richiesta annullata.")
+            else:
+                self._live = None
+            self._set_busy(False)
+            self.lbl_status.SetLabel("Richiesta annullata.")
+            self._render()
             speak_accessible("Richiesta annullata.")
             self.txt_q.SetFocus()
             return
         if not result.get("ok"):
             err = (result.get("error") or "Gemini non ha risposto.").strip()
+            self._live = (question, err)
+            self._set_busy(False)
+            shown = err if len(err) <= 220 else err[:220] + "…"
+            self.lbl_status.SetLabel(shown)
+            self._render()
+            self.txt_history.SetFocus()
             speak_accessible(err)
             self.txt_q.SetValue(question)
-            self.txt_q.SetFocus()
             return
+        self._live = None
+        self._set_busy(False)
         try:
             rtad_chat.append_exchange(
                 self.session,
@@ -6445,6 +6468,7 @@ class GeminiChatFrame(wx.Frame):
             except Exception as exc:
                 speak_accessible(f"Archivio non riuscito: {exc}")
                 return
+        self._live = None
         self._render()
         self.txt_q.SetFocus()
         speak_accessible("Nuova conversazione. Scrivi la domanda.")
@@ -6609,16 +6633,31 @@ class GeminiChatFrame(wx.Frame):
         event.Skip()
 
     def on_char_hook(self, event):
-        if event.GetKeyCode() == wx.WXK_ESCAPE:
+        key = event.GetKeyCode()
+        if key == wx.WXK_ESCAPE:
             if self._busy:
                 self._abort = True
                 self._gen += 1
+                question = self._live[0] if self._live else ""
+                self._live = (question, "Richiesta annullata.") if question else None
                 self._set_busy(False)
+                self.lbl_status.SetLabel("Richiesta annullata.")
+                self._render()
                 speak_accessible("Richiesta annullata.")
                 self.txt_q.SetFocus()
                 return
             self.Close()
             return
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            focused = self.FindFocus()
+            if (
+                focused is self.txt_q
+                and not event.ShiftDown()
+                and not event.AltDown()
+                and not event.ControlDown()
+            ):
+                self.on_send()
+                return
         event.Skip()
 
 
@@ -7414,6 +7453,11 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
+            "• Se Gemini non risponde, la domanda e il motivo restano\n"
+            "  scritti nel riquadro Conversazione. Si leggono anche senza voce.\n"
+            "• In Esplora file, dentro «Cerca con Accesso Digitale»:\n"
+            "  «Chiedi a Gemini» sul file scelto. La domanda la scrivi tu.\n"
+            "  Vale dopo l'installazione con il Setup.\n"
             "• Conversazione con Gemini sul file già aperto: immagine,\n"
             "  documento (PDF, Word, EPUB…) e audio/video sul report\n"
             "  già prodotto. Più domande, data di oggi, cronologia sul PC.\n"
@@ -14219,6 +14263,7 @@ def _parse_cli_image_action(argv):
         "--copy-doc-text": "copy-doc-text",
         "--copy-pdf-text": "copy-doc-text",
         "--open-doc": "open-doc",
+        "--ask-gemini": "ask-gemini",
     }
     args = list(argv[1:]) if argv else []
     i = 0
@@ -14357,6 +14402,7 @@ def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, de
         "describe-media",
         "transcribe-media",
         "media-url",
+        "ask-gemini",
     )
     if path_for_search and not doc_cli:
         if os.path.isfile(path_for_search):
@@ -14456,6 +14502,32 @@ def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, de
         _later(lambda: frame.copy_document_text_file(cli_path))
     elif cli_mode == "describe-pdf" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.describe_image_from_pdf(cli_path, mode="describe"))
+    elif cli_mode == "ask-gemini" and cli_path and os.path.isfile(cli_path):
+        def _ask_gemini(path=cli_path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext in IMG_EXTS:
+                open_gemini_chat("image", path, parent=frame)
+                return
+            if ext in MEDIA_EXTS:
+                open_gemini_chat(
+                    "document",
+                    path,
+                    struct={
+                        "body": "",
+                        "plain": "",
+                        "outline": [],
+                        "message": (
+                            "Nessuna trascrizione già aperta. "
+                            "Per il parlato, genera prima il report audio/video "
+                            "e poi chiedi da quella finestra."
+                        ),
+                    },
+                    parent=frame,
+                )
+                return
+            open_gemini_chat("document", path, parent=frame)
+
+        _later(_ask_gemini)
     elif cli_mode and cli_path and os.path.isfile(cli_path):
         mode = "describe" if cli_mode == "copy-describe" else cli_mode
         copy_only = cli_mode == "copy-describe"

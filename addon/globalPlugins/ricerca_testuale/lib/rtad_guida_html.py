@@ -128,6 +128,10 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
+    <li><strong>Gemini a schermo:</strong> se non arriva una risposta, la domanda
+      e il motivo restano scritti nel riquadro Conversazione.</li>
+    <li><strong>Esplora file</strong> (solo Standalone installata): dentro
+      «Cerca con Accesso Digitale» c’è «Chiedi a Gemini» sul file scelto.</li>
     <li><strong>Conversazione con Gemini</strong> sul file già aperto
       (immagine, documento, audio/video sul report). Più domande, data di
       oggi, cronologia sul PC, copia, salva e stampa.
@@ -422,9 +426,9 @@ il programma può segnalarlo e proporti l’aggiornamento.</p>
 appare <strong>Cerca con Accesso Digitale</strong>:</p>
 <ul>
   <li>su <strong>cartelle</strong>: cerca in quella cartella; batch immagini o audio/video;</li>
-  <li>su <strong>immagini</strong>: Apri/analizza, Descrivi, OCR, etichette, scheda…;</li>
-  <li>su <strong>audio/video</strong>: Apri/analizza, Tutto sull’AV, scheda…;</li>
-  <li>su <strong>documenti/PDF/xlsx</strong>: Apri, Leggi testo, Copia testo…</li>
+  <li>su <strong>immagini</strong>: Apri/analizza, Descrivi, OCR, etichette, scheda, Chiedi a Gemini…;</li>
+  <li>su <strong>audio/video</strong>: Apri/analizza, Tutto sull’AV, scheda, Chiedi a Gemini…;</li>
+  <li>su <strong>documenti/PDF/xlsx</strong>: Apri, Leggi testo, Copia testo, Chiedi a Gemini…</li>
 </ul>
 <p>Se il programma è già aperto, il comando arriva alla finestra esistente
 (niente seconda copia dispersiva).</p>

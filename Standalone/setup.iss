@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=1.8.0
+AppVersion=1.8.1
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.8.0
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.8.1
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -468,6 +468,96 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\03descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe-media ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\04scheda"; ValueType: string; ValueData: "Scheda tecnica"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\04scheda\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-tech ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tif\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.tiff\shell\RicercaTestualeAccessoDigitaleImg\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.docx\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.xlsx\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.odt\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.odt\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.epub\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.epub\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.html\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.html\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.htm\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.htm\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.rtf\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.rtf\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.csv\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.csv\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\RicercaTestualeAccessoDigitaleDoc\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
 
 [Run]
 Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Description: "{cm:LaunchProgram,Ricerca Testuale Accesso Digitale}"; Flags: nowait postinstall skipifsilent

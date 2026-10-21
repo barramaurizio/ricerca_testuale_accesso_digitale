@@ -550,6 +550,41 @@ def _safe_err(model: str, exc: Exception) -> str:
     return f"{model}: {text}" if model else text
 
 
+def _readable_error(err: str) -> str:
+    """Frase da mostrare. Il dettaglio tecnico resta nel log."""
+    raw = (err or "").strip()
+    low = raw.lower()
+    if "429" in raw or "resource_exhausted" in low or "quota" in low:
+        return (
+            "Gemini non ha risposto: per questa chiave le richieste disponibili sono esaurite. "
+            "Si riprova più tardi."
+        )
+    if any(code in raw for code in ("401", "403")) or "api key" in low or "api_key" in low:
+        return "Gemini non ha risposto: la chiave API non è accettata. Controlla in Strumenti."
+    if "timed out" in low or "timeout" in low:
+        return "Gemini non ha risposto: tempo scaduto. Riprova."
+    if "testo vuoto" in low or "nessuna risposta" in low:
+        return "Gemini non ha risposto: è arrivata una risposta vuota."
+    if not raw:
+        return "Gemini non ha risposto."
+    if len(raw) > 400:
+        return raw[:400] + "…"
+    return raw
+
+
+def _fail(error: str, model: str = "", aborted: bool = False) -> dict:
+    raw = (error or "").strip()
+    if raw and not aborted:
+        logging.warning(f"Chat Gemini fallita: {raw}")
+    return {
+        "ok": False,
+        "text": "",
+        "model": model or "",
+        "error": "" if aborted else _readable_error(raw),
+        "aborted": aborted,
+    }
+
+
 def _model_candidates(key: str) -> list:
     if rtad_ocr is not None and hasattr(rtad_ocr, "_gemini_model_candidates"):
         try:
@@ -700,35 +735,23 @@ def ask(
     """Un turno. Non modifica session: lo fa chi chiama, se ok."""
     question = (question or "").strip()
     if not question:
-        return {"ok": False, "text": "", "model": "", "error": "Domanda vuota.", "aborted": False}
+        return _fail("Domanda vuota.")
     if should_abort and should_abort():
-        return {"ok": False, "text": "", "model": "", "error": "", "aborted": True}
+        return _fail("", aborted=True)
     key = ""
     if rtad_ocr is not None and hasattr(rtad_ocr, "get_gemini_api_key"):
         key = (rtad_ocr.get_gemini_api_key() or "").strip()
     if not key:
-        return {
-            "ok": False,
-            "text": "",
-            "model": "",
-            "error": "Chiave API Gemini assente. Aggiungila da Strumenti.",
-            "aborted": False,
-        }
+        return _fail("Chiave API Gemini assente. Aggiungila da Strumenti.")
     models = _model_candidates(key)
     if not models:
-        return {
-            "ok": False,
-            "text": "",
-            "model": "",
-            "error": "Nessun modello Gemini disponibile per questa chiave.",
-            "aborted": False,
-        }
+        return _fail("Nessun modello Gemini disponibile per questa chiave.")
     payload = build_payload(session, question, use_web, when)
     web_note = ""
     last_err = ""
     for model in models:
         if should_abort and should_abort():
-            return {"ok": False, "text": "", "model": "", "error": "", "aborted": True}
+            return _fail("", aborted=True)
         ok, data, err = _post_generate(model, key, payload)
         if not ok and use_web and int((data or {}).get("_http") or 0) == 400:
             fallback = dict(payload)
@@ -746,8 +769,7 @@ def ask(
                 continue
             if code == 400 and "not found" in (err or "").lower():
                 continue
-            logging.warning(f"Chat Gemini fallita: {last_err}")
-            return {"ok": False, "text": "", "model": model, "error": last_err, "aborted": False}
+            return _fail(last_err, model)
         text, _finish, parse_err = _text_from_response(data)
         if text:
             if web_note and web_note.strip() not in text:
@@ -755,13 +777,7 @@ def ask(
             return {"ok": True, "text": text, "model": model, "error": "", "aborted": False}
         last_err = f"{model}: {parse_err or 'testo vuoto'}"
         continue
-    return {
-        "ok": False,
-        "text": "",
-        "model": "",
-        "error": last_err or "Nessun modello ha risposto.",
-        "aborted": False,
-    }
+    return _fail(last_err or "Nessun modello ha risposto.")
 
 
 def append_exchange(session: dict, question: str, answer: str, model: str = "") -> None:

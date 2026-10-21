@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.7.7` (GitHub `v1.7.7` / `app-v1.7.7`; DataStore #12333 → #12334, 20/10/2026). **Non hotfixare 1.7.7.** `1.8.0` pronta in locale (prove 21/10), non ancora su GitHub (`docs/PIANO_1.8.0.md`).
+**Regola versione:** ultima pubblicata = `1.8.0` (GitHub `v1.8.0` / `app-v1.8.0`; DataStore #12370 → #12371, 21/10/2026). **Non hotfixare 1.8.0.** Prossima eventuale: `1.8.1` (`docs/PIANO_1.8.1.md`).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -182,9 +182,9 @@ Contenuto previsto `1.6.0`:
 23. ~~**1.7.5:** OCR orizzontale + Trova copie + Incolla/drag~~ — **pubblicata**.  
 24. ~~**1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker~~ — **pubblicata**.  
 25. ~~**1.7.7:** OCR tabelle + Add-on OCR~~ — **pubblicata**.  
-26. **`1.8.0`:** chat Gemini sul file cercato o analizzato (immagini, audio/video, PDF e documenti, risultati di ricerca). Contesto = ciò che RTAD ha già letto; cronologia locale; salva/stampa; data di oggi; web opt-in. Piano: `docs/PIANO_1.8.0.md`. Cursor non è il motore in-app.  
-27. Lista d’attesa (se feedback o dopo 1.8): Whisper opt-in leggero; `.rtad.txt`-only; VIDEO_TS; OneCore native; export multipli.  
-28. Patch `1.7.8` solo se arriva bug/feedback urgente su 1.7.7 (non “per riempire”).
+26. ~~**`1.8.0`:** chat Gemini sul file~~ — **pubblicata** (21/10; DataStore #12370 → #12371).  
+27. **`1.8.1`:** se non c’è feedback, chat da un `.rtad.txt` già salvato, senza rifare l’analisi. Piano: `docs/PIANO_1.8.1.md`.  
+28. Lista d’attesa: Whisper opt-in (versione dedicata, non il giorno dopo); confronto tra più file; VIDEO_TS; OneCore; export multipli.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

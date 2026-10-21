@@ -1,3 +1,8 @@
+Novità nella Versione 1.8.1
+- Gemini: se non arriva un testo, domanda e motivo restano scritti in Conversazione (anche senza voce) e nel log
+- Standalone installata: in Esplora file, «Cerca con Accesso Digitale» → «Chiedi a Gemini» sul file scelto
+- Resta la conversazione sul file della 1.8.0
+
 Novità nella Versione 1.8.0
 - Conversazione Gemini sul file già aperto (immagine, documento, audio/video sul report)
 - Cronologia sul PC, copia, salva .chat.txt, stampa, nuova conversazione

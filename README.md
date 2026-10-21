@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.0)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.1)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.1
+
+- **Gemini a schermo:** se non arriva un testo, la domanda e il motivo restano scritti nel riquadro Conversazione, anche senza voce. La stessa frase finisce nel log.
+- **Esplora file** (Standalone installata): dentro «Cerca con Accesso Digitale» c’è «Chiedi a Gemini» sul file scelto. La domanda la scrivi tu. L’Add-on non aggiunge voci in Esplora file.
+- Resta la conversazione sul file della 1.8.0.
 
 ### 🌟 Novità della Versione 1.8.0
 
@@ -230,6 +236,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.1
+
+- **Gemini on screen:** if no text comes back, the question and the reason stay written in the Conversation box, even with speech off. The same sentence is written to the log.
+- **File Explorer** (installed Standalone): inside “Search with Accesso Digitale” there is “Ask Gemini” on the selected file. You still type the question. The add-on does not add Explorer items.
+- The 1.8.0 conversation on an open file remains.
 
 ### 🌟 What's New in Version 1.8.0
 

@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.8.1
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.1
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Correzione: se Gemini non manda un testo, la domanda e il motivo restano scritti nel riquadro Conversazione, anche senza voce. La stessa frase finisce nel log.
+- Nella Standalone installata, in Esplora file, dentro «Cerca con Accesso Digitale», c’è «Chiedi a Gemini» sul file scelto. La domanda la scrivi tu.
+- L’Add-on non aggiunge voci in Esplora file. Resta la conversazione sul file della 1.8.0.
+
+## 🇬🇧 English
+
+- Fix: if Gemini returns no text, the question and the reason stay written in the Conversation box, even with speech off. The same sentence is written to the log.
+- In the installed Standalone, File Explorer’s “Search with Accesso Digitale” menu has “Ask Gemini” on the selected file. You still type the question.
+- The add-on does not add File Explorer items. The 1.8.0 conversation on an open file remains.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.1.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.1
+
+Descrizione:
+stessa della release Add-on (i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.1.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.1.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Gemini: domanda e motivo restano scritti se non arriva una risposta.
+
+Summary EN:
+Gemini: the question and the reason stay on screen if no answer arrives.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.1/ricerca_testuale_accesso_digitale-1.8.1.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Correzione Gemini a schermo e voce Chiedi a Gemini in Esplora file (v1.8.1)
+
+Description:
+Se Gemini non restituisce un testo, la domanda e il motivo restano nel riquadro Conversazione e nel log. Nella Standalone installata, il menu Esplora file ha Chiedi a Gemini sul file scelto. Add-on allineato sulla correzione a schermo.

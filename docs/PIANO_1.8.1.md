@@ -1,10 +1,7 @@
 # Piano RTAD 1.8.1
 
-**Ultima pubblicata:** `1.8.0` — chat Gemini sul file.  
-GitHub `v1.8.0` / `app-v1.8.0` (21/10/2026, commit `a7fcb79`). DataStore #12370 → #12371 (accepted).  
-**Non hotfixare 1.8.0.** Un bug emerso dall’uso va in 1.8.1.
-
-**Questa versione:** `1.8.1`, correzione uscita lo stesso giorno della 1.8.0.
+**Pubblicata** il 21/10/2026, lo stesso giorno della 1.8.0. Prove Maurizio OK.  
+**Non hotfixare.** Il seguito è `docs/PIANO_1.8.2.md`.
 
 ## Cosa c’è nella 1.8.1
 
@@ -40,6 +37,6 @@ Quel punto **sostituisce** la funzione qui sopra. Non si mettono insieme. Si ann
 
 ## Come ripartire
 
-Titolo: **«RTAD 1.8.1»**
-
-«leggere NOTE_CONTESTO + PIANO_1.8.1; non toccare la 1.8.0 pubblicata; se non c’è feedback, partire dal .rtad.txt già salvato»
+Il punto «`.rtad.txt` già salvato» era passato a `docs/PIANO_1.8.2.md`.  
+Il 21/10 sera il feedback di papà (503 e 429, credito ancora presente) lo ha sostituito: la 1.8.2 sistema quello. Il `.rtad.txt` resta in lista per la versione dopo.  
+Titolo della prossima chat: **«RTAD 1.8.2»**.

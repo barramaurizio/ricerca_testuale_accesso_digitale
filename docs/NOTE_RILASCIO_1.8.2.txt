@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.8.2
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.2
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Se Gemini è occupato sul primo modello (HTTP 503), RTAD prova il modello successivo. Vale per la chat, la descrizione immagine e l’audio/video.
+- La frase a schermo non parla più di credito finito: o il servizio è occupato, o c’è un limite temporaneo di richieste. Se Google scrive che manca il pagamento, si legge quella frase.
+- Una lettera, una azione. Sulla finestra principale: Alt+L chiave Google, Alt+H chiave Gemini, Alt+B conversazioni. Alt+G resta i Segnalibri. «Chiedi a Gemini» sul report resta Alt+G. Ctrl+Shift+G resta.
+- Le cronologie di Standalone e Add-on restano separate.
+
+## 🇬🇧 English
+
+- If Gemini is busy on the first model (HTTP 503), RTAD tries the next model. This covers chat, image description, and audio/video.
+- The on-screen sentence no longer talks as if the credit were gone: either the service is busy, or there is a temporary request limit. If Google writes that payment is missing, that sentence is shown.
+- One letter, one action. On the main window: Alt+L Google key, Alt+H Gemini key, Alt+B conversations. Alt+G remains Bookmarks. “Ask Gemini” on a report remains Alt+G. Ctrl+Shift+G remains.
+- Standalone and add-on histories stay separate.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.2.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.2
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.2.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.2.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Gemini prova il modello successivo se il servizio è occupato, e i tasti doppi sono stati separati.
+
+Summary EN:
+Gemini tries the next model when the service is busy, and duplicate shortcut letters are split.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.2/ricerca_testuale_accesso_digitale-1.8.2.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Gemini: modello successivo se il servizio è occupato, e tasti senza doppioni (v1.8.2)
+
+Description:
+Se Gemini risponde HTTP 503, si prova il modello dopo (chat, immagini, audio/video). La frase a schermo distingue servizio occupato e limite temporaneo, senza parlare di credito. Alt+L, Alt+H e Alt+B separano chiave Google, chiave Gemini e conversazioni. Alt+G sulla finestra principale resta i Segnalibri.

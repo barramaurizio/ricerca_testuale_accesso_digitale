@@ -223,6 +223,64 @@ def gemini_last_error() -> str:
     return _gemini_last_error or ""
 
 
+_GEMINI_BILLING_HINTS = (
+    "billing",
+    "payment",
+    "pagamento",
+    "credito insufficiente",
+    "insufficient credit",
+    "prepay",
+    "delinquent",
+    "enable billing",
+)
+
+
+def readable_gemini_error(err: str) -> str:
+    """Frase da mostrare. Il dettaglio tecnico resta nel log.
+
+    Un 503 o «high demand» non è il credito finito. Un 429 senza parole
+    di pagamento è un tetto temporaneo. Se Google parla di billing,
+    si lascia la sua frase.
+    """
+    raw = (err or "").strip()
+    low = raw.lower()
+    if not raw:
+        return "Gemini non ha risposto."
+    if any(hint in low for hint in _GEMINI_BILLING_HINTS):
+        if len(raw) > 400:
+            return raw[:400] + "…"
+        return raw
+    http = 0
+    match = re.search(r"HTTP\s+(\d{3})", raw)
+    if match:
+        http = int(match.group(1))
+    busy = http == 503 or (
+        http == 0 and ("unavailable" in low or "high demand" in low)
+    )
+    if busy:
+        return (
+            "Gemini non ha risposto: il servizio è occupato. "
+            "Si riprova più tardi."
+        )
+    if http == 429 or "resource_exhausted" in low or "quota" in low:
+        return (
+            "Gemini non ha risposto: per questa chiave c’è un limite "
+            "temporaneo di richieste. Si riprova più tardi."
+        )
+    if http in (401, 403) or "api key" in low or "api_key" in low:
+        return (
+            "Gemini non ha risposto: la chiave API non è accettata. "
+            "Controlla in Strumenti."
+        )
+    if "timed out" in low or "timeout" in low:
+        return "Gemini non ha risposto: tempo scaduto. Riprova."
+    if "testo vuoto" in low or "nessuna risposta" in low:
+        return "Gemini non ha risposto: è arrivata una risposta vuota."
+    if len(raw) > 400:
+        return raw[:400] + "…"
+    return raw
+
+
 def google_available(force_recheck: bool = False) -> bool:
     """True se c’è una chiave API configurata (la validità si verifica al primo uso)."""
     global _google_last_error
@@ -4131,8 +4189,13 @@ def _gemini_generate_description(
             last_err = f"HTTP {e.code} ({model})"
             if err_body:
                 last_err += f": {err_body}"
-            # 404/429: prova il modello successivo
-            if e.code in (404, 429):
+            # 404 modello assente, 429 tetto temporaneo, 503 servizio occupato.
+            if e.code in (404, 429, 503):
+                logging.info(
+                    "Gemini %s HTTP %s, provo il modello successivo",
+                    model,
+                    e.code,
+                )
                 continue
             # 400 spesso = modello non adatto all'immagine → continua
             if e.code == 400 and "not found" in (err_body or "").lower():
@@ -4182,6 +4245,9 @@ def _gemini_generate_description(
     if len(tried) > 6:
         short_tried += f"… (+{len(tried) - 6})"
     _gemini_last_error = last_err or "nessun modello Gemini disponibile"
+    logging.warning(
+        f"Gemini descrizione fallita: {_gemini_last_error} [provati: {short_tried}]"
+    )
     return (
         "",
         f"gemini: {_gemini_last_error} [provati: {short_tried}]",
@@ -4231,7 +4297,8 @@ def describe_image_gemini(path: str, should_abort=None, use_cache: bool = True) 
 
     text, diag = _gemini_generate_description(path, should_abort=should_abort)
     if not text:
-        result["error"] = diag or (_gemini_last_error or "Descrizione Gemini non riuscita.")
+        technical = diag or (_gemini_last_error or "Descrizione Gemini non riuscita.")
+        result["error"] = readable_gemini_error(technical)
         return result
     result["ok"] = True
     result["text"] = text
@@ -4306,7 +4373,8 @@ def describe_image_alt_text(path: str, should_abort=None, use_cache: bool = True
         append_truncation_note=False,
     )
     if not text:
-        result["error"] = diag or (_gemini_last_error or "Alt-text Gemini non riuscito.")
+        technical = diag or (_gemini_last_error or "Alt-text Gemini non riuscito.")
+        result["error"] = readable_gemini_error(technical)
         return result
     clean = _clean_alt_text(text)
     if len(clean) < 24 or "**" in clean or re.search(r"\bContext:\b", clean):
@@ -4543,7 +4611,11 @@ def describe_image(
                 parts.extend(["", tech_block])
             return "\n".join(parts).strip()
         # Gemini fallita: continua con fallback Vision (segnala l’errore)
-        note = adv.get("error") or gemini_last_error() or "Gemini non disponibile."
+        note = (
+            adv.get("error")
+            or readable_gemini_error(gemini_last_error())
+            or "Gemini non disponibile."
+        )
         visual = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
         base = format_image_description(
             path, visual=visual, tech=tech,

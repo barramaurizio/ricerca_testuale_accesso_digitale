@@ -505,7 +505,10 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> — verifica aggiornamenti</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> — Trascrivi e cerca…</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> — Conversazioni Gemini</li>
-  <li><kbd>Alt</kbd>+<kbd>G</kbd> — Chiedi a Gemini (report o lettore)</li>
+  <li><kbd>Alt</kbd>+<kbd>B</kbd> — Conversazioni Gemini (finestra principale)</li>
+  <li><kbd>Alt</kbd>+<kbd>L</kbd> — Chiave Google Vision</li>
+  <li><kbd>Alt</kbd>+<kbd>H</kbd> — Chiave Gemini</li>
+  <li><kbd>Alt</kbd>+<kbd>G</kbd> — Segnalibri. Sul report o nel lettore: Chiedi a Gemini</li>
   <li><kbd>Alt</kbd>+<kbd>F</kbd> — Apri la fonte selezionata</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> / <kbd>L</kbd> — salva / carica profilo</li>
   <li><kbd>F4</kbd> / Spazio — anteprima vocale del risultato</li>

@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.1)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.2)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.2
+
+- **Modello successivo:** se Gemini risponde «servizio occupato» (HTTP 503) sul primo modello, RTAD prova i modelli dopo, come già faceva per 404 e 429. Chat, descrizione immagine e audio/video.
+- **Frase chiara:** un tetto temporaneo di richieste non viene più scritto come credito finito. Il servizio occupato ha una frase sua. Se Google parla di pagamento, si mostra la frase di Google. Il dettaglio tecnico resta nel log.
+- **Una lettera, una azione:** sulla finestra principale Alt+L è la chiave Google, Alt+H la chiave Gemini, Alt+B le conversazioni. Alt+G resta i Segnalibri. Alt+M resta Strumenti. «Chiedi a Gemini» sul report resta Alt+G. Ctrl+Shift+G resta. Stessi tasti sull’Add-on. Sistemate anche le lettere doppie dentro gli stessi menu e dialoghi.
+- Le cronologie di Standalone e Add-on restano separate.
 
 ### 🌟 Novità della Versione 1.8.1
 
@@ -236,6 +243,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.2
+
+- **Next model:** if Gemini says the service is busy (HTTP 503) on the first model, RTAD tries the following models, as it already did for 404 and 429. Chat, image description, and audio/video.
+- **Clear sentence:** a temporary request limit is no longer worded as if the credit were gone. A busy service has its own sentence. If Google mentions payment, Google’s sentence is shown. The technical detail stays in the log.
+- **One letter, one action:** on the main window Alt+L is the Google key, Alt+H the Gemini key, Alt+B the conversations. Alt+G remains Bookmarks. Alt+M remains Tools. “Ask Gemini” on a report remains Alt+G. Ctrl+Shift+G remains. Same keys in the add-on. Duplicate letters inside the same menu or dialog are fixed too.
+- Standalone and add-on histories stay separate.
 
 ### 🌟 What's New in Version 1.8.1
 

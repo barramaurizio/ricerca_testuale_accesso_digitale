@@ -552,24 +552,13 @@ def _safe_err(model: str, exc: Exception) -> str:
 
 def _readable_error(err: str) -> str:
     """Frase da mostrare. Il dettaglio tecnico resta nel log."""
+    if rtad_ocr is not None and hasattr(rtad_ocr, "readable_gemini_error"):
+        try:
+            return rtad_ocr.readable_gemini_error(err)
+        except Exception:
+            logging.debug("Frase Gemini non tradotta", exc_info=True)
     raw = (err or "").strip()
-    low = raw.lower()
-    if "429" in raw or "resource_exhausted" in low or "quota" in low:
-        return (
-            "Gemini non ha risposto: per questa chiave le richieste disponibili sono esaurite. "
-            "Si riprova più tardi."
-        )
-    if any(code in raw for code in ("401", "403")) or "api key" in low or "api_key" in low:
-        return "Gemini non ha risposto: la chiave API non è accettata. Controlla in Strumenti."
-    if "timed out" in low or "timeout" in low:
-        return "Gemini non ha risposto: tempo scaduto. Riprova."
-    if "testo vuoto" in low or "nessuna risposta" in low:
-        return "Gemini non ha risposto: è arrivata una risposta vuota."
-    if not raw:
-        return "Gemini non ha risposto."
-    if len(raw) > 400:
-        return raw[:400] + "…"
-    return raw
+    return raw or "Gemini non ha risposto."
 
 
 def _fail(error: str, model: str = "", aborted: bool = False) -> dict:
@@ -765,7 +754,12 @@ def ask(
         if not ok:
             last_err = err or "errore Gemini"
             code = int((data or {}).get("_http") or 0)
-            if code in (404, 429):
+            if code in (404, 429, 503):
+                logging.info(
+                    "Chat Gemini %s HTTP %s, provo il modello successivo",
+                    model,
+                    code,
+                )
                 continue
             if code == 400 and "not found" in (err or "").lower():
                 continue

@@ -28,21 +28,30 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.1
+Novità recenti (in parole semplici) — versione 1.8.2
 ----------------------------------------------------
-• Se Gemini non risponde, la domanda e il motivo restano scritti
-  nel riquadro Conversazione. Li leggi anche se la voce è spenta.
-• Sul programma Windows installato, in Esplora file, dentro
-  «Cerca con Accesso Digitale», c’è «Chiedi a Gemini» sul file
-  su cui sei. La domanda la scrivi tu. L’Add-on non aggiunge
-  voci in Esplora file.
-• Resta dalla 1.8.0: più domande a Gemini su un file già aperto:
-  una foto, un documento, oppure un audio o un video di cui
-  hai già il resoconto. Non è una chat vuota: parla di quel file.
-• Trovi «Conversazioni Gemini» accanto ad Avvia ricerca e in
-  Strumenti (Ctrl+Shift+G). Sul resoconto o nel lettore del
-  documento: «Chiedi a Gemini» (Alt+G). Sul risultato di una
-  ricerca: tasto Applicazioni, poi Chiedi oppure Riprendi.
+• Se Gemini è occupato su un modello, il programma prova da solo
+  quello dopo. Non si ferma al primo «riprova più tardi».
+• Se la risposta non arriva, la frase distingue: servizio occupato,
+  oppure un limite temporaneo di richieste per quella chiave.
+  Non dice che il credito è finito. Se Google scrive che manca
+  il pagamento, quella frase resta com’è. Il credito ancora
+  disponibile non c’entra con questi due casi.
+• I tasti che si pestavano ora fanno una cosa sola.
+  Sulla finestra principale: Alt+L chiave Google, Alt+H chiave
+  Gemini, Alt+B conversazioni. Alt+G apre i Segnalibri.
+  Alt+M apre Strumenti. «Chiedi a Gemini» sul resoconto resta
+  Alt+G. Ctrl+Shift+G per le conversazioni resta.
+• Le conversazioni del programma Windows e quelle dell’Add-on
+  restano due elenchi diversi: uno nella cartella del programma,
+  l’altro nel profilo di NVDA.
+• Resta dalla 1.8.1: se Gemini non risponde, domanda e motivo
+  restano scritti. Sul programma Windows installato, in Esplora
+  file, c’è «Chiedi a Gemini» sul file su cui sei.
+• «Conversazioni Gemini» è accanto ad Avvia ricerca (Alt+B)
+  e in Strumenti (Ctrl+Shift+G). Sul resoconto o nel lettore:
+  «Chiedi a Gemini» (Alt+G). Sul risultato di una ricerca:
+  tasto Applicazioni, poi Chiedi oppure Riprendi.
 • La risposta può distinguere ciò che è nel file da un
   approfondimento sul web (la casella è accesa; puoi spegnerla).
 • I link non si aprono con Invio sull’elenco. Per aprirne uno:
@@ -53,8 +62,6 @@ Novità recenti (in parole semplici) — versione 1.8.1
 • Se parti da un indirizzo Internet, la conversazione prende
   il titolo del video, non il nome di un file temporaneo.
   Salva propone l’ultima cartella che hai usato.
-• Il programma Windows e l’Add-on fanno la stessa cosa, ma
-  le conversazioni già fatte in uno non compaiono nell’altro.
 • Resta da 1.7.7: il testo delle tabelle in foto, riga per riga.
 
 

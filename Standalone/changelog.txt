@@ -1,3 +1,9 @@
+Novità nella Versione 1.8.2
+- Gemini: dopo un HTTP 503 (servizio occupato) si prova il modello successivo, in chat, descrizione immagine e audio/video
+- La frase a schermo non parla di credito finito: servizio occupato, oppure limite temporaneo di richieste. Se Google parla di pagamento, resta la frase di Google
+- Tasti: Alt+L chiave Google, Alt+H chiave Gemini, Alt+B conversazioni. Alt+G sulla finestra principale è Segnalibri. Una lettera per voce anche nei menu e nei dialoghi che si pestavano
+- Le cronologie Gemini di Standalone e Add-on restano separate
+
 Novità nella Versione 1.8.1
 - Gemini: se non arriva un testo, domanda e motivo restano scritti in Conversazione (anche senza voce) e nel log
 - Standalone installata: in Esplora file, «Cerca con Accesso Digitale» → «Chiedi a Gemini» sul file scelto

@@ -81,7 +81,7 @@ except ImportError:
     rtad_chat = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.1"
+APP_VERSION = "1.8.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -5014,7 +5014,7 @@ class TranscriptGlossaryDialog(wx.Dialog):
         vbox.Add(grid, 0, wx.EXPAND | wx.ALL, 10)
 
         h_btns = wx.BoxSizer(wx.HORIZONTAL)
-        btn_add = wx.Button(self, label="&Aggiungi / aggiorna")
+        btn_add = wx.Button(self, label="A&ggiungi / aggiorna")
         btn_add.Bind(wx.EVT_BUTTON, self._on_add)
         h_btns.Add(btn_add, 0, wx.RIGHT, 6)
         btn_del = wx.Button(self, label="&Rimuovi selezionata")
@@ -5023,7 +5023,7 @@ class TranscriptGlossaryDialog(wx.Dialog):
         vbox.Add(h_btns, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         h_ok = wx.BoxSizer(wx.HORIZONTAL)
-        btn_ok = wx.Button(self, wx.ID_OK, label="&Salva")
+        btn_ok = wx.Button(self, wx.ID_OK, label="Sal&va")
         btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
         btn_ok.SetDefault()
         h_ok.Add(btn_ok, 0, wx.ALL, 5)
@@ -5284,7 +5284,7 @@ class ImageSectionsDialog(wx.Dialog):
             self.chk_save.SetValue(True)
             vbox.Add(self.chk_save, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
             self.chk_recursive = wx.CheckBox(
-                self, label="Includi anche le &sottocartelle"
+                self, label="Includi anche le sott&ocartelle"
             )
             self.chk_recursive.SetValue(False)
             vbox.Add(self.chk_recursive, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
@@ -5299,7 +5299,7 @@ class ImageSectionsDialog(wx.Dialog):
         vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
 
         hbox = wx.BoxSizer(wx.HORIZONTAL)
-        btn_ok = wx.Button(self, wx.ID_OK, label="&Avvia analisi")
+        btn_ok = wx.Button(self, wx.ID_OK, label="A&vvia analisi")
         btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
         btn_ok.SetDefault()
         hbox.Add(btn_ok, 0, wx.ALL, 5)
@@ -5429,7 +5429,7 @@ class MediaSectionsDialog(wx.Dialog):
             vbox.Add(h_yt, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
             wx.CallAfter(self._refresh_ytdlp_label)
 
-        self.chk_tech = wx.CheckBox(self, label="&Scheda tecnica")
+        self.chk_tech = wx.CheckBox(self, label="Sche&da tecnica")
         self.chk_tech.SetValue(bool(preset.get("include_tech", True)))
         vbox.Add(self.chk_tech, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self.chk_describe = wx.CheckBox(self, label="&Riassunto accessibile (Gemini)")
@@ -5457,7 +5457,7 @@ class MediaSectionsDialog(wx.Dialog):
             self.chk_save.SetValue(True)
             vbox.Add(self.chk_save, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
             self.chk_recursive = wx.CheckBox(
-                self, label="Includi anche le &sottocartelle"
+                self, label="Includi anche le sott&ocartelle"
             )
             self.chk_recursive.SetValue(False)
             vbox.Add(self.chk_recursive, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
@@ -6137,7 +6137,7 @@ class GeminiChatFrame(wx.Frame):
         )
         vbox.Add(self.lbl_status, 0, wx.ALL | wx.EXPAND, 8)
 
-        vbox.Add(wx.StaticText(panel, label="&Conversazione"), 0, wx.LEFT | wx.RIGHT, 8)
+        vbox.Add(wx.StaticText(panel, label="Conversazione"), 0, wx.LEFT | wx.RIGHT, 8)
         self.txt_history = wx.TextCtrl(
             panel,
             style=wx.TE_MULTILINE | wx.TE_READONLY,
@@ -6151,7 +6151,7 @@ class GeminiChatFrame(wx.Frame):
         vbox.Add(
             wx.StaticText(
                 panel,
-                label="&Fonti e link. Per aprirne una: pulsante Apri fonte, poi Invio. Alt+F.",
+                label="Fonti e link. Per aprirne una: pulsante Apri fonte, poi Invio. Alt+F.",
             ),
             0,
             wx.LEFT | wx.RIGHT,
@@ -6191,7 +6191,7 @@ class GeminiChatFrame(wx.Frame):
         row1.Add(self.chk_web, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         vbox.Add(row1, 0, wx.LEFT | wx.RIGHT, 8)
 
-        vbox.Add(wx.StaticText(panel, label="Domande &pronte"), 0, wx.LEFT | wx.RIGHT, 8)
+        vbox.Add(wx.StaticText(panel, label="Domande pronte"), 0, wx.LEFT | wx.RIGHT, 8)
         self.lst_suggest = wx.ListBox(panel, style=wx.LB_SINGLE)
         try:
             self.lst_suggest.SetName("Domande pronte")
@@ -6701,7 +6701,7 @@ class DocumentStructureFrame(wx.Frame):
 
         if self.outline:
             vbox.Add(
-                wx.StaticText(panel, label="&Sommario / titoli"),
+                wx.StaticText(panel, label="S&ommario / titoli"),
                 0,
                 wx.LEFT | wx.RIGHT,
                 8,
@@ -6728,7 +6728,7 @@ class DocumentStructureFrame(wx.Frame):
 
         if self.links:
             vbox.Add(
-                wx.StaticText(panel, label="&Link nel documento"),
+                wx.StaticText(panel, label="Lin&k nel documento"),
                 0,
                 wx.LEFT | wx.RIGHT,
                 8,
@@ -7453,25 +7453,20 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Se Gemini non risponde, la domanda e il motivo restano\n"
-            "  scritti nel riquadro Conversazione. Si leggono anche senza voce.\n"
-            "• In Esplora file, dentro «Cerca con Accesso Digitale»:\n"
-            "  «Chiedi a Gemini» sul file scelto. La domanda la scrivi tu.\n"
-            "  Vale dopo l'installazione con il Setup.\n"
-            "• Conversazione con Gemini sul file già aperto: immagine,\n"
-            "  documento (PDF, Word, EPUB…) e audio/video sul report\n"
-            "  già prodotto. Più domande, data di oggi, cronologia sul PC.\n"
-            "• Copia, Salva, Stampa. Nuova conversazione e Cronologia.\n"
-            "  Pulsante «Conversazioni Gemini» e Strumenti (Ctrl+Shift+G).\n"
-            "  Dal menu di un risultato: Chiedi, oppure Riprendi.\n"
-            "• Web acceso di default: «Nel file» e «Approfondimento».\n"
-            "  Per un link: Tab fino a «Apri fonte», poi Invio.\n"
-            "  Alt+F fa lo stesso, anche se sei sull'elenco.\n"
-            "  Invio sull'elenco non apre il browser.\n"
-            "• La domanda va a capo; Invio invia. Esc annulla la richiesta.\n"
-            "• Da un URL la chat resta col titolo del video, non col nome\n"
-            "  temporaneo. Salva propone l'ultima cartella usata.\n"
-            "• Resta da 1.7.7 l'OCR delle tabelle, riga per riga.\n"
+            "• Se un modello Gemini è occupato, si prova il successivo.\n"
+            "  Non ci si ferma al primo rifiuto.\n"
+            "• La frase a schermo non parla di credito finito.\n"
+            "  Servizio occupato, oppure limite temporaneo di richieste.\n"
+            "  Se Google scrive che manca il pagamento, si legge quella frase.\n"
+            "• Lettere che si pestavano: ora una lettera, una azione.\n"
+            "  Alt+L chiave Google. Alt+H chiave Gemini. Alt+B conversazioni.\n"
+            "  Alt+G sulla finestra principale: Segnalibri.\n"
+            "  Alt+M: menu Strumenti.\n"
+            "  «Chiedi a Gemini» sul report resta Alt+G.\n"
+            "  Ctrl+Shift+G per le conversazioni resta.\n"
+            "• Resta dalla 1.8.1: domanda e motivo restano scritti se\n"
+            "  Gemini non risponde. In Esplora file, dopo il Setup,\n"
+            "  «Chiedi a Gemini» sul file scelto.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7589,6 +7584,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
             "  - Ctrl + Alt + V : Incolla percorso dagli Appunti (file o path)\n"
             "  - Ctrl + Shift + G : Conversazioni Gemini già salvate\n"
+            "  - Alt + B : Conversazioni Gemini (finestra principale)\n"
+            "  - Alt + L : Chiave Google Vision\n"
+            "  - Alt + H : Chiave Gemini\n"
             "  - Alt + G : Chiedi a Gemini (sul report o nel lettore documento)\n"
             "  - Alt + F : Apri la fonte selezionata (anche se sei sull'elenco)\n"
             "  - INVIO nel campo testo : Avvia ricerca\n"
@@ -7857,11 +7855,11 @@ class MainWindow(wx.Frame):
                 pass
         self.choice_ocr_engine.Bind(wx.EVT_CHOICE, self.on_ocr_engine_choice)
         hbox_ocr_eng.Add(self.choice_ocr_engine, 1, wx.EXPAND)
-        btn_gkey = wx.Button(panel, label="Chiave &Google…")
+        btn_gkey = wx.Button(panel, label="Chiave Goog&le…")
         btn_gkey.SetName("Chiave API Google Vision")
         btn_gkey.Bind(wx.EVT_BUTTON, self.on_set_google_vision_key)
         hbox_ocr_eng.Add(btn_gkey, 0, wx.LEFT, 8)
-        btn_gem = wx.Button(panel, label="Chiave Ge&mini…")
+        btn_gem = wx.Button(panel, label="C&hiave Gemini…")
         btn_gem.SetName("Chiave API Gemini")
         btn_gem.Bind(wx.EVT_BUTTON, self.on_set_gemini_api_key)
         hbox_ocr_eng.Add(btn_gem, 0, wx.LEFT, 8)
@@ -7871,7 +7869,7 @@ class MainWindow(wx.Frame):
         self.btn_search = wx.Button(panel, label="Avvia Ricerca")
         self.btn_search.Bind(wx.EVT_BUTTON, lambda e: self.start_search_thread())
         hbox_actions.Add(self.btn_search, 0, wx.ALL, 5)
-        self.btn_gemini_chats = wx.Button(panel, label="Conversazioni &Gemini…")
+        self.btn_gemini_chats = wx.Button(panel, label="Conversazioni Gemini (Alt+&B)…")
         self.btn_gemini_chats.SetName("Conversazioni Gemini")
         self.btn_gemini_chats.Bind(wx.EVT_BUTTON, self.on_gemini_conversations)
         hbox_actions.Add(self.btn_gemini_chats, 0, wx.ALL, 5)
@@ -8030,7 +8028,7 @@ class MainWindow(wx.Frame):
         # Menu File
         file_menu = wx.Menu()
         item_export = file_menu.Append(wx.ID_ANY, "Esporta &Risultati...\tCtrl+E")
-        item_print = file_menu.Append(wx.ID_ANY, "&Stampa Risultati...\tCtrl+P")
+        item_print = file_menu.Append(wx.ID_ANY, "Stam&pa Risultati...\tCtrl+P")
         file_menu.AppendSeparator()
         item_exit = file_menu.Append(wx.ID_EXIT, "E&sci\tCtrl+Q")
         menubar.Append(file_menu, "&File")
@@ -8051,7 +8049,7 @@ class MainWindow(wx.Frame):
         item_hist_query = self.history_menu.Append(wx.ID_ANY, "Richiama &testo cercato...\tCtrl+H")
         item_hist_path = self.history_menu.Append(wx.ID_ANY, "Richiama &percorso...\tCtrl+Shift+H")
         self.history_menu.AppendSeparator()
-        item_clear_queries = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia &testi")
+        item_clear_queries = self.history_menu.Append(wx.ID_ANY, "S&vuota cronologia testi")
         item_clear_paths = self.history_menu.Append(wx.ID_ANY, "Svuota cronologia p&ercorsi")
         self.history_menu.AppendSeparator()
         menubar.Append(self.history_menu, "&Cronologia")
@@ -8098,7 +8096,7 @@ class MainWindow(wx.Frame):
         item_choose_voice = voice_menu.Append(
             wx.ID_ANY, "Scegli &voce SAPI...\tCtrl+Shift+V"
         )
-        item_test_voice = voice_menu.Append(wx.ID_ANY, "&Prova voce")
+        item_test_voice = voice_menu.Append(wx.ID_ANY, "Prova vo&ce")
         voice_menu.AppendSeparator()
         self.item_engine_sapi = voice_menu.AppendCheckItem(
             wx.ID_ANY, "Annunci RTAD con &SAPI (velocità/voce regolabili)"
@@ -8125,20 +8123,20 @@ class MainWindow(wx.Frame):
         )
         self.Bind(wx.EVT_MENU, self.on_find_other_copies, item_copie)
         item_paste_path = tools_menu.Append(
-            wx.ID_ANY, "Incolla &percorso dagli Appunti…\tCtrl+Alt+V"
+            wx.ID_ANY, "Incolla pe&rcorso dagli Appunti…\tCtrl+Alt+V"
         )
         self.Bind(wx.EVT_MENU, self.on_paste_path_from_clipboard, item_paste_path)
         item_gemini_chats = tools_menu.Append(
-            wx.ID_ANY, "Conversazioni &Gemini…\tCtrl+Shift+G"
+            wx.ID_ANY, "Conversazioni Gemini (Alt+&B)…\tCtrl+Shift+G"
         )
         self.Bind(wx.EVT_MENU, self.on_gemini_conversations, item_gemini_chats)
         tools_menu.AppendSeparator()
         item_gkey = tools_menu.Append(
-            wx.ID_ANY, "Chiave API &Google Vision…"
+            wx.ID_ANY, "Chiave API Goog&le Vision…"
         )
         self.Bind(wx.EVT_MENU, self.on_set_google_vision_key, item_gkey)
         item_gemkey = tools_menu.Append(
-            wx.ID_ANY, "Chiave API Ge&mini (descrizione avanzata)…"
+            wx.ID_ANY, "C&hiave API Gemini (descrizione avanzata)…"
         )
         self.Bind(wx.EVT_MENU, self.on_set_gemini_api_key, item_gemkey)
         item_glossary = tools_menu.Append(
@@ -8155,7 +8153,7 @@ class MainWindow(wx.Frame):
         )
         self.Bind(wx.EVT_MENU, self.on_describe_from_url, item_desc_url)
         item_desc_clip = tools_menu.Append(
-            wx.ID_ANY, "Descrivi immagine dagli &Appunti\tCtrl+Shift+I"
+            wx.ID_ANY, "Descrivi &immagine dagli Appunti\tCtrl+Shift+I"
         )
         self.Bind(wx.EVT_MENU, self.on_describe_from_clipboard, item_desc_clip)
         item_desc_cap = tools_menu.Append(
@@ -8163,7 +8161,7 @@ class MainWindow(wx.Frame):
         )
         self.Bind(wx.EVT_MENU, self.on_describe_from_screenshot, item_desc_cap)
         item_desc_pdf = tools_menu.Append(
-            wx.ID_ANY, "Descrivi immagine da P&DF…"
+            wx.ID_ANY, "Descrivi immagine da PD&F…"
         )
         self.Bind(wx.EVT_MENU, self.on_describe_pdf_dialog, item_desc_pdf)
         item_all_img = tools_menu.Append(
@@ -8171,27 +8169,27 @@ class MainWindow(wx.Frame):
         )
         self.Bind(wx.EVT_MENU, self.on_image_all_dialog, item_all_img)
         item_ocr_only = tools_menu.Append(
-            wx.ID_ANY, "&Leggi testo nell'immagine (OCR)…"
+            wx.ID_ANY, "Leggi testo nell'immagine (&OCR)…"
         )
         self.Bind(wx.EVT_MENU, self.on_image_ocr_dialog, item_ocr_only)
         item_batch_img = tools_menu.Append(
-            wx.ID_ANY, "Analizza &cartella immagini…"
+            wx.ID_ANY, "Analizza cartella i&mmagini…"
         )
         self.Bind(wx.EVT_MENU, self.on_batch_images_folder, item_batch_img)
         item_all_media = tools_menu.Append(
-            wx.ID_ANY, "Tutto sull'&audio/video…"
+            wx.ID_ANY, "Tutto sull'audio/video (&J)…"
         )
         self.Bind(wx.EVT_MENU, self.on_media_all_dialog, item_all_media)
         item_batch_media = tools_menu.Append(
-            wx.ID_ANY, "Analizza cartella a&udio/video…"
+            wx.ID_ANY, "Anali&zza cartella audio/video…"
         )
         self.Bind(wx.EVT_MENU, self.on_batch_media_folder, item_batch_media)
         item_tr_search = tools_menu.Append(
-            wx.ID_ANY, "&Trascrivi e cerca…\tCtrl+Shift+T"
+            wx.ID_ANY, "Trascrivi e c&erca…\tCtrl+Shift+T"
         )
         self.Bind(wx.EVT_MENU, self.on_transcribe_and_search, item_tr_search)
         item_media_url = tools_menu.Append(
-            wx.ID_ANY, "Audio/video da &URL…\tCtrl+Shift+M"
+            wx.ID_ANY, "Audio/video da &web (URL)…\tCtrl+Shift+M"
         )
         self.Bind(wx.EVT_MENU, self.on_media_from_url, item_media_url)
         item_ytdlp = tools_menu.Append(
@@ -8208,7 +8206,7 @@ class MainWindow(wx.Frame):
             self.item_notify_end.Check(True)
         self.Bind(wx.EVT_MENU, self.on_toggle_notify_search_end, self.item_notify_end)
         self.item_auto_save = tools_menu.AppendCheckItem(
-            wx.ID_ANY, "Salva &automaticamente i risultati a fine ricerca"
+            wx.ID_ANY, "&Salva automaticamente i risultati a fine ricerca"
         )
         try:
             self.item_auto_save.Check(load_auto_save_results_preference())
@@ -8216,11 +8214,11 @@ class MainWindow(wx.Frame):
             self.item_auto_save.Check(False)
         self.Bind(wx.EVT_MENU, self.on_toggle_auto_save_results, self.item_auto_save)
         item_auto_save_dir = tools_menu.Append(
-            wx.ID_ANY, "Cartella salvataggio &automatico risultati…"
+            wx.ID_ANY, "Cartella salvataggio automatico risultati (Alt+&K)…"
         )
         self.Bind(wx.EVT_MENU, self.on_choose_auto_save_dir, item_auto_save_dir)
         self.item_escape_closes = tools_menu.AppendCheckItem(
-            wx.ID_ANY, "Esc chiude l'&applicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
+            wx.ID_ANY, "Esc chiude l'a&pplicazione (altrimenti Alt+F4 / Ctrl+Q / Chiudi)"
         )
         try:
             self.item_escape_closes.Check(load_escape_closes_preference())
@@ -8238,8 +8236,8 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Guida completa (&HTML, cercabile)…"
         )
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
-        item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa &Guida ai Comandi")
-        item_github = help_menu.Append(wx.ID_ANY, "Pagina Ufficiale &GitHub")
+        item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa guida ai co&mandi")
+        item_github = help_menu.Append(wx.ID_ANY, "Pagina &ufficiale GitHub")
         item_info = help_menu.Append(wx.ID_ANY, "&Info Versione\tAlt+I")
         help_menu.AppendSeparator()
         item_log = help_menu.Append(wx.ID_ANY, "Esporta &Log di Diagnostica sul Desktop")

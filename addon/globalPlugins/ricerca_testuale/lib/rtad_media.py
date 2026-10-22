@@ -206,6 +206,20 @@ def gemini_last_error() -> str:
     return _gemini_last_error or ""
 
 
+def _user_gemini_error(technical: str, fallback: str) -> str:
+    """Stessa frase della chat e della descrizione immagine."""
+    raw = (technical or fallback or "").strip()
+    try:
+        import rtad_ocr as ocr
+
+        fn = getattr(ocr, "readable_gemini_error", None)
+        if fn:
+            return fn(raw)
+    except Exception:
+        logging.debug("Frase Gemini non tradotta", exc_info=True)
+    return raw or fallback
+
+
 # Glossario post-trascrizione (1.7.2): sostituzioni dopo Gemini, zero API extra.
 _transcript_glossary_rules: list = []
 
@@ -1792,7 +1806,12 @@ def _gemini_generate_media(
                 last_err = f"HTTP {e.code} ({model})"
                 if err_body:
                     last_err += f": {err_body}"
-                if e.code in (404, 429):
+                if e.code in (404, 429, 503):
+                    logging.info(
+                        "Gemini %s HTTP %s, provo il modello successivo",
+                        model,
+                        e.code,
+                    )
                     continue
                 if e.code == 400 and "not found" in (err_body or "").lower():
                     continue
@@ -1832,6 +1851,9 @@ def _gemini_generate_media(
     if len(tried) > 6:
         short_tried += f"… (+{len(tried) - 6})"
     _gemini_last_error = last_err or "nessun modello Gemini disponibile"
+    logging.warning(
+        f"Gemini media fallita: {_gemini_last_error} [provati: {short_tried}]"
+    )
     return "", f"gemini: {_gemini_last_error} [provati: {short_tried}]"
 
 
@@ -1930,7 +1952,10 @@ def describe_media_gemini(
         progress_base=38,
     )
     if not text:
-        result["error"] = diag or (_gemini_last_error or "Riassunto Gemini non riuscito.")
+        result["error"] = _user_gemini_error(
+            diag or _gemini_last_error,
+            "Riassunto Gemini non riuscito.",
+        )
         _stats["failures"] = int(_stats.get("failures", 0) or 0) + 1
         return result
     result["ok"] = True
@@ -2050,7 +2075,10 @@ def transcribe_media_gemini(
         progress_base=65,
     )
     if not text:
-        result["error"] = diag or (_gemini_last_error or "Trascrizione Gemini non riuscita.")
+        result["error"] = _user_gemini_error(
+            diag or _gemini_last_error,
+            "Trascrizione Gemini non riuscita.",
+        )
         _stats["failures"] = int(_stats.get("failures", 0) or 0) + 1
         return result
     # Se i timestamp si fermano prima della fine nota: continua (max 2 riprese)

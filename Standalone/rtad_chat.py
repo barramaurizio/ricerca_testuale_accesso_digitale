@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -36,7 +37,22 @@ FOCUS_SLICE_CAP = 8000
 MAX_TURNS_IN_REQUEST = 12
 MAX_OUTPUT_TOKENS = 8192
 REQUEST_TIMEOUT_SEC = 90
+FILE_API_TIMEOUT_SEC = 900
 CHAT_VERSION = 1
+MAX_ATTACHMENTS = 12
+ATTACH_TEXT_CAP = 60000
+MAX_ATTACH_DOC_BYTES = 80 * 1024 * 1024
+
+_DOC_EXTS = {
+    ".txt", ".log", ".csv", ".md", ".rtf",
+    ".html", ".htm",
+    ".docx", ".doc", ".odt",
+    ".xlsx",
+    ".pdf",
+    ".epub",
+}
+_PLAIN_EXTS = {".txt", ".log", ".csv", ".md", ".rtf", ".html", ".htm"}
+_text_extractor = None
 
 _IMAGE_MIME = {
     ".jpg": "image/jpeg",
@@ -87,6 +103,11 @@ _SUGGESTED = {
         "Riassumi i punti principali.",
         "Elenca i titoli e di che cosa parla ciascuno.",
         "C'è una data nel documento? È coerente con oggi?",
+    ),
+    "free": (
+        "Spiega questo argomento in modo chiaro.",
+        "Che cosa conviene verificare, e che cosa non si può sapere da qui?",
+        "Riassumi in pochi punti.",
     ),
 }
 
@@ -177,9 +198,10 @@ def _keys_for_path(file_path: str, session: dict | None = None) -> list:
 
     if session and session.get("stable_key"):
         add(session["stable_key"])
-    ident = media_source_identity(file_path)
-    add(ident.get("key"))
-    add(_file_key(file_path))
+    if (file_path or "").strip():
+        ident = media_source_identity(file_path)
+        add(ident.get("key"))
+        add(_file_key(file_path))
     return keys
 
 
@@ -189,35 +211,273 @@ def chat_dir(base_dir: str) -> str:
     return folder
 
 
+def set_text_extractor(fn) -> None:
+    """Lettura documenti già usata dal programma (PDF, Word, Excel, testo)."""
+    global _text_extractor
+    _text_extractor = fn
+
+
+def attachment_kind(path: str) -> str:
+    """image | document | audio | video | '' se non allegabile."""
+    ext = os.path.splitext(path or "")[1].lower()
+    if ext in _IMAGE_MIME:
+        return "image"
+    try:
+        import rtad_media as media
+
+        if media.is_media_path(path):
+            return media.media_kind(path)
+    except Exception:
+        pass
+    if ext in _DOC_EXTS:
+        return "document"
+    return ""
+
+
+def attachment_wildcard() -> str:
+    """Filtro del dialogo di scelta, con gli stessi tipi che la chat sa leggere."""
+    exts = set(_IMAGE_MIME) | set(_DOC_EXTS)
+    try:
+        import rtad_media as media
+
+        exts.update(media.MEDIA_EXTS)
+    except Exception:
+        pass
+    pat = ";".join("*" + ext for ext in sorted(exts))
+    return f"File allegabili|{pat}|Tutti i file (*.*)|*.*"
+
+
+def _size_it(n: int) -> str:
+    n = int(n or 0)
+    if n < 0:
+        n = 0
+    if n < 1024:
+        return f"{n} byte"
+    if n < 1024 * 1024:
+        value = f"{n / 1024:.1f}"
+        unit = "KB"
+    elif n < 1024 * 1024 * 1024:
+        value = f"{n / (1024 * 1024):.2f}"
+        unit = "MB"
+    else:
+        value = f"{n / (1024 * 1024 * 1024):.2f}"
+        unit = "GB"
+    return value.replace(".", ",") + " " + unit
+
+
+def _mtime_it(mtime: float) -> str:
+    try:
+        return datetime.datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M")
+    except (OSError, OverflowError, ValueError):
+        return ""
+
+
+def attach_type_label(name: str) -> str:
+    """Tipo in italiano, dal nome: Video MP4, Immagine JPEG, Documento PDF."""
+    ext = os.path.splitext(name or "")[1].lower()
+    kind = attachment_kind("file" + ext) if ext else ""
+    word = {
+        "image": "Immagine",
+        "document": "Documento",
+        "audio": "Audio",
+        "video": "Video",
+    }.get(kind, "File")
+    if ext:
+        return f"{word} {ext[1:].upper()}"
+    return word
+
+
+def attach_row_label(name: str, mtime: float, size: int) -> str:
+    """Una riga sola: nome, data, tipo, dimensione. La legge anche la sintesi."""
+    when = _mtime_it(mtime)
+    parts = [name or "", when, attach_type_label(name), _size_it(size)]
+    return ". ".join(part for part in parts if part) + "."
+
+
+def list_folder_files(folder: str) -> list:
+    """File della cartella, i più recenti in cima. Non entra nelle sottocartelle."""
+    rows = []
+    with os.scandir(folder) as entries:
+        for entry in entries:
+            try:
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+                st = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            rows.append(
+                {
+                    "path": entry.path,
+                    "name": entry.name,
+                    "mtime": float(st.st_mtime or 0),
+                    "size": int(st.st_size or 0),
+                }
+            )
+    rows.sort(key=lambda row: (-row["mtime"], (row["name"] or "").lower()))
+    return rows
+
+
+def _kind_it(kind: str) -> str:
+    return {
+        "image": "immagine",
+        "document": "documento",
+        "audio": "audio",
+        "video": "video",
+        "free": "senza file",
+    }.get(kind or "", "file")
+
+
+def _same_path(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    try:
+        return os.path.normcase(os.path.abspath(left)) == os.path.normcase(
+            os.path.abspath(right)
+        )
+    except Exception:
+        return False
+
+
+def _read_plain(path: str) -> str:
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(MAX_ATTACH_DOC_BYTES + 1)
+    except Exception:
+        return ""
+    if not raw:
+        return ""
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        text = raw.decode("utf-16", errors="ignore")
+    else:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw.decode("latin1", errors="ignore")
+    return text.replace("\x00", "").replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _attachment_document_text(path: str) -> str:
+    text = ""
+    if _text_extractor is not None:
+        try:
+            text = (_text_extractor(path) or "").strip()
+        except Exception as exc:
+            logging.debug(f"Chat: lettura allegato non riuscita: {exc}")
+            text = ""
+    if not text:
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".pdf", ".docx", ".epub") and rtad_docstruct is not None:
+            try:
+                struct = rtad_docstruct.extract_document_structure(path)
+                text = compose_document_text(path, struct)
+            except Exception as exc:
+                logging.debug(f"Chat: struttura allegato non letta: {exc}")
+                text = ""
+        elif ext in _PLAIN_EXTS:
+            text = _read_plain(path)
+    if len(text) > STORED_TEXT_CAP:
+        text = text[:STORED_TEXT_CAP] + "\n\n(Il resto del documento non è stato incluso.)"
+    return text.strip()
+
+
+def attachment_blocks(session: dict) -> str:
+    """Testo degli allegati per l'istruzione. Le immagini e i media vanno anche nei byte."""
+    blocks = []
+    used = 0
+    for att in (session or {}).get("attachments") or []:
+        if not isinstance(att, dict):
+            continue
+        kind = att.get("kind") or ""
+        title = att.get("title") or os.path.basename(att.get("path") or "") or "allegato"
+        path = att.get("path") or ""
+        label = _kind_it(kind)
+        if not path or not os.path.isfile(path):
+            blocks.append(f"--- {title} ({label}) ---\nFile non più trovato sul disco.")
+            continue
+        if kind == "document":
+            body = _attachment_document_text(path)
+            room = ATTACH_TEXT_CAP - used
+            if room <= 200:
+                blocks.append(
+                    f"--- {title} (documento) ---\n"
+                    "(Testo non incluso: la richiesta ha già abbastanza materiale.)"
+                )
+                continue
+            if len(body) > room:
+                body = body[:room] + "\n…(testo accorciato)"
+            used += len(body)
+            blocks.append(f"--- {title} (documento) ---\n{body or '(Nessun testo letto.)'}")
+        elif kind == "image":
+            blocks.append(
+                f"--- {title} (immagine) ---\n"
+                "Immagine allegata insieme a questa domanda."
+            )
+        else:
+            blocks.append(
+                f"--- {title} ({label}) ---\n"
+                "File audio o video allegato insieme a questa domanda. "
+                "Ascoltalo o guardalo, non inventare ciò che non c'è."
+            )
+    if not blocks:
+        return ""
+    return (
+        "=== Allegati aggiunti in questa conversazione ===\n\n"
+        + "\n\n".join(blocks)
+    )
+
+
 def system_instruction(session: dict, when: datetime.datetime | None = None) -> str:
     """Regole, data di oggi e materiale del file. Non va nella cronologia visibile."""
     when = when or datetime.datetime.now()
     kind = (session or {}).get("kind") or "document"
-    kind_label = "immagine" if kind == "image" else "documento"
+    free = kind == "free"
+    if free:
+        about = (
+            "Non c'è un file di partenza. Rispondi alla domanda. "
+            "Se più sotto ci sono allegati, quelli sono il materiale da usare."
+        )
+        plane = "Nella conversazione:"
+        plane_rule = (
+            "«Nella conversazione» contiene solo la domanda e gli allegati di questa chat."
+        )
+    else:
+        kind_label = "immagine" if kind == "image" else "documento"
+        about = (
+            f"Stai parlando di un file ({kind_label}) già aperto in RTAD. "
+            "Il materiale qui sotto è la fonte principale. "
+            "Gli allegati aggiunti dopo, se ci sono, si usano insieme a quel file: "
+            "il file di partenza resta."
+        )
+        plane = "Nel file:"
+        plane_rule = "«Nel file» contiene solo ciò che è nel materiale RTAD."
     lines = [
         "Sei l'assistente di Ricerca Testuale Accesso Digitale.",
         f"Oggi è {format_now(when)} (ora locale del computer).",
         "Rispondi nella lingua della domanda. Se la domanda è in italiano, rispondi in italiano.",
-        f"Stai parlando di un file ({kind_label}) già aperto in RTAD. "
-        "Il materiale qui sotto è la fonte principale.",
+        about,
         "Quando servi entrambi i piani, separali con questi titoli esatti:",
-        "Nel file:",
+        plane,
         "Approfondimento:",
-        "«Nel file» contiene solo ciò che è nel materiale RTAD.",
+        plane_rule,
         "«Approfondimento» solo se in questa richiesta è attiva la consultazione web, "
-        "e solo per ciò che non è già nel file. Includi i link delle fonti.",
-        "Se un dato non c'è nel file e il web non è attivo, dillo. Non inventare citazioni, nomi o date.",
+        "e solo per ciò che non è già nel materiale. Includi i link delle fonti.",
+        "Se un dato non c'è nel materiale e il web non è attivo, dillo. "
+        "Non inventare citazioni, nomi o date.",
         "Quando citi una pagina, usa solo un indirizzo che risulta dalle fonti consultate. "
         "Non inventare né abbreviare un dominio. Se non hai l'indirizzo esatto, "
         "dì il nome del sito senza link.",
-        "Non presentare come recensione o articolo su questo file una pagina che parla d'altro.",
-        "Se nel file c'è una data, preferiscila a una data trovata sul web e segnala il contrasto.",
+        "Non presentare come recensione o articolo su questo materiale una pagina che parla d'altro.",
+        "Se nel materiale c'è una data, preferiscila a una data trovata sul web e segnala il contrasto.",
         "Usa il web per persone, aggiornamenti, «è ancora così» e notizie. "
-        "Non usarlo per riscrivere ciò che il file già dice.",
+        "Non usarlo per riscrivere ciò che il materiale già dice.",
         "",
         "=== Materiale del file ===",
         (session or {}).get("context_text") or "(Nessun testo del file disponibile.)",
     ]
+    extra = attachment_blocks(session)
+    if extra:
+        lines.append("")
+        lines.append(extra)
     note = (session or {}).get("context_note") or ""
     if note:
         lines.append("")
@@ -345,10 +605,10 @@ def new_session(
     now = datetime.datetime.now().replace(microsecond=0).isoformat(timespec="seconds")
     session = {
         "v": CHAT_VERSION,
-        "kind": kind if kind in ("image", "document") else "document",
+        "kind": kind if kind in ("image", "document", "free") else "document",
         "path": path or "",
         "source_path": source_path or "",
-        "title": os.path.basename(path or "") or "File",
+        "title": os.path.basename(path or "") or ("Conversazione" if kind == "free" else "File"),
         "mtime": None,
         "created": now,
         "updated": now,
@@ -360,6 +620,7 @@ def new_session(
         "image_b64": "",
         "image_mime": "",
         "image_missing": False,
+        "attachments": [],
         "stable_key": "",
         "source_url": "",
     }
@@ -375,6 +636,117 @@ def new_session(
     return session
 
 
+def new_free_session() -> dict:
+    """Conversazione senza un file già aperto. Gli allegati si aggiungono dopo."""
+    session = new_session("free", "", do_refresh=False)
+    session["title"] = "Conversazione"
+    session["stable_key"] = "c" + uuid.uuid4().hex[:19]
+    session["context_text"] = (
+        "Nessun file di partenza. "
+        "Rispondi alla domanda e, se ci sono, agli allegati."
+    )
+    session["full_text"] = session["context_text"]
+    return session
+
+
+def attachment_problem(session: dict, path: str) -> str:
+    """Motivo breve se il file non va proprio messo nel gruppo. Vuoto se può entrare.
+
+    Non legge il contenuto: testo assente, immagine illeggibile e limiti
+    audio/video si controllano quando si conferma con Invio.
+    """
+    path = (path or "").strip()
+    name = os.path.basename(path) or "file"
+    if not path or not os.path.isfile(path):
+        return f"{name}: file non trovato."
+    if not attachment_kind(path):
+        return f"{name}: questo formato non si allega."
+    if _same_path(path, (session or {}).get("path") or ""):
+        return f"{name} è già il file di questa conversazione."
+    for att in (session or {}).get("attachments") or []:
+        if isinstance(att, dict) and _same_path(att.get("path") or "", path):
+            return f"{name} è già allegato."
+    return ""
+
+
+def add_attachment(session: dict, path: str) -> tuple:
+    """(ok, messaggio). Il messaggio è il nome del file, oppure il motivo del rifiuto."""
+    path = (path or "").strip()
+    name = os.path.basename(path) or "file"
+    problem = attachment_problem(session, path)
+    if problem:
+        return False, problem
+    kind = attachment_kind(path)
+    atts = session.setdefault("attachments", [])
+    if len(atts) >= MAX_ATTACHMENTS:
+        return False, (
+            f"In questa conversazione si allega fino a {MAX_ATTACHMENTS} file."
+        )
+    try:
+        size = os.path.getsize(path)
+    except Exception:
+        size = 0
+    if kind == "image":
+        b64, _mime = _image_bytes(path)
+        if not b64:
+            return False, f"{name}: immagine troppo grande o non leggibile (max 25 MB)."
+    elif kind in ("audio", "video"):
+        try:
+            import rtad_media as media
+
+            err = media._check_ai_limits(path)
+        except Exception as exc:
+            err = str(exc)
+        if err:
+            return False, f"{name}: {err}"
+    else:
+        if size > MAX_ATTACH_DOC_BYTES:
+            return False, f"{name}: documento troppo grande per allegarlo in chat."
+        text = _attachment_document_text(path)
+        if not text:
+            return False, f"{name}: non c'è testo da leggere."
+    atts.append({"path": path, "kind": kind, "title": name})
+    title = (session.get("title") or "").strip()
+    if session.get("kind") == "free" and title in ("", "Conversazione", "File"):
+        session["title"] = name
+    return True, name
+
+
+def remove_attachment(session: dict, index: int) -> str:
+    """Toglie un allegato. Restituisce il nome, o stringa vuota."""
+    atts = (session or {}).get("attachments") or []
+    if index < 0 or index >= len(atts):
+        return ""
+    att = atts.pop(index)
+    _discard_media_cache(att if isinstance(att, dict) else {})
+    if isinstance(att, dict):
+        return att.get("title") or os.path.basename(att.get("path") or "")
+    return ""
+
+
+def _discard_media_cache(att: dict) -> None:
+    cache = {}
+    if isinstance(att, dict):
+        cache = att.pop("_media_cache", None) or {}
+    names = cache.get("names") or []
+    if not names:
+        return
+    key = ""
+    if rtad_ocr is not None and hasattr(rtad_ocr, "get_gemini_api_key"):
+        try:
+            key = (rtad_ocr.get_gemini_api_key() or "").strip()
+        except Exception:
+            key = ""
+    if not key:
+        return
+    try:
+        import rtad_media as media
+
+        media._gemini_files_delete(names, key)
+    except Exception:
+        logging.debug("Chat: file Gemini non cancellato", exc_info=True)
+
+
 def refresh_context(session: dict) -> None:
     """Rilegge il file. Non tocca i turni."""
     if not session:
@@ -388,6 +760,15 @@ def refresh_context(session: dict) -> None:
         )
     session["mtime"] = ts
     kind = session.get("kind")
+    if kind == "free" and not path:
+        session["context_text"] = (
+            "Nessun file di partenza. "
+            "Rispondi alla domanda e, se ci sono, agli allegati."
+        )
+        session["full_text"] = session["context_text"]
+        session["image_b64"] = ""
+        session["image_missing"] = False
+        return
     if kind == "image":
         b64, mime = _image_bytes(path)
         if b64:
@@ -528,6 +909,32 @@ def build_payload(
                 "inline_data": {
                     "mime_type": session.get("image_mime") or "image/jpeg",
                     "data": session.get("image_b64"),
+                }
+            }
+        )
+    for att in session.get("attachments") or []:
+        if not isinstance(att, dict) or att.get("kind") != "image":
+            continue
+        apath = att.get("path") or ""
+        if _same_path(apath, session.get("path") or ""):
+            continue
+        b64, mime = _image_bytes(apath)
+        title = att.get("title") or os.path.basename(apath) or "immagine"
+        if not b64:
+            parts.append(
+                {
+                    "text": (
+                        f"Allegato immagine {title}: non più leggibile dal disco."
+                    )
+                }
+            )
+            continue
+        parts.append({"text": f"Allegato immagine: {title}"})
+        parts.append(
+            {
+                "inline_data": {
+                    "mime_type": mime or "image/jpeg",
+                    "data": b64,
                 }
             }
         )
@@ -681,7 +1088,7 @@ def _text_from_response(data: dict) -> tuple:
     return text, finish, ""
 
 
-def _post_generate(model: str, key: str, payload: dict) -> tuple:
+def _post_generate(model: str, key: str, payload: dict, timeout: int = REQUEST_TIMEOUT_SEC) -> tuple:
     """(ok, data, errore)."""
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -695,7 +1102,7 @@ def _post_generate(model: str, key: str, payload: dict) -> tuple:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SEC) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read().decode("utf-8", errors="replace")
         return True, json.loads(raw) if raw else {}, ""
     except urllib.error.HTTPError as exc:
@@ -711,6 +1118,74 @@ def _post_generate(model: str, key: str, payload: dict) -> tuple:
         return False, {"_http": exc.code}, err
     except Exception as exc:
         return False, {}, _safe_err(model, exc)
+
+
+def _payload_uses_file_api(payload: dict) -> bool:
+    for content in (payload or {}).get("contents") or []:
+        for part in (content or {}).get("parts") or []:
+            if isinstance(part, dict) and ("file_data" in part or "fileData" in part):
+                return True
+    return False
+
+
+def _media_parts(att: dict, key: str, should_abort=None) -> tuple:
+    """(parti senza il prompt, errore). Riusa l'upload finché il file non cambia."""
+    path = (att or {}).get("path") or ""
+    try:
+        size = os.path.getsize(path)
+        mtime = int(os.path.getmtime(path))
+    except Exception as exc:
+        return [], str(exc)
+    sig = (size, mtime)
+    cache = att.get("_media_cache") or {}
+    if cache.get("sig") == sig and cache.get("parts"):
+        return list(cache["parts"]), ""
+    try:
+        import rtad_media as media
+    except Exception as exc:
+        return [], str(exc)
+    if cache.get("names"):
+        try:
+            media._gemini_files_delete(cache.get("names") or [], key)
+        except Exception:
+            pass
+    title = att.get("title") or os.path.basename(path)
+    parts, names, _mode, err = media._gemini_build_media_parts(
+        path,
+        f"Allegato: {title}",
+        key,
+        should_abort=should_abort,
+    )
+    if err or not parts:
+        return [], err or "allegato non pronto"
+    body = list(parts[1:])
+    att["_media_cache"] = {"sig": sig, "parts": body, "names": list(names or [])}
+    return body, ""
+
+
+def _append_media_parts(session: dict, payload: dict, key: str, should_abort=None) -> str:
+    """Aggiunge audio/video all'ultima domanda. Stringa vuota se ok, 'aborted' se annullato."""
+    contents = (payload or {}).get("contents") or []
+    if not contents:
+        return ""
+    parts = contents[-1].setdefault("parts", [])
+    for att in (session or {}).get("attachments") or []:
+        if should_abort and should_abort():
+            return "aborted"
+        if not isinstance(att, dict) or att.get("kind") not in ("audio", "video"):
+            continue
+        path = att.get("path") or ""
+        title = att.get("title") or os.path.basename(path) or "file"
+        if not os.path.isfile(path):
+            return f"{title}: file non più trovato."
+        got, err = _media_parts(att, key, should_abort)
+        if err:
+            if should_abort and should_abort():
+                return "aborted"
+            return f"{title}: {err}"
+        parts.append({"text": f"Allegato {att.get('kind')}: {title}"})
+        parts.extend(got)
+    return ""
 
 
 def ask(
@@ -736,24 +1211,32 @@ def ask(
     if not models:
         return _fail("Nessun modello Gemini disponibile per questa chiave.")
     payload = build_payload(session, question, use_web, when)
+    media_err = _append_media_parts(session, payload, key, should_abort)
+    if media_err == "aborted":
+        return _fail("", aborted=True)
+    if media_err:
+        return _fail(media_err)
+    timeout = FILE_API_TIMEOUT_SEC if _payload_uses_file_api(payload) else REQUEST_TIMEOUT_SEC
     web_note = ""
     last_err = ""
     for model in models:
         if should_abort and should_abort():
             return _fail("", aborted=True)
-        ok, data, err = _post_generate(model, key, payload)
+        ok, data, err = _post_generate(model, key, payload, timeout)
         if not ok and use_web and int((data or {}).get("_http") or 0) == 400:
             fallback = dict(payload)
             fallback.pop("tools", None)
-            ok, data, err = _post_generate(model, key, fallback)
+            ok, data, err = _post_generate(model, key, fallback, timeout)
             if ok:
                 web_note = (
-                    "\n\n(La consultazione web non è riuscita in questo scambio. "
-                    "La risposta usa il file.)"
+                    "\n\n(La consultazione web non è riuscita in questo scambio.)"
                 )
         if not ok:
             last_err = err or "errore Gemini"
             code = int((data or {}).get("_http") or 0)
+            # 402: crediti prepagati finiti. Non si prova un altro modello.
+            if code == 402:
+                return _fail(last_err, model)
             if code in (404, 429, 503):
                 logging.info(
                     "Chat Gemini %s HTTP %s, provo il modello successivo",
@@ -782,6 +1265,12 @@ def append_exchange(session: dict, question: str, answer: str, model: str = "") 
         {"role": "model", "text": (answer or "").strip(), "model": model or ""}
     )
     session["updated"] = now
+    if session.get("kind") == "free":
+        title = (session.get("title") or "").strip()
+        if title in ("", "Conversazione", "File"):
+            short = " ".join((question or "").split())
+            if short:
+                session["title"] = short[:60] + ("…" if len(short) > 60 else "")
     if session.get("mtime") is None:
         ts, _label = _mtime_label(session.get("path") or "")
         session["mtime"] = ts
@@ -791,8 +1280,20 @@ def transcript(session: dict) -> str:
     """Testo piano per leggere, copiare, salvare, stampare. Senza chiave."""
     lines = [
         "Ricerca Testuale Accesso Digitale — Conversazione con Gemini",
-        f"File: {session.get('title') or ''}",
     ]
+    if (session.get("kind") == "free") and not (session.get("path") or ""):
+        lines.append(f"Conversazione: {session.get('title') or 'Conversazione'}")
+        lines.append("File: nessuno")
+    else:
+        lines.append(f"File: {session.get('title') or ''}")
+    attached = []
+    for att in session.get("attachments") or []:
+        if isinstance(att, dict):
+            name = att.get("title") or os.path.basename(att.get("path") or "")
+            if name:
+                attached.append(f"{name} ({_kind_it(att.get('kind') or '')})")
+    if attached:
+        lines.append("Allegati: " + "; ".join(attached))
     if session.get("source_url"):
         lines.append(f"URL: {session.get('source_url')}")
     path = session.get("path") or ""
@@ -842,6 +1343,15 @@ def _public_dict(session: dict) -> dict:
             }
             for t in (session.get("turns") or [])
             if t.get("role") in ("user", "model")
+        ],
+        "attachments": [
+            {
+                "path": a.get("path") or "",
+                "kind": a.get("kind") or "",
+                "title": a.get("title") or "",
+            }
+            for a in (session.get("attachments") or [])
+            if isinstance(a, dict) and (a.get("path") or "")
         ],
     }
 
@@ -947,6 +1457,20 @@ def _session_from_public(
         if turn.get("model"):
             item["model"] = turn.get("model")
         session["turns"].append(item)
+    session["attachments"] = []
+    for att in data.get("attachments") or []:
+        if not isinstance(att, dict):
+            continue
+        apath = (att.get("path") or "").strip()
+        if not apath:
+            continue
+        session["attachments"].append(
+            {
+                "path": apath,
+                "kind": att.get("kind") or attachment_kind(apath) or "document",
+                "title": att.get("title") or os.path.basename(apath),
+            }
+        )
     if data.get("stable_key"):
         session["stable_key"] = data.get("stable_key")
     if data.get("source_url"):
@@ -1012,9 +1536,9 @@ def archive_current(base_dir: str, session: dict) -> str:
     return dest
 
 
-def list_saved(base_dir: str, file_path: str) -> list:
+def list_saved(base_dir: str, file_path: str, session: dict | None = None) -> list:
     """Elenco per questo file: corrente per prima, poi archivio dal più recente."""
-    keys = _keys_for_path(file_path)
+    keys = _keys_for_path(file_path, session)
     folder = chat_dir(base_dir)
     rows = []
     current = ""

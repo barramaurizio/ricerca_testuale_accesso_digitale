@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.8.3
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.3
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Conversazione con Gemini anche senza un file già aperto: Alt+Q, oppure Strumenti → Nuova conversazione Gemini.
+- Nella chat, Alt+A apre l’elenco della cartella, i più recenti in cima (nome, data, tipo, dimensione; durata se ci si ferma su un video). Fino a 12: immagini, documenti, audio e video. Le e-mail .eml no. Il numero e l’esito sono a voce e a schermo. Senza allegati, l’elenco dice «Nessun allegato presente». Shift+Invio nella domanda va a capo e non invia. La finestra di Windows resta per le cartelle piccole.
+- HTTP 402 in italiano: i crediti prepagati di quella chiave sono finiti e si ricaricano in Google AI Studio. Non si prova un altro modello.
+- Standalone e Add-on insieme. Le cronologie restano separate.
+
+## 🇬🇧 English
+
+- Gemini conversation with no file open first: Alt+Q, or Tools → New Gemini conversation.
+- In the chat, Alt+A opens the folder list, newest first (name, date, type, size; duration when you stop on a video). Up to 12: images, documents, audio and video. .eml mail is not included. The count and the result are spoken and shown on screen. With no attachments, the list says there are none. Shift+Enter in the question inserts a new line and does not send. The Windows dialog remains for small folders.
+- HTTP 402 in Italian: that key’s prepaid credits are finished and are topped up in Google AI Studio. Another model is not tried.
+- Standalone and add-on together. Histories stay separate.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.3.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.3
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.3.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.3.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Chat Gemini anche senza un file, allegati in corso di conversazione, e frase chiara se i crediti prepagati sono finiti.
+
+Summary EN:
+Gemini chat with no file open, attachments during the conversation, and a clear sentence when prepaid credits are used up.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.3/ricerca_testuale_accesso_digitale-1.8.3.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.3
+
+Description:
+(scrivi 2-4 righe sulle novità)

@@ -1,3 +1,10 @@
+Novità nella Versione 1.8.3
+- Conversazione Gemini anche senza un file già aperto (Alt+Q, e Strumenti)
+- Nella chat, Alt+A apre l'elenco della cartella, i più recenti in cima. Fino a 12: immagini, documenti, audio e video. Le e-mail .eml no. Senza allegati, l'elenco dice «Nessun allegato presente»
+- Shift+Invio nella domanda va a capo e non invia
+- HTTP 402 in italiano: crediti prepagati finiti, si ricaricano in Google AI Studio. Non si prova un altro modello
+- Standalone e Add-on insieme. Cronologie separate
+
 Novità nella Versione 1.8.2
 - Gemini: dopo un HTTP 503 (servizio occupato) si prova il modello successivo, in chat, descrizione immagine e audio/video
 - La frase a schermo non parla di credito finito: servizio occupato, oppure limite temporaneo di richieste. Se Google parla di pagamento, resta la frase di Google

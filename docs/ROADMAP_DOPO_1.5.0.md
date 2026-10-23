@@ -100,7 +100,7 @@ Obiettivo: salvare e richiamare in un colpo le impostazioni di ricerca usate spe
 2. Ricerca **EPUB** (`.epub`) gemello SA/Add-on; risultati `[EPUB]`.  
 3. ZIP opt-in → dopo OCR cloud `1.6.0`.
 
-**Regola versione:** ultima pubblicata = `1.8.1` (21/10/2026, correzione Gemini a schermo + voce Esplora file). **Non hotfixare 1.8.1.** `1.8.2` è nel codice dal 22/10/2026, non ancora pubblicata (`docs/PIANO_1.8.2.md`).
+**Regola versione:** ultima pubblicata = `1.8.2` (22/10/2026). **Non hotfixare 1.8.2.** In corso, non pubblicata: `1.8.3` (`docs/PIANO_1.8.3.md`).
 
 ### Fase J — `1.6.0` (OCR cloud + correzioni) — PUBBLICATA
 
@@ -151,7 +151,7 @@ Contenuto previsto `1.6.0`:
 - **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
 - **1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker — **pubblicata** (19/10/2026; DataStore #12312 → #12313).  
 - **1.7.7:** OCR tabelle riga-per-riga (cache v20 + Vision) + Add-on OCR — **pubblicata** (20/10; DataStore #12333 → #12334).  
-- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. `1.8.2` è nel codice dal 22/10/2026, non pubblicata (`docs/PIANO_1.8.2.md`).
+- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. **`1.8.2` pubblicata** il 22/10/2026 (`docs/PIANO_1.8.2.md`, DataStore accettato).
 
 ---
 
@@ -184,8 +184,9 @@ Contenuto previsto `1.6.0`:
 25. ~~**1.7.7:** OCR tabelle + Add-on OCR~~ — **pubblicata**.  
 26. ~~**`1.8.0`:** chat Gemini sul file~~ — **pubblicata** (21/10; DataStore #12370 → #12371).  
 27. ~~**`1.8.1`:** Gemini a schermo + «Chiedi a Gemini» in Esplora file~~ — **pubblicata** (21/10).  
-28. **`1.8.2`:** dopo un HTTP 503 provare il modello Gemini successivo; la frase a schermo distingue servizio occupato e limite temporaneo, e cita il pagamento solo se lo scrive Google. Tasti: Alt+L chiave Google, Alt+H chiave Gemini, Alt+B conversazioni; Alt+G sulla finestra principale resta Segnalibri. Codice fatto il 22/10/2026, non pubblicata. Il `.rtad.txt` già salvato passa alla versione dopo. Piano: `docs/PIANO_1.8.2.md`.  
-29. Lista d’attesa: chat da un `.rtad.txt` già salvato; Whisper opt-in (versione dedicata); confronto tra più file; VIDEO_TS; OneCore; export multipli.
+28. ~~**`1.8.2`:** dopo un HTTP 503 provare il modello Gemini successivo; frase a schermo senza «credito finito»; tasti Alt+L / Alt+H / Alt+B.~~ **pubblicata** il 22/10/2026. Piano: `docs/PIANO_1.8.2.md`.  
+29. **`1.8.3` in corso (23/10, non pubblicata):** conversazione Gemini anche senza un file (Alt+Q). Nella chat, allegare uno o più file, anche più tardi (Alt+A); il file di partenza resta. HTTP 402 in italiano, senza provare un altro modello. Piano: `docs/PIANO_1.8.3.md`.  
+30. Lista d’attesa: chat da un `.rtad.txt` già salvato; Whisper opt-in (versione dedicata); confronto tra più file; VIDEO_TS; OneCore; export multipli.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

@@ -80,8 +80,13 @@ try:
 except ImportError:
     rtad_chat = None
 
+try:
+    import rtad_attach_dialog
+except ImportError:
+    rtad_attach_dialog = None
+
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.2"
+APP_VERSION = "1.8.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -5982,6 +5987,39 @@ def open_gemini_chat(
     frm.Raise()
 
 
+def open_free_gemini_chat(parent=None):
+    """Conversazione senza un file già aperto. Gli allegati si aggiungono dopo."""
+    if rtad_chat is None:
+        speak_accessible("Modulo conversazione non disponibile.")
+        return
+    key = ""
+    try:
+        key = load_gemini_api_key()
+    except Exception:
+        key = ""
+    if not key:
+        speak_accessible(
+            "Per conversare con Gemini serve la chiave personale, da Strumenti."
+        )
+        return
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+    if not _gemini_chat_privacy_ok(parent):
+        return
+    try:
+        session = rtad_chat.new_free_session()
+    except Exception as exc:
+        speak_accessible(f"Conversazione non avviata: {exc}")
+        return
+    frm = GeminiChatFrame(session, resumed=False)
+    _track_gemini_chat(frm)
+    frm.Show()
+    frm.Raise()
+
+
 def open_saved_gemini_chat(json_path, parent=None):
     """Riapre una conversazione già salvata, con le fonti, senza rianalizzare."""
     if rtad_chat is None:
@@ -6118,6 +6156,10 @@ class GeminiChatFrame(wx.Frame):
             style=wx.DEFAULT_FRAME_STYLE,
         )
         self.session = session
+        try:
+            rtad_chat.set_text_extractor(extract_document_text)
+        except Exception:
+            pass
         self.struct = struct
         self.displayed = displayed or ""
         self.prior_report = prior_report or ""
@@ -6178,8 +6220,33 @@ class GeminiChatFrame(wx.Frame):
             self.txt_q.SetName("La tua domanda")
         except Exception:
             pass
-        self.txt_q.Bind(wx.EVT_TEXT_ENTER, self.on_send)
+        # Invio lo gestisce on_char_hook. Qui non si lega TEXT_ENTER:
+        # su Windows anche Shift+Invio lo farebbe scattare, e la domanda partirebbe.
         vbox.Add(self.txt_q, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        vbox.Add(
+            wx.StaticText(
+                panel,
+                label="Allegati. Alt+A apre l'elenco, i più recenti in cima.",
+            ),
+            0,
+            wx.LEFT | wx.RIGHT,
+            8,
+        )
+        self.lst_attach = wx.ListBox(panel, style=wx.LB_SINGLE)
+        try:
+            self.lst_attach.SetName("Allegati")
+        except Exception:
+            pass
+        vbox.Add(self.lst_attach, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        row_att = wx.BoxSizer(wx.HORIZONTAL)
+        self.btn_attach = wx.Button(panel, label="&Allega file…")
+        self.btn_attach.Bind(wx.EVT_BUTTON, self.on_attach)
+        row_att.Add(self.btn_attach, 0, wx.ALL, 5)
+        self.btn_detach = wx.Button(panel, label="Tog&li allegato")
+        self.btn_detach.Bind(wx.EVT_BUTTON, self.on_detach)
+        row_att.Add(self.btn_detach, 0, wx.ALL, 5)
+        vbox.Add(row_att, 0, wx.LEFT | wx.RIGHT, 8)
 
         row1 = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_send = wx.Button(panel, label="&Invia")
@@ -6249,14 +6316,24 @@ class GeminiChatFrame(wx.Frame):
             self.txt_history.SetFocus()
             speak_accessible(
                 f"Conversazione precedente caricata, {title_name}. "
-                "Puoi continuare o iniziarne una nuova. Frecce per leggere."
+                "Puoi continuare o iniziarne una nuova. "
+                "Alt+A apre l'elenco dei file, i più recenti in cima. "
+                "Frecce per leggere."
                 + link_note
+            )
+        elif (session.get("kind") == "free") and not (session.get("path") or ""):
+            self.txt_q.SetFocus()
+            speak_accessible(
+                "Conversazione con Gemini, senza un file di partenza. "
+                "Scrivi la domanda e premi Invio. Shift+Invio va a capo. "
+                "Alt+A apre l'elenco dei file, i più recenti in cima. Esc annulla."
             )
         else:
             self.txt_q.SetFocus()
             speak_accessible(
                 f"Conversazione con Gemini su {title_name}. "
-                "Scrivi la domanda e premi Invio. Esc annulla."
+                "Scrivi la domanda e premi Invio. Shift+Invio va a capo. "
+                "Alt+A apre l'elenco dei file, i più recenti in cima. Esc annulla."
             )
 
     def _render(self):
@@ -6281,6 +6358,7 @@ class GeminiChatFrame(wx.Frame):
         except Exception:
             pass
         self._refresh_links(text or "")
+        self._refresh_attach_list()
 
     def _refresh_links(self, text):
         try:
@@ -6321,6 +6399,9 @@ class GeminiChatFrame(wx.Frame):
             self.btn_open_link,
             self.btn_new,
             self.btn_hist,
+            self.btn_attach,
+            self.btn_detach,
+            self.lst_attach,
             self.chk_web,
         ):
             ctrl.Enable(not busy)
@@ -6338,7 +6419,141 @@ class GeminiChatFrame(wx.Frame):
         if enabled:
             speak_accessible("Consultazione web accesa.")
         else:
-            speak_accessible("Consultazione web spenta. Le risposte restano sul file.")
+            speak_accessible("Consultazione web spenta.")
+
+    def _refresh_attach_list(self):
+        if not hasattr(self, "lst_attach"):
+            return
+        atts = (self.session or {}).get("attachments") or []
+        self.lst_attach.Clear()
+        shown = 0
+        for att in atts:
+            if not isinstance(att, dict):
+                continue
+            name = att.get("title") or "allegato"
+            kind = ""
+            try:
+                kind = rtad_chat._kind_it(att.get("kind") or "")
+            except Exception:
+                kind = att.get("kind") or ""
+            self.lst_attach.Append(f"{name} ({kind})" if kind else name)
+            shown += 1
+        if not shown:
+            self.lst_attach.Append("Nessun allegato presente.")
+        self.lst_attach.SetSelection(0)
+
+    def _show_notice(self, text):
+        """Stessa frase a schermo e in voce."""
+        text = (text or "").strip()
+        if not text:
+            return
+        try:
+            self.lbl_status.SetLabel(text)
+            self.lbl_status.Wrap(max(200, self.GetClientSize().width - 24))
+        except Exception:
+            pass
+        speak_accessible(text)
+
+    def _fill_suggestions(self):
+        kind = (self.session or {}).get("kind") or "document"
+        atts = (self.session or {}).get("attachments") or []
+        if kind == "free" and atts:
+            kinds = {a.get("kind") for a in atts if isinstance(a, dict)}
+            if kinds == {"image"}:
+                kind = "image"
+            else:
+                kind = "document"
+        self.lst_suggest.Clear()
+        for q in rtad_chat.suggested_questions(kind):
+            self.lst_suggest.Append(q)
+        if self.lst_suggest.GetCount():
+            self.lst_suggest.SetSelection(0)
+
+    def on_attach(self, event=None):
+        if self._busy:
+            return
+        if rtad_attach_dialog is None:
+            speak_accessible("Non riesco ad aprire l'elenco dei file.")
+            return
+        try:
+            paths = rtad_attach_dialog.choose_attachment_paths(
+                self,
+                config_dir=CONFIG_DIR,
+                hint_path=(self.session.get("path") or ""),
+                speak=speak_accessible,
+                session=self.session,
+            )
+        except Exception as exc:
+            logging.debug(f"Chat: scelta allegati: {exc}")
+            speak_accessible("Non riesco ad aprire l'elenco dei file.")
+            return
+        if not paths:
+            speak_accessible("Nessun file allegato.")
+            return
+        added = []
+        refused = []
+        for path in paths:
+            try:
+                ok, msg = rtad_chat.add_attachment(self.session, path)
+            except Exception as exc:
+                ok, msg = False, str(exc)
+            if ok:
+                added.append(msg)
+            else:
+                refused.append(msg)
+        try:
+            rtad_chat.save_current(CONFIG_DIR, self.session)
+        except Exception as exc:
+            logging.debug(f"Chat: allegati non salvati: {exc}")
+        title = (self.session.get("title") or "").strip()
+        if title:
+            self.SetTitle(f"Chiedi a Gemini — {title}")
+        self._fill_suggestions()
+        self._render()
+        n_scelti = len(paths)
+        n_ok = len(added)
+        if n_ok == n_scelti and n_ok:
+            msg = f"Allegati {n_ok}." if n_ok != 1 else f"Allegato: {added[0]}."
+        elif n_ok and refused:
+            msg = (
+                f"Allegati {n_ok} su {n_scelti}. Non entrati: "
+                + " ".join(refused)
+            )
+        elif refused:
+            msg = f"Nessuno allegato, su {n_scelti}. " + " ".join(refused)
+        else:
+            msg = "Nessun file allegato."
+        self._show_notice(msg)
+        self.txt_q.SetFocus()
+
+    def on_detach(self, event=None):
+        if self._busy:
+            return
+        if not (self.session.get("attachments") or []):
+            self._show_notice("Nessun allegato presente.")
+            return
+        idx = self.lst_attach.GetSelection()
+        if idx == wx.NOT_FOUND:
+            self._show_notice("Scegli un allegato da togliere.")
+            return
+        try:
+            name = rtad_chat.remove_attachment(self.session, idx)
+        except Exception as exc:
+            self._show_notice(f"Non posso togliere l'allegato: {exc}")
+            return
+        if not name:
+            self._show_notice("Allegato non trovato.")
+            return
+        try:
+            rtad_chat.save_current(CONFIG_DIR, self.session)
+        except Exception:
+            pass
+        self._fill_suggestions()
+        self._render()
+        msg = f"Allegato tolto: {name}"
+        if not (self.session.get("attachments") or []):
+            msg += " Nessun allegato presente."
+        self._show_notice(msg)
 
     def on_send_suggested(self, event=None):
         idx = self.lst_suggest.GetSelection()
@@ -6443,6 +6658,9 @@ class GeminiChatFrame(wx.Frame):
         except Exception as exc:
             logging.warning(f"Chat: salvataggio cronologia non riuscito: {exc}")
             speak_accessible(f"Risposta ricevuta, cronologia non salvata: {exc}")
+        title = (self.session.get("title") or "").strip()
+        if title:
+            self.SetTitle(f"Chiedi a Gemini — {title}")
         self._render()
         self.txt_history.SetFocus()
         speak_accessible("Risposta pronta. Usa le frecce per leggere.")
@@ -6453,7 +6671,7 @@ class GeminiChatFrame(wx.Frame):
         if self.session.get("turns"):
             ask = wx.MessageDialog(
                 self,
-                "Archivio questa conversazione e ne apro una vuota sullo stesso file?",
+                "Archivio questa conversazione e ne apro una vuota?",
                 "Nuova conversazione",
                 wx.YES_NO | wx.ICON_INFORMATION,
             )
@@ -6469,6 +6687,20 @@ class GeminiChatFrame(wx.Frame):
                 speak_accessible(f"Archivio non riuscito: {exc}")
                 return
         self._live = None
+        for att in list(self.session.get("attachments") or []):
+            try:
+                rtad_chat._discard_media_cache(att)
+            except Exception:
+                pass
+        self.session["attachments"] = []
+        if (self.session.get("kind") == "free") and not (self.session.get("path") or ""):
+            self.session["title"] = "Conversazione"
+            self.SetTitle("Chiedi a Gemini — Conversazione")
+        try:
+            rtad_chat.save_current(CONFIG_DIR, self.session)
+        except Exception as exc:
+            logging.debug(f"Chat: nuova conversazione non salvata: {exc}")
+        self._fill_suggestions()
         self._render()
         self.txt_q.SetFocus()
         speak_accessible("Nuova conversazione. Scrivi la domanda.")
@@ -6477,7 +6709,9 @@ class GeminiChatFrame(wx.Frame):
         if self._busy:
             return
         try:
-            rows = rtad_chat.list_saved(CONFIG_DIR, self.session.get("path") or "")
+            rows = rtad_chat.list_saved(
+                CONFIG_DIR, self.session.get("path") or "", self.session
+            )
         except Exception as exc:
             speak_accessible(f"Cronologia non disponibile: {exc}")
             return
@@ -6650,12 +6884,10 @@ class GeminiChatFrame(wx.Frame):
             return
         if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
             focused = self.FindFocus()
-            if (
-                focused is self.txt_q
-                and not event.ShiftDown()
-                and not event.AltDown()
-                and not event.ControlDown()
-            ):
+            if focused is self.txt_q and not event.AltDown() and not event.ControlDown():
+                if event.ShiftDown():
+                    self.txt_q.WriteText("\n")
+                    return
                 self.on_send()
                 return
         event.Skip()
@@ -7453,20 +7685,18 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Se un modello Gemini è occupato, si prova il successivo.\n"
-            "  Non ci si ferma al primo rifiuto.\n"
-            "• La frase a schermo non parla di credito finito.\n"
-            "  Servizio occupato, oppure limite temporaneo di richieste.\n"
-            "  Se Google scrive che manca il pagamento, si legge quella frase.\n"
-            "• Lettere che si pestavano: ora una lettera, una azione.\n"
-            "  Alt+L chiave Google. Alt+H chiave Gemini. Alt+B conversazioni.\n"
-            "  Alt+G sulla finestra principale: Segnalibri.\n"
-            "  Alt+M: menu Strumenti.\n"
-            "  «Chiedi a Gemini» sul report resta Alt+G.\n"
-            "  Ctrl+Shift+G per le conversazioni resta.\n"
-            "• Resta dalla 1.8.1: domanda e motivo restano scritti se\n"
-            "  Gemini non risponde. In Esplora file, dopo il Setup,\n"
-            "  «Chiedi a Gemini» sul file scelto.\n"
+            "• Conversazione Gemini anche senza un file già aperto.\n"
+            "  Alt+Q, oppure Strumenti → Nuova conversazione Gemini.\n"
+            "• Nella chat, Alt+A apre l'elenco della cartella, i più recenti in cima.\n"
+            "  Ogni riga dice nome, data, tipo e dimensione. Su un video, fermandosi,\n"
+            "  si sente la durata. Shift+freccia giù e Control+Spazio per scegliere.\n"
+            "  Shift+Invio nella domanda va a capo e non invia.\n"
+            "  Vale anche sulla chat nata da un file: quello di partenza resta.\n"
+            "• Se i crediti prepagati della chiave sono finiti (HTTP 402),\n"
+            "  la frase lo dice in italiano. Si ricaricano in AI Studio.\n"
+            "  Non si prova un altro modello.\n"
+            "• Resta dalla 1.8.2: se un modello è occupato, si prova il\n"
+            "  successivo. Alt+L, Alt+H, Alt+B. Alt+G è Segnalibri.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -7585,6 +7815,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Ctrl + Alt + V : Incolla percorso dagli Appunti (file o path)\n"
             "  - Ctrl + Shift + G : Conversazioni Gemini già salvate\n"
             "  - Alt + B : Conversazioni Gemini (finestra principale)\n"
+            "  - Alt + Q : Nuova conversazione Gemini, anche senza un file\n"
+            "  - Alt + A : Allega file. Elenco per data, i più recenti in cima\n"
+            "  - Shift + Invio : nella domanda della chat, va a capo\n"
             "  - Alt + L : Chiave Google Vision\n"
             "  - Alt + H : Chiave Gemini\n"
             "  - Alt + G : Chiedi a Gemini (sul report o nel lettore documento)\n"
@@ -7873,6 +8106,10 @@ class MainWindow(wx.Frame):
         self.btn_gemini_chats.SetName("Conversazioni Gemini")
         self.btn_gemini_chats.Bind(wx.EVT_BUTTON, self.on_gemini_conversations)
         hbox_actions.Add(self.btn_gemini_chats, 0, wx.ALL, 5)
+        self.btn_gemini_new = wx.Button(panel, label="Nuova conversazione (&Q)…")
+        self.btn_gemini_new.SetName("Nuova conversazione Gemini")
+        self.btn_gemini_new.Bind(wx.EVT_BUTTON, lambda e: open_free_gemini_chat(self))
+        hbox_actions.Add(self.btn_gemini_new, 0, wx.ALL, 5)
 
         self.btn_media_hub = wx.Button(panel, label="Analisi &audio/video…")
         self.btn_media_hub.SetToolTip(
@@ -8126,6 +8363,10 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Incolla pe&rcorso dagli Appunti…\tCtrl+Alt+V"
         )
         self.Bind(wx.EVT_MENU, self.on_paste_path_from_clipboard, item_paste_path)
+        item_gemini_new = tools_menu.Append(
+            wx.ID_ANY, "Nuova conversazione Gemini (&Q)…"
+        )
+        self.Bind(wx.EVT_MENU, lambda e: open_free_gemini_chat(self), item_gemini_new)
         item_gemini_chats = tools_menu.Append(
             wx.ID_ANY, "Conversazioni Gemini (Alt+&B)…\tCtrl+Shift+G"
         )
@@ -8274,7 +8515,7 @@ class MainWindow(wx.Frame):
         if not rows:
             speak_accessible(
                 "Nessuna conversazione Gemini salvata. "
-                "Si crea aprendo Chiedi a Gemini su un file."
+                "Alt+Q ne apre una senza file, oppure Chiedi a Gemini su un file."
             )
             return
         dlg = GeminiChatHistoryDialog(

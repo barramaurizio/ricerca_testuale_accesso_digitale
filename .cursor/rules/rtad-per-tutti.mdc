@@ -1,0 +1,19 @@
+---
+description: Ogni frase, conteggio e avviso vale per chi non vede e per chi vede, in SA e Add-on
+alwaysApply: true
+---
+
+# RTAD — per tutti, sempre
+
+Standalone e Add-on sono per tutti: chi usa la voce, chi è ipovedente, chi vede, e chi aiuta chi non vede. La stessa informazione deve esserci **a voce e a schermo**. Non basta che NVDA la dica.
+
+## Ogni modifica all’interfaccia
+
+- Conteggio, esito, motivo di un rifiuto, errore, stato vuoto: stessa frase in un’etichetta visibile (`StaticText`, riga di stato, voce di elenco) e in `speak_accessible`.
+- Un elenco vuoto non resta muto. wx dice «sconosciuto». Metti una riga vera, come «Nessun allegato presente.» o «Ricerca in corso... attendere prego.», e selezionala.
+- Le istruzioni dei tasti stanno scritte nella finestra, non solo nella guida o nella voce.
+- Se tocchi una frase in un gemello, la stessa frase va nell’altro (SA e Add-on).
+
+## Esempio
+
+Dopo Invio sugli allegati, la chat mostra e dice la stessa cosa: «Allegati 4 su 6. Non entrati: …». Senza allegati, l’elenco mostra «Nessun allegato presente.»

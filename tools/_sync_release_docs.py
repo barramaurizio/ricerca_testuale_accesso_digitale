@@ -36,6 +36,10 @@ def main() -> int:
     )
     shutil.copy2(ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py")
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_attach_dialog.py",
+        LIB / "rtad_attach_dialog.py",
+    )
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_guida_html.py", LIB / "rtad_guida_html.py"
     )
 
@@ -50,6 +54,11 @@ def main() -> int:
         ),
         ("rtad_epub.py", ROOT / "Standalone" / "rtad_epub.py", LIB / "rtad_epub.py"),
         ("rtad_chat.py", ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py"),
+        (
+            "rtad_attach_dialog.py",
+            ROOT / "Standalone" / "rtad_attach_dialog.py",
+            LIB / "rtad_attach_dialog.py",
+        ),
         (
             "rtad_guida_html.py",
             ROOT / "Standalone" / "rtad_guida_html.py",

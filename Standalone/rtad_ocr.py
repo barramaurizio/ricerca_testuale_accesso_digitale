@@ -239,21 +239,29 @@ def readable_gemini_error(err: str) -> str:
     """Frase da mostrare. Il dettaglio tecnico resta nel log.
 
     Un 503 o «high demand» non è il credito finito. Un 429 senza parole
-    di pagamento è un tetto temporaneo. Se Google parla di billing,
-    si lascia la sua frase.
+    di pagamento è un tetto temporaneo. Un 402 è il credito prepagato
+    finito, in italiano. Se Google parla di altro billing, si lascia
+    la sua frase.
     """
     raw = (err or "").strip()
     low = raw.lower()
     if not raw:
         return "Gemini non ha risposto."
-    if any(hint in low for hint in _GEMINI_BILLING_HINTS):
-        if len(raw) > 400:
-            return raw[:400] + "…"
-        return raw
     http = 0
     match = re.search(r"HTTP\s+(\d{3})", raw)
     if match:
         http = int(match.group(1))
+    # 402: crediti prepagati finiti. Non è il tetto temporaneo (429)
+    # e non si prova un altro modello. Frase italiana, non il JSON.
+    if http == 402 or "prepayment credits" in low or "credits are depleted" in low:
+        return (
+            "Gemini non ha risposto: i crediti prepagati di questa chiave "
+            "sono finiti. Si ricaricano in Google AI Studio."
+        )
+    if any(hint in low for hint in _GEMINI_BILLING_HINTS):
+        if len(raw) > 400:
+            return raw[:400] + "…"
+        return raw
     busy = http == 503 or (
         http == 0 and ("unavailable" in low or "high demand" in low)
     )
@@ -4189,7 +4197,11 @@ def _gemini_generate_description(
             last_err = f"HTTP {e.code} ({model})"
             if err_body:
                 last_err += f": {err_body}"
-            # 404 modello assente, 429 tetto temporaneo, 503 servizio occupato.
+            # 402 crediti prepagati: ci si ferma, non si prova un altro modello.
+            # 404 assente, 429 tetto temporaneo, 503 servizio occupato.
+            if e.code == 402:
+                _gemini_last_error = last_err
+                return "", f"gemini: {last_err}"
             if e.code in (404, 429, 503):
                 logging.info(
                     "Gemini %s HTTP %s, provo il modello successivo",

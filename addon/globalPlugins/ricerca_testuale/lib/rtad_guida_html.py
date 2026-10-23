@@ -314,20 +314,36 @@ audio/video, e — dalla 1.8.0 — per la
   «Descrivi» (serve connessione). Su un audio/video puoi provare riassunto
   o trascrizione (opt-in) dall’hub «Tutto sull’audio/video».
 </div>
-<h3 id="chat">Conversazione sul file (dalla 1.8.0)</h3>
-<p>Non è una chat vuota. Parla di un file che RTAD ha già aperto:
-una foto, un documento, oppure un audio o un video di cui c’è già
-il resoconto a schermo.</p>
+<h3 id="chat">Conversazione con Gemini (dalla 1.8.0, ampliata in 1.8.3)</h3>
+<p>Si può partire da un file già aperto, oppure da zero.
+Il file, se c’è, resta. In qualunque momento si allegano altri file.</p>
 <ul>
+  <li>Pulsante <strong>Nuova conversazione</strong> (<kbd>Alt</kbd>+<kbd>Q</kbd>)
+    e menù Strumenti → Nuova conversazione Gemini: nessuna foto
+    e nessun documento aperti prima.</li>
   <li>Pulsante <strong>Conversazioni Gemini</strong> accanto ad Avvia ricerca,
     e menù Strumenti (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>).</li>
   <li>Sul resoconto immagine o audio/video, e nel lettore documento:
     <strong>Chiedi a Gemini</strong> (<kbd>Alt</kbd>+<kbd>G</kbd>).</li>
+  <li>Nella chat, <strong>Allega file</strong> (<kbd>Alt</kbd>+<kbd>A</kbd>):
+    elenco della cartella, i più recenti in cima. Ogni riga dice
+    nome, data, tipo e dimensione. Su un audio o un video, fermandosi,
+    si sente la durata. Il primo è già selezionato.
+    Shift+freccia giù prende un gruppo di fila.
+    Control+freccia salta, e quelli già presi restano.
+    Poi di nuovo Shift+freccia giù: un altro gruppo, senza perdere i primi.
+    Control+Spazio aggiunge o toglie un file solo.
+    Il numero è a voce e a schermo. Invio allega, fino a 12:
+    immagini, documenti, audio e video. Le e-mail .eml no.
+    Se qualcuno non entra, la frase dice quanti su quanti, e il motivo.
+    Senza allegati, l’elenco dice «Nessun allegato presente».
+    Alt+C cambia cartella. La finestra di Windows resta per le
+    cartelle piccole. <strong>Togli allegato</strong> ne leva uno.</li>
   <li>Tasto Applicazioni su un risultato: Chiedi, oppure Riprendi se
     la conversazione c’è già. Un file <code>.chat.txt</code> salvato
     si riapre qui, se il titolo coincide.</li>
 </ul>
-<p>Mentre scrivi, la domanda va a capo. Invio invia.
+<p>Shift+Invio va a capo. Invio invia.
 Esc annulla la richiesta in corso; a riposo chiude la finestra.
 Ci sono domande pronte, Copia, Salva, Stampa, Nuova conversazione
 e Cronologia.</p>
@@ -506,6 +522,9 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> — Trascrivi e cerca…</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> — Conversazioni Gemini</li>
   <li><kbd>Alt</kbd>+<kbd>B</kbd> — Conversazioni Gemini (finestra principale)</li>
+  <li><kbd>Alt</kbd>+<kbd>Q</kbd> — Nuova conversazione Gemini, anche senza un file</li>
+  <li><kbd>Alt</kbd>+<kbd>A</kbd> — Allega file: elenco per data, i più recenti in cima</li>
+  <li><kbd>Shift</kbd>+<kbd>Invio</kbd> — nella domanda della chat, va a capo</li>
   <li><kbd>Alt</kbd>+<kbd>L</kbd> — Chiave Google Vision</li>
   <li><kbd>Alt</kbd>+<kbd>H</kbd> — Chiave Gemini</li>
   <li><kbd>Alt</kbd>+<kbd>G</kbd> — Segnalibri. Sul report o nel lettore: Chiedi a Gemini</li>

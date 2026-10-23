@@ -2,8 +2,8 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `1.8.1` — piano chiuso `docs/PIANO_1.8.1.md`.  
-**In corso, non pubblicata:** `1.8.2` — codice del 22/10/2026, piano `docs/PIANO_1.8.2.md`. Non aprire Whisper.
+**Ultima pubblicata:** `1.8.2` — piano chiuso `docs/PIANO_1.8.2.md` (22/10/2026, GitHub `v1.8.2` / `app-v1.8.2`, DataStore accettato).  
+**In corso, non pubblicata:** `1.8.3` — piano `docs/PIANO_1.8.3.md`. Non aprire Whisper. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti.
 
 ## Sorgente
 - GitHub: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -16,11 +16,11 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (22/10/2026)
-- **Ultima pubblicata:** `1.8.1` — Gemini a schermo (domanda e motivo restano scritti) e, nella Standalone installata, «Chiedi a Gemini» in Esplora file.  
-  Pubblicata il 21/10/2026. Prove Maurizio OK su Standalone e Add-on. Papà deve ancora provare.  
-  **Non hotfixare 1.8.1.**  
-  Prima: `1.8.0` chat Gemini sul file, GitHub `v1.8.0` / `app-v1.8.0`, commit `a7fcb79`, DataStore #12370 → #12371.
+## Stato attuale (23/10/2026)
+- **Ultima pubblicata:** `1.8.2` — dopo un HTTP 503 si prova il modello successivo; la frase a schermo distingue servizio occupato e limite temporaneo; tasti Alt+L / Alt+H / Alt+B, Alt+G Segnalibri, Alt+M Strumenti.  
+  Pubblicata il 22/10/2026. Commit `d6e7806`. DataStore accettato. Papà (installer) deve ancora aggiornarsi dalla 1.8.1 e riprovare Gemini.  
+  **Non hotfixare 1.8.2.**  
+  Prima: `1.8.1` il 21/10; `1.8.0` chat Gemini sul file, DataStore #12370 → #12371.
 - Chiavi opt-in: Google Vision + Gemini (AI Studio), locali
 - Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_docstruct.py`, `rtad_chat.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`
 - Solo SA: `rtad_copie.py` (Trova copie)
@@ -28,13 +28,11 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 - Verifica commit prima del push: `git --no-pager show --stat -1`
 
 ### Versione in corso
-**`1.8.2` codice fatto il 22/10/2026, non pubblicata.** Pacchetto Add-on ricostruito: `ricerca_testuale_accesso_digitale-1.8.2.nvda-addon`. Standalone exe non compilato.  
-Feedback di papà (21/10, sera): HTTP 503 su `gemini-3.5-flash` (servizio occupato) e 429 (tetto temporaneo). Ha ancora circa 100 €. Ora un 503 prova il modello successivo. La frase a schermo dice «servizio occupato» oppure «limite temporaneo di richieste», e cita il pagamento solo se lo scrive Google.  
-Tasti: Alt+L chiave Google, Alt+H chiave Gemini, Alt+B conversazioni. Alt+G sulla finestra principale è Segnalibri. Alt+M è Strumenti. «Chiedi a Gemini» sul report resta Alt+G. Ctrl+Shift+G resta. Le lettere doppie dello stesso menu o dialogo sono state separate.  
-Le cronologie restano due cartelle: Standalone in `%AppData%\Roaming\RTAD_Standalone\chat`, Add-on in `{profilo NVDA}\rtad_data\chat`. Unificarle non è in 1.8.2.  
-Il `.rtad.txt` già salvato passa alla versione dopo. Whisper, confronto tra più file, chat vuota e Gemini su ogni risultato restano fuori.
+`1.8.3`, codice del 23/10/2026, non pubblicata e non compilata. Piano: `docs/PIANO_1.8.3.md`.
 
-Lista d’attesa: Whisper opt-in (versione dedicata); VIDEO_TS; OneCore; export multipli.
+Conversazione Gemini anche senza un file (Alt+Q). Nella chat, allegati uno o più alla volta, anche più tardi, anche se si era partiti da un file (Alt+A). HTTP 402 in italiano, senza provare un altro modello. Il `.rtad.txt` già salvato resta la candidata successiva.
+
+Lista d’attesa: Whisper opt-in (versione dedicata); chat da un `.rtad.txt` già salvato; confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`
 
@@ -44,4 +42,4 @@ Lista d’attesa: Whisper opt-in (versione dedicata); VIDEO_TS; OneCore; export 
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD 1.8.2: codice già fatto il 22/10, non pubblicato e non compilato. Leggere NOTE_CONTESTO. Prova: una domanda Gemini se il primo modello dà 503, e i tasti Alt+L / Alt+H / Alt+B / Alt+G / Alt+M. Poi, se Maurizio conferma, compilare.»
+«RTAD 1.8.3: codice del 23/10, non pubblicato e non compilato. Leggere NOTE_CONTESTO e PIANO_1.8.3. Provare Alt+Q, Alt+A su una chat da file e su una da zero, e la frase dell’HTTP 402. Non rifare quelle tre cose. Il .rtad.txt già salvato resta per dopo. Non aprire Whisper. Non togliere Cloud Vision.»

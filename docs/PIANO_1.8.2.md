@@ -6,7 +6,7 @@ Pubblicata il 21/10/2026, lo stesso giorno della 1.8.0. Prove Maurizio OK (Stand
 
 **Questa versione:** due cose, nient’altro. Il feedback di papà (21/10, sera) e i tasti doppi (22/10, notte). La chat da un `.rtad.txt` già salvato resta per la versione dopo.
 
-**Stato 22/10/2026:** codice fatto, non pubblicato, exe non compilato. Pacchetto Add-on: `ricerca_testuale_accesso_digitale-1.8.2.nvda-addon`.
+**Stato 22/10/2026:** pubblicata. GitHub `v1.8.2` e `app-v1.8.2`, commit `d6e7806`. DataStore accettato. Pacchetto: `ricerca_testuale_accesso_digitale-1.8.2.nvda-addon`.
 
 ## Cosa fare
 

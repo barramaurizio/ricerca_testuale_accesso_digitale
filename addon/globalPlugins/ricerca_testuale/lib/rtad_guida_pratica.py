@@ -28,41 +28,47 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.2
+Novità recenti (in parole semplici) — versione 1.8.3
 ----------------------------------------------------
-• Se Gemini è occupato su un modello, il programma prova da solo
-  quello dopo. Non si ferma al primo «riprova più tardi».
-• Se la risposta non arriva, la frase distingue: servizio occupato,
-  oppure un limite temporaneo di richieste per quella chiave.
-  Non dice che il credito è finito. Se Google scrive che manca
-  il pagamento, quella frase resta com’è. Il credito ancora
-  disponibile non c’entra con questi due casi.
-• I tasti che si pestavano ora fanno una cosa sola.
-  Sulla finestra principale: Alt+L chiave Google, Alt+H chiave
-  Gemini, Alt+B conversazioni. Alt+G apre i Segnalibri.
-  Alt+M apre Strumenti. «Chiedi a Gemini» sul resoconto resta
-  Alt+G. Ctrl+Shift+G per le conversazioni resta.
+• Puoi aprire una conversazione con Gemini anche senza un file.
+  Sulla finestra principale: Alt+Q, oppure Strumenti →
+  Nuova conversazione Gemini. Poi scrivi e premi Invio.
+• Nella chat, Alt+A apre l'elenco della cartella, i più recenti
+  in cima. Ogni riga dice nome, data, tipo e dimensione.
+  Su un audio o un video, se ti fermi, senti anche la durata.
+  Il primo è già selezionato. Shift+freccia giù prende un gruppo
+  di fila. Control+freccia salta, e quelli già presi restano.
+  Poi di nuovo Shift+freccia giù: un altro gruppo, senza perdere
+  i primi. Control+Spazio aggiunge o toglie un file solo.
+  Il numero è il totale, a voce e a schermo.
+  Invio allega, fino a 12: immagini, documenti, audio e video.
+  Le e-mail .eml no.
+  Se qualcuno non entra, la frase dice quanti su quanti, e il motivo.
+  Se non c’è nessun allegato, l’elenco dice «Nessun allegato presente».
+  Alt+C cambia cartella.
+  «Finestra di Windows» resta per le cartelle piccole.
+  Puoi aggiungerne altri più tardi. Vale anche se la chat era
+  nata da un file: quello di partenza resta.
+• Shift+Invio, mentre scrivi la domanda, va a capo e non invia.
+  Invio da solo invia.
+• Se i crediti prepagati della chiave sono finiti, la frase lo
+  dice in italiano: si ricaricano in Google AI Studio.
+  In quel caso non si prova un altro modello.
+• Resta dalla 1.8.2: se Gemini è occupato su un modello, si prova
+  quello dopo. Alt+L chiave Google, Alt+H chiave Gemini,
+  Alt+B conversazioni. Alt+G sulla finestra principale apre
+  i Segnalibri. «Chiedi a Gemini» sul resoconto resta Alt+G.
 • Le conversazioni del programma Windows e quelle dell’Add-on
-  restano due elenchi diversi: uno nella cartella del programma,
-  l’altro nel profilo di NVDA.
-• Resta dalla 1.8.1: se Gemini non risponde, domanda e motivo
-  restano scritti. Sul programma Windows installato, in Esplora
-  file, c’è «Chiedi a Gemini» sul file su cui sei.
-• «Conversazioni Gemini» è accanto ad Avvia ricerca (Alt+B)
-  e in Strumenti (Ctrl+Shift+G). Sul resoconto o nel lettore:
-  «Chiedi a Gemini» (Alt+G). Sul risultato di una ricerca:
-  tasto Applicazioni, poi Chiedi oppure Riprendi.
-• La risposta può distinguere ciò che è nel file da un
+  restano due elenchi diversi.
+• «Conversazioni Gemini» è accanto ad Avvia ricerca (Alt+B).
+  Accanto c’è anche «Nuova conversazione» (Alt+Q).
+  Sul resoconto o nel lettore: «Chiedi a Gemini» (Alt+G).
+• La risposta può distinguere ciò che è nel materiale da un
   approfondimento sul web (la casella è accesa; puoi spegnerla).
 • I link non si aprono con Invio sull’elenco. Per aprirne uno:
-  Tab fino al pulsante Apri fonte, poi Invio. Alt+F fa lo stesso,
-  anche se sei sull’elenco.
+  Tab fino al pulsante Apri fonte, poi Invio. Alt+F fa lo stesso.
 • Mentre scrivi la domanda il testo va a capo. Invio invia.
   Puoi copiare, salvare e stampare. La cronologia resta sul PC.
-• Se parti da un indirizzo Internet, la conversazione prende
-  il titolo del video, non il nome di un file temporaneo.
-  Salva propone l’ultima cartella che hai usato.
-• Resta da 1.7.7: il testo delle tabelle in foto, riga per riga.
 
 
 1. A cosa serve

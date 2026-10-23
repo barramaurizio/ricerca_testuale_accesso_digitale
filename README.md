@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.3
+
+- **Conversazione senza file:** Alt+Q, oppure Strumenti → Nuova conversazione Gemini. Non serve aprire prima una foto o un documento.
+- **Allegati in chat:** Alt+A apre l’elenco della cartella, i più recenti in cima (nome, data, tipo, dimensione; su un video, fermandosi, la durata). Fino a 12: immagini, documenti, audio e video. Le e-mail .eml no. Shift+freccia giù e Control+Spazio per scegliere. La finestra di Windows resta per le cartelle piccole. Vale anche sulla chat nata da un file: quello di partenza resta.
+- **Shift+Invio** nella domanda va a capo e non invia. Invio da solo invia.
+- **Crediti finiti:** HTTP 402 in italiano. I crediti prepagati di quella chiave sono finiti e si ricaricano in Google AI Studio. Non si prova un altro modello. Vale per chat, descrizione immagine e audio/video.
+- Standalone e Add-on insieme. Le cronologie restano separate.
 
 ### 🌟 Novità della Versione 1.8.2
 
@@ -243,6 +251,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.3
+
+- **Conversation with no file:** Alt+Q, or Tools → New Gemini conversation. No photo or document has to be open first.
+- **Attachments in chat:** Alt+A opens the folder list, newest first (name, date, type, size; on a video, the duration when you stop on it). Up to 12: images, documents, audio and video. .eml mail files are not included. Shift+Down and Ctrl+Space to select. The Windows dialog remains for small folders. This also works when the chat started from a file: that file stays.
+- **Shift+Enter** in the question inserts a new line and does not send. Enter alone sends.
+- **Credits used up:** HTTP 402 in Italian. That key’s prepaid credits are finished and are topped up in Google AI Studio. Another model is not tried. Chat, image description, and audio/video.
+- Standalone and add-on together. Histories stay separate.
 
 ### 🌟 What's New in Version 1.8.2
 

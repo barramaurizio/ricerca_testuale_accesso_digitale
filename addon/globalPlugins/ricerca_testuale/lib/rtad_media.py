@@ -1806,6 +1806,10 @@ def _gemini_generate_media(
                 last_err = f"HTTP {e.code} ({model})"
                 if err_body:
                     last_err += f": {err_body}"
+                # 402 crediti prepagati: ci si ferma, non si prova un altro modello.
+                if e.code == 402:
+                    _gemini_last_error = last_err
+                    return "", f"gemini: {last_err}"
                 if e.code in (404, 429, 503):
                     logging.info(
                         "Gemini %s HTTP %s, provo il modello successivo",

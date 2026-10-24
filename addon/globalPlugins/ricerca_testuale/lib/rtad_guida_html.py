@@ -128,20 +128,18 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Gemini a schermo:</strong> se non arriva una risposta, la domanda
-      e il motivo restano scritti nel riquadro Conversazione.</li>
-    <li><strong>Esplora file</strong> (solo Standalone installata): dentro
-      «Cerca con Accesso Digitale» c’è «Chiedi a Gemini» sul file scelto.</li>
-    <li><strong>Conversazione con Gemini</strong> sul file già aperto
-      (immagine, documento, audio/video sul report). Più domande, data di
-      oggi, cronologia sul PC, copia, salva e stampa.
-      Vedi <a href="#chat">conversazione sul file</a>.</li>
-    <li><strong>Link:</strong> Tab fino a «Apri fonte», poi Invio.
-      <kbd>Alt</kbd>+<kbd>F</kbd> fa lo stesso, anche se sei sull’elenco.
-      Invio sull’elenco non apre il browser.</li>
-    <li>Da un URL la chat resta col titolo del video. Standalone e Add-on
-      hanno cronologie separate. Resta l’OCR tabelle della 1.7.7
-      (vedi <a href="#ocr">OCR</a>).</li>
+    <li><strong>Dal resoconto già salvato:</strong> su un .rtad.txt, Chiedi a
+      Gemini usa quel testo e non rifà l’analisi. Se la foto, il video o il
+      documento con lo stesso nome è ancora accanto, quello resta il file di
+      partenza. Se non c’è più, la chat resta sul testo salvato e lo dice,
+      a voce e a schermo.</li>
+    <li><strong>Elenchi vuoti:</strong> una riga vera, a schermo e in voce.
+      «Nessuna ricerca avviata.», «Nessun risultato con questo filtro.»,
+      «Ancora nessuna fonte.», «Nessuna correzione nel glossario.»</li>
+    <li><strong>Add-on:</strong> NVDA dice anche il percorso impostato, il
+      testo salvato e i risultati esportati.</li>
+    <li>Restano Alt+A, fino a 12 allegati, e Shift+Invio. In Esplora file,
+      solo nel programma Windows, la voce c’è anche sul .rtad.txt.</li>
   </ul>
   <p class="top"><a href="#indice">↑ Indice</a></p>
 </div>

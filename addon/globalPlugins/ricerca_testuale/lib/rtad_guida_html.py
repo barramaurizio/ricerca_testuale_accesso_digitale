@@ -314,10 +314,16 @@ audio/video, e — dalla 1.8.0 — per la
   «Descrivi» (serve connessione). Su un audio/video puoi provare riassunto
   o trascrizione (opt-in) dall’hub «Tutto sull’audio/video».
 </div>
-<h3 id="chat">Conversazione con Gemini (dalla 1.8.0, ampliata in 1.8.3)</h3>
-<p>Si può partire da un file già aperto, oppure da zero.
-Il file, se c’è, resta. In qualunque momento si allegano altri file.</p>
+<h3 id="chat">Conversazione con Gemini (dalla 1.8.0, ampliata in 1.8.4)</h3>
+<p>Si può partire da un file già aperto, da zero, oppure da un
+resoconto <code>.rtad.txt</code> già salvato. Il file, se c’è, resta.
+In qualunque momento si allegano altri file.</p>
 <ul>
+  <li>Da un <code>.rtad.txt</code> già salvato: Chiedi a Gemini usa quel
+    testo, senza rifare l’analisi. Se la foto, il video o il documento
+    con lo stesso nome è ancora accanto, quello resta il file di partenza.
+    Se non c’è più, la chat resta sul testo salvato e lo dice, a voce
+    e a schermo.</li>
   <li>Pulsante <strong>Nuova conversazione</strong> (<kbd>Alt</kbd>+<kbd>Q</kbd>)
     e menù Strumenti → Nuova conversazione Gemini: nessuna foto
     e nessun documento aperti prima.</li>
@@ -353,7 +359,8 @@ Quando è accesa, la risposta separa «Nel file» da «Approfondimento».</p>
   <strong>Aprire un link.</strong> L’elenco Fonti e link non apre il browser
   con Invio né con il doppio clic. Per aprirne una: Tab fino al pulsante
   <strong>Apri fonte</strong>, poi Invio. Alt+F fa lo stesso, anche se sei
-  sull’elenco.
+  sull’elenco. Finché non c’è un link, l’elenco dice
+  «Ancora nessuna fonte.»
 </div>
 <p>Se il file arriva da un indirizzo Internet, la conversazione resta
 col <strong>titolo del video</strong> e con quell’indirizzo, non col nome

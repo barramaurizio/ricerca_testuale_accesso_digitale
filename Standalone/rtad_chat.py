@@ -39,6 +39,16 @@ MAX_OUTPUT_TOKENS = 8192
 REQUEST_TIMEOUT_SEC = 90
 FILE_API_TIMEOUT_SEC = 900
 CHAT_VERSION = 1
+
+# Dal .rtad.txt già salvato (1.8.4). Stessa frase a schermo e in voce.
+NOTICE_REPORT_ORPHAN = (
+    "Il file originale non è più accanto a questo resoconto. "
+    "La conversazione resta sul testo salvato."
+)
+_REPORT_MATERIAL_MESSAGE = (
+    "Resoconto già salvato in RTAD. Non è stata rifatta l'analisi del file."
+)
+_EMPTY_REPORT = "(Il resoconto salvato è vuoto.)"
 MAX_ATTACHMENTS = 12
 ATTACH_TEXT_CAP = 60000
 MAX_ATTACH_DOC_BYTES = 80 * 1024 * 1024
@@ -759,6 +769,7 @@ def refresh_context(session: dict) -> None:
             "Il file sul disco è stato modificato dopo l'ultimo scambio di questa conversazione."
         )
     session["mtime"] = ts
+    _apply_report_material(session)
     kind = session.get("kind")
     if kind == "free" and not path:
         session["context_text"] = (
@@ -806,6 +817,223 @@ def refresh_context(session: dict) -> None:
         )
     else:
         session["context_text"] = full
+    if session.get("report_orphan"):
+        session["context_note"] = NOTICE_REPORT_ORPHAN
+
+
+def is_rtad_report(path: str) -> bool:
+    """True per un resoconto già salvato (nome.rtad.txt)."""
+    return (path or "").lower().endswith(".rtad.txt")
+
+
+def notice_report_ready(name: str) -> str:
+    """Frase quando la foto, il video o il documento è ancora accanto."""
+    label = (name or "").strip() or "file"
+    return (
+        "Resoconto già salvato, senza rifare l'analisi. "
+        f"File di partenza: {label}."
+    )
+
+
+def _report_body(path: str) -> str:
+    """Testo del resoconto. Il glossario attivo, se c'è, resta in memoria."""
+    text = _read_plain(path).strip()
+    try:
+        import rtad_media as media
+
+        fn = getattr(media, "apply_transcript_glossary", None)
+        if fn and text:
+            text = (fn(text) or "").strip()
+    except Exception:
+        logging.debug("Chat: glossario sul resoconto non applicato", exc_info=True)
+    return text or _EMPTY_REPORT
+
+
+def _report_struct(body: str) -> dict:
+    return {
+        "body": body or _EMPTY_REPORT,
+        "plain": body or _EMPTY_REPORT,
+        "outline": [],
+        "message": _REPORT_MATERIAL_MESSAGE,
+    }
+
+
+def _apply_report_material(session: dict) -> None:
+    """Il testo salvato è il materiale. Non si rilegge il video come documento."""
+    if not session:
+        return
+    report_path = (session.get("report_path") or "").strip()
+    if not report_path or not os.path.isfile(report_path):
+        return
+    body = _report_body(report_path)
+    if session.get("kind") == "image":
+        session["_prior"] = body
+        return
+    session["_struct"] = _report_struct(body)
+    session["_displayed"] = body
+
+
+def _is_report_source(path: str) -> bool:
+    """Foto, audio, video o documento. Non un altro resoconto."""
+    if not path or is_rtad_report(path) or path.lower().endswith(".chat.txt"):
+        return False
+    ext = os.path.splitext(path)[1].lower()
+    if ext in _IMAGE_MIME or ext in _DOC_EXTS:
+        return True
+    try:
+        import rtad_media as media
+
+        if ext in getattr(media, "MEDIA_EXTS", ()):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _extensions_named_in_report(stem: str, head: str) -> list:
+    """Estensioni che il resoconto scrive accanto al nome (anche a capo)."""
+    compact = re.sub(r"\s+", "", head or "").lower()
+    stem_c = re.sub(r"\s+", "", stem or "").lower()
+    if not stem_c or not compact:
+        return []
+    exts = set(_IMAGE_MIME) | set(_DOC_EXTS)
+    try:
+        import rtad_media as media
+
+        exts |= set(getattr(media, "MEDIA_EXTS", ()))
+    except Exception:
+        pass
+    found = []
+    for ext in exts:
+        if (stem_c + ext) in compact and ext not in found:
+            found.append(ext)
+    return found
+
+
+def _source_rank(path: str) -> int:
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        import rtad_media as media
+
+        if ext in getattr(media, "MEDIA_EXTS", ()):
+            return 0
+    except Exception:
+        pass
+    if ext in _IMAGE_MIME:
+        return 1
+    if ext in _DOC_EXTS:
+        return 2
+    return 9
+
+
+def original_beside_report(path: str) -> str:
+    """File con lo stesso nome, nella stessa cartella. Vuoto se non c'è più.
+
+    «video.mp4» sta accanto a «video.rtad.txt».
+    Vale anche «video.mp4.rtad.txt», il nome intero più .rtad.txt.
+    """
+    path = os.path.abspath(path or "")
+    if not is_rtad_report(path) or not os.path.isfile(path):
+        return ""
+    folder = os.path.dirname(path)
+    name = os.path.basename(path)
+    stem = name[: -len(".rtad.txt")]
+    if not stem:
+        return ""
+    direct = os.path.join(folder, stem)
+    if os.path.isfile(direct) and _is_report_source(direct):
+        return os.path.abspath(direct)
+    stem_key = os.path.normcase(stem)
+    candidates = []
+    try:
+        entries = os.listdir(folder)
+    except OSError:
+        return ""
+    for entry in entries:
+        full = os.path.join(folder, entry)
+        if not os.path.isfile(full) or not _is_report_source(full):
+            continue
+        base = os.path.splitext(entry)[0]
+        if os.path.normcase(base) != stem_key:
+            continue
+        candidates.append(os.path.abspath(full))
+    if not candidates:
+        return ""
+    head = _read_plain(path)[:12000]
+    named_exts = _extensions_named_in_report(stem, head)
+    if named_exts:
+        picked = [
+            c for c in candidates
+            if os.path.splitext(c)[1].lower() in named_exts
+        ]
+        if not picked:
+            return ""
+        candidates = picked
+    if len(candidates) == 1:
+        return candidates[0]
+    compact_head = re.sub(r"\s+", "", head)
+    named = []
+    for cand in candidates:
+        token = re.sub(r"\s+", "", os.path.basename(cand))
+        if token and token in compact_head:
+            named.append(cand)
+    pool = named or candidates
+    pool.sort(key=lambda p: (_source_rank(p), os.path.basename(p).lower()))
+    return pool[0]
+
+
+def chat_anchor_for_report(path: str) -> str:
+    """Cronologia: sull'originale se c'è, altrimenti sul resoconto."""
+    original = original_beside_report(path)
+    if original:
+        return original
+    return os.path.abspath(path or "")
+
+
+def new_session_from_report(path: str) -> dict:
+    """Conversazione sul testo già salvato. Nessuna nuova descrizione o trascrizione."""
+    path = os.path.abspath(path or "")
+    body = _report_body(path)
+    original = original_beside_report(path)
+    struct = _report_struct(body)
+    if original:
+        kind = attachment_kind(original)
+        if kind == "image":
+            session = new_session(
+                "image",
+                original,
+                prior_report=body,
+                do_refresh=False,
+            )
+        else:
+            # Audio e video restano il file di partenza, ma non vengono ricaricati.
+            session = new_session(
+                "document",
+                original,
+                struct=struct,
+                displayed=body,
+                do_refresh=False,
+            )
+        session["report_notice"] = notice_report_ready(os.path.basename(original))
+        session["report_orphan"] = False
+    else:
+        session = new_session(
+            "document",
+            path,
+            struct=struct,
+            displayed=body,
+            do_refresh=False,
+        )
+        session["report_notice"] = NOTICE_REPORT_ORPHAN
+        session["report_orphan"] = True
+        session["context_note"] = NOTICE_REPORT_ORPHAN
+        session["title"] = os.path.basename(path)
+    session["report_path"] = path
+    refresh_context(session)
+    if session.get("report_orphan"):
+        session["context_note"] = NOTICE_REPORT_ORPHAN
+        session["report_notice"] = NOTICE_REPORT_ORPHAN
+    return session
 
 
 def _window_from(full_text: str, needle: str, start_at: int) -> tuple:
@@ -1335,6 +1563,9 @@ def _public_dict(session: dict) -> dict:
         "updated": session.get("updated") or "",
         **({"stable_key": session.get("stable_key")} if session.get("stable_key") else {}),
         **({"source_url": session.get("source_url")} if session.get("source_url") else {}),
+        **({"report_path": session.get("report_path")} if session.get("report_path") else {}),
+        **({"report_orphan": True} if session.get("report_orphan") else {}),
+        **({"report_notice": session.get("report_notice")} if session.get("report_notice") else {}),
         "turns": [
             {
                 "role": t.get("role"),
@@ -1480,6 +1711,11 @@ def _session_from_public(
         session["title"] = saved_title
     elif _temp_media_name(session.get("title") or "") and saved_title:
         session["title"] = saved_title
+    if data.get("report_path"):
+        session["report_path"] = data.get("report_path")
+    session["report_orphan"] = bool(data.get("report_orphan"))
+    if data.get("report_notice"):
+        session["report_notice"] = data.get("report_notice")
     if do_refresh:
         refresh_context(session)
     else:

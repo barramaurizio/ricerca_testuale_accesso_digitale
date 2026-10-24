@@ -254,7 +254,11 @@ class AttachFolderDialog(wx.Dialog):
         self._last_count = 0
         self.txt_path.SetValue(self._folder)
         self.lbl_dur.SetLabel("")
-        self.lst.set_labels([])
+        self.lst.set_labels(["Lettura della cartella…"])
+        try:
+            self.lst.Select(0)
+        except Exception:
+            pass
         self.lbl_help.SetLabel("Lettura della cartella…")
         self._say("Lettura della cartella.")
 
@@ -273,6 +277,11 @@ class AttachFolderDialog(wx.Dialog):
         if not self._alive or gen != self._load_gen:
             return
         if err:
+            self.lst.set_labels(["Non riesco a leggere la cartella."])
+            try:
+                self.lst.Select(0)
+            except Exception:
+                pass
             self.lbl_help.SetLabel("Non riesco a leggere la cartella.")
             self._say("Non riesco a leggere la cartella.")
             return
@@ -287,6 +296,12 @@ class AttachFolderDialog(wx.Dialog):
         name = os.path.basename(folder.rstrip("\\/")) or folder
         count = len(self._rows)
         if count == 0:
+            self.lst.set_labels(["Nessun file in questa cartella."])
+            try:
+                self.lst.Select(0)
+                self.lst.Focus(0)
+            except Exception:
+                pass
             try:
                 self.lbl_count.SetLabel("Nessun file in questa cartella.")
             except Exception:

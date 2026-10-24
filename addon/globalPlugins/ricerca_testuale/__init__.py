@@ -95,7 +95,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.3"
+APP_VERSION = "1.8.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -1775,8 +1775,13 @@ def save_rtad_speech_settings():
     _save_settings_dict(data)
 
 
-def rtad_speak(msg, force=False):
-    """Annuncio RTAD rispettando Mute F7 (voce/velocità restano di NVDA)."""
+def rtad_speak(msg, force=False, delay_ms=400):
+    """Annuncio RTAD rispettando Mute F7 (voce/velocità restano di NVDA).
+
+    Parte dopo un attimo: la chiusura di un menu o di una finestra di scelta
+    fa leggere a NVDA il controllo che riceve il cursore e taglia ui.message
+    immediato. delay_ms=0 resta per l'elenco file, dove la riga va detta subito.
+    """
     if not _rtad_speech_settings_loaded:
         try:
             load_rtad_speech_settings()
@@ -1784,15 +1789,32 @@ def rtad_speak(msg, force=False):
             pass
     if not _rtad_speech_active and not force:
         return
+    text = str(msg or "").strip()
+    if not text:
+        return
     try:
-        ui.message(str(msg))
+        wait = int(delay_ms or 0)
+    except Exception:
+        wait = 400
+    if wait > 0:
+        def _later(m=text, forced=force):
+            rtad_speak(m, force=forced, delay_ms=0)
+        try:
+            wx.CallLater(wait, _later)
+            return
+        except Exception:
+            pass
+    if not _rtad_speech_active and not force:
+        return
+    try:
+        ui.message(text)
     except Exception:
         pass
 
 
-def speak_accessible(text, force=False):
+def speak_accessible(text, force=False, delay_ms=400):
     """Stesso annuncio di rtad_speak: lo usa anche la conversazione Gemini."""
-    rtad_speak(text, force=force)
+    rtad_speak(text, force=force, delay_ms=delay_ms)
 
 
 def wrap_report_text(s, width=72):
@@ -5408,8 +5430,12 @@ class TranscriptGlossaryDialog(wx.Dialog):
 
     def _reload_list(self):
         self.lst.Clear()
-        for r in self._rules:
-            self.lst.Append(self._label(r))
+        if not self._rules:
+            self.lst.Append("Nessuna correzione nel glossario.")
+        else:
+            for r in self._rules:
+                self.lst.Append(self._label(r))
+        self.lst.SetSelection(0)
 
     def _on_select(self, event=None):
         sel = self.lst.GetSelection()
@@ -5989,6 +6015,79 @@ def open_gemini_chat(
     frm.Raise()
 
 
+def open_gemini_chat_from_report(path, parent=None):
+    """Dal .rtad.txt già salvato. Non rifà la descrizione né la trascrizione."""
+    if rtad_chat is None:
+        speak_accessible("Modulo conversazione non disponibile.")
+        return
+    path = (path or "").strip()
+    if not path or not os.path.isfile(path):
+        speak_accessible("File non trovato. La conversazione resta sul file aperto.")
+        return
+    key = ""
+    try:
+        key = load_gemini_api_key()
+    except Exception:
+        key = ""
+    if not key:
+        speak_accessible(
+            "Per conversare con Gemini serve la chiave personale, da Strumenti."
+        )
+        return
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+    if not _gemini_chat_privacy_ok(parent):
+        return
+    try:
+        fresh = rtad_chat.new_session_from_report(path)
+    except Exception as exc:
+        speak_accessible(f"Conversazione non avviata: {exc}")
+        return
+    anchor = fresh.get("path") or path
+    notice = fresh.get("report_notice") or ""
+    resumed = False
+    loaded = None
+    try:
+        loaded = rtad_chat.load_current(
+            CONFIG_DIR,
+            anchor,
+            struct=fresh.get("_struct"),
+            displayed=fresh.get("_displayed") or "",
+            prior_report=fresh.get("_prior") or "",
+        )
+    except Exception as exc:
+        logging.warning(f"Chat: cronologia del resoconto non caricata: {exc}")
+        loaded = None
+    if loaded and loaded.get("turns"):
+        resumed = True
+        loaded["report_path"] = fresh.get("report_path") or path
+        loaded["report_orphan"] = bool(fresh.get("report_orphan"))
+        loaded["report_notice"] = notice
+        if fresh.get("report_orphan"):
+            loaded["path"] = path
+            loaded["title"] = os.path.basename(path)
+            loaded["context_note"] = rtad_chat.NOTICE_REPORT_ORPHAN
+        else:
+            loaded["path"] = anchor
+        try:
+            rtad_chat.refresh_context(loaded)
+        except Exception:
+            logging.debug("Chat: rilettura resoconto non riuscita", exc_info=True)
+        loaded["report_notice"] = notice
+        if loaded.get("report_orphan"):
+            loaded["context_note"] = rtad_chat.NOTICE_REPORT_ORPHAN
+        session = loaded
+    else:
+        session = fresh
+    frm = GeminiChatFrame(session, resumed=resumed)
+    _track_gemini_chat(frm)
+    frm.Show()
+    frm.Raise()
+
+
 def open_free_gemini_chat(parent=None):
     """Conversazione senza un file già aperto. Gli allegati si aggiungono dopo."""
     if rtad_chat is None:
@@ -6172,11 +6271,15 @@ class GeminiChatFrame(wx.Frame):
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
+        notice = ((session or {}).get("report_notice") or "").strip()
         self.lbl_status = wx.StaticText(
             panel,
             label=(
-                "Domande ed estratti vanno a Google. La cronologia resta sul PC. "
-                "Esc annulla la richiesta in corso."
+                notice
+                or (
+                    "Domande ed estratti vanno a Google. La cronologia resta sul PC. "
+                    "Esc annulla la richiesta in corso."
+                )
             ),
         )
         vbox.Add(self.lbl_status, 0, wx.ALL | wx.EXPAND, 8)
@@ -6314,29 +6417,42 @@ class GeminiChatFrame(wx.Frame):
                 "Per aprirne una: Tab fino al pulsante Apri fonte, poi Invio. "
                 "Alt+F fa lo stesso, anche se sei sull'elenco."
             )
+        heard = (notice + " ") if notice else ""
         if resumed and (session.get("turns") or []):
-            self.txt_history.SetFocus()
-            speak_accessible(
-                f"Conversazione precedente caricata, {title_name}. "
+            opening = (
+                heard
+                + f"Conversazione precedente caricata, {title_name}. "
                 "Puoi continuare o iniziarne una nuova. "
                 "Alt+A apre l'elenco dei file, i più recenti in cima. "
                 "Frecce per leggere."
                 + link_note
             )
         elif (session.get("kind") == "free") and not (session.get("path") or ""):
-            self.txt_q.SetFocus()
-            speak_accessible(
+            opening = (
                 "Conversazione con Gemini, senza un file di partenza. "
                 "Scrivi la domanda e premi Invio. Shift+Invio va a capo. "
                 "Alt+A apre l'elenco dei file, i più recenti in cima. Esc annulla."
             )
         else:
-            self.txt_q.SetFocus()
-            speak_accessible(
-                f"Conversazione con Gemini su {title_name}. "
+            opening = (
+                heard
+                + f"Conversazione con Gemini su {title_name}. "
                 "Scrivi la domanda e premi Invio. Shift+Invio va a capo. "
                 "Alt+A apre l'elenco dei file, i più recenti in cima. Esc annulla."
             )
+        if notice:
+            self.txt_history.SetFocus()
+            try:
+                self.txt_history.SetInsertionPoint(0)
+                self.txt_history.ShowPosition(0)
+            except Exception:
+                pass
+        elif resumed and (session.get("turns") or []):
+            self.txt_history.SetFocus()
+        else:
+            self.txt_q.SetFocus()
+        # Il menu contestuale, chiudendosi, tronca ui.message se parte subito.
+        _announce(opening, delay_ms=700)
 
     def _render(self):
         text = ""
@@ -6350,6 +6466,9 @@ class GeminiChatFrame(wx.Frame):
             if not (self.session.get("turns") or []):
                 text = (text or "").replace("(Nessuno scambio ancora.)", "")
             text = (text or "").rstrip() + f"\n\nTu:\n{question}\n\nGemini:\n{body}\n"
+        notice = ((self.session or {}).get("report_notice") or "").strip()
+        if notice and not (text or "").startswith(notice):
+            text = notice + "\n\n" + (text or "")
         self.txt_history.SetValue(text or "")
         idx = (text or "").rfind("\nGemini:\n")
         if idx < 0:
@@ -6368,12 +6487,17 @@ class GeminiChatFrame(wx.Frame):
         except Exception:
             self._links = []
         self.lst_links.Clear()
-        for item in self._links:
-            self.lst_links.Append(rtad_chat.link_label(item))
-        if self._links:
-            self.lst_links.SetSelection(0)
+        if not self._links:
+            self.lst_links.Append("Ancora nessuna fonte.")
+        else:
+            for item in self._links:
+                self.lst_links.Append(rtad_chat.link_label(item))
+        self.lst_links.SetSelection(0)
 
     def on_open_link(self, event=None):
+        if not self._links:
+            speak_accessible("Ancora nessuna fonte.")
+            return
         idx = self.lst_links.GetSelection()
         if idx == wx.NOT_FOUND or idx >= len(self._links):
             speak_accessible("Nessun link selezionato.")
@@ -6482,7 +6606,7 @@ class GeminiChatFrame(wx.Frame):
                 self,
                 config_dir=CONFIG_DIR,
                 hint_path=(self.session.get("path") or ""),
-                speak=speak_accessible,
+                speak=lambda text: speak_accessible(text, delay_ms=0),
                 session=self.session,
             )
         except Exception as exc:
@@ -8048,6 +8172,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + L : Chiave Google Vision\n"
             "  - Alt + H : Chiave Gemini\n"
             "  - Alt + G : Chiedi a Gemini (sul report o nel lettore documento)\n"
+            "  - Sul file .rtad.txt: Chiedi a Gemini usa il resoconto già salvato\n"
             "  - Alt + F : Apri la fonte selezionata (anche se sei sull'elenco)\n"
             "  - Ctrl + H : Cronologia testi cercati (riprendi una ricerca precedente)\n"
             "  - Ctrl + Shift + H : Cronologia percorsi usati\n"
@@ -8138,6 +8263,7 @@ class SearchFrame(wx.Frame):
         self.current_percent = 0
         self.scanned_count = 0
         self.current_matches = []
+        self._results_ready = False
         self.file_map = {}
         self.current_query = ""
         self.live_matches_count = 0
@@ -8385,6 +8511,8 @@ class SearchFrame(wx.Frame):
         )
         vbox.Add(lbl_results, 0, wx.ALL, 5)
         self.lst_results = wx.ListBox(panel, style=wx.LB_SINGLE)
+        self.lst_results.Append("Nessuna ricerca avviata.")
+        self.lst_results.SetSelection(0)
         self.lst_results.Bind(wx.EVT_CHAR_HOOK, self.on_list_char_hook)
         self.lst_results.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_file_event)
         self.lst_results.Bind(wx.EVT_CONTEXT_MENU, self.on_context_menu)
@@ -10332,14 +10460,19 @@ class SearchFrame(wx.Frame):
 
     def speak_selected_preview(self):
         sel = self.lst_results.GetSelection()
-        if sel != wx.NOT_FOUND and sel in self.file_map:
-            item = self.file_map[sel]
-            snippet = item.get("snippet", "")
-            loc = item.get("location_info", "")
-            if snippet:
-                rtad_speak(f"{loc}: {snippet}")
-            else:
-                rtad_speak(f"{item['file_name']} - Nessuna anteprima di testo disponibile.")
+        if sel == wx.NOT_FOUND:
+            rtad_speak("Nessun elemento selezionato nella lista.")
+            return
+        if sel not in self.file_map:
+            rtad_speak(self.lst_results.GetString(sel))
+            return
+        item = self.file_map[sel]
+        snippet = item.get("snippet", "")
+        loc = item.get("location_info", "")
+        if snippet:
+            rtad_speak(f"{loc}: {snippet}")
+        else:
+            rtad_speak(f"{item['file_name']} - Nessuna anteprima di testo disponibile.")
 
     def start_search_thread(self):
         query = self.txt_query.GetValue().strip()
@@ -10437,6 +10570,7 @@ class SearchFrame(wx.Frame):
                 self.txt_filter.SetValue("")
             except Exception:
                 pass
+        self._results_ready = False
         self.lst_results.Clear()
         # Evita che NVDA dica "sconosciuto" sulla lista vuota durante la scansione
         self.lst_results.Append("Ricerca in corso... attendere prego.")
@@ -11712,8 +11846,20 @@ class SearchFrame(wx.Frame):
                     continue
             idx = self.lst_results.Append(display_str)
             self.file_map[idx] = item
-        if searching and self.lst_results.GetCount() == 0:
-            self.lst_results.Append("Ricerca in corso... attendere prego.")
+        # Lista vuota: una riga vera, così NVDA non dice «sconosciuto».
+        if self.lst_results.GetCount() == 0:
+            if searching:
+                msg = "Ricerca in corso... attendere prego."
+            elif not getattr(self, "_results_ready", False):
+                msg = "Nessuna ricerca avviata."
+            elif filter_text:
+                msg = "Nessun risultato con questo filtro."
+            elif self._stop_search:
+                msg = "Ricerca interrotta: nessun risultato conservato."
+            else:
+                msg = "Nessun risultato trovato."
+            self.lst_results.Append(msg)
+            self.lst_results.SetSelection(0)
 
     def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
@@ -11845,6 +11991,7 @@ class SearchFrame(wx.Frame):
         self.txt_status_progress.SetValue(text)
         self.btn_search.Enable()
         self.btn_cancel.Disable()
+        self._results_ready = True
 
         self.sort_and_display_matches(sort_type=self.current_sort)
 
@@ -11947,6 +12094,9 @@ class SearchFrame(wx.Frame):
                 "Apri Conversazioni Gemini dal menù Strumenti."
             )
             return
+        if path.lower().endswith(".rtad.txt"):
+            open_gemini_chat_from_report(path, parent=self)
+            return
         if rtad_chat.has_saved(CONFIG_DIR, path):
             open_saved_gemini_chat(
                 rtad_chat.saved_json_path(CONFIG_DIR, path), parent=self
@@ -11977,6 +12127,10 @@ class SearchFrame(wx.Frame):
 
     def open_selected_file(self):
         sel = self.lst_results.GetSelection()
+        if sel == wx.NOT_FOUND or sel not in self.file_map:
+            if sel != wx.NOT_FOUND:
+                speak_accessible(self.lst_results.GetString(sel))
+            return
         if sel != wx.NOT_FOUND and sel in self.file_map:
             item = self.file_map[sel]
             file_to_open = item["file_path"]
@@ -12104,6 +12258,8 @@ class SearchFrame(wx.Frame):
     def on_context_menu(self, event):
         sel = self.lst_results.GetSelection()
         if sel == wx.NOT_FOUND or sel not in self.file_map:
+            if sel != wx.NOT_FOUND:
+                speak_accessible(self.lst_results.GetString(sel))
             return
 
         item_data = self.file_map[sel]
@@ -12136,7 +12292,12 @@ class SearchFrame(wx.Frame):
                         item_gemini = menu.Append(
                             wx.ID_ANY, "Apri conversazione &Gemini…"
                         )
-                elif rtad_chat.has_saved(CONFIG_DIR, file_path):
+                elif rtad_chat.has_saved(
+                    CONFIG_DIR,
+                    rtad_chat.chat_anchor_for_report(file_path)
+                    if file_path.lower().endswith(".rtad.txt")
+                    else file_path,
+                ):
                     item_gemini = menu.Append(
                         wx.ID_ANY, "Riprendi conversazione &Gemini…"
                     )

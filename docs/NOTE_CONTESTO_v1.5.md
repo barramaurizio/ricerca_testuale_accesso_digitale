@@ -2,8 +2,8 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `1.8.2` — piano chiuso `docs/PIANO_1.8.2.md` (22/10/2026, GitHub `v1.8.2` / `app-v1.8.2`, DataStore accettato).  
-**In corso, non pubblicata:** `1.8.3` — piano `docs/PIANO_1.8.3.md`. Non aprire Whisper. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti.
+**Ultima pubblicata:** `1.8.3` — piano chiuso `docs/PIANO_1.8.3.md` (23/10/2026, GitHub `v1.8.3` / `app-v1.8.3`, DataStore accettato).  
+**In corso, non pubblicata:** `1.8.4` — piano `docs/PIANO_1.8.4.md`. Non aprire Whisper. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti.
 
 ## Sorgente
 - GitHub: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -16,11 +16,11 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (23/10/2026)
-- **Ultima pubblicata:** `1.8.2` — dopo un HTTP 503 si prova il modello successivo; la frase a schermo distingue servizio occupato e limite temporaneo; tasti Alt+L / Alt+H / Alt+B, Alt+G Segnalibri, Alt+M Strumenti.  
-  Pubblicata il 22/10/2026. Commit `d6e7806`. DataStore accettato. Papà (installer) deve ancora aggiornarsi dalla 1.8.1 e riprovare Gemini.  
-  **Non hotfixare 1.8.2.**  
-  Prima: `1.8.1` il 21/10; `1.8.0` chat Gemini sul file, DataStore #12370 → #12371.
+## Stato attuale (24/10/2026)
+- **Ultima pubblicata:** `1.8.3` — conversazione Gemini anche senza un file (Alt+Q); nella chat, allegati uno o più alla volta (Alt+A); HTTP 402 in italiano, senza provare un altro modello.  
+  Pubblicata il 23/10/2026. GitHub `v1.8.3` / `app-v1.8.3`. DataStore accettato.  
+  **Non hotfixare 1.8.3.**  
+  Prima: `1.8.2` il 22/10; `1.8.1` e `1.8.0` il 21/10.
 - Chiavi opt-in: Google Vision + Gemini (AI Studio), locali
 - Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_docstruct.py`, `rtad_chat.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`
 - Solo SA: `rtad_copie.py` (Trova copie)
@@ -28,11 +28,13 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 - Verifica commit prima del push: `git --no-pager show --stat -1`
 
 ### Versione in corso
-`1.8.3`, codice del 23/10/2026, non pubblicata e non compilata. Piano: `docs/PIANO_1.8.3.md`.
+`1.8.4`, codice e guide del 24/10/2026, non pubblicata. L’exe Standalone non è ancora compilato. Piano: `docs/PIANO_1.8.4.md`.
 
-Conversazione Gemini anche senza un file (Alt+Q). Nella chat, allegati uno o più alla volta, anche più tardi, anche se si era partiti da un file (Alt+A). HTTP 402 in italiano, senza provare un altro modello. Il `.rtad.txt` già salvato resta la candidata successiva.
+Chiedere a Gemini da un `.rtad.txt` già salvato, senza rifare l’analisi. Se accanto c’è ancora la foto, il video o il documento con lo stesso nome, quello resta il file di partenza. Se non c’è più, la chat resta sul testo salvato e lo dice, a voce e a schermo. Elenco vuoto con una frase vera. Nell’Add-on, NVDA dice anche percorso impostato, testo salvato e risultati esportati.
 
-Lista d’attesa: Whisper opt-in (versione dedicata); chat da un `.rtad.txt` già salvato; confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
+Prove di Maurizio ok (24/10, pomeriggio): i due casi del `.rtad.txt`, gli elenchi vuoti, Sfoglia e l’esportazione dei risultati.
+
+Lista d’attesa: Whisper opt-in (versione dedicata); confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`
 
@@ -42,4 +44,4 @@ Lista d’attesa: Whisper opt-in (versione dedicata); chat da un `.rtad.txt` gi�
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD 1.8.3: codice del 23/10, non pubblicato e non compilato. Leggere NOTE_CONTESTO e PIANO_1.8.3. Provare Alt+Q, Alt+A su una chat da file e su una da zero, e la frase dell’HTTP 402. Non rifare quelle tre cose. Il .rtad.txt già salvato resta per dopo. Non aprire Whisper. Non togliere Cloud Vision.»
+«RTAD 1.8.4: codice e guide del 24/10, prove di Maurizio ok. Non pubblicata. Exe Standalone non compilato: compila.bat poi F9. Leggere NOTE_CONTESTO e PIANO_1.8.4. La 1.8.3 è online, non toccarla. Non aprire Whisper. Non togliere Cloud Vision.»

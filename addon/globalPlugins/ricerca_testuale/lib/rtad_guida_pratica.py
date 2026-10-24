@@ -28,9 +28,28 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.3
+Novità recenti (in parole semplici) — versione 1.8.4
 ----------------------------------------------------
-• Puoi aprire una conversazione con Gemini anche senza un file.
+• Da un resoconto già salvato (il file .rtad.txt) puoi chiedere
+  a Gemini senza far rifare l'analisi. Sul risultato: tasto
+  Applicazioni, poi Chiedi a Gemini. Nel programma Windows,
+  in Esplora file, la stessa voce sul file .rtad.txt.
+• Se accanto c'è ancora la foto, il video o il documento
+  con lo stesso nome, quello resta il file di partenza.
+  Gemini usa il testo già scritto.
+• Se quel file non c'è più, la chat resta sul testo salvato
+  e lo dice, a voce e a schermo:
+  «Il file originale non è più accanto a questo resoconto.
+  La conversazione resta sul testo salvato.»
+• Un elenco ancora vuoto ha una frase vera, a schermo e in voce.
+  Prima di cercare: «Nessuna ricerca avviata.»
+  Se il filtro non trova nulla: «Nessun risultato con questo filtro.»
+  Se non c'è ancora una fonte: «Ancora nessuna fonte.»
+  Se il glossario non ha regole: «Nessuna correzione nel glossario.»
+• Nell'Add-on NVDA dice anche quando il percorso è impostato,
+  quando un testo è salvato e quando i risultati sono esportati.
+• Poi valgono Alt+A, fino a 12 allegati, e Shift+Invio.
+• Resta dalla 1.8.3: puoi aprire una conversazione anche senza un file.
   Sulla finestra principale: Alt+Q, oppure Strumenti →
   Nuova conversazione Gemini. Poi scrivi e premi Invio.
 • Nella chat, Alt+A apre l'elenco della cartella, i più recenti

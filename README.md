@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.4
+
+- **Dal resoconto già salvato:** su un `.rtad.txt`, Chiedi a Gemini usa quel testo e non rifà l’analisi. Se la foto, il video o il documento con lo stesso nome è ancora accanto, quello resta il file di partenza. Se non c’è più, la chat resta sul testo salvato e lo dice, a voce e a schermo.
+- **Elenchi vuoti:** una riga vera, a schermo e in voce. Prima di cercare: «Nessuna ricerca avviata.» Filtro senza esiti: «Nessun risultato con questo filtro.» Fonti ancora senza link: «Ancora nessuna fonte.» Glossario senza regole: «Nessuna correzione nel glossario.»
+- **Add-on:** NVDA dice anche il percorso impostato, il testo salvato e i risultati esportati. Prima la frase spariva alla chiusura della finestra.
+- Poi valgono Alt+A, il tetto di 12 e Shift+Invio. Standalone e Add-on insieme. In Esplora file (solo il programma Windows) la voce c’è anche sul `.rtad.txt`.
 
 ### 🌟 Novità della Versione 1.8.3
 
@@ -251,6 +258,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.4
+
+- **From a saved report:** on a `.rtad.txt`, Ask Gemini uses that text and does not run the analysis again. If the photo, video or document with the same name is still beside it, that file stays the starting file. If it is gone, the chat stays on the saved text and says so, on screen and by voice.
+- **Empty lists:** a real row, on screen and by voice. Before a search, when a filter has no hits, when there is no source yet, and when the glossary has no rules.
+- **Add-on:** NVDA also speaks the path just set, the text just saved, and the exported results. Those sentences used to vanish when the window closed.
+- Alt+A, the limit of 12 and Shift+Enter still apply. Standalone and add-on together. In File Explorer (Windows program only) the command is also on the `.rtad.txt`.
 
 ### 🌟 What's New in Version 1.8.3
 

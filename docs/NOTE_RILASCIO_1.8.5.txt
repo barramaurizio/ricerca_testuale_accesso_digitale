@@ -1,0 +1,96 @@
+🌟 Novità della Versione 1.8.5
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Traduci il testo già aperto: trascrizione, resoconto .rtad.txt o documento nel lettore. Pulsante Traduci (Alt+U).
+- L’originale resta. La traduzione si aggiunge sotto. Nel video restano i timestamp.
+- La lingua di arrivo si sceglie. L’italiano è già selezionato. Un testo lungo va a pezzi fino alla fine, a schermo e a voce. Alla fine: «Traduzione completa.»
+- Non parte da sola. Nell’analisi audio/video la casella «Traduci la trascrizione» è spenta.
+- Salva testo: dal video lo stesso nome.rtad.txt. Se si sovrascrive, l’originale resta e sotto c’è la traduzione. Dal resoconto già salvato, nome.rtad.rtad.txt, e il primo file resta com’era.
+- Standalone e Add-on insieme. Per un testo lungo si usa Traduci, non una domanda «traduci tutto» in chat.
+
+## 🇬🇧 English
+
+- Translate the text already open: a transcript, a .rtad.txt report, or a document in the reader. Translate button (Alt+U).
+- The original stays. The translation is added below. In a video the timestamps stay.
+- You choose the target language. Italian is already selected. A long text is done in pieces, through to the end, on screen and by voice.
+- It does not start by itself. In audio/video analysis the “Traduci la trascrizione” box is off.
+- Save text: from the video, the same name.rtad.txt. Overwriting keeps the original and adds the translation below. From an already saved report, name.rtad.rtad.txt, and the first file stays as it was.
+- Standalone and add-on together. For a long text, use Translate, not a “translate everything” question in the chat.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.5.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.5
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.5.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.5.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Traduci il testo già aperto, a pezzi fino alla fine. L’originale resta e nel video restano i timestamp. La lingua di arrivo si sceglie, con l’italiano già selezionato.
+
+Summary EN:
+Translate the text already open, in pieces through to the end. The original stays and video timestamps stay. You choose the target language, with Italian already selected.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.5/ricerca_testuale_accesso_digitale-1.8.5.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.5
+
+Description:
+Traduzione del testo già aperto, a pezzi, con l’originale che resta.
+Standalone e Add-on insieme.

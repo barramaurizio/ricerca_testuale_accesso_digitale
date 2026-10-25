@@ -128,6 +128,20 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
+    <li><strong>Traduci</strong> il testo già aperto: trascrizione, resoconto
+      o documento nel lettore. Pulsante Traduci (Alt+U). L’originale resta,
+      la traduzione si aggiunge sotto e nel video restano i timestamp.
+      La lingua di arrivo si sceglie, l’italiano è già selezionato.
+      Un testo lungo va a pezzi fino alla fine, a schermo e a voce.
+      Non parte da sola: nell’analisi audio/video la casella
+      «Traduci la trascrizione» è spenta.</li>
+    <li><strong>Salva testo</strong> dopo la traduzione propone un nome,
+      e si può cambiare. Dal video propone lo stesso
+      <code>nome.rtad.txt</code>: se si sovrascrive, l’originale resta
+      nel file e sotto c’è la traduzione. Dal resoconto già salvato
+      propone <code>nome.rtad.rtad.txt</code>: il primo file resta
+      com’era e accanto ne nasce un altro. Si può aggiungere (1)
+      al nome, se serve una copia in più.</li>
     <li><strong>Dal resoconto già salvato:</strong> su un .rtad.txt, Chiedi a
       Gemini usa quel testo e non rifà l’analisi. Se la foto, il video o il
       documento con lo stesso nome è ancora accanto, quello resta il file di
@@ -385,7 +399,11 @@ Il modello usato è Flash.</p>
 <ul>
   <li>Hub analisi da Strumenti / pulsante dedicato / menù Esplora file.</li>
   <li><strong>Tutto sull’audio/video</strong>: scheda tecnica, riassunto, trascrizione
-    (opt-in, con Gemini).</li>
+    (opt-in, con Gemini). La casella «Traduci la trascrizione» è spenta:
+    se la accendi, sotto la trascrizione compare la traduzione,
+    con gli stessi timestamp. Salva testo propone lo stesso
+    <code>nome.rtad.txt</code>: sovrascrivendo, l’originale resta
+    e la traduzione si aggiunge sotto.</li>
   <li>Batch cartella: analizza più file e salva i report <code>.rtad.txt</code> accanto.</li>
   <li><strong>Trascrivi e cerca…</strong> (Ctrl+Shift+T): cerca parole nel parlato
     usando i report già fatti, oppure trascrive con Gemini (limite per sessione).</li>
@@ -533,6 +551,7 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Alt</kbd>+<kbd>L</kbd> — Chiave Google Vision</li>
   <li><kbd>Alt</kbd>+<kbd>H</kbd> — Chiave Gemini</li>
   <li><kbd>Alt</kbd>+<kbd>G</kbd> — Segnalibri. Sul report o nel lettore: Chiedi a Gemini</li>
+  <li><kbd>Alt</kbd>+<kbd>U</kbd> — Traduci il testo già aperto (report o lettore)</li>
   <li><kbd>Alt</kbd>+<kbd>F</kbd> — Apri la fonte selezionata</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> / <kbd>L</kbd> — salva / carica profilo</li>
   <li><kbd>F4</kbd> / Spazio — anteprima vocale del risultato</li>

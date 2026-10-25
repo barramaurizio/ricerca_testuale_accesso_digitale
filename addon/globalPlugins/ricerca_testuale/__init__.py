@@ -83,6 +83,11 @@ except ImportError:
     rtad_chat = None
 
 try:
+    import rtad_translate
+except ImportError:
+    rtad_translate = None
+
+try:
     import rtad_attach_dialog
 except ImportError:
     rtad_attach_dialog = None
@@ -95,7 +100,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.4"
+APP_VERSION = "1.8.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -5608,6 +5613,273 @@ class ImageSectionsDialog(wx.Dialog):
         }
 
 
+def _saved_translate_code():
+    data = _load_settings_dict()
+    code = str(data.get("translate_target") or "it").strip().lower()
+    if rtad_translate is None or not rtad_translate.language_by_code(code):
+        return "it"
+    return code
+
+
+def _save_translate_code(code):
+    if rtad_translate is None or not rtad_translate.language_by_code(code):
+        return
+    data = _load_settings_dict()
+    data["translate_target"] = code
+    _save_settings_dict(data)
+
+
+def _media_translate_lang(dialog):
+    codes = list(getattr(dialog, "_lang_codes", None) or ["it"])
+    try:
+        sel = dialog.choice_lang.GetSelection()
+    except Exception:
+        sel = 0
+    code = codes[sel] if 0 <= sel < len(codes) else "it"
+    _save_translate_code(code)
+    return code
+
+
+class TranslationLanguageDialog(wx.Dialog):
+    """Lingua di arrivo. L'italiano è già selezionato."""
+
+    def __init__(self, parent, current="it"):
+        super().__init__(
+            parent,
+            title="Traduci",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._codes = list(rtad_translate.language_codes()) if rtad_translate else ["it"]
+        labels = list(rtad_translate.language_labels()) if rtad_translate else ["Italiano"]
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox.Add(
+            wx.StaticText(
+                self,
+                label=(
+                    "Si traduce il testo già aperto. L'originale resta.\n"
+                    "La traduzione si aggiunge sotto. In un video restano i timestamp.\n"
+                    "La lingua di partenza la riconosce Gemini."
+                ),
+            ),
+            0,
+            wx.ALL | wx.EXPAND,
+            10,
+        )
+        vbox.Add(
+            wx.StaticText(self, label="&Lingua di arrivo:"),
+            0,
+            wx.LEFT | wx.RIGHT,
+            10,
+        )
+        self.choice = wx.Choice(self, choices=labels)
+        try:
+            self.choice.SetSelection(self._codes.index(current))
+        except ValueError:
+            self.choice.SetSelection(0)
+        vbox.Add(self.choice, 0, wx.EXPAND | wx.ALL, 10)
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        btn_ok = wx.Button(self, wx.ID_OK, label="&Traduci")
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, label="Annulla")
+        btn_ok.SetDefault()
+        hbox.Add(btn_ok, 0, wx.ALL, 5)
+        hbox.Add(btn_cancel, 0, wx.ALL, 5)
+        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.BOTTOM, 8)
+        self.SetSizerAndFit(vbox)
+        self.CentreOnParent()
+        self.choice.SetFocus()
+
+    def chosen_code(self):
+        sel = self.choice.GetSelection()
+        if 0 <= sel < len(self._codes):
+            return self._codes[sel]
+        return "it"
+
+
+def ask_translation_language(parent, speak):
+    if rtad_translate is None:
+        speak("Traduzione non disponibile.")
+        return ""
+    dlg = TranslationLanguageDialog(parent, _saved_translate_code())
+    try:
+        if dlg.ShowModal() != wx.ID_OK:
+            speak("Traduzione annullata.")
+            return ""
+        code = dlg.chosen_code()
+    finally:
+        dlg.Destroy()
+    _save_translate_code(code)
+    return code
+
+
+def _frame_alive(frame) -> bool:
+    try:
+        return bool(frame) and not frame.IsBeingDeleted()
+    except Exception:
+        return False
+
+
+def start_frame_translation(frame, speak):
+    """Traduci sul testo del riquadro. Un secondo clic interrompe."""
+    if rtad_translate is None:
+        speak("Traduzione non disponibile.")
+        return
+    if getattr(frame, "_translate_busy", False):
+        if not getattr(frame, "_translate_abort", False):
+            frame._translate_abort = True
+            frame.lbl_translate.SetLabel(rtad_translate.MSG_ABORT)
+            speak(rtad_translate.MSG_ABORT)
+        return
+    text = frame.txt_display.GetValue() or ""
+    if not text.strip():
+        speak(rtad_translate.MSG_EMPTY)
+        if hasattr(frame, "lbl_translate"):
+            frame.lbl_translate.SetLabel(rtad_translate.MSG_EMPTY)
+        return
+    if rtad_translate.has_translation(text):
+        ask = wx.MessageDialog(
+            frame,
+            "C'è già una traduzione. Vuoi sostituirla?",
+            "Traduci",
+            wx.YES_NO | wx.ICON_QUESTION,
+        )
+        try:
+            yes = ask.ShowModal() == wx.ID_YES
+        finally:
+            ask.Destroy()
+        if not yes:
+            speak("Traduzione annullata.")
+            return
+        text = rtad_translate.strip_translation(text)
+        frame.txt_display.SetValue(text)
+    key = ""
+    try:
+        key = load_gemini_api_key() or ""
+    except Exception:
+        key = ""
+    if not key:
+        speak(rtad_translate.MSG_NO_KEY)
+        frame.lbl_translate.SetLabel(rtad_translate.MSG_NO_KEY)
+        return
+    code = ask_translation_language(frame, speak)
+    if not code:
+        return
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+    frame._translate_busy = True
+    frame._translate_abort = False
+    frame.btn_translate.SetLabel("Annulla tradu&zione")
+    frame.lbl_translate.SetLabel("Traduzione in corso.")
+
+    def _abort():
+        return bool(getattr(frame, "_translate_abort", False))
+
+    def _on_progress(index, total, message):
+        def _ui():
+            if not _frame_alive(frame):
+                return
+            frame.lbl_translate.SetLabel(message)
+            try:
+                frame.lbl_translate.Wrap(640)
+                frame.Layout()
+            except Exception:
+                pass
+            say = index <= 1 or index >= total or total <= 12 or index % 4 == 0
+            if say:
+                speak(message)
+
+        wx.CallAfter(_ui)
+
+    def _work():
+        result = rtad_translate.translate_text(
+            text,
+            code,
+            key,
+            should_abort=_abort,
+            on_progress=_on_progress,
+        )
+
+        def _done():
+            if not _frame_alive(frame):
+                return
+            frame._translate_busy = False
+            frame.btn_translate.SetLabel("Trad&uci…")
+            shown = result.get("text") or text
+            if not result.get("skipped"):
+                frame.txt_display.SetValue(shown)
+            status = result.get("status") or ""
+            if not status:
+                status = (
+                    rtad_translate.MSG_DONE
+                    if result.get("ok")
+                    else "Traduzione non riuscita."
+                )
+            frame.lbl_translate.SetLabel(status)
+            try:
+                frame.lbl_translate.Wrap(640)
+                frame.Layout()
+            except Exception:
+                pass
+            if not result.get("aborted"):
+                speak(status)
+
+        wx.CallAfter(_done)
+
+    threading.Thread(target=_work, daemon=True, name="rtad-translate").start()
+
+
+def _translate_report_body(body, lang, on_progress=None):
+    """Dopo l'analisi audio/video, se la casella è accesa."""
+    if rtad_translate is None:
+        note = "Traduzione non disponibile."
+        if on_progress:
+            try:
+                on_progress(100, note)
+            except Exception:
+                pass
+        return (body or "").rstrip() + "\n\n" + note + "\n"
+    key = ""
+    try:
+        key = load_gemini_api_key() or ""
+    except Exception:
+        key = ""
+    if rtad_ocr is not None and key:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+
+    def _prog(index, total, message):
+        if not on_progress:
+            return
+        try:
+            pct = 90
+            if total:
+                pct = min(99, 80 + int(19 * int(index) / int(total)))
+            on_progress(pct, message)
+        except Exception:
+            pass
+
+    result = rtad_translate.translate_text(
+        body or "",
+        lang or "it",
+        key,
+        on_progress=_prog,
+    )
+    text = result.get("text") or (body or "")
+    status = result.get("status") or ""
+    if result.get("skipped") and status:
+        text = (body or "").rstrip() + "\n\n" + status + "\n"
+    if status and on_progress:
+        try:
+            on_progress(100, status)
+        except Exception:
+            pass
+    return text
+
+
 class MediaSectionsDialog(wx.Dialog):
     """Hub «Tutto sull'audio/video» / batch cartella (1.6.7 / 1.7.2)."""
 
@@ -5714,6 +5986,33 @@ class MediaSectionsDialog(wx.Dialog):
             bool(preset.get("include_timestamps", False)) and self.chk_transcript.GetValue()
         )
         vbox.Add(self.chk_timestamps, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_translate = wx.CheckBox(
+            self, label="Trad&uci la trascrizione"
+        )
+        self.chk_translate.SetValue(
+            bool(preset.get("translate_transcript", False))
+            and self.chk_transcript.GetValue()
+        )
+        vbox.Add(self.chk_translate, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        vbox.Add(
+            wx.StaticText(self, label="&Lingua di arrivo:"),
+            0,
+            wx.LEFT | wx.RIGHT | wx.TOP,
+            8,
+        )
+        self._lang_codes = (
+            list(rtad_translate.language_codes()) if rtad_translate is not None else ["it"]
+        )
+        lang_labels = (
+            list(rtad_translate.language_labels()) if rtad_translate is not None else ["Italiano"]
+        )
+        self.choice_lang = wx.Choice(self, choices=lang_labels)
+        wanted = (preset.get("translate_lang") or _saved_translate_code() or "it")
+        try:
+            self.choice_lang.SetSelection(self._lang_codes.index(wanted))
+        except ValueError:
+            self.choice_lang.SetSelection(0)
+        vbox.Add(self.choice_lang, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
 
         self.chk_save = None
         self.chk_recursive = None
@@ -5732,23 +6031,31 @@ class MediaSectionsDialog(wx.Dialog):
         def _sync_ts(_evt=None):
             en = self.chk_transcript.GetValue()
             self.chk_timestamps.Enable(en)
+            self.chk_translate.Enable(en)
             if not en:
                 self.chk_timestamps.SetValue(False)
+                self.chk_translate.SetValue(False)
+            self.choice_lang.Enable(en and self.chk_translate.GetValue())
+
+        def _sync_translate(_evt=None):
+            en = self.chk_transcript.GetValue() and self.chk_translate.GetValue()
+            self.choice_lang.Enable(en)
 
         self.chk_transcript.Bind(wx.EVT_CHECKBOX, _sync_ts)
+        self.chk_translate.Bind(wx.EVT_CHECKBOX, _sync_translate)
         _sync_ts()
 
         if self.batch_mode:
             hint_txt = (
                 "Accanto a ogni file viene creato «nome.rtad.txt» "
                 "(stesso stem del media). "
-                "Trascrizione/timestamp non attivi di default. "
+                "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica."
             )
         else:
             hint_txt = (
                 "Se compili l'URL ha priorità sul file. "
-                "Trascrizione/timestamp non attivi di default. "
+                "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica."
             )
         hint = wx.StaticText(self, label=hint_txt)
@@ -5874,6 +6181,8 @@ class MediaSectionsDialog(wx.Dialog):
             "include_describe": self.chk_describe.GetValue(),
             "include_transcript": want_tr,
             "include_timestamps": bool(want_tr and self.chk_timestamps.GetValue()),
+            "translate_transcript": bool(want_tr and self.chk_translate.GetValue()),
+            "translate_lang": _media_translate_lang(self),
             "url": url,
             "file_path": path,
             "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
@@ -7072,6 +7381,13 @@ class ImageInfoFrame(wx.Frame):
         )
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
+        self.lbl_translate = wx.StaticText(panel, label="")
+        try:
+            self.lbl_translate.SetName("Stato traduzione")
+        except Exception:
+            pass
+        vbox.Add(self.lbl_translate, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         btn_copy = wx.Button(panel, label="&Copia testo")
         btn_copy.Bind(wx.EVT_BUTTON, self.on_copy)
@@ -7082,6 +7398,11 @@ class ImageInfoFrame(wx.Frame):
         btn_print = wx.Button(panel, label="S&tampa testo…")
         btn_print.Bind(wx.EVT_BUTTON, self.on_print_text)
         hbox.Add(btn_print, 0, wx.ALL, 5)
+        self.btn_translate = None
+        if rtad_translate is not None:
+            self.btn_translate = wx.Button(panel, label="Trad&uci…")
+            self.btn_translate.Bind(wx.EVT_BUTTON, self.on_translate)
+            hbox.Add(self.btn_translate, 0, wx.ALL, 5)
         file_ext = os.path.splitext(self.image_path or "")[1].lower()
         if rtad_chat is not None and file_ext in IMG_EXTS + MEDIA_EXTS:
             btn_chat = wx.Button(panel, label="Chiedi a &Gemini…")
@@ -7101,7 +7422,8 @@ class ImageInfoFrame(wx.Frame):
         self.txt_display.SetFocus()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.Bind(wx.EVT_CLOSE, self._on_close_frame)
-        rtad_speak(f"{title}. Usa le frecce per leggere.")
+        _trad = " Alt+U: traduci." if rtad_translate is not None else ""
+        rtad_speak(f"{title}. Usa le frecce per leggere.{_trad}")
 
     def _save_ref_path(self):
         """Percorso per stem/cartella: PDF/originale se valido, altrimenti image_path."""
@@ -7136,6 +7458,9 @@ class ImageInfoFrame(wx.Frame):
         if callable(self._after_close_cb):
             wx.CallLater(150, self._run_after_close)
         event.Skip()
+
+    def on_translate(self, event=None):
+        start_frame_translation(self, rtad_speak)
 
     def on_ask_gemini(self, event=None):
         body = self.txt_display.GetValue() or self.body_text
@@ -7349,6 +7674,13 @@ class DocumentStructureFrame(wx.Frame):
             pass
         vbox.Add(self.txt_display, 1, wx.EXPAND | wx.ALL, 8)
 
+        self.lbl_translate = wx.StaticText(panel, label="")
+        try:
+            self.lbl_translate.SetName("Stato traduzione")
+        except Exception:
+            pass
+        vbox.Add(self.lbl_translate, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         if self.links:
             btn_open_link = wx.Button(panel, label="Apri &link selezionato")
@@ -7363,6 +7695,11 @@ class DocumentStructureFrame(wx.Frame):
         btn_save = wx.Button(panel, label="&Salva testo…")
         btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
         hbox.Add(btn_save, 0, wx.ALL, 5)
+        self.btn_translate = None
+        if rtad_translate is not None:
+            self.btn_translate = wx.Button(panel, label="Trad&uci…")
+            self.btn_translate.Bind(wx.EVT_BUTTON, self.on_translate)
+            hbox.Add(self.btn_translate, 0, wx.ALL, 5)
         if rtad_chat is not None and self.file_path:
             btn_chat = wx.Button(panel, label="Chiedi a &Gemini…")
             btn_chat.Bind(wx.EVT_BUTTON, self.on_ask_gemini)
@@ -7400,6 +7737,7 @@ class DocumentStructureFrame(wx.Frame):
             "Control+F: cerca. F3: ripeti (prossima occorrenza). "
             "Control+H / Control+Shift+H: titolo successivo o precedente. "
             "I link «Sito web» sono esterni."
+            + (" Alt+U: traduci." if rtad_translate is not None else "")
         )
 
     def _outline_text_needles(self, title, level=1):
@@ -7926,6 +8264,9 @@ class DocumentStructureFrame(wx.Frame):
         except Exception as e:
             rtad_speak(f"Apertura esterna non riuscita: {e}")
 
+    def on_translate(self, event=None):
+        start_frame_translation(self, rtad_speak)
+
     def on_ask_gemini(self, event=None):
         open_gemini_chat(
             "document",
@@ -8029,19 +8370,21 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Conversazione Gemini anche senza un file già aperto.\n"
-            "  Alt+Q, oppure Strumenti → Nuova conversazione Gemini.\n"
-            "• Nella chat, Alt+A apre l'elenco della cartella, i più recenti in cima.\n"
-            "  Ogni riga dice nome, data, tipo e dimensione. Su un video, fermandosi,\n"
-            "  si sente la durata. Shift+freccia giù e Control+Spazio per scegliere.\n"
-            "  Shift+Invio nella domanda va a capo e non invia.\n"
-            "  Vale anche sulla chat nata da un file: quello di partenza resta.\n"
-            "• Se i crediti prepagati della chiave sono finiti (HTTP 402),\n"
-            "  la frase lo dice in italiano. Si ricaricano in AI Studio.\n"
-            "  Non si prova un altro modello.\n"
+            "• Traduci il testo già aperto: trascrizione, resoconto o documento.\n"
+            "  Pulsante Traduci (Alt+U), sul report e nel lettore.\n"
+            "  L'originale resta. La traduzione si aggiunge sotto.\n"
+            "  Nel video restano i timestamp.\n"
+            "• La lingua di arrivo si sceglie. L'italiano è già selezionato.\n"
+            "  Un testo lungo va a pezzi, fino alla fine, a schermo e a voce.\n"
+            "  Alla fine: «Traduzione completa.»\n"
+            "• Non parte da sola. Nell'analisi audio/video la casella\n"
+            "  «Traduci la trascrizione» è spenta.\n"
+            "• Salva testo: dal video lo stesso nome.rtad.txt.\n"
+            "  Se sovrascrivi, l'originale resta e sotto c'è la traduzione.\n"
+            "  Dal resoconto già salvato: nome.rtad.rtad.txt,\n"
+            "  e il primo file resta com'era.\n"
             "• Le chat dell'Add-on restano nel profilo NVDA.\n"
-            "• Resta dalla 1.8.2: se un modello è occupato, si prova il\n"
-            "  successivo. Alt+L, Alt+H, Alt+B. Alt+G è Segnalibri.\n"
+            "• Resta dalla 1.8.4: Chiedi a Gemini da un resoconto già salvato.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -8172,6 +8515,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + L : Chiave Google Vision\n"
             "  - Alt + H : Chiave Gemini\n"
             "  - Alt + G : Chiedi a Gemini (sul report o nel lettore documento)\n"
+            "  - Alt + U : Traduci il testo già aperto (report o lettore)\n"
             "  - Sul file .rtad.txt: Chiedi a Gemini usa il resoconto già salvato\n"
             "  - Alt + F : Apri la fonte selezionata (anche se sei sull'elenco)\n"
             "  - Ctrl + H : Cronologia testi cercati (riprendi una ricerca precedente)\n"
@@ -12825,6 +13169,8 @@ class SearchFrame(wx.Frame):
             "include_describe": bool(sel.get("include_describe", True)),
             "include_transcript": bool(sel.get("include_transcript", False)),
             "include_timestamps": bool(sel.get("include_timestamps", False)),
+            "translate_transcript": bool(sel.get("translate_transcript", False)),
+            "translate_lang": sel.get("translate_lang") or "it",
         }
         url = (sel.get("url") or "").strip()
         path = (sel.get("file_path") or file_path or "").strip()
@@ -12954,6 +13300,7 @@ class SearchFrame(wx.Frame):
             "scheda tecnica",
             "riassunto",
             "trascrizione",
+            "traduzione",
             "upload file api",
             "analisi gemini",
             "ripresa trascrizione",
@@ -12989,6 +13336,8 @@ class SearchFrame(wx.Frame):
                 "include_describe": bool(sections.get("include_describe", True)),
                 "include_transcript": bool(sections.get("include_transcript", False)),
                 "include_timestamps": bool(sections.get("include_timestamps", False)),
+                "translate_transcript": bool(sections.get("translate_transcript", False)),
+                "translate_lang": sections.get("translate_lang") or "it",
             }
         _ensure_ocr_keys()
         if mode in ("describe", "transcript", "all") and not load_gemini_api_key():
@@ -13058,6 +13407,18 @@ class SearchFrame(wx.Frame):
             except Exception as e:
                 title = "Errore analisi audio/video"
                 body = str(e)
+
+            if (
+                mode == "all"
+                and isinstance(sections, dict)
+                and sections.get("translate_transcript")
+                and not str(title).startswith("Errore")
+            ):
+                body = _translate_report_body(
+                    body,
+                    sections.get("translate_lang") or "it",
+                    on_progress=self._media_progress_cb,
+                )
 
             def _show():
                 self._media_analysis_busy = False
@@ -13214,8 +13575,13 @@ class SearchFrame(wx.Frame):
                 self,
                 (
                     f"Hai selezionato la trascrizione su {len(files)} file.\n"
-                    "Può richiedere molto tempo e consumare quota Gemini.\n\n"
-                    "Continuare?"
+                    "Può richiedere molto tempo e consumare quota Gemini.\n"
+                    + (
+                        "È accesa anche la traduzione della trascrizione.\n"
+                        if sel.get("translate_transcript")
+                        else ""
+                    )
+                    + "\nContinuare?"
                 ),
                 "Conferma batch con trascrizione",
                 wx.YES_NO | wx.ICON_WARNING,
@@ -13261,6 +13627,12 @@ class SearchFrame(wx.Frame):
                     save_txt=sel.get("save_txt", True),
                     recursive=sel.get("recursive", False),
                     on_progress=_prog,
+                    translate_transcript=bool(sel.get("translate_transcript")),
+                    translate_lang=sel.get("translate_lang") or "it",
+                    translate_key=load_gemini_api_key() or "",
+                    on_translate=lambda message: wx.CallAfter(
+                        self._set_media_progress, 90, message
+                    ),
                 )
             except Exception as e:
                 summary = {"total": 0, "ok": 0, "results": [], "error": str(e)}

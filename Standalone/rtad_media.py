@@ -2698,6 +2698,48 @@ def transcribe_and_search_folder(
     return out
 
 
+def _append_batch_translation(
+    body: str,
+    lang: str,
+    key: str,
+    *,
+    should_abort=None,
+    on_translate=None,
+) -> str:
+    """Traduce la trascrizione del report di cartella, se il modulo c'è."""
+    try:
+        import rtad_translate
+    except ImportError:
+        rtad_translate = None
+    if rtad_translate is None:
+        return (body or "").rstrip() + "\n\nTraduzione non disponibile.\n"
+
+    def _prog(_index, _total, message):
+        if on_translate and message:
+            try:
+                on_translate(message)
+            except Exception:
+                pass
+
+    result = rtad_translate.translate_text(
+        body or "",
+        lang or "it",
+        key or "",
+        should_abort=should_abort,
+        on_progress=_prog,
+    )
+    text = result.get("text") or (body or "")
+    status = result.get("status") or ""
+    if result.get("skipped") and status and status not in text:
+        text = (body or "").rstrip() + "\n\n" + status + "\n"
+    if status and on_translate:
+        try:
+            on_translate(status)
+        except Exception:
+            pass
+    return text
+
+
 def batch_analyze_folder(
     folder: str,
     *,
@@ -2709,6 +2751,10 @@ def batch_analyze_folder(
     recursive: bool = False,
     should_abort=None,
     on_progress=None,
+    translate_transcript: bool = False,
+    translate_lang: str = "it",
+    translate_key: str = "",
+    on_translate=None,
 ) -> dict:
     """Analizza tutti i media di una cartella. Restituisce riepilogo.
 
@@ -2730,6 +2776,14 @@ def batch_analyze_folder(
                 include_timestamps=include_timestamps,
                 should_abort=should_abort,
             )
+            if translate_transcript and include_transcript and body:
+                body = _append_batch_translation(
+                    body,
+                    translate_lang,
+                    translate_key,
+                    should_abort=should_abort,
+                    on_translate=on_translate,
+                )
             err = ""
             txt_path = ""
             if save_txt and body:

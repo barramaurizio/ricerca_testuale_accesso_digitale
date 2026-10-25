@@ -36,6 +36,10 @@ def main() -> int:
     )
     shutil.copy2(ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py")
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_translate.py", LIB / "rtad_translate.py"
+    )
+    shutil.copy2(ROOT / "Standalone" / "rtad_media.py", LIB / "rtad_media.py")
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_attach_dialog.py",
         LIB / "rtad_attach_dialog.py",
     )
@@ -46,6 +50,11 @@ def main() -> int:
     pairs = [
         ("rtad_ocr.py", ROOT / "Standalone" / "rtad_ocr.py", LIB / "rtad_ocr.py"),
         ("rtad_media.py", ROOT / "Standalone" / "rtad_media.py", LIB / "rtad_media.py"),
+        (
+            "rtad_translate.py",
+            ROOT / "Standalone" / "rtad_translate.py",
+            LIB / "rtad_translate.py",
+        ),
         ("rtad_guida_pratica.py", src_guida, dst_guida),
         (
             "rtad_docstruct.py",

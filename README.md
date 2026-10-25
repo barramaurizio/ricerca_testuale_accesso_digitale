@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.5
+
+- **Traduci** il testo già aperto: trascrizione di un video, resoconto `.rtad.txt`, testo di un documento nel lettore. Pulsante Traduci (Alt+U). L’originale resta e la traduzione si aggiunge sotto. Nel video restano i timestamp.
+- La lingua di arrivo si sceglie. L’italiano è già selezionato. Gemini riconosce la lingua di partenza. Si usa la chiave Gemini già presente.
+- Un testo lungo va a pezzi fino alla fine, a schermo e a voce. Alla fine: «Traduzione completa.» Non parte da sola. Nell’analisi audio/video la casella «Traduci la trascrizione» è spenta.
+- Standalone e Add-on insieme. Per un testo lungo si usa Traduci, non una domanda «traduci tutto» in chat.
+- **Salva testo:** dal video propone lo stesso `nome.rtad.txt`. Se si sovrascrive, l’originale resta e sotto c’è la traduzione. Dal resoconto già salvato propone `nome.rtad.rtad.txt`: il primo file resta com’era. Il nome si può cambiare, anche con un (1).
 
 ### 🌟 Novità della Versione 1.8.4
 
@@ -258,6 +266,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.5
+
+- **Translate** the text already open: a video transcript, a `.rtad.txt` report, or a document in the reader. Translate button (Alt+U). The original stays and the translation is added below. In a video the timestamps stay.
+- You choose the target language. Italian is already selected. Gemini recognises the source language. The Gemini key you already have is used.
+- A long text is done in pieces, through to the end, on screen and by voice. At the end: “Traduzione completa.” It does not start by itself. In audio/video analysis the “Traduci la trascrizione” box is off.
+- Standalone and add-on together. For a long text, use Translate, not a “translate everything” question in the chat.
+- **Save text:** from the video it proposes the same `name.rtad.txt`. Overwriting keeps the original and adds the translation below. From an already saved report it proposes `name.rtad.rtad.txt`, so the first file stays as it was. The name can be changed, including with a (1).
 
 ### 🌟 What's New in Version 1.8.4
 

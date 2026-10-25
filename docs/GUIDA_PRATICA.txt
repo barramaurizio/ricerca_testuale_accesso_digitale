@@ -14,9 +14,33 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.4
+Novità recenti (in parole semplici) — versione 1.8.5
 ----------------------------------------------------
-• Da un resoconto già salvato (il file .rtad.txt) puoi chiedere
+• Puoi tradurre il testo che hai già davanti: la trascrizione
+  di un video, un resoconto .rtad.txt, il testo di un documento
+  nel lettore. Pulsante «Traduci» (Alt+U).
+• L'originale resta. La traduzione si aggiunge sotto.
+  Nel video restano i timestamp, come [00:43].
+• Scegli la lingua di arrivo. L'italiano è già selezionato.
+  La lingua di partenza la riconosce Gemini. Si usa la chiave
+  Gemini che hai già: non serve un secondo traduttore.
+• Un testo lungo va a pezzi, fino alla fine. A schermo e a voce
+  senti a che punto è. Alla fine: «Traduzione completa.»
+  Un secondo clic su Traduci interrompe.
+• Non parte da sola. Nell'analisi audio/video c'è la casella
+  «Traduci la trascrizione», spenta. Si accende solo se
+  chiedi anche la trascrizione.
+• Se c'è già una traduzione, chiede: «C'è già una traduzione.
+  Vuoi sostituirla?»
+• Per un testo lungo usa Traduci, non la domanda in chat
+  «traduci tutto»: quella si ferma al limite di una risposta.
+• Salva testo, dopo la traduzione, propone un nome e tu puoi cambiarlo.
+  Dal video propone lo stesso nome.rtad.txt. Se sovrascrivi,
+  l'originale resta nel file e sotto c'è la traduzione.
+  Dal resoconto già salvato propone nome.rtad.rtad.txt:
+  il primo file resta com'era e accanto ne nasce un altro.
+  Puoi anche aggiungere (1) al nome, se vuoi una copia in più.
+• Resta dalla 1.8.4: da un resoconto già salvato (il file .rtad.txt) puoi chiedere
   a Gemini senza far rifare l'analisi. Sul risultato: tasto
   Applicazioni, poi Chiedi a Gemini. Nel programma Windows,
   in Esplora file, la stessa voce sul file .rtad.txt.

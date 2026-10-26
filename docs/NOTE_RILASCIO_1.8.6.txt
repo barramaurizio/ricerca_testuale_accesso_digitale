@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.8.6
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.6
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Whisper sul mio PC: casella spenta, accanto alla trascrizione. Al primo uso scarica il modello e trascrive anche senza chiave Gemini.
+- Un file fino a 20 minuti. In una cartella, fino a 5 file.
+- Il testo diventa nome.rtad.txt se accanto non c’era già. Se c’era, resta com’era.
+- Ultima versione NVDA testata: 2026.3.
+
+## 🇬🇧 English
+
+- Whisper on this PC: the box is off, next to transcription. The first time, the model is downloaded. It works without a Gemini key.
+- One file up to 20 minutes. In a folder, up to 5 files.
+- The text becomes name.rtad.txt when that file is not already there. If it is, it stays as it was.
+- Last tested NVDA version: 2026.3.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.6.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.6
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.6.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.6.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Whisper sul PC, spento di default: trascrizione fino a 20 minuti anche senza chiave Gemini. NVDA 2026.3.
+
+Summary EN:
+On-PC Whisper, off by default: transcription up to 20 minutes without a Gemini key. NVDA 2026.3.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.6/ricerca_testuale_accesso_digitale-1.8.6.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.6
+
+Description:
+Whisper sul PC, opt-in, modello small scaricato al primo uso. File fino a 20 minuti, cartella fino a 5. Testo in .rtad.txt. Ultima NVDA testata: 2026.3.

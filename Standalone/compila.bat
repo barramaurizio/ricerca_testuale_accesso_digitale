@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Compilazione Ricerca Testuale Accesso Digitale v1.8.5
+echo Compilazione Ricerca Testuale Accesso Digitale v1.8.6
 echo ======================================================
 
 REM Prerequisito: pip install feedparser pyinstaller wxPython pywin32
@@ -9,12 +9,12 @@ REM feedparser va incluso esplicitamente nell'exe (--hidden-import)
 REM 1. Compilazione Standalone Portatile (File singolo .exe pronto all'uso)
 echo.
 echo [1/2] Creazione eseguibile Standalone (OneFile)...
-pyinstaller --noconfirm --onefile --windowed --version-file "version.txt" --hidden-import=feedparser --hidden-import=rtad_attach_dialog --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
+pyinstaller --noconfirm --onefile --windowed --version-file "version.txt" --hidden-import=feedparser --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
 
 REM 2. Compilazione Cartella per eventuale Setup Inno Setup
 echo.
 echo [2/2] Creazione build per Inno Setup (OneDir)...
-pyinstaller --noconfirm --onedir --windowed --version-file "version.txt" --hidden-import=feedparser --hidden-import=rtad_attach_dialog --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
+pyinstaller --noconfirm --onedir --windowed --version-file "version.txt" --hidden-import=feedparser --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
 
 if %ERRORLEVEL% EQU 0 (
     echo.

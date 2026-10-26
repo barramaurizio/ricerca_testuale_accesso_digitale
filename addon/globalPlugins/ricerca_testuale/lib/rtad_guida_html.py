@@ -128,30 +128,35 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Traduci</strong> il testo già aperto: trascrizione, resoconto
-      o documento nel lettore. Pulsante Traduci (Alt+U). L’originale resta,
-      la traduzione si aggiunge sotto e nel video restano i timestamp.
-      La lingua di arrivo si sceglie, l’italiano è già selezionato.
-      Un testo lungo va a pezzi fino alla fine, a schermo e a voce.
-      Non parte da sola: nell’analisi audio/video la casella
-      «Traduci la trascrizione» è spenta.</li>
-    <li><strong>Salva testo</strong> dopo la traduzione propone un nome,
-      e si può cambiare. Dal video propone lo stesso
-      <code>nome.rtad.txt</code>: se si sovrascrive, l’originale resta
-      nel file e sotto c’è la traduzione. Dal resoconto già salvato
-      propone <code>nome.rtad.rtad.txt</code>: il primo file resta
-      com’era e accanto ne nasce un altro. Si può aggiungere (1)
-      al nome, se serve una copia in più.</li>
-    <li><strong>Dal resoconto già salvato:</strong> su un .rtad.txt, Chiedi a
-      Gemini usa quel testo e non rifà l’analisi. Se la foto, il video o il
-      documento con lo stesso nome è ancora accanto, quello resta il file di
-      partenza. Se non c’è più, la chat resta sul testo salvato e lo dice,
-      a voce e a schermo.</li>
-    <li><strong>Elenchi vuoti:</strong> una riga vera, a schermo e in voce.
-      «Nessuna ricerca avviata.», «Nessun risultato con questo filtro.»,
-      «Ancora nessuna fonte.», «Nessuna correzione nel glossario.»</li>
-    <li><strong>Add-on:</strong> NVDA dice anche il percorso impostato, il
-      testo salvato e i risultati esportati.</li>
+    <li><strong>Whisper sul mio PC:</strong> nell’analisi audio/video, insieme a
+      «Trascrizione parlato», la casella «Sul mio PC (Whisper)» è spenta.
+      Se la accendi, al primo uso scarica il modello e trascrive anche
+      senza chiave Gemini. Un file fino a 20 minuti. In una cartella,
+      fino a 5 file: «Whisper: 5 file su N. Non entrati: …».
+      Il testo diventa <code>nome.rtad.txt</code> se accanto non c’era già.
+      Se c’era, resta com’era. Un secondo avvio mentre lavora interrompe,
+      a voce e a schermo: «Interruzione richiesta. Attendi la chiusura.»
+      Gemini resta la trascrizione quando la casella è spenta.</li>
+    <li><strong>Resta dalla 1.8.5 — Traduci</strong> il testo già aperto:
+      trascrizione, resoconto o documento nel lettore. Pulsante Traduci
+      (Alt+U). L’originale resta, la traduzione si aggiunge sotto e nel
+      video restano i timestamp. La lingua di arrivo si sceglie,
+      l’italiano è già selezionato. Un testo lungo va a pezzi fino
+      alla fine, a schermo e a voce. Non parte da sola: nell’analisi
+      audio/video la casella «Traduci la trascrizione» è spenta.
+      Salva testo propone lo stesso <code>nome.rtad.txt</code>:
+      se si sovrascrive, l’originale resta e sotto c’è la traduzione.
+      Dal resoconto già salvato propone <code>nome.rtad.rtad.txt</code>.</li>
+    <li><strong>Resta dalla 1.8.4 — dal resoconto già salvato:</strong> su un
+      .rtad.txt, Chiedi a Gemini usa quel testo e non rifà l’analisi. Se la
+      foto, il video o il documento con lo stesso nome è ancora accanto,
+      quello resta il file di partenza. Se non c’è più, la chat resta sul
+      testo salvato e lo dice, a voce e a schermo.</li>
+    <li><strong>Resta dalla 1.8.4 — elenchi vuoti:</strong> una riga vera,
+      a schermo e in voce. «Nessuna ricerca avviata.», «Nessun risultato
+      con questo filtro.», «Ancora nessuna fonte.», «Nessuna correzione
+      nel glossario.» NVDA dice anche il percorso impostato, il testo
+      salvato e i risultati esportati.</li>
     <li>Restano Alt+A, fino a 12 allegati, e Shift+Invio. In Esplora file,
       solo nel programma Windows, la voce c’è anche sul .rtad.txt.</li>
   </ul>
@@ -399,7 +404,10 @@ Il modello usato è Flash.</p>
 <ul>
   <li>Hub analisi da Strumenti / pulsante dedicato / menù Esplora file.</li>
   <li><strong>Tutto sull’audio/video</strong>: scheda tecnica, riassunto, trascrizione
-    (opt-in, con Gemini). La casella «Traduci la trascrizione» è spenta:
+    (opt-in, con Gemini). «Sul mio PC (Whisper)» è un’altra casella, spenta:
+    al primo uso scarica il modello e trascrive senza chiave Gemini,
+    un file fino a 20 minuti, in una cartella fino a 5 file.
+    La casella «Traduci la trascrizione» è spenta:
     se la accendi, sotto la trascrizione compare la traduzione,
     con gli stessi timestamp. Salva testo propone lo stesso
     <code>nome.rtad.txt</code>: sovrascrivendo, l’originale resta

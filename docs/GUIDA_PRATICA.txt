@@ -14,9 +14,19 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.5
+Novità recenti (in parole semplici) — versione 1.8.6
 ----------------------------------------------------
-• Puoi tradurre il testo che hai già davanti: la trascrizione
+• Puoi trascrivere un audio o un video sul tuo PC, anche senza
+  chiave Gemini. Nell'analisi accendi «Trascrizione parlato» e poi
+  «Sul mio PC (Whisper)». È spento finché non lo accendi.
+• Al primo uso scarica il modello. Lo senti e lo leggi.
+  Un file fino a 20 minuti. In una cartella, fino a 5 file.
+  Se sono di più: «Whisper: 5 file su N. Non entrati: …».
+• Il testo diventa nome.rtad.txt, se accanto non c'era già.
+  Se c'era, resta com'era. Da lì valgono Chiedi a Gemini e Traduci.
+• Un secondo avvio mentre lavora interrompe, a voce e a schermo:
+  «Interruzione richiesta. Attendi la chiusura.»
+• Resta dalla 1.8.5: puoi tradurre il testo che hai già davanti: la trascrizione
   di un video, un resoconto .rtad.txt, il testo di un documento
   nel lettore. Pulsante «Traduci» (Alt+U).
 • L'originale resta. La traduzione si aggiunge sotto.
@@ -162,7 +172,9 @@ Puoi limitare la ricerca a:
 • audio/video: sul nome file subito; sulle parole dette nel video
   solo se hai già il file .rtad.txt accanto (la trascrizione).
   «Tutto il PC» le trova ovunque, purché quei .rtad.txt esistano.
-  Senza trascrizione: usa «Trascrivi e cerca» o analizza la cartella
+  Senza trascrizione: «Tutto sull'audio/video», con «Sul mio PC
+  (Whisper)» oppure con Gemini, oppure «Trascrivi e cerca»
+  o analizza la cartella
   (non ascolta da solo tutti i video del disco a ogni ricerca).
 • oppure un’estensione che scegli tu (es. solo .pdf o solo .epub).
 

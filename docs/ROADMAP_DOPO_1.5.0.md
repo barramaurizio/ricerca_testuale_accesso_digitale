@@ -151,7 +151,7 @@ Contenuto previsto `1.6.0`:
 - **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
 - **1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker — **pubblicata** (19/10/2026; DataStore #12312 → #12313).  
 - **1.7.7:** OCR tabelle riga-per-riga (cache v20 + Vision) + Add-on OCR — **pubblicata** (20/10; DataStore #12333 → #12334).  
-- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. **`1.8.2` pubblicata** il 22/10/2026 (`docs/PIANO_1.8.2.md`, DataStore accettato). **`1.8.3` pubblicata** il 23/10/2026 (`docs/PIANO_1.8.3.md`, DataStore accettato).
+- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. **`1.8.2` pubblicata** il 22/10/2026 (`docs/PIANO_1.8.2.md`, DataStore accettato). **`1.8.3` pubblicata** il 23/10/2026 (`docs/PIANO_1.8.3.md`, DataStore accettato). **`1.8.4` pubblicata** il 24/10/2026. **`1.8.5` pubblicata** il 25/10/2026 (`docs/PIANO_1.8.5.md`, DataStore #12491 accettato).
 
 ---
 
@@ -186,8 +186,10 @@ Contenuto previsto `1.6.0`:
 27. ~~**`1.8.1`:** Gemini a schermo + «Chiedi a Gemini» in Esplora file~~ — **pubblicata** (21/10).  
 28. ~~**`1.8.2`:** dopo un HTTP 503 provare il modello Gemini successivo; frase a schermo senza «credito finito»; tasti Alt+L / Alt+H / Alt+B.~~ **pubblicata** il 22/10/2026. Piano: `docs/PIANO_1.8.2.md`.  
 29. ~~**`1.8.3`:** conversazione Gemini anche senza un file (Alt+Q); allegati in chat (Alt+A); HTTP 402 in italiano.~~ **pubblicata** il 23/10/2026. Piano: `docs/PIANO_1.8.3.md`.  
-30. **`1.8.4` in corso (24/10, non pubblicata, prove ok, exe non compilato):** chiedere a Gemini da un `.rtad.txt` già salvato, senza rifare l’analisi. Se l’originale accanto non c’è più, la chat resta sul testo salvato e lo dice, a voce e a schermo. Elenco vuoto con una frase vera. Nell’Add-on si sentono anche percorso impostato, testo salvato e risultati esportati. Piano: `docs/PIANO_1.8.4.md`.  
-31. Lista d’attesa: Whisper opt-in (versione dedicata); confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
+30. ~~**`1.8.4`:** chiedere a Gemini da un `.rtad.txt` già salvato.~~ **pubblicata** il 24/10/2026. Piano: `docs/PIANO_1.8.4.md`.  
+31. ~~**`1.8.5`:** Traduci il testo già aperto (Alt+U).~~ **pubblicata** il 25/10/2026. Piano: `docs/PIANO_1.8.5.md`. DataStore #12491 accettato.  
+32. **`1.8.6` prove ok il 26/10, non pubblicata:** Whisper sul proprio PC, opt-in, modello `small` scaricato al primo uso, file fino a 20 minuti o cartella fino a 5 file, testo in `.rtad.txt`. `lastTestedNVDAVersion` = `2026.3.0`. Exe Standalone non compilato. Piano: `docs/PIANO_1.8.6.md`.  
+33. Lista d’attesa: segnalibro di lettura nel lettore; confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

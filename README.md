@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.6
+
+- **Whisper sul mio PC:** nell’analisi audio/video, insieme a «Trascrizione parlato», la casella «Sul mio PC (Whisper)» è spenta. Se la accendi, al primo uso scarica il modello e trascrive anche senza chiave Gemini. Un file fino a 20 minuti. In una cartella, fino a 5 file: «Whisper: 5 file su N. Non entrati: …».
+- Il testo diventa `nome.rtad.txt` se accanto non c’era già. Se c’era, resta com’era. Da lì valgono Chiedi a Gemini e Traduci.
+- Un secondo avvio mentre lavora interrompe, a voce e a schermo: «Interruzione richiesta. Attendi la chiusura.»
+- Standalone e Add-on insieme. Gemini resta la trascrizione quando la casella è spenta. `lastTestedNVDAVersion` = 2026.3.0.
 
 ### 🌟 Novità della Versione 1.8.5
 
@@ -266,6 +273,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.6
+
+- **Whisper on this PC:** in audio/video analysis, next to “Trascrizione parlato”, the box “Sul mio PC (Whisper)” is off. Turn it on and, the first time, the model is downloaded and the file is transcribed without a Gemini key. One file up to 20 minutes. In a folder, up to 5 files: “Whisper: 5 file su N. Non entrati: …”.
+- The text becomes `name.rtad.txt` when that file is not already beside the media. If it is, it stays as it was. Ask Gemini and Translate already work from there.
+- Starting again while it is working stops it, on screen and by voice: “Interruzione richiesta. Attendi la chiusura.”
+- Standalone and add-on together. Gemini stays the transcription when the box is off. Last tested NVDA version: 2026.3.
 
 ### 🌟 What's New in Version 1.8.5
 

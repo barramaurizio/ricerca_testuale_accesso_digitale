@@ -2248,6 +2248,60 @@ def _ensure_progressive_timestamps_note(text: str) -> str:
     return body
 
 
+def _transcribe_with_whisper(
+    path: str,
+    *,
+    include_timestamps: bool = False,
+    should_abort=None,
+    on_progress=None,
+) -> dict:
+    """Whisper sul PC. Stesso dizionario di transcribe_media_gemini."""
+    try:
+        import rtad_whisper
+    except ImportError:
+        rtad_whisper = None
+    if rtad_whisper is None:
+        return {
+            "ok": False,
+            "text": "",
+            "error": "Modulo Whisper non disponibile.",
+            "source": "whisper",
+        }
+    tech = {}
+    try:
+        tech = get_media_tech_info(path) or {}
+    except Exception:
+        tech = {}
+    if tech.get("silent_video") and not media_companion_audio_path(path):
+        return {
+            "ok": False,
+            "text": "",
+            "error": rtad_whisper.MSG_NO_AUDIO,
+            "source": "whisper",
+        }
+    audio = media_companion_audio_path(path) or path
+    try:
+        dur = float(tech.get("duration_sec") or 0)
+    except (TypeError, ValueError):
+        dur = 0.0
+    ffmpeg = ""
+    try:
+        ffmpeg = shutil.which("ffmpeg") or ""
+    except Exception:
+        ffmpeg = ""
+    tr = rtad_whisper.transcribe_file(
+        audio,
+        duration_sec=dur,
+        include_timestamps=bool(include_timestamps),
+        should_abort=should_abort,
+        on_progress=on_progress,
+        ffmpeg=ffmpeg,
+    )
+    if tr.get("ok"):
+        tr["text"] = _glossary_finish_text(tr.get("text") or "")
+    return tr
+
+
 def format_full_media_report(
     path: str,
     *,
@@ -2255,6 +2309,7 @@ def format_full_media_report(
     include_describe: bool = True,
     include_transcript: bool = False,
     include_timestamps: bool = False,
+    transcript_engine: str = "gemini",
     should_abort=None,
     on_progress=None,
 ) -> str:
@@ -2307,13 +2362,23 @@ def format_full_media_report(
     if include_transcript:
         if should_abort and should_abort():
             return "\n".join(parts).strip() + "\n(Annullato.)"
-        tr = transcribe_media_gemini(
-            path,
-            should_abort=should_abort,
-            use_cache=True,
-            include_timestamps=bool(include_timestamps),
-            on_progress=on_progress,
-        )
+        engine = (transcript_engine or "gemini").strip().lower()
+        if engine == "whisper":
+            tr = _transcribe_with_whisper(
+                path,
+                include_timestamps=bool(include_timestamps),
+                should_abort=should_abort,
+                on_progress=on_progress,
+            )
+            parts.append("Motore trascrizione: Whisper sul mio PC.")
+        else:
+            tr = transcribe_media_gemini(
+                path,
+                should_abort=should_abort,
+                use_cache=True,
+                include_timestamps=bool(include_timestamps),
+                on_progress=on_progress,
+            )
         section = (
             "=== Trascrizione (con timestamp) ==="
             if include_timestamps
@@ -2747,6 +2812,7 @@ def batch_analyze_folder(
     include_describe: bool = True,
     include_transcript: bool = False,
     include_timestamps: bool = False,
+    transcript_engine: str = "gemini",
     save_txt: bool = True,
     recursive: bool = False,
     should_abort=None,
@@ -2761,7 +2827,19 @@ def batch_analyze_folder(
     on_progress(i, total, path, ok) opzionale.
     Se save_txt: scrive «stem.rtad.txt» accanto a ogni file (non «nome.ext.rtad.txt»).
     """
-    files = list_media_files_in_folder(folder, recursive=recursive)
+    files_all = list_media_files_in_folder(folder, recursive=recursive)
+    engine = (transcript_engine or "gemini").strip().lower()
+    whisper_note = ""
+    files = files_all
+    if include_transcript and engine == "whisper":
+        try:
+            import rtad_whisper
+        except ImportError:
+            rtad_whisper = None
+        if rtad_whisper is not None:
+            files, _left = rtad_whisper.cap_folder(files_all)
+            if _left:
+                whisper_note = rtad_whisper.msg_folder_cap(len(files), len(files_all))
     results = []
     ok_n = 0
     for i, path in enumerate(files, start=1):
@@ -2774,6 +2852,7 @@ def batch_analyze_folder(
                 include_describe=include_describe,
                 include_transcript=include_transcript,
                 include_timestamps=include_timestamps,
+                transcript_engine=engine,
                 should_abort=should_abort,
             )
             if translate_transcript and include_transcript and body:
@@ -2785,6 +2864,25 @@ def batch_analyze_folder(
                     on_translate=on_translate,
                 )
             err = ""
+            limit_err = ""
+            try:
+                import rtad_whisper as _wh
+            except ImportError:
+                _wh = None
+            if _wh is not None and body:
+                for phrase in (
+                    _wh.MSG_TOO_LONG,
+                    _wh.MSG_NO_DURATION,
+                    _wh.MSG_NEED_FFMPEG,
+                    _wh.MSG_NO_BIN,
+                    _wh.MSG_NO_MODEL,
+                    _wh.MSG_NO_AUDIO,
+                    _wh.MSG_EMPTY,
+                    _wh.MSG_FAIL,
+                ):
+                    if phrase in body:
+                        limit_err = phrase
+                        break
             txt_path = ""
             if save_txt and body:
                 txt_path = sidecar_txt_path_for_media(path)
@@ -2795,6 +2893,8 @@ def batch_analyze_folder(
                 except Exception as e:
                     err = f"salvataggio txt: {e}"
                     txt_path = ""
+            if limit_err and not err:
+                err = limit_err
             # Ok se c'è corpo e (se richiesto) salvataggio riuscito
             ok = bool(body) and not err
             if ok:
@@ -2826,9 +2926,11 @@ def batch_analyze_folder(
                 pass
     return {
         "folder": folder,
-        "total": len(files),
+        "total": len(files_all),
+        "analyzed": len(files),
         "ok": ok_n,
         "results": results,
+        "whisper_note": whisper_note,
     }
 
 

@@ -100,7 +100,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.5"
+APP_VERSION = "1.8.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -5979,6 +5979,14 @@ class MediaSectionsDialog(wx.Dialog):
         )
         self.chk_transcript.SetValue(bool(preset.get("include_transcript", False)))
         vbox.Add(self.chk_transcript, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.chk_whisper = wx.CheckBox(
+            self, label="Sul mio &PC (Whisper, opt-in)"
+        )
+        self.chk_whisper.SetValue(
+            (preset.get("transcript_engine") or "") == "whisper"
+            and bool(preset.get("include_transcript", False))
+        )
+        vbox.Add(self.chk_whisper, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self.chk_timestamps = wx.CheckBox(
             self, label="Timestamp &nella trascrizione ([MM:SS], opt-in)"
         )
@@ -6032,9 +6040,11 @@ class MediaSectionsDialog(wx.Dialog):
             en = self.chk_transcript.GetValue()
             self.chk_timestamps.Enable(en)
             self.chk_translate.Enable(en)
+            self.chk_whisper.Enable(en)
             if not en:
                 self.chk_timestamps.SetValue(False)
                 self.chk_translate.SetValue(False)
+                self.chk_whisper.SetValue(False)
             self.choice_lang.Enable(en and self.chk_translate.GetValue())
 
         def _sync_translate(_evt=None):
@@ -6045,18 +6055,25 @@ class MediaSectionsDialog(wx.Dialog):
         self.chk_translate.Bind(wx.EVT_CHECKBOX, _sync_translate)
         _sync_ts()
 
+        whisper_hint = (
+            "Whisper, sul mio PC, è spento. Si accende insieme alla trascrizione: "
+            "al primo uso scarica il modello e lavora anche senza chiave Gemini. "
+            "Un file fino a 20 minuti. In una cartella, fino a 5 file."
+        )
         if self.batch_mode:
             hint_txt = (
                 "Accanto a ogni file viene creato «nome.rtad.txt» "
                 "(stesso stem del media). "
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
-                "File oltre i limiti: resta la scheda tecnica."
+                "File oltre i limiti: resta la scheda tecnica. "
+                + whisper_hint
             )
         else:
             hint_txt = (
                 "Se compili l'URL ha priorità sul file. "
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
-                "File oltre i limiti: resta la scheda tecnica."
+                "File oltre i limiti: resta la scheda tecnica. "
+                + whisper_hint
             )
         hint = wx.StaticText(self, label=hint_txt)
         vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
@@ -6180,6 +6197,9 @@ class MediaSectionsDialog(wx.Dialog):
             "include_tech": self.chk_tech.GetValue(),
             "include_describe": self.chk_describe.GetValue(),
             "include_transcript": want_tr,
+            "transcript_engine": (
+                "whisper" if want_tr and self.chk_whisper.GetValue() else "gemini"
+            ),
             "include_timestamps": bool(want_tr and self.chk_timestamps.GetValue()),
             "translate_transcript": bool(want_tr and self.chk_translate.GetValue()),
             "translate_lang": _media_translate_lang(self),
@@ -8370,21 +8390,21 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Traduci il testo già aperto: trascrizione, resoconto o documento.\n"
-            "  Pulsante Traduci (Alt+U), sul report e nel lettore.\n"
-            "  L'originale resta. La traduzione si aggiunge sotto.\n"
-            "  Nel video restano i timestamp.\n"
-            "• La lingua di arrivo si sceglie. L'italiano è già selezionato.\n"
-            "  Un testo lungo va a pezzi, fino alla fine, a schermo e a voce.\n"
-            "  Alla fine: «Traduzione completa.»\n"
-            "• Non parte da sola. Nell'analisi audio/video la casella\n"
-            "  «Traduci la trascrizione» è spenta.\n"
-            "• Salva testo: dal video lo stesso nome.rtad.txt.\n"
-            "  Se sovrascrivi, l'originale resta e sotto c'è la traduzione.\n"
-            "  Dal resoconto già salvato: nome.rtad.rtad.txt,\n"
-            "  e il primo file resta com'era.\n"
+            "• Whisper sul mio PC: nell'analisi audio/video, accanto a\n"
+            "  «Trascrizione parlato», la casella «Sul mio PC (Whisper)»\n"
+            "  è spenta. Se la accendi, al primo uso scarica il modello\n"
+            "  e trascrive anche senza chiave Gemini.\n"
+            "• Un file fino a 20 minuti. In una cartella, fino a 5 file:\n"
+            "  «Whisper: 5 file su N. Non entrati: …».\n"
+            "• Il testo diventa nome.rtad.txt se accanto non c'era già.\n"
+            "  Se c'era, resta com'era. Da lì valgono Chiedi a Gemini e Traduci.\n"
+            "• Un secondo avvio mentre lavora interrompe, a voce e a schermo:\n"
+            "  «Interruzione richiesta. Attendi la chiusura.»\n"
+            "• Gemini resta la trascrizione quando la casella è spenta.\n"
+            "• Ultima versione NVDA testata: 2026.3.\n"
             "• Le chat dell'Add-on restano nel profilo NVDA.\n"
-            "• Resta dalla 1.8.4: Chiedi a Gemini da un resoconto già salvato.\n"
+            "• Resta dalla 1.8.5: Traduci il testo già aperto (Alt+U).\n"
+            "  L'originale resta. La traduzione si aggiunge sotto.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -13168,6 +13188,7 @@ class SearchFrame(wx.Frame):
             "include_tech": bool(sel.get("include_tech", True)),
             "include_describe": bool(sel.get("include_describe", True)),
             "include_transcript": bool(sel.get("include_transcript", False)),
+            "transcript_engine": sel.get("transcript_engine") or "gemini",
             "include_timestamps": bool(sel.get("include_timestamps", False)),
             "translate_transcript": bool(sel.get("translate_transcript", False)),
             "translate_lang": sel.get("translate_lang") or "it",
@@ -13306,6 +13327,11 @@ class SearchFrame(wx.Frame):
             "ripresa trascrizione",
             "analisi audio/video completata",
             "download completato",
+            "scaricamento",
+            "programma whisper",
+            "modello whisper",
+            "preparazione audio",
+            "trascrizione whisper",
         )
         if key != last and any(m in key for m in milestones):
             self._media_progress_announced = key
@@ -13322,10 +13348,13 @@ class SearchFrame(wx.Frame):
             rtad_speak("Modulo media non disponibile.")
             return
         if getattr(self, "_media_analysis_busy", False):
-            rtad_speak(
-                "Analisi audio/video già in corso. Attendi il risultato."
+            self._media_abort = True
+            self._set_media_progress(
+                0, "Interruzione richiesta. Attendi la chiusura."
             )
+            rtad_speak("Interruzione richiesta. Attendi la chiusura.")
             return
+        self._media_abort = False
         self._media_analysis_busy = True
         self._media_analysis_gen = int(getattr(self, "_media_analysis_gen", 0) or 0) + 1
         gen = self._media_analysis_gen
@@ -13335,28 +13364,38 @@ class SearchFrame(wx.Frame):
                 "include_tech": bool(sections.get("include_tech", True)),
                 "include_describe": bool(sections.get("include_describe", True)),
                 "include_transcript": bool(sections.get("include_transcript", False)),
+                "transcript_engine": sections.get("transcript_engine") or "gemini",
                 "include_timestamps": bool(sections.get("include_timestamps", False)),
                 "translate_transcript": bool(sections.get("translate_transcript", False)),
                 "translate_lang": sections.get("translate_lang") or "it",
             }
         _ensure_ocr_keys()
-        if mode in ("describe", "transcript", "all") and not load_gemini_api_key():
-            if mode == "tech" or (
-                mode == "all"
-                and sections
-                and sections.get("include_tech")
-                and not sections.get("include_describe")
-                and not sections.get("include_transcript")
-            ):
-                rtad_speak("Scheda tecnica audio/video in corso…")
-            else:
-                rtad_speak(
-                    "Per riassunto o trascrizione serve la chiave Gemini "
-                    "(Strumenti). Procedo comunque con le sezioni possibili."
-                )
+        sec0 = sections if isinstance(sections, dict) else {}
+        engine0 = sec0.get("transcript_engine") or "gemini"
+        need_gemini = mode == "describe" or bool(sec0.get("include_describe")) or (
+            bool(sec0.get("include_transcript")) and engine0 != "whisper"
+        ) or bool(sec0.get("translate_transcript"))
+        if mode == "transcript" and engine0 != "whisper":
+            need_gemini = True
+        tech_only = mode == "tech" or (
+            mode == "all"
+            and sec0.get("include_tech")
+            and not sec0.get("include_describe")
+            and not sec0.get("include_transcript")
+        )
+        if tech_only:
+            rtad_speak("Scheda tecnica audio/video in corso…")
+        elif need_gemini and not load_gemini_api_key():
+            rtad_speak(
+                "Per riassunto o trascrizione serve la chiave Gemini "
+                "(Strumenti). Procedo comunque con le sezioni possibili."
+            )
         else:
             rtad_speak("Analisi audio/video in corso…")
         self._set_media_progress(8, "Analisi audio/video…")
+
+        def _abort():
+            return bool(getattr(self, "_media_abort", False))
 
         def _work():
             title = "Audio/video"
@@ -13371,6 +13410,8 @@ class SearchFrame(wx.Frame):
                         include_describe=sec.get("include_describe", True),
                         include_transcript=sec.get("include_transcript", False),
                         include_timestamps=sec.get("include_timestamps", False),
+                        transcript_engine=sec.get("transcript_engine") or "gemini",
+                        should_abort=_abort,
                         on_progress=self._media_progress_cb,
                     )
                 elif mode == "tech":
@@ -13382,13 +13423,21 @@ class SearchFrame(wx.Frame):
                     self._media_progress_cb(100, "Analisi audio/video completata.")
                 elif mode == "transcript":
                     title = "Trascrizione audio/video"
-                    tr = rtad_media.transcribe_media_gemini(
-                        file_path,
-                        include_timestamps=bool(
-                            (sections or {}).get("include_timestamps", False)
-                        ),
-                        on_progress=self._media_progress_cb,
-                    )
+                    sec = sections or {}
+                    if (sec.get("transcript_engine") or "gemini") == "whisper":
+                        tr = rtad_media._transcribe_with_whisper(
+                            file_path,
+                            include_timestamps=bool(sec.get("include_timestamps", False)),
+                            should_abort=_abort,
+                            on_progress=self._media_progress_cb,
+                        )
+                    else:
+                        tr = rtad_media.transcribe_media_gemini(
+                            file_path,
+                            include_timestamps=bool(sec.get("include_timestamps", False)),
+                            should_abort=_abort,
+                            on_progress=self._media_progress_cb,
+                        )
                     if tr.get("ok") and (tr.get("text") or "").strip():
                         body = (tr.get("text") or "").strip()
                     else:
@@ -13419,6 +13468,23 @@ class SearchFrame(wx.Frame):
                     sections.get("translate_lang") or "it",
                     on_progress=self._media_progress_cb,
                 )
+
+            saved_msg = ""
+            if (
+                mode == "all"
+                and isinstance(sections, dict)
+                and (sections.get("transcript_engine") or "") == "whisper"
+                and sections.get("include_transcript")
+                and body
+                and not str(title).startswith("Errore")
+            ):
+                try:
+                    import rtad_whisper
+                    body, saved_msg = rtad_whisper.attach_sidecar(
+                        body, file_path, delete_after=delete_after
+                    )
+                except Exception:
+                    saved_msg = ""
 
             def _show():
                 self._media_analysis_busy = False
@@ -13455,6 +13521,15 @@ class SearchFrame(wx.Frame):
                 frm.Show()
                 frm.Raise()
                 rtad_speak("Report pronto. Per un altro URL: Nuova analisi.")
+                if saved_msg:
+                    rtad_speak(saved_msg)
+                try:
+                    import rtad_whisper
+                    for phrase in rtad_whisper.SPOKEN_RESULTS:
+                        if phrase and phrase in (body or "") and phrase != saved_msg:
+                            rtad_speak(phrase)
+                except Exception:
+                    pass
 
             wx.CallAfter(_show)
 
@@ -13536,9 +13611,11 @@ class SearchFrame(wx.Frame):
             rtad_speak("Modulo media non disponibile.")
             return
         if getattr(self, "_media_analysis_busy", False):
-            rtad_speak(
-                "Analisi audio/video già in corso. Attendi il risultato."
+            self._media_abort = True
+            self._set_media_progress(
+                0, "Interruzione richiesta. Attendi la chiusura."
             )
+            rtad_speak("Interruzione richiesta. Attendi la chiusura.")
             return
         folder = os.path.abspath(folder or "")
         if not folder or not os.path.isdir(folder):
@@ -13570,7 +13647,26 @@ class SearchFrame(wx.Frame):
         if not files:
             rtad_speak("Nessun file audio/video trovato in questa cartella.")
             return
-        if sel.get("include_transcript") and len(files) >= 5:
+        engine = sel.get("transcript_engine") or "gemini"
+        if (
+            sel.get("include_transcript")
+            and engine == "whisper"
+            and len(files) > 5
+        ):
+            try:
+                import rtad_whisper
+                cap_msg = rtad_whisper.msg_folder_cap(5, len(files))
+            except Exception:
+                cap_msg = (
+                    f"Whisper: 5 file su {len(files)}. "
+                    f"Non entrati: {len(files) - 5}."
+                )
+            rtad_speak(cap_msg)
+        elif (
+            sel.get("include_transcript")
+            and engine != "whisper"
+            and len(files) >= 5
+        ):
             ask = wx.MessageDialog(
                 self,
                 (
@@ -13591,11 +13687,18 @@ class SearchFrame(wx.Frame):
             if choice != wx.ID_YES:
                 rtad_speak("Batch annullato.")
                 return
-        rtad_speak(
-            f"Avvio analisi: {len(files)} file audio/video. "
-            "Può richiedere tempo se usi Gemini."
-        )
+        if engine == "whisper" and sel.get("include_transcript"):
+            rtad_speak(
+                f"Avvio analisi: {min(len(files), 5)} file audio/video. "
+                "Whisper sul mio PC."
+            )
+        else:
+            rtad_speak(
+                f"Avvio analisi: {len(files)} file audio/video. "
+                "Può richiedere tempo se usi Gemini."
+            )
         _ensure_ocr_keys()
+        self._media_abort = False
         self._media_analysis_busy = True
         self._set_media_progress(2, "Batch audio/video…")
 
@@ -13624,8 +13727,10 @@ class SearchFrame(wx.Frame):
                     include_describe=sel.get("include_describe", True),
                     include_transcript=sel.get("include_transcript", False),
                     include_timestamps=sel.get("include_timestamps", False),
+                    transcript_engine=sel.get("transcript_engine") or "gemini",
                     save_txt=sel.get("save_txt", True),
                     recursive=sel.get("recursive", False),
+                    should_abort=lambda: bool(getattr(self, "_media_abort", False)),
                     on_progress=_prog,
                     translate_transcript=bool(sel.get("translate_transcript")),
                     translate_lang=sel.get("translate_lang") or "it",
@@ -13637,11 +13742,14 @@ class SearchFrame(wx.Frame):
             except Exception as e:
                 summary = {"total": 0, "ok": 0, "results": [], "error": str(e)}
 
-            lines = [
+            lines = []
+            if summary.get("whisper_note"):
+                lines.append(summary["whisper_note"])
+            lines.extend([
                 f"Cartella: {folder}",
                 f"File media trovati: {summary.get('total', 0)}",
                 f"Completati: {summary.get('ok', 0)}",
-            ]
+            ])
             if summary.get("error"):
                 lines.append(f"Errore: {summary['error']}")
             if sel.get("save_txt"):
@@ -13673,10 +13781,16 @@ class SearchFrame(wx.Frame):
                 self._image_info_frames.append(frm)
                 frm.Show()
                 frm.Raise()
-                rtad_speak(
+                done_n = summary.get("analyzed")
+                if done_n is None:
+                    done_n = summary.get("total", 0)
+                end_msg = (
                     f"Batch terminato: {summary.get('ok', 0)} di "
-                    f"{summary.get('total', 0)} completati."
+                    f"{done_n} completati."
                 )
+                if summary.get("whisper_note"):
+                    end_msg = summary["whisper_note"] + " " + end_msg
+                rtad_speak(end_msg)
 
             wx.CallAfter(_show)
 

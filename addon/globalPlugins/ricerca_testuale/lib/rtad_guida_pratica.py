@@ -28,9 +28,39 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.6
+Novità recenti (in parole semplici) — versione 1.8.7
 ----------------------------------------------------
-• Puoi trascrivere un audio o un video sul tuo PC, anche senza
+• Nel lettore, Control+B aggiunge un punto dove sei arrivato.
+  Puoi segnarne quanti vuoi: il precedente resta.
+  Chiudi e riapri: torni sull'ultimo, a schermo e a voce.
+  Se è uno solo: «Segnalibro di lettura: ripreso da qui.»
+  Se sono di più: «Segnalibro di lettura 2 di 3: ripreso da qui.»
+  L'elenco «Punti di lettura» li mostra in ordine nel libro.
+  Frecce e Invio scelgono quello che vuoi.
+  Control+Shift+B torna all'ultimo.
+  «Elimina punto di lettura» toglie quello selezionato nell'elenco.
+  Non è il Segnalibro Ctrl+D, che salva un percorso di ricerca.
+  Standalone e Add-on tengono ciascuno i propri punti.
+  Vale per ogni documento aperto con «Leggi documento»:
+  anche txt, md, html, csv, log, rtf, odt, Excel e un .rtad.txt.
+  Un file aperto con Notepad o con il lettore PDF di Windows
+  usa i segnalibri di quel programma.
+• In un PDF, se l'ultima cifra di un anno è disegnata a parte,
+  202 7 torna 2027. Lo stesso per un importo come 2,8.
+• Nei libri EPUB, i codici strani come &#232; diventano lettere e segni.
+  Li senti nel lettore e li trovi nel testo copiato.
+• Sull'elenco, «Copia testo del documento» copia il libro intero:
+  prima il sommario e i link, poi i capitoli.
+  «Copia Testo pulito» e «Copia OCR completo» servono alle immagini,
+  non al libro. «Leggi documento (struttura e testo)» è la stessa
+  lettura che parte da Esplora file.
+• Se apri un file o una cartella da Esplora file, anche a programma
+  chiuso, restano in elenco. A schermo e a voce:
+  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+• Dopo l'installazione del programma Windows, Apri con può proporre
+  Ricerca Testuale. Non sostituisce il programma predefinito.
+  Su un audio o un video analizza, non lo riproduce.
+• Resta dalla 1.8.6: puoi trascrivere un audio o un video sul tuo PC, anche senza
   chiave Gemini. Nell'analisi accendi «Trascrizione parlato» e poi
   «Sul mio PC (Whisper)». È spento finché non lo accendi.
 • Al primo uso scarica il modello. Lo senti e lo leggi.

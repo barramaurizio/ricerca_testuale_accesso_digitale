@@ -7,6 +7,7 @@ Usato nella ricerca documenti come DOC/PDF.
 
 from __future__ import annotations
 
+import html
 import logging
 import os
 import re
@@ -44,14 +45,7 @@ def _strip_html_to_paragraphs(raw: bytes | str) -> list[str]:
         text,
     )
     text = _TAG_RE.sub(" ", text)
-    text = (
-        text.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", '"')
-        .replace("&#39;", "'")
-    )
+    text = html.unescape(text)
     text = _WS_RE.sub(" ", text)
     text = _BLANK_RE.sub("\n\n", text)
     out = []

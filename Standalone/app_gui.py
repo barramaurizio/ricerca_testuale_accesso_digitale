@@ -66,6 +66,10 @@ try:
 except ImportError:
     rtad_docstruct = None
 try:
+    import rtad_reading_mark
+except ImportError:
+    rtad_reading_mark = None
+try:
     import rtad_zip
 except ImportError:
     rtad_zip = None
@@ -91,7 +95,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.6"
+APP_VERSION = "1.8.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -2815,6 +2819,39 @@ def extract_lines_from_pdf(file_path, deadline=None):
     return extract_lines_from_pdf_bytes(raw, deadline=deadline, source_label=file_path)
 
 
+def _pdf_piece_needs_space(prev: str, nxt: str) -> bool:
+    """Spazio tra due pezzi solo se sono parole diverse.
+
+    Un PDF giustificato stacca spesso l'ultima cifra o l'ultima lettera:
+    «202» + «7», «2» + «,» + «8», «milion» + «i», «T» + «ale».
+    """
+    if not prev or not nxt:
+        return False
+    if prev.endswith("\n") or nxt.startswith("\n"):
+        return False
+    if prev[-1].isspace() or nxt[0].isspace():
+        return False
+    left = prev.rstrip()
+    right = nxt.lstrip()
+    if not left or not right:
+        return False
+    end_char = left[-1]
+    start_char = right[0]
+    if end_char.isdigit() and start_char.isdigit():
+        return False
+    if end_char.isdigit() and start_char in ",.":
+        return False
+    if end_char in ",." and start_char.isdigit():
+        return False
+    if start_char in ",.;:!?":
+        return False
+    if len(left) == 1 and end_char.isupper() and start_char.islower():
+        return False
+    if end_char.isalpha() and right.isalpha() and right.islower() and len(right) <= 2:
+        return False
+    return True
+
+
 def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
     """Estrae righe di testo da byte PDF (file o allegato email).
 
@@ -2904,7 +2941,7 @@ def extract_lines_from_pdf_bytes(raw, deadline=None, source_label=""):
     for p in pieces:
         if not p:
             continue
-        if blob_parts and not blob_parts[-1].endswith("\n") and not p.startswith("\n"):
+        if blob_parts and _pdf_piece_needs_space(blob_parts[-1], p):
             blob_parts.append(" ")
         blob_parts.append(p)
     blob = "".join(blob_parts)
@@ -7340,7 +7377,7 @@ class DocumentStructureFrame(wx.Frame):
         super(DocumentStructureFrame, self).__init__(
             None,
             title=f"Lettore documento — {name}",
-            size=(780, 620),
+            size=(780, 700),
             style=wx.DEFAULT_FRAME_STYLE,
         )
         self.file_path = file_path or ""
@@ -7436,6 +7473,62 @@ class DocumentStructureFrame(wx.Frame):
             pass
         vbox.Add(self.lbl_translate, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
 
+        self._pending_reading_pos = None
+        self._reading_sentence = ""
+        self._reading_rows = []
+        self.lbl_reading = None
+        self.lst_reading = None
+        self.btn_mark_save = None
+        if rtad_reading_mark is not None:
+            idle = (
+                rtad_reading_mark.MSG_NONE
+                if (self.file_path or "").strip()
+                else rtad_reading_mark.MSG_NOFILE
+            )
+            self.lbl_reading = wx.StaticText(panel, label=idle)
+            try:
+                self.lbl_reading.SetName("Segnalibro di lettura")
+            except Exception:
+                pass
+            vbox.Add(self.lbl_reading, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+            vbox.Add(
+                wx.StaticText(panel, label=rtad_reading_mark.HINT),
+                0,
+                wx.LEFT | wx.RIGHT | wx.EXPAND,
+                8,
+            )
+            vbox.Add(
+                wx.StaticText(panel, label="Punti di lettura"),
+                0,
+                wx.LEFT | wx.RIGHT,
+                8,
+            )
+            self.lst_reading = wx.ListBox(panel, style=wx.LB_SINGLE)
+            try:
+                self.lst_reading.SetName("Punti di lettura")
+                self.lst_reading.SetMinSize((-1, 80))
+            except Exception:
+                pass
+            self.lst_reading.Bind(wx.EVT_LISTBOX_DCLICK, self.on_reading_mark_activate)
+            vbox.Add(self.lst_reading, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+            hbox_mark = wx.BoxSizer(wx.HORIZONTAL)
+            self.btn_mark_save = wx.Button(panel, label="Segna punto di lettura")
+            self.btn_mark_save.Bind(wx.EVT_BUTTON, self.on_save_reading_mark)
+            hbox_mark.Add(self.btn_mark_save, 0, wx.ALL, 5)
+            btn_mark_go = wx.Button(panel, label="Riprendi ultimo punto")
+            btn_mark_go.Bind(wx.EVT_BUTTON, self.on_resume_reading_mark)
+            hbox_mark.Add(btn_mark_go, 0, wx.ALL, 5)
+            btn_mark_del = wx.Button(panel, label="Elimina punto di lettura")
+            btn_mark_del.Bind(wx.EVT_BUTTON, self.on_delete_reading_mark)
+            hbox_mark.Add(btn_mark_del, 0, wx.ALL, 5)
+            can_mark = bool((self.file_path or "").strip())
+            self.btn_mark_save.Enable(can_mark)
+            btn_mark_go.Enable(can_mark)
+            btn_mark_del.Enable(can_mark)
+            vbox.Add(hbox_mark, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 5)
+            self._reload_reading_list(report)
+            self._arm_reading_resume(report)
+
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_open_link = None
         if self.links:
@@ -7470,6 +7563,11 @@ class DocumentStructureFrame(wx.Frame):
         vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         panel.SetSizer(vbox)
+        if self.lbl_reading is not None:
+            try:
+                self.lbl_reading.Wrap(720)
+            except Exception:
+                pass
         self.Centre()
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.Bind(wx.EVT_ACTIVATE, self._on_reader_activate)
@@ -7477,21 +7575,30 @@ class DocumentStructureFrame(wx.Frame):
         for ctrl in (
             self.lst_outline,
             self.lst_links,
+            self.lst_reading,
             self.txt_display,
         ):
             if ctrl is not None:
                 ctrl.Bind(wx.EVT_SET_FOCUS, self._on_reader_child_focus)
-        if self.lst_outline is not None and self.lst_outline.GetCount() > 0:
+        resume_lead = ""
+        if self._pending_reading_pos is not None:
+            self._apply_reading_pos(self._pending_reading_pos)
+            wx.CallAfter(self._apply_reading_pos, self._pending_reading_pos)
+            resume_lead = (self._reading_sentence or "").strip()
+        elif self.lst_outline is not None and self.lst_outline.GetCount() > 0:
             self.lst_outline.SetSelection(0)
             self.lst_outline.SetFocus()
         else:
             self.txt_display.SetFocus()
         speak_accessible(
-            summary
+            ((resume_lead + " ") if resume_lead else "")
+            + summary
             + " Lettore documento RTAD. Tab: sommario, link e testo. "
             "Invio sul sommario: sezione qui in RTAD. "
             "Control+F: cerca. F3: ripeti (prossima occorrenza). "
             "Control+H / Control+Shift+H: titolo successivo o precedente. "
+            "Control+B: segna un punto di lettura, quanti ne vuoi. "
+            "Control+Shift+B: torna all'ultimo. Invio sull'elenco: scegli un altro. "
             "I link «Sito web» sono esterni."
             + (" Alt+U: traduci." if rtad_translate is not None else "")
         )
@@ -7806,7 +7913,7 @@ class DocumentStructureFrame(wx.Frame):
 
     def _reader_known_ctrls(self):
         known = set()
-        for c in (self.txt_display, self.lst_outline, self.lst_links):
+        for c in (self.txt_display, self.lst_outline, self.lst_links, self.lst_reading):
             if c is not None:
                 known.add(c)
         return known
@@ -8086,13 +8193,229 @@ class DocumentStructureFrame(wx.Frame):
         except Exception as e:
             speak_accessible(f"Salvataggio non riuscito: {e}")
 
+    def _show_reading_status(self, sentence, speak=True):
+        sentence = (sentence or "").strip()
+        if self.lbl_reading is not None and sentence:
+            self.lbl_reading.SetLabel(sentence)
+            try:
+                self.lbl_reading.Wrap(720)
+            except Exception:
+                pass
+            try:
+                self.Layout()
+            except Exception:
+                pass
+        if speak and sentence:
+            speak_accessible(sentence)
+
+    def _reading_caret(self):
+        try:
+            start, end = self.txt_display.GetSelection()
+        except Exception:
+            return 0
+        if start != end:
+            return min(start, end)
+        try:
+            return self.txt_display.GetInsertionPoint()
+        except Exception:
+            return min(start, end)
+
+    def _apply_reading_pos(self, pos, focus=True):
+        try:
+            if self.txt_display is None:
+                return
+            end = self.txt_display.GetLastPosition()
+            pos = max(0, min(int(pos or 0), end))
+            self._saved_insert = pos
+            self._last_focus_ctrl = self.txt_display
+            if focus:
+                self.txt_display.SetFocus()
+            self.txt_display.SetInsertionPoint(pos)
+            self.txt_display.SetSelection(pos, pos)
+            try:
+                self.txt_display.ShowPosition(pos)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _reload_reading_list(self, text=None, select_id=None):
+        if self.lst_reading is None or rtad_reading_mark is None:
+            self._reading_rows = []
+            return []
+        if text is None and self.txt_display is not None:
+            text = self.txt_display.GetValue() or ""
+        text = text or ""
+        self.lst_reading.Clear()
+        self._reading_rows = []
+        if not (self.file_path or "").strip():
+            self.lst_reading.Append(rtad_reading_mark.MSG_NOFILE)
+            self.lst_reading.SetSelection(0)
+            return []
+        group = rtad_reading_mark.get_group(CONFIG_DIR, self.file_path)
+        rows = rtad_reading_mark.describe_items(text, group)
+        if not rows:
+            self.lst_reading.Append(rtad_reading_mark.MSG_NONE)
+            self.lst_reading.SetSelection(0)
+            return []
+        want = str(select_id or group.get("resume_id") or "")
+        selected = 0
+        for index, row in enumerate(rows):
+            self.lst_reading.Append(row["label"])
+            if row["id"] == want:
+                selected = index
+        self._reading_rows = rows
+        self.lst_reading.SetSelection(selected)
+        return rows
+
+    def _arm_reading_resume(self, text):
+        rows = self._reading_rows or []
+        chosen = None
+        for row in rows:
+            if row.get("resume"):
+                chosen = row
+                break
+        if chosen is None and rows:
+            chosen = rows[-1]
+        if not chosen or chosen.get("kind") == "empty":
+            return
+        self._pending_reading_pos = chosen["pos"]
+        self._saved_insert = chosen["pos"]
+        sentence = rtad_reading_mark.resume_sentence(
+            chosen["kind"],
+            text or "",
+            chosen["pos"],
+            chosen["index"],
+            chosen["total"],
+        )
+        self._reading_sentence = sentence
+        if self.lbl_reading is not None:
+            self.lbl_reading.SetLabel(sentence)
+
+    def _selected_reading_row(self):
+        rows = self._reading_rows or []
+        if not rows or self.lst_reading is None:
+            return None
+        sel = self.lst_reading.GetSelection()
+        if sel == wx.NOT_FOUND or sel < 0 or sel >= len(rows):
+            return None
+        return rows[sel]
+
+    def on_reading_mark_activate(self, event=None):
+        if rtad_reading_mark is None:
+            return
+        if not (self.file_path or "").strip():
+            self._show_reading_status(rtad_reading_mark.MSG_NOFILE)
+            return
+        row = self._selected_reading_row()
+        if row is None:
+            self._show_reading_status(rtad_reading_mark.MSG_NONE)
+            return
+        try:
+            rtad_reading_mark.touch_resume(CONFIG_DIR, self.file_path, row["id"])
+        except Exception:
+            pass
+        self._apply_reading_pos(row["pos"])
+        text = self.txt_display.GetValue() or ""
+        self._show_reading_status(
+            rtad_reading_mark.resume_sentence(
+                row["kind"], text, row["pos"], row["index"], row["total"]
+            )
+        )
+
+    def on_save_reading_mark(self, event=None):
+        if rtad_reading_mark is None:
+            return
+        if not (self.file_path or "").strip():
+            self._show_reading_status(rtad_reading_mark.MSG_NOFILE)
+            return
+        text = self.txt_display.GetValue() or ""
+        if not text.strip():
+            self._show_reading_status(rtad_reading_mark.MSG_EMPTY)
+            return
+        pos = self._reading_caret()
+        try:
+            result = rtad_reading_mark.add_mark(CONFIG_DIR, self.file_path, text, pos)
+        except Exception:
+            self._show_reading_status("Segnalibro di lettura non salvato.")
+            return
+        status = result.get("status")
+        if status == "full":
+            self._show_reading_status(rtad_reading_mark.MSG_FULL)
+            return
+        item = result.get("item") or {}
+        self._reload_reading_list(text, select_id=item.get("id"))
+        self._saved_insert = pos
+        excerpt = rtad_reading_mark.excerpt_at(text, pos)
+        self._show_reading_status(
+            rtad_reading_mark.saved_sentence(
+                result.get("total") or 0,
+                excerpt,
+                already=(status == "already"),
+            )
+        )
+
+    def on_resume_reading_mark(self, event=None):
+        if rtad_reading_mark is None:
+            return
+        if not (self.file_path or "").strip():
+            self._show_reading_status(rtad_reading_mark.MSG_NOFILE)
+            return
+        text = self.txt_display.GetValue() or ""
+        rows = self._reload_reading_list(text)
+        chosen = None
+        for row in rows:
+            if row.get("resume"):
+                chosen = row
+                break
+        if chosen is None:
+            self._show_reading_status(rtad_reading_mark.MSG_NONE)
+            return
+        self._apply_reading_pos(chosen["pos"])
+        self._show_reading_status(
+            rtad_reading_mark.resume_sentence(
+                chosen["kind"], text, chosen["pos"], chosen["index"], chosen["total"]
+            )
+        )
+
+    def on_delete_reading_mark(self, event=None):
+        if rtad_reading_mark is None:
+            return
+        if not (self.file_path or "").strip():
+            self._show_reading_status(rtad_reading_mark.MSG_NOFILE)
+            return
+        row = self._selected_reading_row()
+        if row is None:
+            self._show_reading_status(rtad_reading_mark.MSG_NONE)
+            return
+        try:
+            remaining = rtad_reading_mark.delete_item(
+                CONFIG_DIR, self.file_path, row["id"]
+            )
+        except Exception:
+            remaining = -1
+        if remaining < 0:
+            self._show_reading_status(rtad_reading_mark.MSG_NONE)
+            return
+        self._reload_reading_list(self.txt_display.GetValue() or "")
+        self._show_reading_status(
+            rtad_reading_mark.removed_sentence(remaining, row.get("excerpt") or "")
+        )
+
     def on_char_hook(self, event):
         key = event.GetKeyCode()
         if key == wx.WXK_ESCAPE:
             self.Close()
             return
         # Ctrl+F cerca; F3 / Shift+F3 ripeti; Ctrl+H / Ctrl+Shift+H titoli
+        # Ctrl+B segna il punto di lettura; Ctrl+Shift+B lo riprende
         if event.ControlDown() and not event.AltDown():
+            if key in (ord("b"), ord("B")):
+                if event.ShiftDown():
+                    self.on_resume_reading_mark()
+                else:
+                    self.on_save_reading_mark()
+                return
             if key in (ord("f"), ord("F")):
                 self.on_find()
                 return
@@ -8113,6 +8436,9 @@ class DocumentStructureFrame(wx.Frame):
             if time.monotonic() < float(self._ignore_enter_until or 0):
                 return
             focused = self.FindFocus()
+            if self.lst_reading is not None and focused is self.lst_reading:
+                self.on_reading_mark_activate()
+                return
             if self.lst_links is not None and focused is self.lst_links:
                 self.on_link_activate()
                 return
@@ -8138,19 +8464,25 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Whisper sul mio PC: nell'analisi audio/video, accanto a\n"
-            "  «Trascrizione parlato», la casella «Sul mio PC (Whisper)»\n"
-            "  è spenta. Se la accendi, al primo uso scarica il modello\n"
-            "  e trascrive anche senza chiave Gemini.\n"
-            "• Un file fino a 20 minuti. In una cartella, fino a 5 file:\n"
-            "  «Whisper: 5 file su N. Non entrati: …».\n"
-            "• Il testo diventa nome.rtad.txt se accanto non c'era già.\n"
-            "  Se c'era, resta com'era. Da lì valgono Chiedi a Gemini e Traduci.\n"
-            "• Un secondo avvio mentre lavora interrompe, a voce e a schermo:\n"
-            "  «Interruzione richiesta. Attendi la chiusura.»\n"
-            "• Gemini resta la trascrizione quando la casella è spenta.\n"
-            "• Resta dalla 1.8.5: Traduci il testo già aperto (Alt+U).\n"
-            "  L'originale resta. La traduzione si aggiunge sotto.\n"
+            "• Nel lettore, Control+B aggiunge un punto di lettura. Quanti ne vuoi.\n"
+            "  Vale anche per un txt aperto con Leggi documento.\n"
+            "  Il precedente resta. Alla riapertura torni sull'ultimo.\n"
+            "  Se sono più di uno, a schermo e a voce:\n"
+            "  «Segnalibro di lettura 2 di 3: ripreso da qui.»\n"
+            "  Nell'elenco, frecce e Invio scelgono. Control+Shift+B torna all'ultimo.\n"
+            "  Non è il Segnalibro Ctrl+D, che salva un percorso.\n"
+            "• «Copia testo del documento» copia sommario, link e capitoli.\n"
+            "• In un PDF, se l'ultima cifra è disegnata a parte,\n"
+            "  202 7 torna 2027. Lo stesso per un importo come 2,8.\n"
+            "• Nei libri EPUB, i codici come &#232; diventano lettere e segni.\n"
+            "  Vale nel lettore e nel testo copiato.\n"
+            "• Da Esplora file, il file o la cartella restano in elenco,\n"
+            "  anche se il programma era chiuso. A schermo e a voce:\n"
+            "  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»\n"
+            "• Dopo l'installazione, Apri con può proporre questo programma.\n"
+            "  Non sostituisce quello predefinito. Su un audio o un video\n"
+            "  analizza, non lo riproduce.\n"
+            "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -8288,7 +8620,8 @@ class ShortcutsFrame(wx.Frame):
             "  - Ctrl + Shift + U : Descrivi immagine da URL\n"
             "  - Ctrl + Shift + I : Descrivi immagine dagli Appunti (o URL)\n"
             "  - Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
-            "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"            "  - Ctrl + Shift + P: Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L: Carica un profilo di ricerca\n"
+            "  - Ctrl + D: Aggiungi percorso ai segnalibri\n"
+            "  - Nel lettore, Ctrl + B: aggiunge un punto di lettura, quanti ne vuoi. Ctrl + Shift + B: ultimo. Invio sull'elenco: scegli. Non è Ctrl + D.\n"            "  - Ctrl + Shift + P: Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L: Carica un profilo di ricerca\n"
             "  - INVIO : Avvia ricerca, apri file alla riga esatta o apri articolo nel Browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
             "  - F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
@@ -10754,6 +11087,7 @@ class MainWindow(wx.Frame):
                 "Alt + K : Scatta uno screenshot salvato in 'Catture di schermata'\n"
                 "Ctrl + P: Stampa rapida risultati di ricerca in lista\n"
                 "Ctrl + D: Aggiungi percorso ai segnalibri\n"
+                "Nel lettore, Ctrl + B: aggiunge un punto di lettura, quanti ne vuoi. Ctrl + Shift + B: ultimo. Invio sull'elenco: scegli. Non è Ctrl + D.\n"
                 "INVIO : Avvia ricerca o apri file alla riga esatta\n"
                 "SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
                 "F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
@@ -12836,12 +13170,16 @@ class MainWindow(wx.Frame):
                 wx.ID_ANY, "Descrivi immagine da PDF"
             )
         item_read_doc = None
+        item_copy_doc = None
         is_shell_doc = ext_sel in SHELL_DOCUMENT_EXTS or is_pdf_result
         if is_shell_doc and not is_img_result:
             if not is_pdf_result:
                 menu.AppendSeparator()
             item_read_doc = menu.Append(
                 wx.ID_ANY, "Leggi documento (struttura e testo)"
+            )
+            item_copy_doc = menu.Append(
+                wx.ID_ANY, "Copia testo del documento"
             )
         item_copy_image = menu.Append(wx.ID_ANY, "Copia Immagine")
         item_save_image = menu.Append(wx.ID_ANY, "Salva Immagine...")
@@ -12949,6 +13287,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.read_document_file(file_path),
                 item_read_doc,
+            )
+        if item_copy_doc is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=file_path: self.copy_document_text_file(p),
+                item_copy_doc,
             )
         self.Bind(wx.EVT_MENU, lambda e: self.copy_image_to_clipboard(item_data), item_copy_image)
         self.Bind(wx.EVT_MENU, lambda e: self.save_image_to_file(item_data), item_save_image)
@@ -14245,6 +14589,82 @@ class MainWindow(wx.Frame):
             pass
         return ""
 
+    def show_shell_target_in_list(self, file_path, announce=True):
+        """Il file o la cartella aperti da Esplora file restano una riga dell'elenco."""
+        if not file_path or not os.path.exists(file_path):
+            return False
+        file_path = os.path.normpath(file_path)
+        is_dir = os.path.isdir(file_path)
+        name = os.path.basename(file_path.rstrip("\\/")) or file_path
+        ext = "" if is_dir else os.path.splitext(name)[1].lower()
+        self.txt_path.SetValue(file_path)
+        save_last_path(file_path)
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            try:
+                self.txt_filter.SetValue("")
+            except Exception:
+                pass
+        try:
+            mtime = os.path.getmtime(file_path)
+        except Exception:
+            mtime = 0
+        try:
+            sz = os.path.getsize(file_path)
+        except Exception:
+            sz = 0
+        if is_dir:
+            size_s = "cartella"
+        elif sz >= 1024 * 1024:
+            size_s = f"{sz / (1024 * 1024):.1f} MB"
+        elif sz >= 1024:
+            size_s = f"{sz / 1024:.0f} KB"
+        else:
+            size_s = f"{sz} byte"
+        date_lbl = format_file_date_label(mtime)
+        date_suffix = f" {date_lbl}" if date_lbl else ""
+        if is_dir:
+            prefix = "[CARTELLA]"
+            kind = "cartella"
+        else:
+            prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
+            kind = "file"
+        item = {
+            "file_path": file_path,
+            "file_name": name,
+            "prefix": prefix,
+            "mtime": mtime,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": f"Aperto da Esplora file{date_suffix}",
+            "snippet": f"{kind.capitalize()} da Esplora file · {size_s}",
+        }
+        self.current_matches = [item]
+        self.current_query = "(Aperto da Esplora file)"
+        self._results_ready = True
+        self.update_list_display()
+        if self.lst_results.GetCount() > 0:
+            self.lst_results.SetSelection(0)
+            self.lst_results.SetFocus()
+        if announce:
+            if is_dir:
+                msg = (
+                    f"La cartella è in elenco: {name}. "
+                    "Da qui puoi fare altre operazioni."
+                )
+            else:
+                msg = (
+                    f"Il file è in elenco: {name}. "
+                    "Da qui puoi fare altre operazioni."
+                )
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg)
+        return True
+
     def prepare_shell_document(self, file_path, announce=True, open_external=True):
         """Explorer → Apri questo documento/PDF.
 
@@ -14257,51 +14677,7 @@ class MainWindow(wx.Frame):
             return False
         file_path = os.path.normpath(file_path)
         name = os.path.basename(file_path)
-        ext = os.path.splitext(name)[1].lower()
-
-        self.txt_path.SetValue(file_path)
-        save_last_path(file_path)
-        try:
-            self.txt_filter.ChangeValue("")
-        except Exception:
-            try:
-                self.txt_filter.SetValue("")
-            except Exception:
-                pass
-
-        try:
-            mtime = os.path.getmtime(file_path)
-        except Exception:
-            mtime = 0
-        try:
-            sz = os.path.getsize(file_path)
-        except Exception:
-            sz = 0
-        if sz >= 1024 * 1024:
-            size_s = f"{sz / (1024 * 1024):.1f} MB"
-        elif sz >= 1024:
-            size_s = f"{sz / 1024:.0f} KB"
-        else:
-            size_s = f"{sz} byte"
-        date_lbl = format_file_date_label(mtime)
-        date_suffix = f" {date_lbl}" if date_lbl else ""
-        prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
-        item = {
-            "file_path": file_path,
-            "file_name": name,
-            "prefix": prefix,
-            "mtime": mtime,
-            "line_number": None,
-            "paragraph_index": None,
-            "location_info": f"Aperto da Explorer{date_suffix}",
-            "snippet": f"Documento da sottomenù shell · {size_s}",
-        }
-        self.current_matches = [item]
-        self.current_query = "(Documento da Explorer)"
-        self.update_list_display()
-        if self.lst_results.GetCount() > 0:
-            self.lst_results.SetSelection(0)
-            self.lst_results.SetFocus()
+        self.show_shell_target_in_list(file_path, announce=False)
 
         opened_ok = False
         if open_external:
@@ -14320,17 +14696,22 @@ class MainWindow(wx.Frame):
 
         if announce:
             if opened_ok:
-                speak_accessible(
+                msg = (
                     f"Aperto «{name}» con l'app predefinita. "
-                    f"Il file è anche in lista in Ricerca Testuale: "
-                    f"menu contestuale per Leggi o Copia testo."
+                    f"Il file è in elenco: {name}. "
+                    "Da qui puoi fare altre operazioni."
                 )
             else:
-                speak_accessible(
-                    f"«{name}» è in lista. "
-                    f"Apertura con app predefinita non riuscita; "
-                    f"usa INVIO o il menu contestuale."
+                msg = (
+                    f"Il file è in elenco: {name}. "
+                    "Apertura con l'app predefinita non riuscita. "
+                    "Da qui puoi fare altre operazioni."
                 )
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg)
         return True
 
     def _show_document_structure_frame(self, file_path, struct):
@@ -14471,14 +14852,18 @@ class MainWindow(wx.Frame):
                 return
 
             def _show():
-                frame = ImageInfoFrame(
-                    None,
-                    title=f"Testo — {name}",
-                    body_text=text,
-                    image_path=file_path,
+                self._show_document_structure_frame(
+                    file_path,
+                    {
+                        "ok": True,
+                        "has_structure": False,
+                        "outline": [],
+                        "links": [],
+                        "body": text,
+                        "plain": text,
+                        "message": "Testo del documento.",
+                    },
                 )
-                frame.Show()
-                frame.Raise()
 
             wx.CallAfter(_show)
 
@@ -14494,6 +14879,13 @@ class MainWindow(wx.Frame):
 
         def _work():
             text = extract_document_text(file_path)
+            if rtad_docstruct is not None and hasattr(
+                rtad_docstruct, "format_document_copy"
+            ):
+                try:
+                    text = rtad_docstruct.format_document_copy(file_path, text)
+                except Exception:
+                    pass
             if not (text or "").strip():
                 ext = os.path.splitext(file_path)[1].lower()
                 if ext == ".pdf" and get_best_pdf_page_image(file_path):
@@ -14503,16 +14895,33 @@ class MainWindow(wx.Frame):
                     )
                 else:
                     msg = "Nessun testo da copiare da questo file."
-                wx.CallAfter(speak_accessible, msg)
+                def _say(m=msg):
+                    try:
+                        self.txt_status_progress.SetValue(m)
+                    except Exception:
+                        pass
+                    speak_accessible(m)
+
+                wx.CallAfter(_say)
                 return
 
             def _copy():
                 if wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.TextDataObject(text))
                     wx.TheClipboard.Close()
-                    speak_accessible("Testo del documento copiato negli appunti.")
+                    done = "Testo del documento copiato negli appunti."
+                    try:
+                        self.txt_status_progress.SetValue(done)
+                    except Exception:
+                        pass
+                    speak_accessible(done)
                 else:
-                    speak_accessible("Impossibile aprire gli appunti.")
+                    fail = "Impossibile aprire gli appunti."
+                    try:
+                        self.txt_status_progress.SetValue(fail)
+                    except Exception:
+                        pass
+                    speak_accessible(fail)
 
             wx.CallAfter(_copy)
 
@@ -15232,33 +15641,15 @@ def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, de
     except Exception:
         pass
 
-    doc_cli = cli_mode in (
-        "read-doc",
-        "copy-doc-text",
-        "open-doc",
-        "describe-pdf",
-        "batch-folder",
-        "batch-media-folder",
-        "image-all",
-        "media-all",
-        "media-tech",
-        "describe-media",
-        "transcribe-media",
-        "media-url",
-        "ask-gemini",
-    )
-    if path_for_search and not doc_cli:
-        if os.path.isfile(path_for_search):
-            ext = os.path.splitext(path_for_search)[1].lower()
-            if ext in SHELL_DOCUMENT_EXTS:
-                frame.txt_path.SetValue(path_for_search)
-            else:
-                frame.txt_path.SetValue(
-                    os.path.dirname(path_for_search) or path_for_search
-                )
-        else:
-            frame.txt_path.SetValue(path_for_search)
-        save_last_path(frame.txt_path.GetValue())
+    target = None
+    if cli_path and os.path.exists(cli_path):
+        target = cli_path
+    elif path_for_search and os.path.exists(path_for_search):
+        target = path_for_search
+    if target and cli_mode not in ("describe-url", "media-url"):
+        frame.show_shell_target_in_list(
+            target, announce=(cli_mode != "open-doc")
+        )
 
     def _later(fn):
         wx.CallLater(delay_ms, fn)
@@ -15272,24 +15663,14 @@ def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, de
         save_last_path(cli_path)
         _later(lambda: frame.start_batch_media_folder(cli_path))
     elif cli_mode == "image-all" and cli_path and os.path.isfile(cli_path):
-        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
-        save_last_path(frame.txt_path.GetValue())
         _later(lambda: frame.show_image_all_dialog(cli_path))
     elif cli_mode == "media-all" and cli_path and os.path.isfile(cli_path):
-        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
-        save_last_path(frame.txt_path.GetValue())
         _later(lambda: frame.show_media_all_dialog(cli_path))
     elif cli_mode == "media-tech" and cli_path and os.path.isfile(cli_path):
-        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
-        save_last_path(frame.txt_path.GetValue())
         _later(lambda: frame.show_media_analysis(cli_path, mode="tech"))
     elif cli_mode == "describe-media" and cli_path and os.path.isfile(cli_path):
-        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
-        save_last_path(frame.txt_path.GetValue())
         _later(lambda: frame.show_media_analysis(cli_path, mode="describe"))
     elif cli_mode == "transcribe-media" and cli_path and os.path.isfile(cli_path):
-        frame.txt_path.SetValue(os.path.dirname(cli_path) or cli_path)
-        save_last_path(frame.txt_path.GetValue())
         _later(lambda: frame.show_media_analysis(cli_path, mode="transcript"))
     elif cli_mode == "describe-url" and cli_url:
         def _cli_url():

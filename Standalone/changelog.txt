@@ -1,3 +1,11 @@
+Novità nella Versione 1.8.7
+- EPUB: i codici numerici diventano lettere e segni, nel lettore e nel testo copiato
+- Da Esplora file il file o la cartella restano in elenco, anche se il programma era chiuso: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+- Apri con può proporre la Standalone, senza sostituire il programma predefinito. Su audio e video analizza, non riproduce
+- Nel lettore, Control+B aggiunge un punto di lettura, quanti ne vuoi. Il precedente resta. Alla riapertura si torna sull'ultimo. Nell'elenco, Invio sceglie. Non è il Segnalibro Ctrl+D
+- Gli stessi punti valgono per ogni documento aperto con Leggi documento, anche un txt
+- In un PDF, se l'ultima cifra di un anno è disegnata a parte, 202 7 torna 2027
+
 Novità nella Versione 1.8.6
 - Whisper sul mio PC: casella spenta, accanto alla trascrizione. Al primo uso scarica il modello e trascrive anche senza chiave Gemini
 - Un file fino a 20 minuti. In una cartella, fino a 5 file: «Whisper: 5 file su N. Non entrati: …»

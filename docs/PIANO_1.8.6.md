@@ -1,7 +1,7 @@
 # Piano RTAD 1.8.6
 
-**Ultima pubblicata:** `1.8.5` — 25/10/2026. Non hotfixarla.  
-**Questa versione:** in corso, non pubblicata. Standalone e Add-on insieme. Cloud Vision resta l’OCR. Gemini resta la trascrizione quando la chiave c’è e questa opzione è spenta.
+**Pubblicata** il 26/10/2026. GitHub `v1.8.6` / `app-v1.8.6`, commit `b57d02a`. DataStore #12533 chiuso come completato via #12534, accettato. Non hotfixarla.  
+Standalone e Add-on insieme. Cloud Vision resta l’OCR. Gemini resta la trascrizione quando la chiave c’è e questa opzione è spenta.
 
 **NVDA:** l’Add-on 1.8.5 è stato provato da Maurizio su NVDA 2026.3 e funziona. Nel pacchetto 1.8.6, `lastTestedNVDAVersion` diventa `2026.3.0`. Le novità 2026.3 non toccano il codice di RTAD: niente import di `braille` / `brailleInput`, niente API rimosse che l’Add-on usi. `minimumNVDAVersion` resta `2024.1.0`.
 
@@ -29,7 +29,7 @@ Fatte da Maurizio il 26/10/2026, Standalone e Add-on, su NVDA 2026.3:
 - Add-on, file locale: stessa frase di preparazione e di trascrizione, resoconto salvato. Approfondimento sportivo, 9 min 57 s, timestamp fino a 9:51.
 - Il tetto dei 20 minuti e la cartella da 5 file sono nel codice e nelle prove automatiche. Non sono stati cliccati a mano. Un URL non è stato provato: dopo lo scaricamento la trascrizione è la stessa, e il `.rtad.txt` si tiene con Salva testo.
 
-## Da fare prima di pubblicare
+## Pubblicata
 
-- Add-on: il pacchetto `ricerca_testuale_accesso_digitale-1.8.6.nvda-addon` è già ricostruito, con `lastTestedNVDAVersion` = `2026.3.0`.
-- Standalone: l’exe installato non è questa versione finché non si lancia `Standalone\compila.bat` e poi F9 su `setup.iss`.
+- Add-on: `ricerca_testuale_accesso_digitale-1.8.6.nvda-addon`, `lastTestedNVDAVersion` = `2026.3.0`. Store: disponibile nelle ore successive all’accettazione.
+- Standalone: `Setup_RicercaTestualeAccessoDigitale_v1.8.6.exe` e `RicercaTestualeAccessoDigitale_Portable_v1.8.6.exe`.

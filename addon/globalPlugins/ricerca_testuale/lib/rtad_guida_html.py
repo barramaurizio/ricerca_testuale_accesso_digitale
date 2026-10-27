@@ -128,7 +128,29 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Whisper sul mio PC:</strong> nell’analisi audio/video, insieme a
+    <li><strong>Punti di lettura:</strong> nel lettore, Control+B ne aggiunge uno,
+      quanti ne vuoi. Il precedente resta. Alla riapertura torni sull’ultimo.
+      Se sono più di uno, a schermo e a voce:
+      «Segnalibro di lettura 2 di 3: ripreso da qui.»
+      Nell’elenco, frecce e Invio scelgono. Control+Shift+B torna all’ultimo.
+      «Elimina punto di lettura» toglie quello selezionato.
+      Vale per Leggi documento, anche un txt o un .rtad.txt.
+      Non è il Segnalibro Ctrl+D, che salva un percorso.</li>
+    <li><strong>Copia testo del documento:</strong> copia il sommario,
+      i link e poi i capitoli.</li>
+    <li><strong>Cifre nel PDF:</strong> se l’ultima cifra di un anno è
+      disegnata a parte, 202 7 torna 2027. Lo stesso per un importo
+      come 2,8.</li>
+    <li><strong>Lettere al posto dei codici:</strong> nei libri EPUB, i codici
+      come <code>&amp;#232;</code> diventano lettere e segni, nel lettore
+      e nel testo copiato.</li>
+    <li><strong>File aperto da Esplora file:</strong> il file o la cartella
+      restano in elenco, anche se il programma era chiuso. A schermo e a voce:
+      «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»</li>
+    <li><strong>Apri con:</strong> dopo l’installazione del programma Windows,
+      Apri con può proporre Ricerca Testuale. Non sostituisce il programma
+      predefinito. Su un audio o un video analizza, non lo riproduce.</li>
+    <li><strong>Resta dalla 1.8.6 — Whisper sul mio PC:</strong> nell’analisi audio/video, insieme a
       «Trascrizione parlato», la casella «Sul mio PC (Whisper)» è spenta.
       Se la accendi, al primo uso scarica il modello e trascrive anche
       senza chiave Gemini. Un file fino a 20 minuti. In una cartella,
@@ -463,6 +485,10 @@ il programma può segnalarlo e proporti l’aggiornamento.</p>
 <ul>
   <li>PDF con testo, Word, EPUB, HTML, testo, Excel <code>.xlsx</code>: ricerca nel contenuto.</li>
   <li><strong>Leggi documento…</strong> / lettore interno: cerca e titoli, dove supportato.</li>
+  <li><strong>Punti di lettura:</strong> Control+B ne aggiunge uno, quanti ne vuoi.
+    Control+Shift+B torna all’ultimo. Nell’elenco, Invio sceglie un altro.
+    Vale per ogni documento aperto con Leggi documento, anche un txt.
+    Non è il Segnalibro Ctrl+D.</li>
   <li>PDF solo immagine (scansione): usa Descrivi / OCR come per le immagini.</li>
   <li>Su risultato Excel: Invio può aprire Excel alla riga del risultato.</li>
 </ul>
@@ -546,6 +572,8 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
 <h2 id="scorciatoie">13. Scorciatoie principali (Standalone)</h2>
 <ul>
   <li><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> — cronologia testi / percorsi</li>
+  <li>Nel lettore: <kbd>Ctrl</kbd>+<kbd>B</kbd> aggiunge un punto di lettura, quanti ne vuoi.
+    <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> torna all’ultimo. Invio sull’elenco sceglie. Non è Ctrl+D.</li>
   <li><kbd>Ctrl</kbd>+<kbd>F</kbd> — filtro risultati</li>
   <li><kbd>Alt</kbd>+<kbd>T</kbd> — tutto il PC</li>
   <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> — Incolla percorso dagli Appunti</li>

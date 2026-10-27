@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,15 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.7
+
+- **Lettere al posto dei codici:** nei libri EPUB, i codici come `&#232;` diventano lettere e segni, nel lettore e nel testo copiato.
+- **Da Esplora file:** il file o la cartella restano in elenco, anche se il programma era chiuso. A schermo e a voce: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+- **Apri con:** dopo l’installazione della Standalone, Apri con può proporre Ricerca Testuale. Non sostituisce il programma predefinito. Su un audio o un video analizza, non lo riproduce.
+- **Punti di lettura:** nel lettore, Control+B ne aggiunge uno, quanti ne vuoi. Il precedente resta. Alla riapertura si torna sull’ultimo. Se sono più di uno: «Segnalibro di lettura 2 di 3: ripreso da qui.» Nell’elenco, frecce e Invio scelgono. Vale per Leggi documento, anche un txt o un .rtad.txt. Non è il Segnalibro Ctrl+D.
+- **Copia testo del documento:** copia il sommario, i link e poi i capitoli.
+- **Cifre nel PDF:** se l’ultima cifra di un anno è disegnata a parte, 202 7 torna 2027. Lo stesso per un importo come 2,8.
 
 ### 🌟 Novità della Versione 1.8.6
 
@@ -273,6 +282,15 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.7
+
+- **Letters instead of codes:** in EPUB books, codes such as `&#232;` become letters and signs, in the reader and in copied text.
+- **From File Explorer:** the file or folder stays in the list, even when the program was closed. On screen and by voice.
+- **Open with:** after installing the Standalone, Open with can offer Ricerca Testuale. It does not replace the default program. On audio or video it analyses, it does not play.
+- **Reading places:** in the reader, Control+B adds one, as many as you want. The previous ones stay. Reopening returns to the last one. If there are several: “Segnalibro di lettura 2 di 3: ripreso da qui.” The list chooses another with the arrows and Enter. It applies to Read document, including a txt or a .rtad.txt. It is not the Ctrl+D bookmark.
+- **Copy document text:** copies the outline, the links, then the chapters.
+- **Digits in a PDF:** when the last digit of a year is drawn separately, 202 7 becomes 2027. The same applies to an amount such as 2,8.
 
 ### 🌟 What's New in Version 1.8.6
 

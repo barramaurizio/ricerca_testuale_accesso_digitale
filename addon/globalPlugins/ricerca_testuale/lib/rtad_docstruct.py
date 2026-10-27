@@ -8,6 +8,7 @@ resta spesso riempito dal chiamante (estrattore PDF di app_gui / add-on).
 
 from __future__ import annotations
 
+import html
 import logging
 import os
 import pathlib
@@ -69,14 +70,7 @@ def _empty_result(fmt: str = "", message: str = "") -> dict:
 
 def _strip_html_text(raw: str) -> str:
     text = _TAG_RE.sub(" ", raw or "")
-    text = (
-        text.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", '"')
-        .replace("&#39;", "'")
-    )
+    text = html.unescape(text)
     return _WS_RE.sub(" ", text).strip()
 
 
@@ -492,12 +486,7 @@ def extract_structure_from_epub(file_path: str) -> dict:
                 )
                 chunk = re.sub(r"(?is)<h[1-6]\b[^>]*>.*?</h[1-6]>", "\n", chunk)
                 chunk = _TAG_RE.sub(" ", chunk)
-                chunk = (
-                    chunk.replace("&nbsp;", " ")
-                    .replace("&amp;", "&")
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">")
-                )
+                chunk = html.unescape(chunk)
                 chunk = _WS_RE.sub(" ", chunk)
                 for line in chunk.splitlines():
                     s = line.strip()
@@ -1814,6 +1803,26 @@ def extract_document_structure(file_path: str) -> dict:
     return _empty_result(
         message="Formato non supportato per la lettura strutturata (DOCX, EPUB, PDF)."
     )
+
+
+def format_document_copy(file_path: str, plain_text: str) -> str:
+    """Testo da copiare: sommario e link del lettore, poi i capitoli."""
+    plain = (plain_text or "").strip()
+    ext = os.path.splitext(file_path or "")[1].lower()
+    if ext not in (".docx", ".epub", ".pdf", ".doc"):
+        return plain
+    try:
+        struct = extract_document_structure(file_path)
+    except Exception:
+        return plain
+    if not struct or not (struct.get("outline") or struct.get("links")):
+        return plain
+    merged = dict(struct)
+    if plain:
+        merged["body"] = plain
+        merged["plain"] = plain
+    report = format_structure_report(merged).strip()
+    return report or plain
 
 
 def format_structure_report(struct: dict) -> str:

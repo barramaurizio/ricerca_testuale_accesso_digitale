@@ -151,7 +151,7 @@ Contenuto previsto `1.6.0`:
 - **1.7.5:** OCR orizzontale + Trova copie + Incolla Appunti (+ drag SA) — **pubblicata**.  
 - **1.7.6:** drop + updater `updates\` + CD/DVD + wrap + marker — **pubblicata** (19/10/2026; DataStore #12312 → #12313).  
 - **1.7.7:** OCR tabelle riga-per-riga (cache v20 + Vision) + Add-on OCR — **pubblicata** (20/10; DataStore #12333 → #12334).  
-- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. **`1.8.2` pubblicata** il 22/10/2026 (`docs/PIANO_1.8.2.md`, DataStore accettato). **`1.8.3` pubblicata** il 23/10/2026 (`docs/PIANO_1.8.3.md`, DataStore accettato). **`1.8.4` pubblicata** il 24/10/2026. **`1.8.5` pubblicata** il 25/10/2026 (`docs/PIANO_1.8.5.md`, DataStore #12491 accettato).
+- **`1.8.0` e `1.8.1` pubblicate** il 21/10/2026. **`1.8.2` pubblicata** il 22/10/2026 (`docs/PIANO_1.8.2.md`, DataStore accettato). **`1.8.3` pubblicata** il 23/10/2026 (`docs/PIANO_1.8.3.md`, DataStore accettato). **`1.8.4` pubblicata** il 24/10/2026. **`1.8.5` pubblicata** il 25/10/2026 (`docs/PIANO_1.8.5.md`, DataStore #12491 accettato). **`1.8.6` pubblicata** il 26/10/2026 (`docs/PIANO_1.8.6.md`, DataStore #12533 via #12534 accettato).
 
 ---
 
@@ -188,8 +188,9 @@ Contenuto previsto `1.6.0`:
 29. ~~**`1.8.3`:** conversazione Gemini anche senza un file (Alt+Q); allegati in chat (Alt+A); HTTP 402 in italiano.~~ **pubblicata** il 23/10/2026. Piano: `docs/PIANO_1.8.3.md`.  
 30. ~~**`1.8.4`:** chiedere a Gemini da un `.rtad.txt` già salvato.~~ **pubblicata** il 24/10/2026. Piano: `docs/PIANO_1.8.4.md`.  
 31. ~~**`1.8.5`:** Traduci il testo già aperto (Alt+U).~~ **pubblicata** il 25/10/2026. Piano: `docs/PIANO_1.8.5.md`. DataStore #12491 accettato.  
-32. **`1.8.6` prove ok il 26/10, non pubblicata:** Whisper sul proprio PC, opt-in, modello `small` scaricato al primo uso, file fino a 20 minuti o cartella fino a 5 file, testo in `.rtad.txt`. `lastTestedNVDAVersion` = `2026.3.0`. Exe Standalone non compilato. Piano: `docs/PIANO_1.8.6.md`.  
-33. Lista d’attesa: segnalibro di lettura nel lettore; confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
+32. ~~**`1.8.6`:** Whisper sul proprio PC, opt-in.~~ **pubblicata** il 26/10/2026. Piano: `docs/PIANO_1.8.6.md`. DataStore #12533 via #12534 accettato.  
+33. **`1.8.7` provata il 27/10, non pubblicata:** codici EPUB in lettere, file da Esplora file in elenco, Apri con senza diventare il predefinito, più punti di lettura, cifre nei PDF. Manca compilare la Standalone e pubblicare. Piano: `docs/PIANO_1.8.7.md`.  
+34. Lista d’attesa: confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

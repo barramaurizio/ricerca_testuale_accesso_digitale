@@ -34,6 +34,10 @@ def main() -> int:
     shutil.copy2(
         ROOT / "Standalone" / "rtad_docstruct.py", LIB / "rtad_docstruct.py"
     )
+    shutil.copy2(
+        ROOT / "Standalone" / "rtad_reading_mark.py",
+        LIB / "rtad_reading_mark.py",
+    )
     shutil.copy2(ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py")
     shutil.copy2(
         ROOT / "Standalone" / "rtad_translate.py", LIB / "rtad_translate.py"
@@ -62,6 +66,11 @@ def main() -> int:
             LIB / "rtad_docstruct.py",
         ),
         ("rtad_epub.py", ROOT / "Standalone" / "rtad_epub.py", LIB / "rtad_epub.py"),
+        (
+            "rtad_reading_mark.py",
+            ROOT / "Standalone" / "rtad_reading_mark.py",
+            LIB / "rtad_reading_mark.py",
+        ),
         ("rtad_chat.py", ROOT / "Standalone" / "rtad_chat.py", LIB / "rtad_chat.py"),
         (
             "rtad_attach_dialog.py",

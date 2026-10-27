@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=1.8.6
+AppVersion=1.8.7
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.8.6
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v1.8.7
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -558,6 +558,78 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaT
 
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
+
+[Code]
+const
+  RTADOpenWithExe = 'Ricerca Testuale Accesso Digitale.exe';
+
+function RTADOpenWithExtensions: TStringList;
+begin
+  Result := TStringList.Create;
+  Result.CommaText :=
+    '.epub,.pdf,.docx,.doc,.odt,.xlsx,.txt,.md,.csv,.log,.rtf,.html,.htm,' +
+    '.jpg,.jpeg,.jfif,.png,.bmp,.gif,.tif,.tiff,.webp,.ico,' +
+    '.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav,.wma,' +
+    '.mp4,.m4v,.mkv,.avi,.mov,.wmv,.webm,.mpg,.mpeg,.3gp';
+end;
+
+procedure RTADRegisterOpenWith;
+var
+  Exts: TStringList;
+  I: Integer;
+  Cmd: String;
+  AppKey: String;
+begin
+  { Compare nell'elenco Apri con. Non diventa il programma predefinito. }
+  Cmd := '"' + ExpandConstant('{app}\') + RTADOpenWithExe + '" "%1"';
+  AppKey := 'Software\Classes\Applications\' + RTADOpenWithExe;
+  RegWriteStringValue(HKCU, AppKey, 'FriendlyAppName', 'Ricerca Testuale Accesso Digitale');
+  RegWriteStringValue(HKCU, AppKey + '\shell\open\command', '', Cmd);
+  Exts := RTADOpenWithExtensions;
+  try
+    for I := 0 to Exts.Count - 1 do
+      RegWriteStringValue(
+        HKCU,
+        'Software\Classes\' + Exts[I] + '\OpenWithList\' + RTADOpenWithExe,
+        '',
+        ''
+      );
+  finally
+    Exts.Free;
+  end;
+end;
+
+procedure RTADUnregisterOpenWith;
+var
+  Exts: TStringList;
+  I: Integer;
+begin
+  RegDeleteKeyIncludingSubkeys(
+    HKCU, 'Software\Classes\Applications\' + RTADOpenWithExe
+  );
+  Exts := RTADOpenWithExtensions;
+  try
+    for I := 0 to Exts.Count - 1 do
+      RegDeleteKeyIncludingSubkeys(
+        HKCU,
+        'Software\Classes\' + Exts[I] + '\OpenWithList\' + RTADOpenWithExe
+      );
+  finally
+    Exts.Free;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    RTADRegisterOpenWith;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    RTADUnregisterOpenWith;
+end;
 
 [Run]
 Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Description: "{cm:LaunchProgram,Ricerca Testuale Accesso Digitale}"; Flags: nowait postinstall skipifsilent

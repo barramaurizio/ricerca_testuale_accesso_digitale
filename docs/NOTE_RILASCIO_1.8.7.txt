@@ -1,0 +1,96 @@
+🌟 Novità della Versione 1.8.7
+Testi da incollare. Provato il 27/10 su Standalone e Add-on.
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Nel lettore, Control+B aggiunge un punto di lettura, quanti ne vuoi. Il precedente resta. Alla riapertura si torna sull'ultimo. Nell'elenco, Invio sceglie. Vale per Leggi documento, anche un txt o un .rtad.txt. Non è il Segnalibro Ctrl+D.
+- Copia testo del documento copia sommario, link e capitoli.
+- In un PDF, se l'ultima cifra di un anno è disegnata a parte, 202 7 torna 2027.
+- Nei libri EPUB, i codici come &#232; diventano lettere e segni, nel lettore e nel testo copiato.
+- Da Esplora file, il file o la cartella restano in elenco anche se il programma era chiuso.
+- Apri con può proporre la Standalone, senza sostituire il programma predefinito. Su audio e video analizza, non riproduce.
+
+## 🇬🇧 English
+
+- In the reader, Control+B adds a reading place, as many as you want. Earlier ones stay. Reopening returns to the last one. The list chooses another. It applies to Read document, including a txt or a .rtad.txt. It is not the Ctrl+D path bookmark.
+- Copy document text copies the outline, the links, then the chapters.
+- In a PDF, when the last digit of a year is drawn separately, 202 7 becomes 2027.
+- In EPUB books, numeric codes become letters and signs, in the reader and in copied text.
+- A file or folder opened from File Explorer stays in the list, even when the program was closed.
+- Open with can offer the Standalone without replacing the default program. On audio and video it analyses, it does not play.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.7.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.7
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.7.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.7.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Nel lettore si segnano più punti di lettura e alla riapertura si torna sull'ultimo. I codici EPUB diventano lettere. In un PDF, 202 7 torna 2027.
+
+Summary EN:
+In the reader you can keep several reading places and reopening returns to the last one. EPUB codes become letters. In a PDF, 202 7 becomes 2027.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.7/ricerca_testuale_accesso_digitale-1.8.7.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.7
+
+Description:
+(scrivi 2-4 righe sulle novità)

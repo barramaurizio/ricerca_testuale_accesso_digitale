@@ -8480,8 +8480,14 @@ class WhatsNewFrame(wx.Frame):
             "  anche se il programma era chiuso. A schermo e a voce:\n"
             "  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»\n"
             "• Dopo l'installazione, Apri con può proporre questo programma.\n"
-            "  Non sostituisce quello predefinito. Su un audio o un video\n"
-            "  analizza, non lo riproduce.\n"
+            "  Se lo scegli, si apre solo questo: il file va in elenco\n"
+            "  e un documento si apre nel lettore.\n"
+            "  Il doppio clic resta al programma di sempre.\n"
+            "  In Windows, Solo una volta vale per quel file.\n"
+            "  Sempre lo associa a quell'estensione, per esempio i txt.\n"
+            "  Si cambia da Proprietà del file, Cambia,\n"
+            "  oppure da Impostazioni, App, App predefinite.\n"
+            "  Su un audio o un video analizza, non lo riproduce.\n"
             "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
@@ -14665,12 +14671,12 @@ class MainWindow(wx.Frame):
             speak_accessible(msg)
         return True
 
-    def prepare_shell_document(self, file_path, announce=True, open_external=True):
-        """Explorer → Apri questo documento/PDF.
+    def prepare_shell_document(self, file_path, announce=True):
+        """Apri con, oppure «Apri questo documento».
 
-        1) Apre il file con l'app predefinita di Windows (es. Edge per PDF).
-        2) Lo mette in lista risultati così NVDA non trova «sconosciuto»
-           e dal menu contestuale si può Leggi/Copia testo, ecc.
+        Il file entra in elenco e si apre nel lettore di Ricerca Testuale.
+        L'app predefinita di Windows resta ferma. Dal lettore,
+        «Apri file esterno» la apre quando serve il confronto.
         """
         if not file_path or not os.path.isfile(file_path):
             speak_accessible("File non trovato.")
@@ -14678,40 +14684,18 @@ class MainWindow(wx.Frame):
         file_path = os.path.normpath(file_path)
         name = os.path.basename(file_path)
         self.show_shell_target_in_list(file_path, announce=False)
-
-        opened_ok = False
-        if open_external:
-            try:
-                ctypes.windll.shell32.ShellExecuteW(
-                    None, "open", file_path, None, None, 1
-                )
-                opened_ok = True
-            except Exception as e:
-                logging.error(f"Apertura esterna fallita per {file_path}: {e}")
-                try:
-                    os.startfile(file_path)
-                    opened_ok = True
-                except Exception as e2:
-                    logging.error(f"os.startfile fallito per {file_path}: {e2}")
-
         if announce:
-            if opened_ok:
-                msg = (
-                    f"Aperto «{name}» con l'app predefinita. "
-                    f"Il file è in elenco: {name}. "
-                    "Da qui puoi fare altre operazioni."
-                )
-            else:
-                msg = (
-                    f"Il file è in elenco: {name}. "
-                    "Apertura con l'app predefinita non riuscita. "
-                    "Da qui puoi fare altre operazioni."
-                )
+            msg = (
+                f"Aperto in Ricerca Testuale: {name}. "
+                "Il file è in elenco. "
+                "Da qui puoi fare altre operazioni."
+            )
             try:
                 self.txt_status_progress.SetValue(msg)
             except Exception:
                 pass
             speak_accessible(msg)
+        self.read_document_file(file_path)
         return True
 
     def _show_document_structure_frame(self, file_path, struct):

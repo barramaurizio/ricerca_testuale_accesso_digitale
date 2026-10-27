@@ -148,8 +148,13 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       restano in elenco, anche se il programma era chiuso. A schermo e a voce:
       «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»</li>
     <li><strong>Apri con:</strong> dopo l’installazione del programma Windows,
-      Apri con può proporre Ricerca Testuale. Non sostituisce il programma
-      predefinito. Su un audio o un video analizza, non lo riproduce.</li>
+      Apri con può proporre Ricerca Testuale. Se lo scegli, si apre solo
+      questo programma: il file va in elenco e un documento si apre nel lettore.
+      Il doppio clic resta al programma di sempre.
+      «Solo una volta» vale per quel file. «Sempre» lo associa a quell’estensione.
+      Si cambia da Proprietà del file, Cambia, oppure da Impostazioni, App,
+      App predefinite. Dal lettore, «Apri file esterno» apre il programma di sempre.
+      Su un audio o un video analizza, non lo riproduce.</li>
     <li><strong>Resta dalla 1.8.6 — Whisper sul mio PC:</strong> nell’analisi audio/video, insieme a
       «Trascrizione parlato», la casella «Sul mio PC (Whisper)» è spenta.
       Se la accendi, al primo uso scarica il modello e trascrive anche

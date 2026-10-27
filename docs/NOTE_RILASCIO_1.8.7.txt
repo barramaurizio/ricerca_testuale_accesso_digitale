@@ -28,7 +28,7 @@ Descrizione:
 - In un PDF, se l'ultima cifra di un anno è disegnata a parte, 202 7 torna 2027.
 - Nei libri EPUB, i codici come &#232; diventano lettere e segni, nel lettore e nel testo copiato.
 - Da Esplora file, il file o la cartella restano in elenco anche se il programma era chiuso.
-- Apri con può proporre la Standalone, senza sostituire il programma predefinito. Su audio e video analizza, non riproduce.
+- Apri con può proporre la Standalone. Se la scegli, si apre solo questa: il file va in elenco e un documento si apre nel lettore. Il doppio clic resta al programma di sempre. Solo una volta vale per quel file. Sempre associa quell'estensione. Su audio e video analizza, non riproduce.
 
 ## 🇬🇧 English
 
@@ -37,7 +37,7 @@ Descrizione:
 - In a PDF, when the last digit of a year is drawn separately, 202 7 becomes 2027.
 - In EPUB books, numeric codes become letters and signs, in the reader and in copied text.
 - A file or folder opened from File Explorer stays in the list, even when the program was closed.
-- Open with can offer the Standalone without replacing the default program. On audio and video it analyses, it does not play.
+- Open with can offer the Standalone. Choosing it opens only this program: the file goes into the list and a document opens in the reader. A double-click stays with the usual program. Just once is for that file. Always associates that extension. On audio and video it analyses, it does not play.
 ```
 
 Asset(s):

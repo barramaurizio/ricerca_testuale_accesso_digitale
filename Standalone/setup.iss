@@ -580,7 +580,8 @@ var
   Cmd: String;
   AppKey: String;
 begin
-  { Compare nell'elenco Apri con. Non diventa il programma predefinito. }
+  { Compare nell'elenco Apri con. Non diventa il programma predefinito:
+    Solo una volta e Sempre li sceglie la persona, in Windows. }
   Cmd := '"' + ExpandConstant('{app}\') + RTADOpenWithExe + '" "%1"';
   AppKey := 'Software\Classes\Applications\' + RTADOpenWithExe;
   RegWriteStringValue(HKCU, AppKey, 'FriendlyAppName', 'Ricerca Testuale Accesso Digitale');
@@ -588,12 +589,15 @@ begin
   Exts := RTADOpenWithExtensions;
   try
     for I := 0 to Exts.Count - 1 do
+    begin
       RegWriteStringValue(
         HKCU,
         'Software\Classes\' + Exts[I] + '\OpenWithList\' + RTADOpenWithExe,
         '',
         ''
       );
+      RegWriteStringValue(HKCU, AppKey + '\SupportedTypes', Exts[I], '');
+    end;
   finally
     Exts.Free;
   end;

@@ -104,7 +104,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.7"
+APP_VERSION = "1.8.8"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -242,6 +242,11 @@ def paths_from_windows_clipboard():
                     if raw:
                         if "\n" in raw and ";" not in raw and "," not in raw:
                             raw = raw.splitlines()[0].strip()
+                        for line in raw.splitlines():
+                            line = line.strip().strip('"').strip("'")
+                            low_line = line.lower()
+                            if low_line.startswith("http://") or low_line.startswith("https://"):
+                                found.append(line)
                         for t in normalize_search_targets(raw):
                             if t and (os.path.isfile(t) or os.path.isdir(t)):
                                 found.append(t)
@@ -396,18 +401,34 @@ def get_clean_email_text(msg):
 
 
 def strip_html_to_text(html_content):
+    """Testo leggibile da HTML: niente script, style e tag; le entità diventano lettere."""
     if not html_content:
         return ""
     text = str(html_content)
+    text = re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)
     text = re.sub(r"<style.*?>.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
     text = re.sub(r"<script.*?>.*?</script>", " ", text, flags=re.IGNORECASE | re.DOTALL)
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</p>", "\n\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</div>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"</(?:h[1-6]|p|title|blockquote)>",
+        "\n\n",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"</(?:li|tr|div|dt|dd)>",
+        "\n",
+        text,
+        flags=re.IGNORECASE,
+    )
     text = re.sub(r"<[^>]+>", " ", text)
     text = html.unescape(text)
-    lines = [line.strip() for line in text.split("\n")]
-    return "\n".join([line for line in lines if line])
+    lines = []
+    for line in text.split("\n"):
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def extract_feed_entry_text(entry):
@@ -1331,6 +1352,185 @@ TEXT_LIKE_EXTS = (
     ".txt", ".log", ".csv", ".md", ".rtf", ".html", ".htm",
 )
 
+_URL_TYPE_EXT = {
+    "text/html": ".html",
+    "application/xhtml+xml": ".html",
+    "application/pdf": ".pdf",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tif",
+    "audio/mpeg": ".mp3",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/flac": ".flac",
+    "audio/ogg": ".ogg",
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+    "video/quicktime": ".mov",
+    "text/plain": ".txt",
+    "application/epub+zip": ".epub",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/msword": ".doc",
+    "application/vnd.oasis.opendocument.text": ".odt",
+}
+
+
+def _known_result_exts():
+    return set(DOC_EXTS) | set(IMG_EXTS) | set(MEDIA_EXTS)
+
+
+def internet_shortcut_target(path):
+    """Collegamento Windows .url → indirizzo http(s), altrimenti stringa vuota."""
+    if not path or os.path.splitext(path)[1].lower() != ".url":
+        return ""
+    text = ""
+    for enc in ("utf-8", "mbcs", "latin-1"):
+        try:
+            with open(path, "r", encoding=enc, errors="replace") as handle:
+                text = handle.read(4000)
+            break
+        except Exception:
+            text = ""
+    for line in text.splitlines():
+        if line.lower().startswith("url="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
+def _ext_from_content_type(content_type):
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if ctype in _URL_TYPE_EXT:
+        return _URL_TYPE_EXT[ctype]
+    return ""
+
+
+def _ext_from_body(head, url_ext):
+    if head.startswith(b"%PDF"):
+        return ".pdf"
+    if head.startswith(b"\x89PNG"):
+        return ".png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if head.startswith(b"GIF8"):
+        return ".gif"
+    if head.startswith(b"PK\x03\x04") and url_ext in (".docx", ".xlsx", ".epub", ".odt"):
+        return url_ext
+    sample = head[:500].lstrip().lower()
+    if (
+        sample.startswith(b"<!doctype html")
+        or sample.startswith(b"<html")
+        or sample.startswith(b"<?xml")
+        or b"<html" in sample[:400]
+    ):
+        return ".html"
+    if url_ext in _known_result_exts():
+        return url_ext
+    return ".html" if b"<" in sample[:200] else (url_ext or "")
+
+
+def _safe_download_name(url, ext):
+    parsed = urllib.parse.urlparse(url)
+    name = urllib.parse.unquote(os.path.basename(parsed.path or "") or "")
+    name = re.sub(r'[<>:"/\\|?*]', "_", name).strip(" .")
+    if not name:
+        name = (parsed.netloc or "pagina").replace(":", "_")
+    base, old = os.path.splitext(name)
+    if old.lower() in _known_result_exts() or (ext and old.lower() == ext):
+        name = base or name
+    if ext and not name.lower().endswith(ext):
+        name += ext
+    if len(name) > 80:
+        stem, suf = os.path.splitext(name)
+        name = stem[:70] + suf
+    return name or ("pagina" + (ext or ""))
+
+
+def save_internet_url_locally(url):
+    """Scarica l'URL in un file temporaneo con l'estensione giusta. (percorso, errore)."""
+    url = (url or "").strip()
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36 RTAD"
+                ),
+                "Accept": "*/*",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            ctype = resp.headers.get("Content-Type", "")
+            length = resp.headers.get("Content-Length")
+            try:
+                if length and int(length) > MAX_CONTENT_SCAN_BYTES:
+                    return "", (
+                        "Il file in rete supera 40 MB. "
+                        "Puoi aprirlo nel browser."
+                    )
+            except ValueError:
+                pass
+            raw = resp.read(MAX_CONTENT_SCAN_BYTES + 1)
+            final = resp.geturl() or url
+    except Exception:
+        return "", "Impossibile scaricare la pagina. Puoi aprirla nel browser."
+    if len(raw) > MAX_CONTENT_SCAN_BYTES:
+        return "", "Il file in rete supera 40 MB. Puoi aprirlo nel browser."
+    parsed = urllib.parse.urlparse(final)
+    url_ext = os.path.splitext(urllib.parse.unquote(parsed.path or ""))[1].lower()
+    if len(url_ext) > 8:
+        url_ext = ""
+    ext = _ext_from_content_type(ctype) or _ext_from_body(raw[:800], url_ext)
+    if not ext:
+        ext = ".bin"
+    folder = os.path.join(tempfile.gettempdir(), "rtad_url")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        dest = os.path.join(folder, _safe_download_name(final, ext))
+        if os.path.exists(dest):
+            stem, suf = os.path.splitext(os.path.basename(dest))
+            dest = os.path.join(folder, f"{stem}_{int(time.time())}{suf}")
+        with open(dest, "wb") as handle:
+            handle.write(raw)
+    except Exception:
+        return "", "Impossibile salvare la pagina scaricata."
+    return dest, ""
+
+
+def copy_with_sniffed_extension(path):
+    """Se il file non ha un tipo noto ma il contenuto sì, ne fa una copia col suffisso giusto."""
+    if not path or not os.path.isfile(path):
+        return path
+    ext = os.path.splitext(path)[1].lower()
+    if ext in _known_result_exts():
+        return path
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(800)
+    except Exception:
+        return path
+    sniffed = _ext_from_body(head, "")
+    if not sniffed or sniffed == ext:
+        return path
+    folder = os.path.join(tempfile.gettempdir(), "rtad_url")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        base = os.path.splitext(os.path.basename(path))[0] or "pagina"
+        base = re.sub(r'[<>:"/\\|?*]', "_", base).strip(" .") or "pagina"
+        dest = os.path.join(folder, base[:70] + sniffed)
+        if os.path.exists(dest):
+            dest = os.path.join(folder, f"{base[:60]}_{int(time.time())}{sniffed}")
+        shutil.copyfile(path, dest)
+    except Exception:
+        return path
+    return dest
+
 
 MAX_CONTENT_SCAN_BYTES = 40 * 1024 * 1024  # 40 MB — DOC/testo generico (non posta)
 MAX_PDF_SCAN_BYTES = 80 * 1024 * 1024  # 80 MB — PDF
@@ -1919,6 +2119,20 @@ def extract_document_text(file_path):
             if rtad_epub is None:
                 return ""
             return "\n".join(rtad_epub.extract_paragraphs_from_epub(file_path) or []).strip()
+        if ext in (".html", ".htm"):
+            try:
+                with open(file_path, "rb") as f:
+                    raw_data = f.read()
+            except Exception:
+                return ""
+            if raw_data.startswith(b"\xff\xfe") or raw_data.startswith(b"\xfe\xff"):
+                text = raw_data.decode("utf-16", errors="ignore")
+            else:
+                try:
+                    text = raw_data.decode("utf-8")
+                except UnicodeDecodeError:
+                    text = raw_data.decode("latin1", errors="ignore")
+            return strip_html_to_text(text.replace("\x00", "")).strip()
         if ext in TEXT_LIKE_EXTS:
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -10887,8 +11101,199 @@ class SearchFrame(wx.Frame):
 
         if not selected_path:
             return
+        if selected_path.lower().startswith("file:"):
+            norms = normalize_search_targets(selected_path)
+            if norms:
+                selected_path = norms[0]
         self.apply_search_path(
             selected_path, offer_open=(mode == 1 and os.path.isfile(selected_path))
+        )
+
+    def show_shell_target_in_list(
+        self, file_path, announce=True, source_url="", keep_fetch_gen=False
+    ):
+        """Il file scelto con Sfoglia resta una riga dell'elenco, come in Standalone."""
+        if not keep_fetch_gen:
+            self._url_fetch_gen = getattr(self, "_url_fetch_gen", 0) + 1
+        if not file_path or not os.path.exists(file_path):
+            return False
+        if hasattr(self, "_release_listed_url_media"):
+            self._release_listed_url_media(keep_path=file_path)
+        file_path = os.path.normpath(file_path)
+        is_dir = os.path.isdir(file_path)
+        name = os.path.basename(file_path.rstrip("\\/")) or file_path
+        ext = "" if is_dir else os.path.splitext(name)[1].lower()
+        shown_path = source_url or file_path
+        self.txt_path.SetValue(shown_path)
+        save_last_path(shown_path)
+        try:
+            mtime = os.path.getmtime(file_path)
+        except Exception:
+            mtime = 0
+        try:
+            sz = os.path.getsize(file_path)
+        except Exception:
+            sz = 0
+        if is_dir:
+            size_s = "cartella"
+        elif sz >= 1024 * 1024:
+            size_s = f"{sz / (1024 * 1024):.1f} MB"
+        elif sz >= 1024:
+            size_s = f"{sz / 1024:.0f} KB"
+        else:
+            size_s = f"{sz} byte"
+        date_lbl = format_file_date_label(mtime)
+        date_suffix = f" {date_lbl}" if date_lbl else ""
+        if is_dir:
+            prefix = "[CARTELLA]"
+            kind = "cartella"
+        else:
+            prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
+            kind = "file"
+        item = {
+            "file_path": file_path,
+            "file_name": name,
+            "prefix": prefix,
+            "mtime": mtime,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": f"Scelto con Sfoglia{date_suffix}",
+            "snippet": f"{kind.capitalize()} scelto con Sfoglia · {size_s}",
+        }
+        if source_url:
+            item["source_url"] = source_url
+            item["location_info"] = "Indirizzo Internet"
+            item["snippet"] = source_url
+        self.current_matches = [item]
+        self.current_query = "(Indirizzo Internet)" if source_url else "(File scelto)"
+        self._results_ready = True
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            pass
+        self.update_list_display()
+        if self.lst_results.GetCount() > 0:
+            self.lst_results.SetSelection(0)
+            self.lst_results.SetFocus()
+        if not announce:
+            return True
+        if source_url and not is_dir:
+            msg = (
+                f"L'indirizzo è in elenco: {name}. "
+                "Da qui puoi fare altre operazioni."
+            )
+        elif is_dir:
+            msg = (
+                f"La cartella è in elenco: {name}. "
+                "Da qui puoi fare altre operazioni."
+            )
+        else:
+            msg = (
+                f"Il file è in elenco: {name}. "
+                "Da qui puoi fare altre operazioni."
+            )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        rtad_speak(msg)
+        return True
+
+    def show_internet_url_in_list(self, url, announce=True, fetch=True):
+        """Qualunque URL http(s) resta una riga dell'elenco, come un file scelto."""
+        url = (url or "").strip().strip('"').strip("'")
+        low = url.lower()
+        if not (low.startswith("http://") or low.startswith("https://")):
+            return False
+        try:
+            parsed = urllib.parse.urlparse(url)
+            name = urllib.parse.unquote(os.path.basename(parsed.path or "") or "")
+            if not name or name in ("/", "."):
+                name = parsed.netloc or url
+        except Exception:
+            name = url
+        if len(name) > 80:
+            name = name[:77] + "…"
+        self.txt_path.SetValue(url)
+        save_last_path(url)
+        if fetch:
+            self._url_fetch_gen = getattr(self, "_url_fetch_gen", 0) + 1
+            gen = self._url_fetch_gen
+            snippet = "Scaricamento in corso, attendere."
+            pending = True
+        else:
+            gen = 0
+            snippet = url
+            pending = False
+        item = {
+            "file_path": url,
+            "file_name": name,
+            "prefix": "[URL]",
+            "mtime": 0,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": "Indirizzo Internet",
+            "snippet": snippet,
+            "internet_url": True,
+            "pending_fetch": pending,
+            "source_url": url,
+        }
+        self.current_matches = [item]
+        self.current_query = "(Indirizzo Internet)"
+        self._results_ready = True
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            pass
+        self.update_list_display()
+        if self.lst_results.GetCount() > 0:
+            self.lst_results.SetSelection(0)
+            self.lst_results.SetFocus()
+        if fetch:
+            wait = f"Scarico la pagina: {name}. Attendere."
+            try:
+                self.txt_status_progress.SetValue(wait)
+            except Exception:
+                pass
+            if announce:
+                rtad_speak(wait)
+            threading.Thread(
+                target=self._fetch_internet_url_worker,
+                args=(gen, url),
+                daemon=True,
+            ).start()
+            return True
+        if not announce:
+            return True
+        msg = (
+            f"L'indirizzo è in elenco: {name}. "
+            "Da qui puoi fare altre operazioni."
+        )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        rtad_speak(msg)
+        return True
+
+    def _fetch_internet_url_worker(self, gen, url):
+        path, err = save_internet_url_locally(url)
+        wx.CallAfter(self._finish_internet_url, gen, url, path, err)
+
+    def _finish_internet_url(self, gen, url, path, err):
+        if gen != getattr(self, "_url_fetch_gen", 0):
+            return
+        if not path or not os.path.isfile(path):
+            self.show_internet_url_in_list(url, announce=False, fetch=False)
+            msg = err or "Impossibile scaricare la pagina. Puoi aprirla nel browser."
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            rtad_speak(msg)
+            return
+        self.show_shell_target_in_list(
+            path, announce=True, source_url=url, keep_fetch_gen=True
         )
 
     def apply_search_path(self, selected_path, *, offer_open=True):
@@ -10909,10 +11314,29 @@ class SearchFrame(wx.Frame):
                     f"Impostati {len(paths)} percorsi dagli Appunti."
                 )
                 return
+        if isinstance(selected_path, str) and selected_path.lower().startswith("file:"):
+            norms = normalize_search_targets(selected_path)
+            if norms:
+                selected_path = norms[0]
+        if isinstance(selected_path, str) and selected_path.lower().startswith(
+            ("http://", "https://")
+        ):
+            self.show_internet_url_in_list(selected_path)
+            return
+        if isinstance(selected_path, str) and os.path.isfile(selected_path):
+            jumped = internet_shortcut_target(selected_path)
+            if str(jumped).lower().startswith(("http://", "https://")):
+                self.show_internet_url_in_list(jumped)
+                return
+            sniffed = copy_with_sniffed_extension(selected_path)
+            if sniffed and sniffed != selected_path:
+                selected_path = sniffed
         self.txt_path.SetValue(selected_path)
         save_last_path(selected_path)
         kind = "file" if os.path.isfile(selected_path) else "cartella"
         rtad_speak(f"Percorso impostato ({kind}): {selected_path}.")
+        if os.path.isfile(selected_path):
+            self.show_shell_target_in_list(selected_path, announce=True)
 
         ext = (
             os.path.splitext(selected_path)[1].lower()
@@ -11178,6 +11602,7 @@ class SearchFrame(wx.Frame):
             except Exception:
                 is_media_page = False
             if filter_mode == 2 or is_media_page:
+                self.show_internet_url_in_list(target_input, fetch=False)
                 rtad_speak(
                     "Questo URL non va nel percorso di ricerca. "
                     "Apro l'hub analisi audio/video."
@@ -11186,6 +11611,8 @@ class SearchFrame(wx.Frame):
                     initial_url=target_input, clear_source=True
                 )
                 return
+            self.show_internet_url_in_list(target_input)
+            return
         custom_ext = self.txt_custom_ext.GetValue().strip().lower()
         if not custom_ext.startswith(".") and custom_ext:
             custom_ext = "." + custom_ext
@@ -11265,6 +11692,7 @@ class SearchFrame(wx.Frame):
         # Evita che NVDA dica "sconosciuto" sulla lista vuota durante la scansione
         self.lst_results.Append("Ricerca in corso... attendere prego.")
         self.file_map.clear()
+        self._release_listed_url_media()
         self.current_matches = []
         self.gauge.SetValue(0)
         if include_ocr and not query and filter_mode in (0, 1):
@@ -12090,6 +12518,8 @@ class SearchFrame(wx.Frame):
                             except UnicodeDecodeError:
                                 text_data = raw_data.decode("latin1", errors="ignore")
                         text_data = text_data.replace("\x00", "")
+                        if ext in (".html", ".htm"):
+                            text_data = strip_html_to_text(text_data)
                         lines = text_data.split("\n")
                         use_glossary = bool(
                             (file_name or "").lower().endswith(".rtad.txt")
@@ -12823,7 +13253,19 @@ class SearchFrame(wx.Frame):
             return
         if sel != wx.NOT_FOUND and sel in self.file_map:
             item = self.file_map[sel]
+            if item.get("pending_download"):
+                rtad_speak(item.get("file_name") or "Download audio/video in corso…")
+                return
             file_to_open = item["file_path"]
+            if item.get("internet_url") or str(file_to_open).lower().startswith(
+                ("http://", "https://")
+            ):
+                try:
+                    webbrowser.open(file_to_open)
+                    rtad_speak("Pagina aperta nel browser.")
+                except Exception:
+                    rtad_speak("Impossibile aprire la pagina nel browser.")
+                return
             line_num = item.get("line_number")
             ext = os.path.splitext(file_to_open)[1].lower()
             prefix = item.get("prefix", "")
@@ -12945,6 +13387,13 @@ class SearchFrame(wx.Frame):
                 except Exception:
                     rtad_speak("Impossibile aprire il file selezionato.")
 
+    def open_page_in_browser(self, url):
+        try:
+            webbrowser.open(url)
+            rtad_speak("Pagina aperta nel browser.")
+        except Exception:
+            rtad_speak("Impossibile aprire la pagina nel browser.")
+
     def on_context_menu(self, event):
         sel = self.lst_results.GetSelection()
         if sel == wx.NOT_FOUND or sel not in self.file_map:
@@ -12953,11 +13402,30 @@ class SearchFrame(wx.Frame):
             return
 
         item_data = self.file_map[sel]
+        if item_data.get("pending_download"):
+            rtad_speak(item_data.get("file_name") or "Download audio/video in corso…")
+            return
+        if item_data.get("pending_fetch"):
+            rtad_speak("Scaricamento in corso, attendere.")
+            return
         file_path = item_data["file_path"]
+        if item_data.get("internet_url") or str(file_path).lower().startswith(
+            ("http://", "https://")
+        ):
+            menu = wx.Menu()
+            item_open = menu.Append(wx.ID_ANY, "Apri pagina nel browser\tINVIO")
+            menu.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
+            self.PopupMenu(menu)
+            menu.Destroy()
+            return
         snippet = item_data["snippet"]
 
         menu = wx.Menu()
         item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta)\tINVIO")
+        item_browser = None
+        source_url = item_data.get("source_url") or ""
+        if source_url:
+            item_browser = menu.Append(wx.ID_ANY, "Apri pagina nel browser")
         item_gemini = None
         if rtad_chat is not None and file_path and os.path.isfile(file_path):
             ext_g = os.path.splitext(file_path)[1].lower()
@@ -13099,6 +13567,12 @@ class SearchFrame(wx.Frame):
         menu.AppendSubMenu(sort_submenu, "Ordinamento Risultati")
 
         self.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
+        if item_browser is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, u=source_url: self.open_page_in_browser(u),
+                item_browser,
+            )
         if item_gemini is not None:
             self.Bind(
                 wx.EVT_MENU,
@@ -13111,7 +13585,8 @@ class SearchFrame(wx.Frame):
             self.Bind(wx.EVT_MENU, lambda e: self.save_attachment_pdf(item_data), item_save_att)
         self.Bind(wx.EVT_MENU, lambda e: wx.CallLater(250, self.speak_selected_preview), item_preview)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_snippet_to_clipboard(snippet), item_copy_snippet)
-        self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(file_path), item_copy_path)
+        path_to_copy = source_url or file_path
+        self.Bind(wx.EVT_MENU, lambda e: self.copy_path_to_clipboard(path_to_copy), item_copy_path)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="clean"), item_copy_text)
         self.Bind(wx.EVT_MENU, lambda e: self.copy_text_to_clipboard(item_data, mode="full"), item_copy_ocr_full)
         if item_all is not None:
@@ -13279,6 +13754,8 @@ class SearchFrame(wx.Frame):
         rtad_speak(f"Lettura di «{name}» in corso…")
 
         def _work():
+            if file_path.lower().endswith(".rtad.txt"):
+                apply_glossary_to_rtad_txt_file(file_path)
             ext = os.path.splitext(file_path)[1].lower()
             if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc", ".pdf"):
                 try:
@@ -13375,6 +13852,8 @@ class SearchFrame(wx.Frame):
         rtad_speak(f"Estrazione testo da «{name}»…")
 
         def _work():
+            if file_path.lower().endswith(".rtad.txt"):
+                apply_glossary_to_rtad_txt_file(file_path)
             text = extract_document_text(file_path)
             if rtad_docstruct is not None and hasattr(
                 rtad_docstruct, "format_document_copy"
@@ -13627,13 +14106,12 @@ class SearchFrame(wx.Frame):
 
                     wx.CallAfter(_fail)
                     return
-                wx.CallAfter(
-                    self.show_media_analysis,
-                    res["path"],
-                    "all",
-                    sel,
-                    True,
-                )
+                def _open_downloaded(path=res["path"], sections=sel):
+                    self.show_media_analysis(
+                        path, mode="all", sections=sections, delete_after=True
+                    )
+
+                wx.CallAfter(_open_downloaded)
 
             threading.Thread(target=_work, daemon=True).start()
             return
@@ -13736,6 +14214,309 @@ class SearchFrame(wx.Frame):
             self._media_progress_announced = key
             rtad_speak(f"{msg}, {pct} percento")
 
+    def _release_listed_url_media(self, keep_path=""):
+        """Toglie il file temp di un URL precedente, se l'elenco non lo usa più."""
+        prev = getattr(self, "_listed_url_media_path", "") or ""
+        if not prev:
+            return
+        keep = os.path.normcase(os.path.normpath(keep_path)) if keep_path else ""
+        prev_n = os.path.normcase(os.path.normpath(prev))
+        if keep and prev_n == keep:
+            return
+        self._listed_url_media_path = ""
+        if rtad_media is not None:
+            try:
+                rtad_media.cleanup_temp_media(prev)
+            except Exception:
+                pass
+
+    def _log_url_list(self, line):
+        text = str(line)
+        try:
+            from logHandler import log
+            log.info("RTAD %s", text)
+        except Exception:
+            pass
+        try:
+            folder = os.environ.get("TEMP") or os.environ.get("TMP") or "."
+            path = os.path.join(folder, "rtad_url_list.log")
+            with open(path, "a", encoding="utf-8") as handle:
+                handle.write(text.rstrip() + "\n")
+        except Exception:
+            pass
+
+    def _url_download_item(self, url, file_name, location_info):
+        shown = (url or "").strip()
+        if len(shown) > 120:
+            shown = shown[:117] + "..."
+        return {
+            "file_path": url,
+            "file_name": file_name,
+            "prefix": "[URL]",
+            "mtime": 0,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": location_info,
+            "snippet": shown,
+            "media_path": "",
+            "pending_download": True,
+        }
+
+    def _force_results_row(self, item, take_focus=False):
+        """Sostituisce l'elenco con una riga sola. Non lascia «Nessuna ricerca avviata»."""
+        self.current_matches = [item]
+        self.current_query = "(File da URL)"
+        self._results_ready = True
+        loc = f" ({item['location_info']})" if item.get("location_info") else ""
+        display = (
+            f"{item.get('prefix', '')} {item.get('file_name', '')}{loc}"
+            f" -- ({item.get('file_path', '')})"
+        )
+        lst = self.lst_results
+        try:
+            lst.SetSelection(wx.NOT_FOUND)
+        except Exception:
+            pass
+        try:
+            lst.Clear()
+        except Exception:
+            pass
+        safety = 0
+        while lst.GetCount() > 0 and safety < 30:
+            safety += 1
+            try:
+                lst.Delete(0)
+            except Exception:
+                break
+        idx = lst.Append(display)
+        self.file_map.clear()
+        if idx is None or idx < 0:
+            idx = 0
+        self.file_map[idx] = item
+        safety = 0
+        while lst.GetCount() > 1 and safety < 10:
+            safety += 1
+            try:
+                first = lst.GetString(0) or ""
+            except Exception:
+                break
+            if "Nessuna ricerca avviata" in first:
+                lst.Delete(0)
+                continue
+            break
+        if lst.GetCount() >= 1:
+            self.file_map.clear()
+            self.file_map[0] = item
+            try:
+                lst.SetSelection(0)
+            except Exception:
+                pass
+        shown = ""
+        try:
+            if lst.GetCount() > 0:
+                sel = lst.GetSelection()
+                shown = lst.GetString(0 if sel in (wx.NOT_FOUND, -1) else sel) or ""
+        except Exception:
+            shown = ""
+        self._log_url_list(f"riga elenco: {shown}")
+        if take_focus:
+            try:
+                self.Raise()
+                if lst.GetCount() > 0:
+                    lst.SetSelection(0)
+                lst.SetFocus()
+            except Exception:
+                pass
+        return shown
+
+    def _clear_pending_url_row(self):
+        """Hub chiuso senza Avvia: togli la riga di attesa."""
+        try:
+            matches = getattr(self, "current_matches", None) or []
+            if len(matches) != 1 or not matches[0].get("pending_download"):
+                return
+            self.current_matches = []
+            self._results_ready = False
+            self.current_query = ""
+            self.update_list_display()
+        except Exception:
+            pass
+
+    def _list_contains_path(self, file_path):
+        try:
+            count = self.lst_results.GetCount()
+        except Exception:
+            return False
+        for index in range(count):
+            try:
+                text = self.lst_results.GetString(index) or ""
+            except Exception:
+                continue
+            if "Nessuna ricerca avviata" in text:
+                continue
+            if file_path and file_path in text:
+                return True
+        return False
+
+    def _renew_results_list(self):
+        """Nuovo ListBox: NVDA, nello stesso processo, conserva la riga iniziale."""
+        old = getattr(self, "lst_results", None)
+        if old is None:
+            return None
+        try:
+            parent = old.GetParent()
+        except Exception:
+            return None
+        sizer = None
+        try:
+            sizer = old.GetContainingSizer()
+        except Exception:
+            sizer = None
+        new = wx.ListBox(parent, style=wx.LB_SINGLE)
+        new.Bind(wx.EVT_CHAR_HOOK, self.on_list_char_hook)
+        new.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_file_event)
+        new.Bind(wx.EVT_CONTEXT_MENU, self.on_context_menu)
+        replaced = False
+        if sizer is not None:
+            try:
+                replaced = bool(sizer.Replace(old, new))
+            except Exception:
+                replaced = False
+            if not replaced:
+                try:
+                    sizer.Add(new, 1, wx.EXPAND | wx.ALL, 5)
+                    replaced = True
+                except Exception:
+                    replaced = False
+        self.lst_results = new
+        try:
+            old.Hide()
+        except Exception:
+            pass
+        try:
+            wx.CallLater(0, old.Destroy)
+        except Exception:
+            try:
+                old.Destroy()
+            except Exception:
+                pass
+        try:
+            parent.Layout()
+            self.Layout()
+        except Exception:
+            pass
+        return new
+
+    def _nvda_drop_list_cache(self, lst):
+        try:
+            import winUser
+            from NVDAObjects.IAccessible import getNVDAObjectFromEvent
+            import eventHandler
+            hwnd = lst.GetHandle()
+            obj = getNVDAObjectFromEvent(hwnd, winUser.OBJID_CLIENT, 0)
+            if obj is None:
+                return
+            obj.invalidateCache()
+            try:
+                for child in list(getattr(obj, "children", None) or []):
+                    try:
+                        child.invalidateCache()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            eventHandler.queueEvent("reorder", obj)
+        except Exception:
+            pass
+
+    def show_url_media_in_list(self, file_path, take_focus=True):
+        """Il file scaricato da un URL resta una riga dell'elenco, come gli altri."""
+        if not file_path or not os.path.isfile(file_path):
+            self._log_url_list(f"skip missing {file_path!r}")
+            return False
+        file_path = os.path.normpath(file_path)
+        self._release_listed_url_media(keep_path=file_path)
+        self._listed_url_media_path = file_path
+        meta = {}
+        if rtad_media is not None and hasattr(rtad_media, "read_media_source_meta"):
+            try:
+                meta = rtad_media.read_media_source_meta(file_path) or {}
+            except Exception:
+                meta = {}
+        url = str(meta.get("webpage_url") or meta.get("url") or "").strip()
+        title = str(meta.get("title") or "").strip()
+        ext = os.path.splitext(file_path)[1].lower()
+        name = title
+        if not name and url:
+            name = urllib.parse.unquote(
+                os.path.basename(urllib.parse.urlparse(url).path) or ""
+            )
+        if not name or name.lower().startswith("rtad_media_"):
+            name = f"File da URL{ext or ''}"
+        try:
+            mtime = os.path.getmtime(file_path)
+        except Exception:
+            mtime = 0
+        try:
+            sz = os.path.getsize(file_path)
+        except Exception:
+            sz = 0
+        if sz >= 1024 * 1024:
+            size_s = f"{sz / (1024 * 1024):.1f} MB"
+        elif sz >= 1024:
+            size_s = f"{sz / 1024:.0f} KB"
+        else:
+            size_s = f"{sz} byte"
+        date_lbl = format_file_date_label(mtime)
+        date_suffix = f" {date_lbl}" if date_lbl else ""
+        prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
+        snippet = f"File scaricato da URL · {size_s}"
+        if url:
+            snippet = f"{snippet} · {url}"
+        item = {
+            "file_path": file_path,
+            "file_name": name,
+            "prefix": prefix,
+            "mtime": mtime,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": f"Scaricato da URL{date_suffix}",
+            "snippet": snippet,
+            "media_path": file_path,
+        }
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            try:
+                self.txt_filter.SetValue("")
+            except Exception:
+                pass
+        shown = self._force_results_row(item, take_focus=False)
+        row_ok = bool(shown) and "Nessuna ricerca avviata" not in shown
+        msg = (
+            f"Il file è in elenco: {name}. "
+            "Da qui puoi fare altre operazioni."
+        )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        if not take_focus:
+            return row_ok
+        if row_ok:
+            rtad_speak(msg)
+            try:
+                self.lst_results.SetSelection(0)
+                self.lst_results.SetFocus()
+            except Exception:
+                pass
+        else:
+            rtad_speak(
+                "Elenco non aggiornato. La riga del file non è comparsa.",
+                force=True,
+            )
+        return row_ok
+
     def show_media_analysis(
         self, file_path, mode="describe", sections=None, delete_after=False
     ):
@@ -13792,6 +14573,21 @@ class SearchFrame(wx.Frame):
         else:
             rtad_speak("Analisi audio/video in corso…")
         self._set_media_progress(8, "Analisi audio/video…")
+        from_url = bool(delete_after) or os.path.basename(file_path).lower().startswith(
+            "rtad_media_"
+        )
+        if from_url:
+            try:
+                self.show_url_media_in_list(file_path)
+            except Exception as exc:
+                try:
+                    self._log_url_list(f"show_url failed {exc!r}")
+                except Exception:
+                    pass
+                rtad_speak(
+                    "Elenco non aggiornato. La riga del file non è comparsa.",
+                    force=True,
+                )
 
         def _abort():
             return bool(getattr(self, "_media_abort", False))
@@ -13909,14 +14705,30 @@ class SearchFrame(wx.Frame):
                     except Exception:
                         pass
                     if do_del and rtad_media is not None:
-                        try:
-                            rtad_media.cleanup_temp_media(path)
-                        except Exception:
-                            pass
+                        listed = getattr(self, "_listed_url_media_path", "") or ""
+                        same = False
+                        if listed:
+                            try:
+                                same = (
+                                    os.path.normcase(os.path.normpath(listed))
+                                    == os.path.normcase(os.path.normpath(path))
+                                )
+                            except Exception:
+                                same = False
+                        if not same:
+                            try:
+                                rtad_media.cleanup_temp_media(path)
+                            except Exception:
+                                pass
                     evt.Skip()
 
                 frm.Bind(wx.EVT_CLOSE, _cleanup_and_list)
                 self._image_info_frames.append(frm)
+                if from_url:
+                    try:
+                        self.show_url_media_in_list(file_path, take_focus=False)
+                    except Exception:
+                        pass
                 frm.Show()
                 frm.Raise()
                 rtad_speak("Report pronto. Per un altro URL: Nuova analisi.")
@@ -15102,6 +15914,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def open_search_window(self):
         try:
+            live = None
+            for window in list(wx.GetTopLevelWindows()):
+                try:
+                    if isinstance(window, SearchFrame) and not window.IsBeingDeleted():
+                        live = window
+                        break
+                except Exception:
+                    continue
+            if live is not None:
+                live.Show()
+                live.Raise()
+                live.txt_query.SetFocus()
+                return
             frame = SearchFrame()
             frame.Show()
             frame.Raise()

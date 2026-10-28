@@ -1,7 +1,7 @@
 # Piano RTAD 1.8.7
 
-**Ultima pubblicata:** `1.8.6` — 26/10/2026. Non hotfixarla.  
-**Questa versione:** in corso, non pubblicata. Standalone e Add-on insieme.
+**Pubblicata** il 27/10/2026. GitHub `v1.8.7` / `app-v1.8.7`, commit `868c9b2`. DataStore #12546 via #12547, accettato. Non hotfixarla.  
+**Questa versione:** chiusa. Standalone e Add-on insieme.
 
 Già nel codice, sera del 26/10:
 

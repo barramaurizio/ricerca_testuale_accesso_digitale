@@ -14,9 +14,38 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.7
+Novità recenti (in parole semplici) — versione 1.8.8
 ----------------------------------------------------
-• Nel lettore, Control+B aggiunge un punto dove sei arrivato.
+• La scheda di un video dice la durata, la larghezza e l'altezza,
+  anche quando l'indice del file sta in fondo e il nome ha
+  un'emoji o le virgolette curve. A schermo e a voce, per esempio:
+  «Video normale», «10 min 34 s», «1920 x 1080».
+  Un resoconto già salvato non si ricalcola da solo.
+  Per vedere la scheda nuova, rifai l'analisi.
+• Se il glossario è acceso, «Leggi documento» su un file .rtad.txt
+  corregge prima il file e poi lo legge, a schermo e a voce.
+  «Copia testo del documento» fa la stessa correzione.
+  Cambia la parola intera: Almqvist diventa Alajbegović.
+• Una pagina .html o .htm, con «Leggi documento», con la copia
+  o con la ricerca, si sente come testo. Titoli, paragrafi e
+  voci di elenco restano righe. Un codice come &#232; diventa
+  una lettera. Non è un browser: niente JavaScript e niente
+  immagini della pagina.
+• Nel campo percorso, un indirizzo Internet si scarica.
+  A schermo e a voce: «Scarico la pagina: nome. Attendere.»,
+  poi «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.»
+  Il menu è quello del file, più «Apri pagina nel browser».
+  Il lettore non si apre da solo: lo apri con «Leggi documento».
+• Se lo stesso indirizzo lo incolli in Sfoglia e arriva come file,
+  le voci sono quelle di un documento e il programma chiede
+  se aprirlo nel lettore.
+• YouTube e il filtro Solo Audio e Video aprono ancora
+  l'analisi audio/video. Un audio o un video già scaricato
+  resta in elenco. A schermo e a voce:
+  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+• Anche nell'Add-on, Sfoglia su un singolo file lo mette in elenco,
+  con le stesse voci del menu.
+• Resta dalla 1.8.7: nel lettore, Control+B aggiunge un punto dove sei arrivato.
   Puoi segnarne quanti vuoi: il precedente resta.
   Chiudi e riapri: torni sull'ultimo, a schermo e a voce.
   Se è uno solo: «Segnalibro di lettura: ripreso da qui.»

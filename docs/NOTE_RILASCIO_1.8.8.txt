@@ -1,0 +1,94 @@
+🌟 Novità della Versione 1.8.8
+Testi da incollare. Provata da Maurizio il 28/10: scheda ok su Spalletti e su Zliani, glossario ok in Standalone e Add-on, guida HTML ok, indirizzo Internet ok in entrambi (percorso e Sfoglia). Guide allineate. Manca la compilazione, che fa Maurizio.
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Scheda video: un MP4 con l'indice in fondo dice durata, risoluzione e «Video normale», anche se il nome ha un'emoji o le virgolette curve. Un resoconto già salvato non si ricalcola: per vederla, rifai l'analisi.
+- Glossario nel lettore: con il glossario acceso, «Leggi documento» su un .rtad.txt corregge il file e poi lo legge, a schermo e a voce. «Copia testo del documento» fa la stessa correzione.
+- Pagine HTML: «Leggi documento», copia e ricerca tolgono tag, script e style. Titoli, paragrafi e voci di elenco restano righe. Un codice come &#232; diventa una lettera. Non è un browser.
+- Indirizzo Internet: nel campo percorso la pagina si scarica. «Scarico la pagina: nome. Attendere.», poi «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.» Il menu è quello del file, più «Apri pagina nel browser». Il lettore non si apre da solo: si apre da Leggi documento. Da Sfoglia, se la pagina arriva come file, restano le stesse voci di un documento e la domanda di aprirlo nel lettore. YouTube e il filtro Solo Audio e Video aprono ancora l'hub. Un audio o un video già scaricato resta in elenco.
+- Sfoglia, singolo file: anche nell'Add-on il file resta in elenco, con le stesse voci del menu.
+
+## 🇬🇧 English
+
+- Video details: an MP4 whose index is at the end reports duration, resolution and “Video normale”, even when the file name has an emoji or curly quotes. A report already saved is not recalculated: run the analysis again.
+- Glossary in the reader: with the glossary on, Read document on a .rtad.txt corrects the file and then reads it, on screen and by voice. Copy document text does the same correction.
+- HTML pages: Read document, copy and search drop tags, scripts and styles. Headings, paragraphs and list items stay on their own lines. A code such as &#232; becomes a letter. It is not a browser.
+- Internet address: in the path field the page is downloaded. On screen and by voice: “Scarico la pagina: nome. Attendere.”, then “L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.” The menu is that of the file, plus “Apri pagina nel browser”. The reader does not open by itself: open it from “Leggi documento”. From Browse, when the page arrives as a file, the menu matches a document and the usual question offers the reader. YouTube and the Audio and Video only filter still open the hub. A downloaded audio or video stays in the list.
+- Browse, single file: in the add-on too, the file stays in the list, with the same menu items.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.8.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.8
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.8.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.8.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Scheda dei video con l'indice in fondo, glossario nel lettore, pagine HTML senza tag e indirizzo Internet in elenco.
+
+Summary EN:
+Video details when the index is at the end, glossary in the reader, HTML pages without tags, and an Internet address in the results list.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.8/ricerca_testuale_accesso_digitale-1.8.8.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.8
+
+Description:
+Scheda tecnica degli MP4 con l'indice in fondo, anche se il nome ha emoji o virgolette curve. Glossario anche in Leggi documento. Pagine HTML lette senza tag. Un indirizzo Internet nel percorso entra in elenco, con la voce per aprirlo nel browser.

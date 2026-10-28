@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.8)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.8.8
+
+- **Scheda video:** un MP4 con l’indice in fondo dice durata, risoluzione e «Video normale», anche se il nome ha un’emoji o le virgolette curve. Un resoconto già salvato non si ricalcola: per vederla, rifai l’analisi.
+- **Glossario nel lettore:** con il glossario acceso, «Leggi documento» su un `.rtad.txt` corregge il file e poi lo legge, a schermo e a voce. «Copia testo del documento» fa la stessa correzione. Cambia la parola intera.
+- **Pagine HTML:** «Leggi documento», copia e ricerca tolgono tag, script e style. Titoli, paragrafi e voci di elenco restano righe. Ogni codice come `&#232;` diventa una lettera. Non è un browser.
+- **Indirizzo Internet:** nel campo percorso la pagina si scarica. A schermo e a voce: «Scarico la pagina: nome. Attendere.», poi «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.» Il menu è quello del file, più «Apri pagina nel browser». Il lettore non si apre da solo: si apre da «Leggi documento». Da Sfoglia, se la pagina arriva come file, restano le stesse voci di un documento e la domanda di aprirlo nel lettore. YouTube e il filtro Solo Audio e Video aprono ancora l’hub. Un audio o un video già scaricato resta in elenco: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+- **Sfoglia, singolo file:** anche nell’Add-on il file resta in elenco, con le stesse voci del menu.
 
 ### 🌟 Novità della Versione 1.8.7
 
@@ -282,6 +290,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.8.8
+
+- **Video details:** an MP4 whose index is at the end reports duration, resolution and “Video normale”, even when the file name has an emoji or curly quotes. A report already saved is not recalculated: run the analysis again to see the new details.
+- **Glossary in the reader:** with the glossary on, “Leggi documento” on a `.rtad.txt` corrects the file and then reads it, on screen and by voice. “Copia testo del documento” does the same correction. A whole word changes.
+- **HTML pages:** Read document, copy and search drop tags, scripts and styles. Headings, paragraphs and list items stay on their own lines. A code such as `&#232;` becomes a letter. It is not a browser.
+- **Internet address:** in the path field the page is downloaded. On screen and by voice: «Scarico la pagina: nome. Attendere.», then «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.» The menu is that of the file, plus «Apri pagina nel browser». The reader does not open by itself: open it from «Leggi documento». From Browse, when the page arrives as a file, the menu matches a document and the usual question offers the reader. YouTube and the Audio and Video only filter still open the hub. A downloaded audio or video stays in the list: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+- **Browse, single file:** in the add-on too, the file stays in the list, with the same menu items.
 
 ### 🌟 What's New in Version 1.8.7
 

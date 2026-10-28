@@ -189,8 +189,8 @@ Contenuto previsto `1.6.0`:
 30. ~~**`1.8.4`:** chiedere a Gemini da un `.rtad.txt` già salvato.~~ **pubblicata** il 24/10/2026. Piano: `docs/PIANO_1.8.4.md`.  
 31. ~~**`1.8.5`:** Traduci il testo già aperto (Alt+U).~~ **pubblicata** il 25/10/2026. Piano: `docs/PIANO_1.8.5.md`. DataStore #12491 accettato.  
 32. ~~**`1.8.6`:** Whisper sul proprio PC, opt-in.~~ **pubblicata** il 26/10/2026. Piano: `docs/PIANO_1.8.6.md`. DataStore #12533 via #12534 accettato.  
-33. **`1.8.7` provata il 27/10, non pubblicata:** codici EPUB in lettere, file da Esplora file in elenco, Apri con senza diventare il predefinito, più punti di lettura, cifre nei PDF. Manca compilare la Standalone e pubblicare. Piano: `docs/PIANO_1.8.7.md`.  
-34. Lista d’attesa: confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli.
+33. ~~**`1.8.7`:** punti di lettura, cifre nei PDF, lettere EPUB, Apri con apre solo questo programma.~~ **pubblicata** il 27/10/2026. Piano: `docs/PIANO_1.8.7.md`. GitHub `v1.8.7` / `app-v1.8.7`, commit `868c9b2`. DataStore #12546 via #12547 accettato.  
+34. **`1.8.8` provata il 28/10, guide allineate, non compilata:** scheda tecnica ok su Spalletti e su Zliani. Glossario ok in entrambi. Guida HTML ok. Indirizzo Internet ok in Add-on e Standalone (percorso e Sfoglia). La compilazione la fa Maurizio. Poi la lista d’attesa: confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli. Piano: `docs/PIANO_1.8.8.md`.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

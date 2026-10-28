@@ -516,57 +516,76 @@ def _read_mp4_boxes(data: bytes, start: int = 0, end: int | None = None):
         pos += size
 
 
+def _mp4_box_at(f, pos: int, size: int):
+    """(box_size, fourcc, header_len) del box che inizia a pos, oppure None."""
+    if pos < 0 or pos + 8 > size:
+        return None
+    f.seek(pos)
+    hdr = f.read(16)
+    if len(hdr) < 8:
+        return None
+    box_size = struct.unpack(">I", hdr[:4])[0]
+    typ = hdr[4:8]
+    hdr_len = 8
+    if box_size == 1:
+        if len(hdr) < 16:
+            return None
+        box_size = struct.unpack(">Q", hdr[8:16])[0]
+        hdr_len = 16
+    elif box_size == 0:
+        box_size = size - pos
+    if box_size < hdr_len or pos + box_size > size:
+        return None
+    return int(box_size), typ, hdr_len
+
+
 def _locate_mp4_moov_bytes(path: str) -> bytes:
-    """Trova e legge l'atomo moov anche se non è in testa/coda (file grandi)."""
+    """Legge l'atomo moov anche se sta dopo un mdat più grande del buffer.
+
+    Non si incollano testa e coda: un mdat enorme farebbe fermare la
+    scansione prima dell'indice, anche se la parola moov è già nel pezzo letto.
+    """
     try:
         size = os.path.getsize(path)
     except Exception:
         return b""
     if size < 16:
         return b""
-    # 1) Testa + coda (casi comuni)
+    cap = 64 * 1024 * 1024
     try:
         with open(path, "rb") as f:
-            head = f.read(min(size, 32 * 1024 * 1024))
-            tail = b""
-            if size > len(head):
-                f.seek(max(0, size - 16 * 1024 * 1024))
-                tail = f.read()
+            pos = 0
+            while pos + 8 <= size:
+                parsed = _mp4_box_at(f, pos, size)
+                if parsed is None:
+                    break
+                box_size, typ, _hdr_len = parsed
+                if typ == b"moov":
+                    f.seek(pos)
+                    return f.read(min(box_size, cap))
+                pos += box_size
+            # Indice in coda, se un box intermedio non era leggibile.
+            tail_len = min(size, 16 * 1024 * 1024)
+            f.seek(size - tail_len)
+            tail = f.read(tail_len)
+            base = size - len(tail)
+            start = 0
+            while True:
+                i = tail.find(b"moov", start)
+                if i < 0:
+                    break
+                if i < 4:
+                    start = i + 4
+                    continue
+                abs_pos = base + i - 4
+                parsed = _mp4_box_at(f, abs_pos, size)
+                if parsed is not None and parsed[1] == b"moov":
+                    f.seek(abs_pos)
+                    return f.read(min(parsed[0], cap))
+                start = i + 4
     except Exception:
         return b""
-    blob = head + (tail if tail and tail not in head else b"")
-    # 2) Se moov non c'è, scansiona indici ogni 1 MB cercando il fourcc
-    if b"moov" not in blob and size > len(blob):
-        try:
-            with open(path, "rb") as f:
-                step = 1024 * 1024
-                pos = 0
-                while pos + 8 <= size:
-                    f.seek(pos)
-                    hdr = f.read(8)
-                    if len(hdr) < 8:
-                        break
-                    box_size = struct.unpack(">I", hdr[:4])[0]
-                    typ = hdr[4:8]
-                    hdr_len = 8
-                    if box_size == 1:
-                        more = f.read(8)
-                        if len(more) < 8:
-                            break
-                        box_size = struct.unpack(">Q", more)[0]
-                        hdr_len = 16
-                    elif box_size == 0:
-                        box_size = size - pos
-                    if box_size < hdr_len:
-                        pos += 1
-                        continue
-                    if typ == b"moov":
-                        f.seek(pos)
-                        return f.read(min(box_size, 64 * 1024 * 1024))
-                    pos += box_size if box_size >= hdr_len else step
-        except Exception:
-            pass
-    return blob
+    return b""
 
 
 def _ffprobe_tech(path: str) -> dict:
@@ -588,16 +607,17 @@ def _ffprobe_tech(path: str) -> dict:
                 path,
             ],
             capture_output=True,
-            text=True,
             timeout=45,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except Exception:
         return out
-    if proc.returncode != 0 or not (proc.stdout or "").strip():
+    raw = proc.stdout or b""
+    if proc.returncode != 0 or not raw.strip():
         return out
     try:
-        data = json.loads(proc.stdout)
+        # UTF-8: un nome con emoji o virgolette curve non deve buttare il JSON.
+        data = json.loads(raw.decode("utf-8", errors="replace"))
     except Exception:
         return out
     fmt = data.get("format") or {}
@@ -3667,5 +3687,17 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
     out["ok"] = True
     out["path"] = saved["path"]
     out["url"] = final_url
+    direct_name = urllib.parse.unquote(
+        os.path.basename(urllib.parse.urlparse(final_url).path) or ""
+    )
+    _write_media_source_sidecar(
+        saved["path"],
+        {
+            "url": final_url,
+            "title": direct_name,
+            "webpage_url": final_url,
+            "via": "http",
+        },
+    )
     _emit_progress(on_progress, 28, "Download completato.")
     return out

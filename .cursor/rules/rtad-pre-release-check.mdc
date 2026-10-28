@@ -5,30 +5,43 @@ alwaysApply: true
 
 # RTAD — controllo pre-install / pre-rilascio
 
-Maurizio si fida del controllo automatico: **non** dire che SA/Add-on sono pronti finché non hai verificato.
+Maurizio si fida del controllo. Non dire «puoi compilare», «è pronto» o «documentazione OK» finché ogni riga qui sotto è stata letta e scritta nel messaggio.
 
-## Prima di «procedi / reinstalla / compila»
+Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «versione 1.8.8» non basta: il primo punto può essere ancora quello della versione precedente. È il buco della 1.8.8: guide pratiche nuove, finestra di benvenuto e sezione HTML ancora sui punti di lettura della 1.8.7.
 
-1. Esegui `python tools/rtad_release.py check` (o `verifica_versioni.bat`). Deve risultare **OK tutte allineate**.
-2. Controlla i gemelli (hash o diff):
-   - `Standalone/rtad_ocr.py` ↔ `addon/.../lib/rtad_ocr.py`
-   - `Standalone/rtad_guida_pratica.py` ↔ `addon/.../lib/rtad_guida_pratica.py`
-3. Documenti spesso dimenticati (non bastano solo `.py`):
-   - `README.md` (titolo + novità IT/EN)
-   - `docs/GUIDA_PRATICA.txt` (sincronizzata dal testo in `rtad_guida_pratica.py`)
-   - `addon/doc/it/guida_pratica.html`
-   - `addon/doc/it/readme.html` e `addon/doc/en/readme.html`
-   - `Standalone/changelog.txt`, `Standalone/setup.iss`, `Standalone/compila.bat`, `Standalone/version.txt`
-4. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco.
-5. Distingui: **codice OK** ≠ **documentazione OK**. Segnala esplicitamente entrambi.
+## Obbligo, in quest’ordine
 
-## Cosa è «storico» (non è un bug)
+1. `python tools/rtad_release.py check` → **OK tutte allineate**. Copre `APP_VERSION`, `manifest.ini`, `setup.iss`, `version.txt`, `compila.bat`, titolo del `README.md`.
+2. `python tools/_sync_release_docs.py` → ogni gemello **OK**. Copre `rtad_ocr.py`, `rtad_media.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`, `rtad_translate.py`, `rtad_docstruct.py`, `rtad_epub.py`, `rtad_reading_mark.py`, `rtad_chat.py`, `rtad_attach_dialog.py`. Rigenera `docs/GUIDA_PRATICA.txt` e `addon/doc/it/guida_pratica.html`.
+3. Leggi il **primo punto** di ogni novità. Deve descrivere questa versione. Se descrive la precedente, fermati e riscrivilo. Stessa sostanza in tutti i testi; l’Add-on aggiunge in coda solo «NVDA testata» e «chat nel profilo».
+   - Finestra all’avvio di Portable e Installer: `WhatsNewFrame` in `Standalone/app_gui.py`, frase «Ecco le novità principali».
+   - Stessa finestra dell’Add-on, alla prima apertura della versione: `WhatsNewFrame` in `addon/globalPlugins/ricerca_testuale/__init__.py`, frase «Ecco le principali novità».
+   - Guida pratica: «Novità recenti» in `Standalone/rtad_guida_pratica.py`, poi il txt e l’html appena rigenerati.
+   - Guida HTML aperta dal menu: sezione «Novità di questa versione» in `Standalone/rtad_guida_html.py` e nel gemello `addon/.../lib/rtad_guida_html.py`. `docs/GUIDA_COMPLETA.html` non è quella guida.
+   - `README.md`: prima sezione novità IT e prima sezione EN.
+   - `addon/doc/it/readme.html` e `addon/doc/en/readme.html`: primo blocco novità.
+   - `Standalone/changelog.txt`: primo blocco.
+   - `docs/NOTE_RILASCIO_` della versione corrente: elenco GitHub e Summary IT/EN dello store.
+4. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco. L’exe non lo compili tu: lo fa Maurizio con `compila.bat` e F9 su `setup.iss`.
+5. Un `.nvda-addon` già accettato dallo store non si sostituisce su GitHub. Lo store tiene il file accettato. Due file diversi con lo stesso numero confondono. La correzione dei testi va nella versione successiva. I due exe della Standalone, sulla release GitHub, si sostituiscono: non passano dallo store.
 
-- `docs/NOTE_RILASCIO_1.6.x.txt` di versioni già pubblicate
-- Roadmap / NOTE_CONTESTO che citano l’ultima pubblicata vs lavoro corrente
+## Cosa scrivere prima di «puoi compilare»
 
-## Workflow Maurizio (ricorda)
+- Versioni: OK, numero
+- Gemelli: OK
+- Finestra SA: primo punto, fra virgolette
+- Finestra Add-on: primo punto, fra virgolette
+- Guida pratica: primo punto, fra virgolette
+- Guida HTML: primo punto, fra virgolette
+- README IT e EN: primo punto, fra virgolette
+- readme.html IT e EN: primo punto, fra virgolette
+- changelog: primo punto, fra virgolette
+- Note di rilascio e Summary store: primo punto, fra virgolette
 
-- Add-on: reinstallare l’ultimo `.nvda-addon` → riavvio NVDA
-- SA: `Standalone/compila.bat` poi F9 su `setup.iss`
-- Nuova versione: preferire `python tools/rtad_release.py bump X.Y.Z` per le etichette
+Manca una riga, o un primo punto è della versione precedente: non è pronto.
+
+## Storico, non è un buco
+
+- `docs/NOTE_RILASCIO_` di versioni già pubblicate
+- Roadmap e NOTE_CONTESTO che citano l’ultima pubblicata e il lavoro corrente
+- `docs/GUIDA_COMPLETA.html` (resto vecchio, non è la guida del programma)

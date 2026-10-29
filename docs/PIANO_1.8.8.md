@@ -1,8 +1,9 @@
 # Piano RTAD 1.8.8
 
-**Ultima pubblicata:** `1.8.7` — 27/10/2026. Non hotfixarla.  
-GitHub `v1.8.7` / `app-v1.8.7`, commit `868c9b2`. DataStore #12546 chiuso via #12547, accettato.  
-**Questa versione:** provata da Maurizio il 28/10/2026. Standalone e Add-on insieme. Il modulo è `rtad_media.py`, gemello. Guide allineate. Non ancora compilata né pubblicata: la compilazione la fa Maurizio.
+**Pubblicata** il 28/10/2026. Non hotfixarla.  
+GitHub `v1.8.8` / `app-v1.8.8`, commit `93faddb`. DataStore #12565 chiuso via #12566, accettato.  
+Commit `ee28948`: finestra di benvenuto e guida HTML allineate. Gli exe della Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.  
+Provata da Maurizio il 28/10/2026. Standalone e Add-on insieme. Il modulo è `rtad_media.py`, gemello.
 
 Prova superata. Analisi rifatta sui due MP4, una con l’Add-on e una con la Standalone: Spalletti e Zliani («A TUTTO GOL») riportano durata, risoluzione e forma. Glossario acceso, in entrambi i programmi il lettore dice Alajbegović. La guida HTML, aperta nell’Add-on incollando il percorso, si legge come testo. La stessa pagina non è stata rifatta nella Standalone: la funzione è la stessa.
 

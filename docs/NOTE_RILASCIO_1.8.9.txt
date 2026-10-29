@@ -1,0 +1,90 @@
+🌟 Novità della Versione 1.8.9
+Testi pronti il 29/10/2026. Non ancora pubblicata. Il pacchetto Add-on locale è ricerca_testuale_accesso_digitale-1.8.9.nvda-addon. I due exe della Standalone li compila Maurizio.
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.8.9
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.8.9
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Confronta file…: da due a dodici file, in Strumenti e nel menu del risultato. Confronta, senza chiave, mostra e dice solo le parti diverse, con il nome del file davanti. Le parti uguali non si rileggono. In cima a ogni file, solo se non coincidono in tutti: tipo, dimensione, ultima modifica e, per un audio o un video, la durata. Alt+A aggiunge, anche sull'elenco. Alt+L toglie il file sotto il cursore, anche mentre ne aggiungi altri. Canc sull'elenco fa lo stesso. Nella scelta: i più recenti in cima, riga con nome, data, tipo e dimensione, primo file già selezionato. Shift+freccia giù prende un gruppo di fila. Control+freccia salta e quelli già presi restano. Poi di nuovo Shift+freccia giù: un altro gruppo. Control+Spazio aggiunge o toglie un file solo. Alt+C cambia cartella. La finestra di Windows resta. Sotto, i file già nel confronto: Alt+L ne toglie uno prima di Invio. Senza file: «Nessun file nel confronto.» Con meno di due: «Servono almeno due file.» La stessa lista, con la scritta «Allegati», è nella scelta di Gemini. Senza allegati: «Nessun allegato presente.» Sulla conversazione, Alt+L toglie un allegato già messo. Sulla finestra principale Alt+L resta la chiave Google. Chiedi a Gemini spiega quelle differenze, non i file interi. Senza la chiave il confronto resta: «Per conversare con Gemini serve la chiave personale, da Strumenti.» Se non hai ancora confrontato: «Prima fai Confronta.» Copia e Salva testo. Salva propone Confronto.txt nella cartella del primo file. Se c'è già: Confronto (1).txt, poi Confronto (2).txt. Un nome .chat.txt diventa Confronto (1).chat.txt. Un audio, un video o un'immagine non si trascrivono in questo confronto: se non c'è testo, la riga è «Nessun testo letto.»
+- PDF firmati con DocuSign: ogni font trova la sua tabella anche se il collegamento sta in uno stream compresso. Il sommario dice «Spett.le» e «PREMESSO». Virgolette, «sub-licenze» e «proporVi» restano a posto. «trascriv iamo» resta con lo spazio.
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- Compare files…: from two to twelve files, in Tools and in the result menu. Compare, without a key, shows and speaks only the parts that differ, with the file name in front. Shared parts are not read again. At the top of each file, only when they are not the same in every file: type, size, last modified and, for an audio or a video, the duration. Alt+A adds, even from the list. Alt+L removes the file under the cursor, also while you are still adding. Delete on the list does the same. In the chooser: newest first, a row with name, date, type and size, the first file already selected. Shift+Down takes a contiguous group. Control+arrow moves and keeps what is already selected. Shift+Down again takes another group. Control+Space toggles one file. Alt+C changes folder. The Windows dialog stays. Below, the files already in the comparison: Alt+L removes one before Enter. With no file: «Nessun file nel confronto.» With fewer than two: «Servono almeno due file.» The same list, titled «Allegati», is in Gemini’s chooser. With no attachment: «Nessun allegato presente.» In the conversation, Alt+L still removes an attachment already added. On the main window Alt+L remains the Google key. Ask Gemini explains those differences, not the whole files. Without the key the comparison stays: «Per conversare con Gemini serve la chiave personale, da Strumenti.» If you have not compared yet: «Prima fai Confronta.» Copy and Save text. Save proposes Confronto.txt in the first file’s folder. If it exists: Confronto (1).txt, then Confronto (2).txt. A .chat.txt name becomes Confronto (1).chat.txt. An audio, a video or an image is not transcribed in this comparison: if there is no text, the line is «Nessun testo letto.»
+- DocuSign-signed PDFs: each font finds its table even when the link sits in a compressed stream. The outline reads «Spett.le» and «PREMESSO». Quotes, «sub-licenze» and «proporVi» stay intact. «trascriv iamo» keeps its space.
+- Last tested NVDA version: 2026.3. The add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.8.9.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.8.9
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.8.9
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.8.9.exe
+RicercaTestualeAccessoDigitale_Portable_v1.8.9.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Confronto tra più file, solo le parti diverse, e lettura dei PDF firmati con DocuSign.
+
+Summary EN:
+Compare several files, only the parts that differ, and read DocuSign-signed PDFs.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.8.9/ricerca_testuale_accesso_digitale-1.8.9.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.8.9
+
+Description:
+Confronto tra più file, in locale e con Gemini sulle sole differenze. Stessa scelta degli allegati, Alt+L prima di Invio anche in Gemini. PDF DocuSign: il collegamento del font si legge anche nello stream compresso.

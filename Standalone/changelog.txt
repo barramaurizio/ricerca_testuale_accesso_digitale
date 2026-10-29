@@ -1,3 +1,14 @@
+Novità nella Versione 1.8.9
+- Confronta file…: da due a dodici file, in Strumenti e nel menu del risultato. Confronta, senza chiave, mostra e dice solo le parti diverse, con il nome del file davanti. Le parti uguali non si rileggono
+- In cima a ogni file, solo se non coincidono in tutti: tipo, dimensione, ultima modifica e, per un audio o un video, la durata
+- Alt+A aggiunge, anche sull'elenco. Alt+L toglie il file sotto il cursore, anche mentre ne aggiungi altri. Canc sull'elenco fa lo stesso. Sulla finestra principale Alt+L resta la chiave Google
+- Nella scelta: i più recenti in cima. Riga con nome, data, tipo e dimensione. Il primo è già selezionato. Shift+freccia giù, Control+freccia, di nuovo Shift+freccia giù, Control+Spazio, Alt+C cambia cartella. La finestra di Windows resta
+- Sotto, i file già nel confronto: Alt+L ne toglie uno prima di Invio. «Nessun file nel confronto.» «Servono almeno due file.»
+- La stessa lista, «Allegati», è nella scelta di Gemini. «Nessun allegato presente.» Sulla conversazione, Alt+L toglie un allegato già messo
+- Chiedi a Gemini spiega quelle differenze. Senza la chiave: «Per conversare con Gemini serve la chiave personale, da Strumenti.» Se non hai ancora confrontato: «Prima fai Confronta.»
+- Salva propone Confronto.txt. Se c'è già: Confronto (1).txt. Un .chat.txt diventa Confronto (1).chat.txt. Senza testo: «Nessun testo letto.»
+- PDF firmati con DocuSign: ogni font trova la sua tabella anche in uno stream compresso. Sommario «Spett.le» e «PREMESSO». «trascriv iamo» resta con lo spazio
+
 Novità nella Versione 1.8.8
 - Scheda video: un MP4 con l'indice in fondo dice durata, risoluzione e «Video normale», anche se il nome ha un'emoji o le virgolette curve. Un resoconto già salvato non si ricalcola: per vederla, rifai l'analisi
 - Glossario nel lettore: con il glossario acceso, Leggi documento su un .rtad.txt corregge il file e poi lo legge. Copia testo del documento fa la stessa correzione

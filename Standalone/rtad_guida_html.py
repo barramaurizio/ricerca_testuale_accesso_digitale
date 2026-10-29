@@ -110,7 +110,8 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
     <li><a href="#ocr">Testo nelle immagini (OCR)</a></li>
     <li><a href="#vision">Chiave API Google Cloud Vision (passo-passo)</a></li>
     <li><a href="#gemini">Chiave API Gemini / Google AI Studio (passo-passo)</a>
-      (anche <a href="#chat">conversazione sul file</a>)</li>
+      (anche <a href="#chat">conversazione sul file</a>
+      e <a href="#confronto">confronto tra più file</a>)</li>
     <li><a href="#immagini">Descrivere immagini e «Tutto sull’immagine»</a></li>
     <li><a href="#media">Audio e video</a>
       (anche <a href="#media-ricerca">cercare parole nel parlato</a>)</li>
@@ -128,28 +129,43 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Scheda video:</strong> un MP4 con l’indice in fondo dice
-      durata, risoluzione e «Video normale», anche se il nome ha un’emoji
-      o le virgolette curve. A schermo e a voce. Un resoconto già salvato
-      non si ricalcola: per vederla, rifai l’analisi.</li>
-    <li><strong>Glossario nel lettore:</strong> con il glossario acceso,
-      «Leggi documento» su un .rtad.txt corregge il file e poi lo legge,
-      a schermo e a voce. «Copia testo del documento» fa la stessa correzione.</li>
-    <li><strong>Pagine HTML:</strong> «Leggi documento», copia e ricerca
-      tolgono tag, script e style. Titoli, paragrafi e voci di elenco
-      restano righe. Un codice come <code>&amp;#232;</code> diventa una lettera.
-      Non è un browser.</li>
-    <li><strong>Indirizzo Internet:</strong> nel campo percorso la pagina si scarica.
-      A schermo e a voce: «Scarico la pagina: nome. Attendere.», poi
-      «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.»
-      Il menu è quello del file, più «Apri pagina nel browser».
-      Il lettore non si apre da solo: si apre da «Leggi documento».
-      Da Sfoglia, se la pagina arriva come file, restano le stesse voci
-      di un documento e la domanda di aprirlo nel lettore.
-      YouTube e il filtro Solo Audio e Video aprono ancora l’hub.
-      Un audio o un video già scaricato resta in elenco.</li>
-    <li><strong>Sfoglia, singolo file:</strong> anche nell’Add-on il file
-      resta in elenco, con le stesse voci del menu.</li>
+    <li><strong>Confronta file…:</strong> da due a dodici file, in Strumenti
+      e nel menu del risultato. Confronta, senza chiave, mostra e dice
+      solo le parti diverse, con il nome del file davanti.
+      Le parti uguali non si rileggono.
+      In cima a ogni file, solo se non coincidono in tutti: tipo,
+      dimensione, ultima modifica e, per un audio o un video, la durata.
+      Alt+A aggiunge, anche sull’elenco. Alt+L toglie il file sotto
+      il cursore, anche mentre ne aggiungi altri. Canc sull’elenco
+      fa lo stesso. Nella scelta: i più recenti in cima, riga con
+      nome, data, tipo e dimensione, primo file già selezionato.
+      Shift+freccia giù prende un gruppo di fila. Control+freccia
+      salta e quelli già presi restano. Poi di nuovo Shift+freccia giù:
+      un altro gruppo. Control+Spazio aggiunge o toglie un file solo.
+      Alt+C cambia cartella. La finestra di Windows resta.
+      Sotto, i file già nel confronto: Alt+L ne toglie uno prima di Invio.
+      Senza file: «Nessun file nel confronto.»
+      Con meno di due: «Servono almeno due file.»
+      La stessa lista, con la scritta «Allegati», è nella scelta di Gemini.
+      Senza allegati: «Nessun allegato presente.»
+      Sulla conversazione, Alt+L toglie un allegato già messo.
+      Sulla finestra principale Alt+L resta la chiave Google.
+      Chiedi a Gemini spiega quelle differenze, non i file interi.
+      Senza la chiave il confronto resta:
+      «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+      Se non hai ancora confrontato: «Prima fai Confronta.»
+      Copia e Salva testo. Salva propone Confronto.txt nella cartella
+      del primo file. Se c’è già: Confronto (1).txt, poi Confronto (2).txt.
+      Un nome .chat.txt diventa Confronto (1).chat.txt.
+      Un audio, un video o un’immagine non si trascrivono in questo
+      confronto: se non c’è testo, la riga è «Nessun testo letto.»</li>
+    <li><strong>PDF firmati con DocuSign:</strong> ogni font trova la sua
+      tabella anche se il collegamento sta in uno stream compresso.
+      Il sommario dice «Spett.le» e «PREMESSO». Virgolette, «sub-licenze»
+      e «proporVi» restano a posto. «trascriv iamo» resta con lo spazio.</li>
+    <li><strong>Resta dalla 1.8.8:</strong> scheda video anche con l’indice
+      in fondo, glossario nel lettore, pagine HTML senza tag,
+      indirizzo Internet in elenco.</li>
     <li><strong>Resta dalla 1.8.7:</strong> punti di lettura con Control+B,
       «Copia testo del documento» copia sommario, link e capitoli,
       nel PDF 202 7 torna 2027, negli EPUB i codici diventano lettere,
@@ -387,6 +403,10 @@ In qualunque momento si allegano altri file.</p>
     immagini, documenti, audio e video. Le e-mail .eml no.
     Se qualcuno non entra, la frase dice quanti su quanti, e il motivo.
     Senza allegati, l’elenco dice «Nessun allegato presente».
+    Sotto, gli allegati già messi: Alt+L ne toglie uno prima di Invio.
+    Sulla conversazione, Alt+L toglie un allegato già messo,
+    prima della domanda. Sulla finestra principale Alt+L resta
+    la chiave Google.
     Alt+C cambia cartella. La finestra di Windows resta per le
     cartelle piccole. <strong>Togli allegato</strong> ne leva uno.</li>
   <li>Tasto Applicazioni su un risultato: Chiedi, oppure Riprendi se
@@ -415,6 +435,53 @@ le conversazioni già fatte in uno non compaiono nell’altro.</p>
 <p>Serve la tua chiave di Google AI Studio (sopra). RTAD non addebita
 nulla: eventuali costi sono quelli del tuo account Google.
 Il modello usato è Flash.</p>
+<p class="top"><a href="#indice">↑ Indice</a></p>
+
+<h3 id="confronto">Confrontare più file (dalla 1.8.9)</h3>
+<p>Strumenti → <strong>Confronta file…</strong>, oppure la stessa voce nel menu
+del risultato (tasto Applicazioni). Da due a dodici file.
+Il pulsante <strong>Confronta</strong> non usa la chiave: mostra e dice
+solo le parti che non stanno in tutti i file, con il nome davanti.
+Le parti uguali non si rileggono.</p>
+<ul>
+  <li><strong>Aggiungi file…</strong> (Alt+A), anche se sei sull’elenco.
+    <strong>Togli</strong> (Alt+L) leva il file sotto il cursore,
+    anche mentre ne aggiungi altri. Canc sull’elenco fa lo stesso.
+    Sulla finestra principale Alt+L resta la chiave Google.</li>
+  <li>Nella scelta i più recenti sono in cima. Ogni riga dice nome,
+    data, tipo e dimensione. Il primo è già selezionato.
+    Shift+freccia giù prende un gruppo di fila.
+    Control+freccia salta, e quelli già presi restano.
+    Poi di nuovo Shift+freccia giù: un altro gruppo, senza perdere i primi.
+    Control+Spazio aggiunge o toglie un file solo.
+    Il numero è a voce e a schermo. Invio conferma.
+    Alt+C cambia cartella. La finestra di Windows resta.</li>
+  <li>Sotto, i file già nel confronto: Alt+L ne toglie uno prima di Invio.
+    Si può confermare anche solo una rimozione.
+    Senza file, la riga selezionata dice «Nessun file nel confronto.»
+    Con meno di due: «Servono almeno due file.»
+    Mentre lavora: «Confronto in corso. Attendere.»</li>
+  <li>La stessa lista, con la scritta «Allegati», è nella scelta di Gemini.
+    Senza allegati: «Nessun allegato presente.»
+    Sulla conversazione, Alt+L toglie un allegato già messo,
+    prima della domanda.</li>
+  <li>In cima a ogni file, solo se non coincidono in tutti:
+    tipo, dimensione, ultima modifica e, per un audio o un video,
+    la durata. Se sono uguali, quelle righe non si rileggono
+    e non si mescolano alle frasi.</li>
+  <li><strong>Chiedi a Gemini</strong> spiega quelle differenze, non i file interi.
+    Senza la chiave il confronto resta, a schermo e a voce:
+    «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+    Se non hai ancora confrontato: «Prima fai Confronta.»</li>
+  <li><strong>Copia</strong> e <strong>Salva testo…</strong>. Salva propone
+    Confronto.txt nella cartella del primo file. Se c’è già:
+    Confronto (1).txt, poi Confronto (2).txt.
+    Un nome .chat.txt diventa Confronto (1).chat.txt.
+    Lo stesso nome libero vale quando salvi una chat.</li>
+  <li>Si legge il testo di PDF, Word, ODT, Excel, EPUB, HTML e file di testo.
+    Un audio, un video o un’immagine non si trascrivono in questo confronto.
+    Se non c’è testo: «Nessun testo letto.»</li>
+</ul>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="immagini">8. Descrivere immagini e «Tutto sull’immagine»</h2>
@@ -588,6 +655,14 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Alt</kbd>+<kbd>B</kbd> — Conversazioni Gemini (finestra principale)</li>
   <li><kbd>Alt</kbd>+<kbd>Q</kbd> — Nuova conversazione Gemini, anche senza un file</li>
   <li><kbd>Alt</kbd>+<kbd>A</kbd> — Allega file: elenco per data, i più recenti in cima</li>
+  <li>Strumenti → Confronta file…, anche nel menu del risultato.
+    Nella finestra: Alt+A aggiunge, Alt+L toglie, anche prima di Invio.
+    Canc sull’elenco toglie. Nella scelta: Shift+freccia giù,
+    Control+freccia, Control+Spazio, Alt+C cambia cartella.
+    Sotto, Alt+L toglie un file già scelto prima di Invio.
+    Sulla finestra principale Alt+L resta la chiave Google.
+    Nella scelta allegati di Gemini la lista sotto si chiama Allegati.
+    Sulla conversazione, Alt+L toglie un allegato già messo.</li>
   <li><kbd>Shift</kbd>+<kbd>Invio</kbd> — nella domanda della chat, va a capo</li>
   <li><kbd>Alt</kbd>+<kbd>L</kbd> — Chiave Google Vision</li>
   <li><kbd>Alt</kbd>+<kbd>H</kbd> — Chiave Gemini</li>

@@ -85,6 +85,11 @@ except ImportError:
     rtad_chat = None
 
 try:
+    import rtad_compare
+except ImportError:
+    rtad_compare = None
+
+try:
     import rtad_translate
 except ImportError:
     rtad_translate = None
@@ -95,7 +100,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.8"
+APP_VERSION = "1.8.9"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -3047,8 +3052,16 @@ def _pdf_piece_needs_space(prev: str, nxt: str) -> bool:
         return False
     if end_char in ",." and start_char.isdigit():
         return False
-    if start_char in ",.;:!?":
+    if start_char in ",.;:!?”)»)]":
         return False
+    if end_char in "“‘«(":
+        return False
+    if end_char == "-" or start_char == "-":
+        return False
+    if right == "Vi" and end_char.islower():
+        last = left.split()[-1] if left.split() else left
+        if len(last) >= 4:
+            return False
     if len(left) == 1 and end_char.isupper() and start_char.islower():
         return False
     if end_char.isalpha() and right.isalpha() and right.islower() and len(right) <= 2:
@@ -3317,12 +3330,13 @@ def _pdf_obj_num_before(raw: bytes, pos: int, lookback: int = 2500) -> int:
 
 
 def _pdf_build_font_cmaps(raw: bytes, deadline=None):
-    """ToUnicode per font (1.6.6).
+    """ToUnicode per font (1.6.6, object stream in 1.8.9).
 
     Prima le CMap venivano fuse in una sola: su PDF multi-font lo stesso CID
     mappa a caratteri diversi → testo spazzatura. Ora:
       - cmap per oggetto ToUnicode
       - associazione nome risorsa (/F1, /TT0, …) → cmap del font
+      - /ToUnicode e /Font anche dentro uno stream /ObjStm compresso
       - default solo se c'è una sola CMap (PDF mono-font)
 
     Restituisce (font_cmaps: dict[str, dict], default_cmap: dict).
@@ -3386,6 +3400,24 @@ def _pdf_build_font_cmaps(raw: bytes, deadline=None):
         if fobj >= 0:
             font_obj_to_tu[fobj] = tu
 
+    extra_bodies = {}
+    if b"ObjStm" in raw and rtad_docstruct is not None:
+        if deadline is None or time.monotonic() <= deadline:
+            try:
+                extra_bodies = rtad_docstruct.pdf_object_stream_bodies(raw) or {}
+            except Exception:
+                extra_bodies = {}
+    for obj_num, body in extra_bodies.items():
+        if not body or b"/ToUnicode" not in body:
+            continue
+        tm = re.search(br"/ToUnicode\s+(\d+)\s+0\s+R", body)
+        if not tm:
+            continue
+        try:
+            font_obj_to_tu[int(obj_num)] = int(tm.group(1))
+        except Exception:
+            continue
+
     def _map_font_resource_body(body: bytes, into: dict):
         for fm in re.finditer(
             br"/([A-Za-z][#A-Za-z0-9._+\-]*)\s+(\d+)\s+0\s+R", body
@@ -3402,18 +3434,28 @@ def _pdf_build_font_cmaps(raw: bytes, deadline=None):
                 into[name] = obj_cmaps[fobj]
 
     font_cmaps = {}
-    # 1) /Font << /F1 N 0 R … >> inline
-    for m in re.finditer(br"/Font\s*<<((?:[^>]|>(?!>)){0,4000})>>", raw):
-        _map_font_resource_body(m.group(1), font_cmaps)
-    # 2) /Font N 0 R → oggetto dizionario risorse (es. sample-multilingual-text.pdf)
-    for m in re.finditer(br"/Font\s+(\d+)\s+0\s+R", raw):
-        try:
-            dict_obj = int(m.group(1))
-        except Exception:
-            continue
-        body = _pdf_object_dict_body(raw, dict_obj)
-        if body:
-            _map_font_resource_body(body, font_cmaps)
+
+    def _consume_font_blob(blob: bytes):
+        if not blob or b"/Font" not in blob:
+            return
+        # 1) /Font << /F1 N 0 R … >> inline
+        for m in re.finditer(br"/Font\s*<<((?:[^>]|>(?!>)){0,4000})>>", blob):
+            _map_font_resource_body(m.group(1), font_cmaps)
+        # 2) /Font N 0 R → oggetto dizionario (anche dentro ObjStm)
+        for m in re.finditer(br"/Font\s+(\d+)\s+0\s+R", blob):
+            try:
+                dict_obj = int(m.group(1))
+            except Exception:
+                continue
+            body = _pdf_object_dict_body(raw, dict_obj)
+            if not body:
+                body = extra_bodies.get(dict_obj, b"")
+            if body:
+                _map_font_resource_body(body, font_cmaps)
+
+    _consume_font_blob(raw)
+    for body in extra_bodies.values():
+        _consume_font_blob(body)
 
     all_cmaps = list(obj_cmaps.values()) + orphan_cmaps
     if len(all_cmaps) == 1:
@@ -3593,11 +3635,13 @@ def _pdf_soften_camel_glued(text: str) -> str:
     """Inserisce spazi su confini lower→Upper / lettera↔cifra (titoli stilizzati).
 
     Non tocca sequenze tutte minuscole (quelle dipendono dai gap TJ).
+    Un «Vi» di cortesia attaccato, come proporVi, resta unito:
+    la maiuscola deve aprire una parola di almeno tre lettere (HelloWorld).
     """
     if not text or len(text) < 4:
         return text
     text = re.sub(
-        r"([a-zàèéìòù])([A-ZÀÈÉÌÒÙ])",
+        r"([a-zàèéìòù])([A-ZÀÈÉÌÒÙ][a-zàèéìòù]{2,})",
         r"\1 \2",
         text,
     )
@@ -6683,6 +6727,64 @@ def open_free_gemini_chat(parent=None):
     frm.Raise()
 
 
+def open_gemini_on_compare(parent, diff_text):
+    """Apre Gemini sulle differenze. Ritorna la frase da mostrare se non apre."""
+    if rtad_chat is None:
+        return "Modulo conversazione non disponibile."
+    key = ""
+    try:
+        key = load_gemini_api_key()
+    except Exception:
+        key = ""
+    if not key:
+        return "Per conversare con Gemini serve la chiave personale, da Strumenti."
+    if rtad_ocr is not None:
+        try:
+            rtad_ocr.set_gemini_api_key(key)
+        except Exception:
+            pass
+    if not _gemini_chat_privacy_ok(parent):
+        return ""
+    try:
+        folder = os.path.join(tempfile.gettempdir(), "RTAD_confronto")
+        os.makedirs(folder, exist_ok=True)
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = os.path.join(folder, f"Confronto_{stamp}.txt")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(diff_text or "")
+        session = rtad_chat.new_session(
+            "document",
+            path,
+            struct={
+                "body": diff_text or "",
+                "plain": diff_text or "",
+                "outline": [],
+                "links": [],
+                "message": "",
+            },
+            displayed=diff_text or "",
+        )
+    except Exception as exc:
+        return f"Conversazione non avviata: {exc}"
+    session["title"] = "Confronto"
+    session["report_notice"] = (
+        "Il materiale sono le parti diverse, non i file interi. "
+        "Scrivi la domanda e premi Invio. Esc annulla."
+    )
+    session["context_note"] = (
+        "Queste sono solo le parti che non coincidono. "
+        "Ogni blocco è preceduto dal nome del file."
+    )
+    frm = GeminiChatFrame(session, displayed=diff_text or "", resumed=False)
+    _track_gemini_chat(frm)
+    frm.Show()
+    frm.Raise()
+    speak_accessible(
+        "Conversazione sul confronto. Il materiale sono le differenze."
+    )
+    return ""
+
+
 def open_saved_gemini_chat(json_path, parent=None):
     """Riapre una conversazione già salvata, con le fonti, senza rianalizzare."""
     if rtad_chat is None:
@@ -7154,20 +7256,58 @@ class GeminiChatFrame(wx.Frame):
             speak_accessible("Non riesco ad aprire l'elenco dei file.")
             return
         try:
-            paths = rtad_attach_dialog.choose_attachment_paths(
+            already = []
+            for att in (self.session.get("attachments") or []):
+                if not isinstance(att, dict):
+                    continue
+                old = (att.get("path") or "").strip()
+                if old and os.path.isfile(old):
+                    already.append(old)
+            result = rtad_attach_dialog.choose_attachment_paths(
                 self,
                 config_dir=CONFIG_DIR,
                 hint_path=(self.session.get("path") or ""),
                 speak=speak_accessible,
                 session=self.session,
+                kept_paths=already,
+                kept_title="Allegati",
+                kept_empty="Nessun allegato presente.",
+                removed_label="Allegato tolto",
             )
         except Exception as exc:
             logging.debug(f"Chat: scelta allegati: {exc}")
             speak_accessible("Non riesco ad aprire l'elenco dei file.")
             return
-        if not paths:
+        if result is None:
             speak_accessible("Nessun file allegato.")
             return
+        paths, kept_after = result
+        kept_keys = {
+            os.path.normcase(os.path.abspath(path))
+            for path in (kept_after or [])
+        }
+        removed = []
+        atts = list(self.session.get("attachments") or [])
+        for index in range(len(atts) - 1, -1, -1):
+            att = atts[index]
+            if not isinstance(att, dict):
+                continue
+            old = (att.get("path") or "").strip()
+            if not old:
+                continue
+            try:
+                key = os.path.normcase(os.path.abspath(old))
+            except Exception:
+                continue
+            if key in kept_keys:
+                continue
+            try:
+                name = rtad_chat.remove_attachment(self.session, index)
+            except Exception as exc:
+                self._show_notice(f"Non posso togliere l'allegato: {exc}")
+                return
+            if name:
+                removed.append(name)
         added = []
         refused = []
         for path in paths:
@@ -7179,6 +7319,9 @@ class GeminiChatFrame(wx.Frame):
                 added.append(msg)
             else:
                 refused.append(msg)
+        if not added and not refused and not removed:
+            speak_accessible("Nessun file allegato.")
+            return
         try:
             rtad_chat.save_current(CONFIG_DIR, self.session)
         except Exception as exc:
@@ -7201,6 +7344,19 @@ class GeminiChatFrame(wx.Frame):
             msg = f"Nessuno allegato, su {n_scelti}. " + " ".join(refused)
         else:
             msg = "Nessun file allegato."
+        if len(removed) == 1:
+            extra = f"Allegato tolto: {removed[0]}."
+        elif removed:
+            extra = f"Tolti {len(removed)} allegati."
+        else:
+            extra = ""
+        if extra:
+            if not (self.session.get("attachments") or []):
+                extra += " Nessun allegato presente."
+            if msg == "Nessun file allegato.":
+                msg = extra
+            else:
+                msg = f"{msg} {extra}"
         self._show_notice(msg)
         self.txt_q.SetFocus()
 
@@ -7485,11 +7641,16 @@ class GeminiChatFrame(wx.Frame):
             default_dir = folder
         else:
             default_dir = load_last_media_report_dir() or os.path.expanduser("~")
+        default_file = f"{stem}.chat.txt"
+        try:
+            default_file = rtad_chat.free_save_name(default_dir, default_file)
+        except Exception:
+            pass
         dlg = wx.FileDialog(
             self,
             "Salva conversazione",
             defaultDir=default_dir,
-            defaultFile=f"{stem}.chat.txt",
+            defaultFile=default_file,
             wildcard="Testo (*.txt)|*.txt|Tutti i file (*.*)|*.*",
             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
         )
@@ -8668,28 +8829,47 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• La scheda di un video dice durata, larghezza e altezza,\n"
-            "  anche se l'indice sta in fondo e il nome ha un'emoji\n"
-            "  o le virgolette curve. A schermo e a voce.\n"
-            "  Un resoconto già salvato non si ricalcola:\n"
-            "  per vedere la scheda nuova, rifai l'analisi.\n"
-            "• Se il glossario è acceso, «Leggi documento» su un .rtad.txt\n"
-            "  corregge il file e poi lo legge, a schermo e a voce.\n"
-            "  «Copia testo del documento» fa la stessa correzione.\n"
-            "• Una pagina .html o .htm si sente come testo,\n"
-            "  con «Leggi documento», con la copia e con la ricerca.\n"
-            "  Titoli, paragrafi e voci di elenco restano righe.\n"
-            "  Non è un browser.\n"
-            "• Nel campo percorso, un indirizzo Internet si scarica.\n"
-            "  A schermo e a voce: «Scarico la pagina: nome. Attendere.»,\n"
-            "  poi «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.»\n"
-            "  Il menu è quello del file, più «Apri pagina nel browser».\n"
-            "  Il lettore non si apre da solo: lo apri con «Leggi documento».\n"
-            "  Da Sfoglia, se la pagina arriva come file, il programma chiede\n"
-            "  se aprirlo nel lettore.\n"
-            "  YouTube e il filtro Solo Audio e Video aprono ancora l'hub.\n"
-            "• Sfoglia su un singolo file lo mette in elenco,\n"
-            "  con le stesse voci del menu.\n"
+            "• Confronta file…: da due a dodici file, in Strumenti\n"
+            "  e nel menu del risultato. Confronta, senza chiave,\n"
+            "  mostra e dice solo le parti diverse, con il nome\n"
+            "  del file davanti. Le parti uguali non si rileggono.\n"
+            "  In cima a ogni file, solo se non coincidono in tutti:\n"
+            "  tipo, dimensione, ultima modifica e, per un audio\n"
+            "  o un video, la durata.\n"
+            "  Alt+A aggiunge, anche se sei sull'elenco.\n"
+            "  Alt+L toglie il file sotto il cursore, anche mentre\n"
+            "  ne aggiungi altri. Canc sull'elenco fa lo stesso.\n"
+            "  Nella scelta: i più recenti in cima. Ogni riga dice\n"
+            "  nome, data, tipo e dimensione. Il primo è già selezionato.\n"
+            "  Shift+freccia giù prende un gruppo di fila.\n"
+            "  Control+freccia salta, e quelli già presi restano.\n"
+            "  Poi di nuovo Shift+freccia giù: un altro gruppo.\n"
+            "  Control+Spazio aggiunge o toglie un file solo.\n"
+            "  Alt+C cambia cartella. La finestra di Windows resta.\n"
+            "  Sotto, i file già nel confronto: Alt+L ne toglie uno\n"
+            "  prima di Invio. Senza file: «Nessun file nel confronto.»\n"
+            "  Con meno di due: «Servono almeno due file.»\n"
+            "  La stessa lista, con la scritta «Allegati», è nella\n"
+            "  scelta di Gemini. Senza allegati: «Nessun allegato presente.»\n"
+            "  Sulla conversazione, Alt+L toglie un allegato già messo.\n"
+            "  Chiedi a Gemini spiega quelle differenze, non i file interi.\n"
+            "  Senza la chiave il confronto resta:\n"
+            "  «Per conversare con Gemini serve la chiave personale, da Strumenti.»\n"
+            "  Se non hai ancora confrontato: «Prima fai Confronta.»\n"
+            "  Copia e Salva testo. Salva propone Confronto.txt\n"
+            "  nella cartella del primo file. Se c'è già:\n"
+            "  Confronto (1).txt, poi Confronto (2).txt.\n"
+            "  Un nome .chat.txt diventa Confronto (1).chat.txt.\n"
+            "  Un audio, un video o un'immagine non si trascrivono\n"
+            "  in questo confronto: se non c'è testo, la riga è\n"
+            "  «Nessun testo letto.»\n"
+            "• Un PDF firmato con DocuSign si legge: ogni font trova\n"
+            "  la sua tabella anche se il collegamento sta in uno\n"
+            "  stream compresso. Il sommario dice «Spett.le» e «PREMESSO».\n"
+            "  Virgolette, «sub-licenze» e «proporVi» restano a posto.\n"
+            "  «trascriv iamo» resta con lo spazio.\n"
+            "• Resta dalla 1.8.8: scheda video, glossario nel lettore,\n"
+            "  pagine HTML, indirizzo Internet in elenco.\n"
             "• Resta dalla 1.8.7: punti di lettura, cifre nei PDF, lettere EPUB,\n"
             "  file da Esplora file in elenco, Apri con.\n"
             "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
@@ -8813,6 +8993,12 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + B : Conversazioni Gemini (finestra principale)\n"
             "  - Alt + Q : Nuova conversazione Gemini, anche senza un file\n"
             "  - Alt + A : Allega file. Elenco per data, i più recenti in cima\n"
+            "  - Strumenti, Confronta file… : da due a dodici file. Anche nel menu del risultato\n"
+            "  - Nella finestra Confronta: Alt + A aggiunge, Alt + L toglie, anche prima di Invio. Canc sull'elenco toglie\n"
+            "  - Nella scelta: Shift + freccia giù, Control + freccia, Control + Spazio, Alt + C cambia cartella\n"
+            "  - Sotto i file già scelti: Alt + L ne toglie uno prima di Invio. Sulla finestra principale Alt + L resta la chiave Google\n"
+            "  - Nella scelta allegati di Gemini, la lista sotto si chiama Allegati: Alt + L toglie prima di Invio\n"
+            "  - Sulla conversazione, Alt + L toglie un allegato già messo, prima della domanda\n"
             "  - Shift + Invio : nella domanda della chat, va a capo\n"
             "  - Alt + L : Chiave Google Vision\n"
             "  - Alt + H : Chiave Gemini\n"
@@ -9365,6 +9551,8 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Incolla pe&rcorso dagli Appunti…\tCtrl+Alt+V"
         )
         self.Bind(wx.EVT_MENU, self.on_paste_path_from_clipboard, item_paste_path)
+        item_compare = tools_menu.Append(wx.ID_ANY, "Confronta &file…")
+        self.Bind(wx.EVT_MENU, lambda e: self.on_compare_files(), item_compare)
         item_gemini_new = tools_menu.Append(
             wx.ID_ANY, "Nuova conversazione Gemini (&Q)…"
         )
@@ -13409,6 +13597,21 @@ class MainWindow(wx.Frame):
         except Exception:
             speak_accessible("Impossibile aprire la pagina nel browser.")
 
+    def on_compare_files(self, event=None, initial_path=""):
+        if rtad_compare is None:
+            speak_accessible("Confronto non disponibile.")
+            return
+        path = (initial_path or "").strip()
+        if path and not os.path.isfile(path):
+            path = ""
+        rtad_compare.open_compare_frame(
+            speak_accessible,
+            extract_document_text,
+            lambda text: open_gemini_on_compare(self, text),
+            initial_path=path,
+            config_dir=CONFIG_DIR,
+        )
+
     def on_context_menu(self, event):
         sel = self.lst_results.GetSelection()
         if sel == wx.NOT_FOUND or sel not in self.file_map:
@@ -13433,6 +13636,12 @@ class MainWindow(wx.Frame):
 
         menu = wx.Menu()
         item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta) / Browser\tRETURN")
+        item_compare = menu.Append(wx.ID_ANY, "Confronta &file…")
+        menu.Bind(
+            wx.EVT_MENU,
+            lambda e, p=file_path: self.on_compare_files(initial_path=p),
+            item_compare,
+        )
         item_browser = None
         source_url = item_data.get("source_url") or ""
         if source_url:

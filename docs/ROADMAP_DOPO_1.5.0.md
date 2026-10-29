@@ -190,7 +190,9 @@ Contenuto previsto `1.6.0`:
 31. ~~**`1.8.5`:** Traduci il testo già aperto (Alt+U).~~ **pubblicata** il 25/10/2026. Piano: `docs/PIANO_1.8.5.md`. DataStore #12491 accettato.  
 32. ~~**`1.8.6`:** Whisper sul proprio PC, opt-in.~~ **pubblicata** il 26/10/2026. Piano: `docs/PIANO_1.8.6.md`. DataStore #12533 via #12534 accettato.  
 33. ~~**`1.8.7`:** punti di lettura, cifre nei PDF, lettere EPUB, Apri con apre solo questo programma.~~ **pubblicata** il 27/10/2026. Piano: `docs/PIANO_1.8.7.md`. GitHub `v1.8.7` / `app-v1.8.7`, commit `868c9b2`. DataStore #12546 via #12547 accettato.  
-34. **`1.8.8` provata il 28/10, guide allineate, non compilata:** scheda tecnica ok su Spalletti e su Zliani. Glossario ok in entrambi. Guida HTML ok. Indirizzo Internet ok in Add-on e Standalone (percorso e Sfoglia). La compilazione la fa Maurizio. Poi la lista d’attesa: confronto tra più file; Gemini su ogni risultato; VIDEO_TS; OneCore; export multipli. Piano: `docs/PIANO_1.8.8.md`.
+34. ~~**`1.8.8`:** scheda video, glossario nel lettore, pagine HTML, indirizzo Internet in elenco.~~ **pubblicata** il 28/10/2026. Piano: `docs/PIANO_1.8.8.md`. GitHub `v1.8.8` / `app-v1.8.8`, commit `93faddb`. DataStore #12565 via #12566 accettato. Commit `ee28948`: finestra di benvenuto e guida HTML. Gli exe Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.  
+35. **`1.8.9` pronta nei testi, non pubblicata:** PDF DocuSign firmati (collegamento font anche in object stream) e confronto tra più file (solo le parti diverse, Gemini su quelle, stessa scelta degli allegati). Maurizio ha provato la Standalone. Pacchetto locale `ricerca_testuale_accesso_digitale-1.8.9.nvda-addon`. I due exe li compila Maurizio. Piano: `docs/PIANO_1.8.9.md`.  
+36. **Dopo la 1.8.9, non iniziati:** Gemini su ogni risultato; VIDEO_TS (avviso su un DVD commerciale, niente copia del film); OneCore nella Standalone; export multipli. Più avanti: confronto del parlato (prima la trascrizione già presente), confronto del testo di un’immagine, un browser che segua i link.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

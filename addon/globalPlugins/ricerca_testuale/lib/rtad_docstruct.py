@@ -610,22 +610,38 @@ def _pdf_unescape_literal(raw: bytes) -> bytes:
     return bytes(out)
 
 
+def _pdf_text_bytes_to_str(data: bytes) -> str:
+    """Testo PDF: UTF-16 solo con BOM, oppure con i null tipici del UTF-16.
+
+    Senza BOM la stringa è PDFDocEncoding / Latin-1. Un hex pari come
+    <53706574742e6c65> è «Spett.le», non quattro caratteri cinesi.
+    """
+    if not data:
+        return ""
+    if data.startswith(b"\xfe\xff"):
+        return data[2:].decode("utf-16-be", errors="ignore")
+    if data.startswith(b"\xff\xfe"):
+        return data[2:].decode("utf-16-le", errors="ignore")
+    if len(data) >= 4 and len(data) % 2 == 0:
+        evens = data[0::2]
+        odds = data[1::2]
+        if evens.count(0) >= max(2, int(len(evens) * 0.6)):
+            return data.decode("utf-16-be", errors="ignore")
+        if odds.count(0) >= max(2, int(len(odds) * 0.6)):
+            return data.decode("utf-16-le", errors="ignore")
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1", errors="ignore")
+
+
 def _pdf_decode_string_token(token: bytes) -> str:
     """Decodifica stringa PDF letterale `(...)` o hex `<...>`. """
     token = (token or b"").strip()
     if not token:
         return ""
     if token.startswith(b"(") and token.endswith(b")"):
-        data = _pdf_unescape_literal(token[1:-1])
-        if data.startswith(b"\xfe\xff"):
-            try:
-                return data[2:].decode("utf-16-be", errors="ignore")
-            except Exception:
-                pass
-        try:
-            return data.decode("utf-8")
-        except UnicodeDecodeError:
-            return data.decode("latin1", errors="ignore")
+        return _pdf_text_bytes_to_str(_pdf_unescape_literal(token[1:-1]))
     if token.startswith(b"<") and token.endswith(b">"):
         hx = re.sub(br"[^0-9A-Fa-f]", b"", token[1:-1])
         if len(hx) % 2:
@@ -636,18 +652,7 @@ def _pdf_decode_string_token(token: bytes) -> str:
             data = bytes.fromhex(hx.decode("ascii"))
         except Exception:
             return ""
-        if data.startswith(b"\xfe\xff"):
-            try:
-                return data[2:].decode("utf-16-be", errors="ignore")
-            except Exception:
-                pass
-        try:
-            return data.decode("utf-16-be")
-        except Exception:
-            try:
-                return data.decode("utf-8")
-            except UnicodeDecodeError:
-                return data.decode("latin1", errors="ignore")
+        return _pdf_text_bytes_to_str(data)
     return ""
 
 
@@ -758,6 +763,20 @@ def _pdf_expand_objstms(
                 oend = len(data)
             extra[onum] = data[ostart:oend]
     return extra
+
+
+def pdf_object_stream_bodies(raw: bytes) -> dict[int, bytes]:
+    """Oggetti tenuti in uno stream /ObjStm compresso (PDF 1.5+).
+
+    I PDF firmati da DocuSign mettono qui il collegamento /ToUnicode e /Font.
+    Le tabelle delle lettere restano stream normali, fuori da questo dizionario.
+    """
+    if not raw or b"ObjStm" not in raw:
+        return {}
+    index = _pdf_build_obj_index(raw)
+    if not index:
+        return {}
+    return _pdf_expand_objstms(raw, index)
 
 
 def _pdf_get(

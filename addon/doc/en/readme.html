@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.8.8 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.8.9 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,17 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.8.8</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.8.9</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.8.9</strong>
+        <ul>
+            <li><strong>Compare files…:</strong> from two to twelve files, in Tools and in the result menu. Compare, without a key, shows and speaks only the parts that differ, with the file name in front. Shared parts are not read again. At the top of each file, only when they are not the same in every file: type, size, last modified and, for an audio or a video, the duration. Alt+A adds, even from the list. Alt+L removes the file under the cursor, also while you are still adding. Delete on the list does the same. In the chooser: newest first, a row with name, date, type and size, the first file already selected. Shift+Down takes a contiguous group. Control+arrow moves and keeps what is already selected. Shift+Down again takes another group. Control+Space toggles one file. Alt+C changes folder. The Windows dialog stays. Below, the files already in the comparison: Alt+L removes one before Enter. With no file: “Nessun file nel confronto.” With fewer than two: “Servono almeno due file.” The same list, titled “Allegati”, is in Gemini’s chooser. With no attachment: “Nessun allegato presente.” In the conversation, Alt+L still removes an attachment already added. On the main window Alt+L remains the Google key. Ask Gemini explains those differences, not the whole files. Without the key the comparison stays: “Per conversare con Gemini serve la chiave personale, da Strumenti.” If you have not compared yet: “Prima fai Confronta.” Copy and Save text. Save proposes Confronto.txt in the first file’s folder. If it exists: Confronto (1).txt, then Confronto (2).txt. A .chat.txt name becomes Confronto (1).chat.txt. An audio, a video or an image is not transcribed in this comparison: if there is no text, the line is “Nessun testo letto.”</li>
+            <li><strong>DocuSign-signed PDFs:</strong> each font finds its table even when the link sits in a compressed stream. The outline reads “Spett.le” and “PREMESSO”. Quotes, “sub-licenze” and “proporVi” stay intact. “trascriv iamo” keeps its space.</li>
+            <li>Last tested NVDA version: 2026.3. The add-on’s Gemini history stays in the NVDA profile.</li>
+        </ul>
         <strong>What's New in Version 1.8.8</strong>
         <ul>
             <li><strong>Video details:</strong> an MP4 whose index is at the end reports duration, resolution and “Video normale”, even when the file name has an emoji or curly quotes. A report already saved is not recalculated: run the analysis again.</li>

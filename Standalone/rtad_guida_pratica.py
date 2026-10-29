@@ -28,37 +28,67 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.8.8
+Novità recenti (in parole semplici) — versione 1.8.9
 ----------------------------------------------------
-• La scheda di un video dice la durata, la larghezza e l'altezza,
-  anche quando l'indice del file sta in fondo e il nome ha
-  un'emoji o le virgolette curve. A schermo e a voce, per esempio:
-  «Video normale», «10 min 34 s», «1920 x 1080».
-  Un resoconto già salvato non si ricalcola da solo.
-  Per vedere la scheda nuova, rifai l'analisi.
-• Se il glossario è acceso, «Leggi documento» su un file .rtad.txt
-  corregge prima il file e poi lo legge, a schermo e a voce.
-  «Copia testo del documento» fa la stessa correzione.
-  Cambia la parola intera: Almqvist diventa Alajbegović.
-• Una pagina .html o .htm, con «Leggi documento», con la copia
-  o con la ricerca, si sente come testo. Titoli, paragrafi e
-  voci di elenco restano righe. Un codice come &#232; diventa
-  una lettera. Non è un browser: niente JavaScript e niente
-  immagini della pagina.
-• Nel campo percorso, un indirizzo Internet si scarica.
-  A schermo e a voce: «Scarico la pagina: nome. Attendere.»,
-  poi «L'indirizzo è in elenco: nome. Da qui puoi fare altre operazioni.»
-  Il menu è quello del file, più «Apri pagina nel browser».
-  Il lettore non si apre da solo: lo apri con «Leggi documento».
-• Se lo stesso indirizzo lo incolli in Sfoglia e arriva come file,
-  le voci sono quelle di un documento e il programma chiede
-  se aprirlo nel lettore.
-• YouTube e il filtro Solo Audio e Video aprono ancora
-  l'analisi audio/video. Un audio o un video già scaricato
-  resta in elenco. A schermo e a voce:
-  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
-• Anche nell'Add-on, Sfoglia su un singolo file lo mette in elenco,
-  con le stesse voci del menu.
+• Confronta file…: da due a dodici file, in Strumenti
+  e nel menu del risultato. Confronta, senza chiave,
+  mostra e dice solo le parti diverse, con il nome
+  del file davanti. Le parti uguali non si rileggono.
+• In cima a ogni file, solo se non coincidono in tutti:
+  tipo, dimensione, ultima modifica e, per un audio
+  o un video, la durata. Se sono uguali, quelle righe
+  non si rileggono. Non si mescolano alle frasi del testo.
+• Alt+A aggiunge, anche se sei sull'elenco.
+  Alt+L toglie il file sotto il cursore, anche mentre
+  ne aggiungi altri. Canc sull'elenco fa lo stesso.
+  Sulla finestra principale Alt+L resta la chiave Google.
+• Nella scelta i più recenti sono in cima. Ogni riga dice
+  nome, data, tipo e dimensione. Il primo è già selezionato.
+  Shift+freccia giù prende un gruppo di fila.
+  Control+freccia salta, e quelli già presi restano.
+  Poi di nuovo Shift+freccia giù: un altro gruppo,
+  senza perdere i primi.
+  Control+Spazio aggiunge o toglie un file solo.
+  Il numero che senti è il totale. Invio conferma.
+  Alt+C cambia cartella. La finestra di Windows resta.
+• Sotto, i file già nel confronto: Alt+L ne toglie uno
+  prima di Invio. Puoi anche confermare solo una rimozione.
+  Senza file, la riga selezionata dice
+  «Nessun file nel confronto.»
+  Con meno di due: «Servono almeno due file.»
+  Mentre lavora: «Confronto in corso. Attendere.»
+• La stessa lista, con la scritta «Allegati», è nella
+  scelta di Gemini. Alt+L toglie un allegato prima di Invio.
+  Senza allegati: «Nessun allegato presente.»
+  Sulla conversazione, Alt+L toglie ancora un allegato
+  già messo, prima della domanda.
+• Chiedi a Gemini spiega quelle differenze, non i file interi.
+  Senza la chiave il confronto resta, a schermo e a voce:
+  «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+  Se non hai ancora confrontato: «Prima fai Confronta.»
+• Copia e Salva testo. Salva propone Confronto.txt
+  nella cartella del primo file. Se c'è già, propone
+  Confronto (1).txt, poi Confronto (2).txt.
+  Un nome che finisce con .chat.txt diventa
+  Confronto (1).chat.txt, non Confronto.chat (1).txt.
+  Lo stesso nome libero vale quando salvi una chat.
+• Il confronto legge il testo dei documenti: PDF, Word,
+  ODT, Excel, EPUB, HTML e file di testo.
+  Un audio, un video o un'immagine non si trascrivono qui.
+  Se non c'è testo, la riga è «Nessun testo letto.»
+  La durata compare solo se tra i file c'è un audio
+  o un video, e solo se non è la stessa per tutti.
+• Un PDF firmato con DocuSign si legge: ogni font trova
+  la sua tabella anche se il collegamento sta in uno
+  stream compresso. Il sommario dice «Spett.le» e «PREMESSO».
+  Virgolette, «sub-licenze» e «proporVi» restano a posto.
+  «trascriv iamo» resta con lo spazio: toglierlo
+  incollerebbe parole vere in altri file.
+• Resta dalla 1.8.8: la scheda di un video dice durata,
+  larghezza e altezza, anche se l'indice sta in fondo.
+  Il glossario, se è acceso, corregge un .rtad.txt
+  prima di leggerlo. Una pagina HTML si sente come testo.
+  Un indirizzo Internet nel percorso entra in elenco.
 • Resta dalla 1.8.7: nel lettore, Control+B aggiunge un punto dove sei arrivato.
   Puoi segnarne quanti vuoi: il precedente resta.
   Chiudi e riapri: torni sull'ultimo, a schermo e a voce.
@@ -166,6 +196,10 @@ Novità recenti (in parole semplici) — versione 1.8.8
   Le e-mail .eml no.
   Se qualcuno non entra, la frase dice quanti su quanti, e il motivo.
   Se non c’è nessun allegato, l’elenco dice «Nessun allegato presente».
+  Sotto, gli allegati già messi: Alt+L ne toglie uno prima di Invio.
+  Sulla conversazione, Alt+L toglie un allegato già messo,
+  prima della domanda. Sulla finestra principale Alt+L
+  resta la chiave Google.
   Alt+C cambia cartella.
   «Finestra di Windows» resta per le cartelle piccole.
   Puoi aggiungerne altri più tardi. Vale anche se la chat era

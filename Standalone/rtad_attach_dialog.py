@@ -22,7 +22,9 @@ _HELP = (
     "Poi di nuovo Shift+freccia giù: un altro gruppo di fila, "
     "senza perdere i primi. "
     "Control+Spazio aggiunge o toglie un file solo. "
-    "Il numero che senti è il totale. Invio allega. Alt+C cambia cartella."
+    "Il numero che senti è il totale. Invio allega. "
+    "Sotto, gli allegati già messi: Alt+L ne toglie uno prima di Invio. "
+    "Alt+C cambia cartella."
 )
 _REMEMBER_NAME = "attach_folder.txt"
 
@@ -157,16 +159,46 @@ class _FileList(wx.ListCtrl):
 class AttachFolderDialog(wx.Dialog):
     """Elenco della cartella, selezione multipla, poi i percorsi scelti."""
 
-    def __init__(self, parent, folder, config_dir="", speak=None, session=None):
+    def __init__(
+        self,
+        parent,
+        folder,
+        config_dir="",
+        speak=None,
+        session=None,
+        title="Allega file",
+        ok_label="Allega selezionati",
+        help_text="",
+        max_files=0,
+        windows_message="",
+        kept_paths=None,
+        kept_title="",
+        kept_empty="",
+        removed_label="",
+    ):
         super().__init__(
             parent,
-            title="Allega file",
+            title=title or "Allega file",
             size=(920, 640),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._config_dir = config_dir or ""
         self._speak = speak
         self._session = session
+        self._help = help_text or _HELP
+        self._max_files = int(max_files or 0)
+        self._windows_message = windows_message or "Allega uno o più file"
+        self._show_kept = kept_paths is not None
+        self._kept = [
+            path
+            for path in (kept_paths or [])
+            if path and os.path.isfile(path)
+        ]
+        self._kept_view = []
+        self.kept_after = list(self._kept)
+        self._kept_title = kept_title or "File nel confronto"
+        self._kept_empty = kept_empty or "Nessun file nel confronto."
+        self._removed_label = removed_label or "File tolto"
         self._warned = set()
         self._folder = folder or ""
         self._rows = []
@@ -191,7 +223,15 @@ class AttachFolderDialog(wx.Dialog):
         except Exception:
             pass
 
-        self.lbl_help = wx.StaticText(self, label=_HELP)
+        self.lst_kept = None
+        if self._show_kept:
+            self.lst_kept = wx.ListBox(self, style=wx.LB_SINGLE)
+            try:
+                self.lst_kept.SetName(self._kept_title)
+            except Exception:
+                pass
+
+        self.lbl_help = wx.StaticText(self, label=self._help)
         self.lbl_count = wx.StaticText(self, label="Nessun file selezionato.")
         try:
             self.lbl_count.SetName("File selezionati")
@@ -203,7 +243,7 @@ class AttachFolderDialog(wx.Dialog):
         except Exception:
             pass
 
-        btn_ok = wx.Button(self, label="Allega selezionati")
+        btn_ok = wx.Button(self, label=ok_label or "Allega selezionati")
         btn_dir = wx.Button(self, label="&Cambia cartella")
         btn_win = wx.Button(self, label="Finestra di &Windows")
         btn_cancel = wx.Button(self, wx.ID_CANCEL, "Annulla")
@@ -219,6 +259,15 @@ class AttachFolderDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.txt_path, 0, wx.EXPAND | wx.ALL, 8)
         sizer.Add(self.lst, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        if self.lst_kept is not None:
+            sizer.Add(
+                wx.StaticText(self, label=self._kept_title),
+                0,
+                wx.LEFT | wx.RIGHT | wx.TOP,
+                8,
+            )
+            sizer.Add(self.lst_kept, 0, wx.EXPAND | wx.ALL, 8)
+            self._refresh_kept_view()
         sizer.Add(self.lbl_help, 0, wx.ALL, 8)
         sizer.Add(self.lbl_count, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         sizer.Add(self.lbl_dur, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
@@ -291,7 +340,7 @@ class AttachFolderDialog(wx.Dialog):
             for row in self._rows
         ]
         self.lst.set_labels(labels)
-        self.lbl_help.SetLabel(_HELP)
+        self.lbl_help.SetLabel(self._help)
         remember_folder(self._config_dir, folder)
         name = os.path.basename(folder.rstrip("\\/")) or folder
         count = len(self._rows)
@@ -323,7 +372,7 @@ class AttachFolderDialog(wx.Dialog):
                 pass
             intro = (
                 f"Cartella {name}. {count} file, i più recenti in cima. "
-                f"Il primo è {first['name']}, {when}. {problem} {_HELP}"
+                f"Il primo è {first['name']}, {when}. {problem} {self._help}"
             )
         else:
             self._selected = {0}
@@ -335,7 +384,7 @@ class AttachFolderDialog(wx.Dialog):
                 pass
             intro = (
                 f"Cartella {name}. {count} file, i più recenti in cima. "
-                f"Il primo è già selezionato: {first['name']}, {when}. {_HELP}"
+                f"Il primo è già selezionato: {first['name']}, {when}. {self._help}"
             )
         self._say(intro)
         self.lst.SetFocus()
@@ -365,9 +414,9 @@ class AttachFolderDialog(wx.Dialog):
                 fresh.append(problem)
         return kept, fresh
 
-    def _show_selection(self, selected) -> None:
+    def _show_selection(self, selected, focus=True) -> None:
         self._selected = {i for i in selected if 0 <= i < len(self._rows)}
-        if 0 <= self._cursor < len(self._rows):
+        if focus and 0 <= self._cursor < len(self._rows):
             self.lst.EnsureVisible(self._cursor)
             self.lst.Focus(self._cursor)
         current = set(self.lst.selected_indexes())
@@ -375,6 +424,115 @@ class AttachFolderDialog(wx.Dialog):
             self.lst.Select(index, False)
         for index in sorted(self._selected - current):
             self.lst.Select(index, True)
+        if self._show_kept:
+            self._refresh_kept_view()
+
+    def _norm(self, path: str) -> str:
+        return os.path.normcase(os.path.abspath(path or ""))
+
+    def _refresh_kept_view(self) -> None:
+        if self.lst_kept is None:
+            return
+        prev = self.lst_kept.GetSelection()
+        self.lst_kept.Clear()
+        self._kept_view = []
+        seen = set()
+        for path in self._kept:
+            key = self._norm(path)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            self._kept_view.append({"path": path, "source": "kept", "index": -1})
+        for index in sorted(self._selected):
+            if index < 0 or index >= len(self._rows):
+                continue
+            path = self._rows[index]["path"]
+            key = self._norm(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            self._kept_view.append(
+                {"path": path, "source": "pick", "index": index}
+            )
+        if not self._kept_view:
+            self.lst_kept.Append(self._kept_empty)
+            self.lst_kept.SetSelection(0)
+            return
+        for item in self._kept_view:
+            self.lst_kept.Append(os.path.basename(item["path"]) or item["path"])
+        if prev == wx.NOT_FOUND or prev < 0:
+            self.lst_kept.SetSelection(0)
+        else:
+            self.lst_kept.SetSelection(min(prev, len(self._kept_view) - 1))
+
+    def _focus_in(self, widget) -> bool:
+        focused = self.FindFocus()
+        while focused is not None:
+            if focused is widget:
+                return True
+            focused = focused.GetParent()
+        return False
+
+    def _announce_removed(self, path: str) -> None:
+        if not path:
+            msg = self._kept_empty
+        else:
+            name = os.path.basename(path) or path
+            msg = f"{self._removed_label}: {name}."
+            if not self._kept_view:
+                msg += " " + self._kept_empty
+        try:
+            self.lbl_count.SetLabel(msg)
+            self.lbl_count.Wrap(860)
+        except Exception:
+            pass
+        self._say(msg)
+
+    def _drop_kept_index(self, sel: int, stay: bool) -> None:
+        if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self._kept_view):
+            self._announce_removed("")
+            return
+        item = self._kept_view[sel]
+        path = item["path"]
+        if item["source"] == "pick":
+            self._selected.discard(item["index"])
+            self._show_selection(self._selected, focus=not stay)
+        else:
+            key = self._norm(path)
+            self._kept = [p for p in self._kept if self._norm(p) != key]
+            self._refresh_kept_view()
+        if stay and self.lst_kept is not None:
+            if self._kept_view:
+                self.lst_kept.SetSelection(min(sel, len(self._kept_view) - 1))
+            self.lst_kept.SetFocus()
+        self._announce_removed(path)
+
+    def _alt_l(self) -> None:
+        if not self._show_kept:
+            return
+        if self.lst_kept is not None and self._focus_in(self.lst_kept):
+            self._drop_kept_index(self.lst_kept.GetSelection(), stay=True)
+            return
+        if 0 <= self._cursor < len(self._rows):
+            path = self._rows[self._cursor]["path"]
+            key = self._norm(path)
+            if self._cursor in self._selected:
+                self._selected.discard(self._cursor)
+                self._show_selection(self._selected, focus=True)
+                self._announce_removed(path)
+                return
+            if any(self._norm(p) == key for p in self._kept):
+                self._kept = [p for p in self._kept if self._norm(p) != key]
+                self._refresh_kept_view()
+                self._announce_removed(path)
+                return
+        if self.lst_kept is not None and self._kept_view:
+            sel = self.lst_kept.GetSelection()
+            if sel == wx.NOT_FOUND:
+                sel = 0
+            self._drop_kept_index(sel, stay=False)
+            return
+        self._announce_removed("")
 
     def _speak_here(self, count_changed: bool, extra: str = "") -> None:
         label = self.lst.label_at(self._cursor)
@@ -506,7 +664,7 @@ class AttachFolderDialog(wx.Dialog):
     def on_windows(self, event=None):
         dlg = wx.FileDialog(
             self,
-            message="Allega uno o più file",
+            message=self._windows_message,
             defaultDir=self._folder or "",
             wildcard=rtad_chat.attachment_wildcard(),
             style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE,
@@ -518,6 +676,32 @@ class AttachFolderDialog(wx.Dialog):
         finally:
             dlg.Destroy()
         if not paths:
+            return
+        if self._show_kept:
+            known = {self._norm(path) for path in self._kept}
+            paths = [path for path in paths if self._norm(path) not in known]
+            if self._max_files and len(self._kept) + len(paths) > self._max_files:
+                msg = f"Puoi sceglierne fino a {self._max_files}."
+                try:
+                    self.lbl_count.SetLabel(msg)
+                except Exception:
+                    pass
+                self._say(msg)
+                return
+            self.chosen = paths
+            self.kept_after = list(self._kept)
+            folder = os.path.dirname(paths[0]) if paths else ""
+            if folder:
+                remember_folder(self._config_dir, folder)
+            self.EndModal(wx.ID_OK)
+            return
+        if self._max_files and len(paths) > self._max_files:
+            msg = f"Puoi sceglierne fino a {self._max_files}."
+            try:
+                self.lbl_count.SetLabel(msg)
+            except Exception:
+                pass
+            self._say(msg)
             return
         self.chosen = paths
         folder = os.path.dirname(paths[0])
@@ -535,8 +719,39 @@ class AttachFolderDialog(wx.Dialog):
         except Exception:
             pass
         idxs = sorted(idxs)
+        if self._show_kept:
+            picked = []
+            known = {self._norm(path) for path in self._kept}
+            for index in idxs:
+                if index < 0 or index >= len(self._rows):
+                    continue
+                path = self._rows[index]["path"]
+                if self._norm(path) in known:
+                    continue
+                picked.append(path)
+            if self._max_files and len(self._kept) + len(picked) > self._max_files:
+                msg = f"Puoi sceglierne fino a {self._max_files}."
+                try:
+                    self.lbl_count.SetLabel(msg)
+                except Exception:
+                    pass
+                self._say(msg)
+                return
+            self.chosen = picked
+            self.kept_after = list(self._kept)
+            remember_folder(self._config_dir, self._folder)
+            self.EndModal(wx.ID_OK)
+            return
         if not idxs:
             self._say("Scegli almeno un file.")
+            return
+        if self._max_files and len(idxs) > self._max_files:
+            msg = f"Puoi sceglierne fino a {self._max_files}."
+            try:
+                self.lbl_count.SetLabel(msg)
+            except Exception:
+                pass
+            self._say(msg)
             return
         self.chosen = [self._rows[i]["path"] for i in idxs]
         remember_folder(self._config_dir, self._folder)
@@ -586,11 +801,25 @@ class AttachFolderDialog(wx.Dialog):
         if key == wx.WXK_ESCAPE:
             self.EndModal(wx.ID_CANCEL)
             return
+        if (
+            self._show_kept
+            and event.AltDown()
+            and not event.ControlDown()
+            and not event.ShiftDown()
+            and key in (ord("L"), ord("l"))
+        ):
+            self._alt_l()
+            return
         if self._list_has_focus() and self._on_list_key(event):
             return
         if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            on_kept = (
+                self._show_kept
+                and self.lst_kept is not None
+                and self._focus_in(self.lst_kept)
+            )
             if (
-                self._list_has_focus()
+                (self._list_has_focus() or on_kept)
                 and not event.ShiftDown()
                 and not event.AltDown()
                 and not event.ControlDown()
@@ -601,7 +830,20 @@ class AttachFolderDialog(wx.Dialog):
 
 
 def choose_attachment_paths(
-    parent, config_dir="", hint_path="", speak=None, session=None
+    parent,
+    config_dir="",
+    hint_path="",
+    speak=None,
+    session=None,
+    title="Allega file",
+    ok_label="Allega selezionati",
+    help_text="",
+    max_files=0,
+    windows_message="",
+    kept_paths=None,
+    kept_title="",
+    kept_empty="",
+    removed_label="",
 ):
     """Percorsi scelti, oppure lista vuota se si annulla."""
     folder = initial_folder(config_dir, hint_path)
@@ -611,10 +853,23 @@ def choose_attachment_paths(
         config_dir=config_dir,
         speak=speak,
         session=session,
+        title=title,
+        ok_label=ok_label,
+        help_text=help_text,
+        max_files=max_files,
+        windows_message=windows_message,
+        kept_paths=kept_paths,
+        kept_title=kept_title,
+        kept_empty=kept_empty,
+        removed_label=removed_label,
     )
+    show_kept = kept_paths is not None
     try:
         if dlg.ShowModal() != wx.ID_OK:
-            return []
-        return list(dlg.chosen or [])
+            return None if show_kept else []
+        chosen = list(dlg.chosen or [])
+        if show_kept:
+            return chosen, list(dlg.kept_after or [])
+        return chosen
     finally:
         dlg.Destroy()

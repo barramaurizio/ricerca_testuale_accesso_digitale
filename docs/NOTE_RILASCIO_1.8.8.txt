@@ -1,5 +1,5 @@
 🌟 Novità della Versione 1.8.8
-Testi da incollare. Provata da Maurizio il 28/10: scheda ok su Spalletti e su Zliani, glossario ok in Standalone e Add-on, guida HTML ok, indirizzo Internet ok in entrambi (percorso e Sfoglia). Guide allineate. Manca la compilazione, che fa Maurizio.
+Pubblicata il 28/10/2026. GitHub v1.8.8 / app-v1.8.8, commit 93faddb. DataStore #12565 chiuso via #12566, accettato. Gli exe della Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.
 (Testi pronti da incollare — ordine = campi Web con NVDA)
 
 Ordine campi GitHub «Draft new release»:

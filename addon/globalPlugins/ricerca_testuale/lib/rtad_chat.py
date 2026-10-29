@@ -50,6 +50,29 @@ _REPORT_MATERIAL_MESSAGE = (
 )
 _EMPTY_REPORT = "(Il resoconto salvato è vuoto.)"
 MAX_ATTACHMENTS = 12
+
+
+def free_save_name(folder: str, filename: str) -> str:
+    """Nome libero nella cartella: se c'è già, aggiunge (1), (2), …"""
+    filename = (filename or "file.txt").strip() or "file.txt"
+    folder = folder or ""
+    if not folder or not os.path.isdir(folder):
+        return filename
+    if filename.lower().endswith(".chat.txt"):
+        base = filename[: -len(".chat.txt")]
+        ext = ".chat.txt"
+    else:
+        base, ext = os.path.splitext(filename)
+    candidate = filename
+    n = 1
+    while os.path.exists(os.path.join(folder, candidate)):
+        candidate = f"{base} ({n}){ext}"
+        n += 1
+        if n > 999:
+            break
+    return candidate
+
+
 ATTACH_TEXT_CAP = 60000
 MAX_ATTACH_DOC_BYTES = 80 * 1024 * 1024
 

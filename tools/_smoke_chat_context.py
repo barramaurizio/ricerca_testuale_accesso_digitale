@@ -182,6 +182,57 @@ def main() -> int:
             except Exception:
                 pass
 
+    notice = rtad_chat.format_hit_notice("Testo Email 1 marzo", "ciao   mondo")
+    check(
+        notice == "Punto della ricerca: Testo Email 1 marzo. Estratto: ciao mondo",
+        "punto della ricerca",
+    )
+    check(rtad_chat.format_hit_notice("", "") == "", "senza punto, frase vuota")
+    msg_key = rtad_chat.message_storage_key(r"C:\posta\Inbox", 4)
+    check(msg_key and msg_key != rtad_chat.message_storage_key(r"C:\posta\Inbox", 5), "chiave per messaggio")
+    check(
+        rtad_chat.result_message_key(r"C:\posta\Inbox", "[MBOX]", 4, "Oggetto: Ciao", "") == msg_key,
+        "la casella non è un'unica chat",
+    )
+    check(
+        rtad_chat.result_message_key(r"C:\a.eml", "[EML]", 1, "corpo", "") == "",
+        "un .eml resta sul file",
+    )
+    hit_session = rtad_chat.new_session(
+        "document",
+        "",
+        hit_notice=notice,
+        material_text="Oggetto: Ciao\n\ncorpo del messaggio",
+        stable_key="hitkey123",
+        title="Ciao",
+    )
+    check(hit_session["context_text"].startswith(notice), "il punto sta nel materiale")
+    check("corpo del messaggio" in hit_session["context_text"], "il messaggio sta nel materiale")
+    check(hit_session["stable_key"] == "hitkey123", "chiave salvata sulla sessione")
+    tmp_hit = tempfile.mkdtemp()
+    try:
+        rtad_chat.append_exchange(hit_session, "Chi scrive?", "Un messaggio.", "gemini-test")
+        rtad_chat.save_current(tmp_hit, hit_session)
+        loaded_hit = rtad_chat.load_by_key(tmp_hit, "hitkey123")
+        check(bool(loaded_hit), "il messaggio si riapre")
+        check(
+            loaded_hit and loaded_hit.get("hit_notice") == notice,
+            "il punto resta nella cronologia",
+        )
+        check(
+            loaded_hit and "corpo del messaggio" in (loaded_hit.get("context_text") or ""),
+            "il testo del messaggio resta",
+        )
+        check(rtad_chat.has_saved_key(tmp_hit, "hitkey123"), "risulta una conversazione già aperta")
+    finally:
+        try:
+            for name in os.listdir(os.path.join(tmp_hit, "chat")):
+                os.remove(os.path.join(tmp_hit, "chat", name))
+            os.rmdir(os.path.join(tmp_hit, "chat"))
+            os.rmdir(tmp_hit)
+        except Exception:
+            pass
+
     print("PASS" if ko == 0 else f"FAIL {ko}")
     return 0 if ko == 0 else 1
 

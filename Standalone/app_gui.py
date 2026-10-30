@@ -100,7 +100,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.8.9"
+APP_VERSION = "1.9.0"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -292,6 +292,98 @@ def paths_from_windows_clipboard():
             seen.add(key)
             out.append(p)
     return out
+
+
+_MAIL_HEADER_RE = re.compile(
+    r"(?im)^(subject|oggetto|from|da|date|data|to|a|cc)\s*:"
+)
+
+
+def clipboard_unicode_text():
+    """Testo Unicode negli Appunti. Vuoto se non c'è."""
+    text = ""
+    if not wx.TheClipboard.Open():
+        return ""
+    try:
+        if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
+            data = wx.TextDataObject()
+            if wx.TheClipboard.GetData(data):
+                text = data.GetText() or ""
+    except Exception:
+        text = ""
+    finally:
+        try:
+            wx.TheClipboard.Close()
+        except Exception:
+            pass
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def pasted_message_text(text):
+    """Testo da trattare come messaggio incollato. Vuoto se è troppo poco."""
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if len(raw) < 80:
+        return ""
+    lines = [ln.strip().strip('"').strip("'") for ln in raw.split("\n") if ln.strip()]
+    if lines and all(
+        ln.lower().startswith(("http://", "https://"))
+        or os.path.isfile(ln)
+        or os.path.isdir(ln)
+        for ln in lines
+    ):
+        return ""
+    head = "\n".join(raw.split("\n")[:40])
+    if len(raw) < 200 and not _MAIL_HEADER_RE.search(head):
+        return ""
+    return raw
+
+
+def pasted_message_title(text):
+    for line in (text or "").split("\n")[:40]:
+        low = line.lower().strip()
+        for prefix in ("subject:", "oggetto:"):
+            if low.startswith(prefix):
+                title = line.split(":", 1)[-1].strip()
+                if title:
+                    return " ".join(title.split())[:80]
+    for line in (text or "").split("\n"):
+        line = " ".join(line.split())
+        if len(line) >= 8:
+            return line[:80]
+    return "Messaggio incollato"
+
+
+def write_pasted_message_file(text):
+    """Scrive il messaggio incollato in un .eml locale. Vuoto se il testo non basta."""
+    body = pasted_message_text(text)
+    if not body:
+        return ""
+    folder = os.path.join(CONFIG_DIR, "incolla")
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except Exception:
+        return ""
+    path = os.path.join(folder, "messaggio_incollato.eml")
+    title = pasted_message_title(body).replace("\r", " ").replace("\n", " ")
+    head = "\n".join(body.split("\n")[:40])
+    if _MAIL_HEADER_RE.search(head):
+        payload = body.replace("\n", "\r\n") + "\r\n"
+    else:
+        payload = (
+            f"Subject: {title}\r\n"
+            "From: (incollato)\r\n"
+            "MIME-Version: 1.0\r\n"
+            "Content-Type: text/plain; charset=utf-8\r\n"
+            "\r\n"
+            + body.replace("\n", "\r\n")
+            + "\r\n"
+        )
+    try:
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(payload)
+    except Exception:
+        return ""
+    return path
 
 
 def text_matches_terms(text, terms):
@@ -1931,7 +2023,7 @@ def save_bookmarks(bookmarks_list):
     except Exception as e:
         logging.error(f"Errore salvataggio segnalibri: {e}")
 
-HISTORY_MAX = 20
+HISTORY_MAX = 200
 
 
 def _load_settings_dict():
@@ -2651,6 +2743,26 @@ def extract_plain_text_file(file_path):
         return ""
 
 
+def _eml_text_for_chat(file_path):
+    """Testo di un .eml: intestazioni e corpo, come nel lettore della posta."""
+    try:
+        with open(file_path, "rb") as handle:
+            raw = handle.read(MAX_EML_READ_BYTES)
+        try:
+            msg = email.message_from_bytes(raw, policy=policy.default)
+        except Exception:
+            msg = email.message_from_string(
+                raw.decode("utf-8", errors="ignore"),
+                policy=policy.default,
+            )
+    except Exception:
+        return ""
+    try:
+        return _format_email_viewer_text(msg).replace("\r\n", "\n").strip()
+    except Exception:
+        return ""
+
+
 def extract_document_text(file_path):
     """Testo leggibile da PDF/DOCX/EPUB/testo per CLI shell e «Leggi/Copia».
 
@@ -2677,6 +2789,8 @@ def extract_document_text(file_path):
             return "\n".join(rtad_epub.extract_paragraphs_from_epub(file_path) or []).strip()
         if ext in (".html", ".htm"):
             return strip_html_to_text(extract_plain_text_file(file_path)).strip()
+        if ext == ".eml":
+            return _eml_text_for_chat(file_path)
         if ext in TEXT_LIKE_EXTS:
             return extract_plain_text_file(file_path).strip()
     except Exception as e:
@@ -6548,6 +6662,87 @@ def _track_gemini_chat(frm):
     frm.Bind(wx.EVT_CLOSE, _on_close)
 
 
+def _result_item(item):
+    if isinstance(item, str):
+        return {"file_path": item}
+    if isinstance(item, dict):
+        return item
+    return {}
+
+
+def _result_asks_gemini(item):
+    """True se da questa riga si può aprire Gemini."""
+    item = _result_item(item)
+    if rtad_chat is None or not item or item.get("pending_fetch"):
+        return False
+    if item.get("internet_url"):
+        return False
+    path = (item.get("file_path") or "").strip()
+    if (item.get("viewer_text") or "").strip():
+        return True
+    att = (item.get("attachment_export_path") or "").strip()
+    if att and os.path.isfile(att):
+        return True
+    if path and os.path.isfile(path):
+        return True
+    if path.lower().startswith(("http://", "https://")):
+        snip = " ".join((item.get("snippet") or "").split())
+        if snip and snip != path and not snip.lower().startswith(("http://", "https://")):
+            return True
+    return False
+
+
+def _result_gemini_saved(item):
+    """True se per questa riga c'è già una conversazione con scambi."""
+    item = _result_item(item)
+    if rtad_chat is None:
+        return False
+    path = (item.get("file_path") or "").strip()
+    att = (item.get("attachment_export_path") or "").strip()
+    if att and os.path.isfile(att):
+        try:
+            return rtad_chat.has_saved(CONFIG_DIR, att)
+        except Exception:
+            return False
+    key = ""
+    try:
+        key = rtad_chat.result_message_key(
+            path,
+            item.get("prefix") or "",
+            item.get("line_number"),
+            item.get("viewer_text") or "",
+            att,
+        )
+    except Exception:
+        key = ""
+    if (
+        not key
+        and path.lower().startswith(("http://", "https://"))
+        and not os.path.isfile(path)
+    ):
+        try:
+            key = rtad_chat.text_result_key(path)
+        except Exception:
+            key = ""
+    if key:
+        try:
+            return rtad_chat.has_saved_key(CONFIG_DIR, key)
+        except Exception:
+            return False
+    anchor = path
+    if path.lower().endswith(".rtad.txt"):
+        try:
+            anchor = rtad_chat.chat_anchor_for_report(path)
+        except Exception:
+            anchor = path
+    if anchor and os.path.isfile(anchor):
+        try:
+            return rtad_chat.has_saved(CONFIG_DIR, anchor)
+        except Exception:
+            return False
+    return False
+
+
 def open_gemini_chat(
     kind,
     path,
@@ -6557,15 +6752,32 @@ def open_gemini_chat(
     prior_report="",
     source_path="",
     parent=None,
+    hit_notice="",
+    material_text="",
+    stable_key="",
+    title="",
 ):
     """Apre la conversazione sul file. kind: image | document."""
     if rtad_chat is None:
         speak_accessible("Modulo conversazione non disponibile.")
         return
     path = (path or "").strip()
-    if not path or not os.path.isfile(path):
+    material_text = (material_text or "").strip()
+    hit_notice = (hit_notice or "").strip()
+    if (not path or not os.path.isfile(path)) and not material_text:
         speak_accessible("File non trovato. La conversazione resta sul file aperto.")
         return
+    if (
+        path
+        and not path.lower().startswith(("http://", "https://"))
+        and not os.path.isfile(path)
+        and material_text
+    ):
+        extra = (
+            "Il file non è più sul disco. "
+            "La conversazione resta sul testo di questo risultato."
+        )
+        hit_notice = (hit_notice + " " + extra).strip() if hit_notice else extra
     key = ""
     try:
         key = load_gemini_api_key()
@@ -6581,18 +6793,31 @@ def open_gemini_chat(
             rtad_ocr.set_gemini_api_key(key)
         except Exception:
             pass
+    try:
+        rtad_chat.set_text_extractor(extract_document_text)
+    except Exception:
+        pass
     if not _gemini_chat_privacy_ok(parent):
         return
     session = None
     resumed = False
     try:
-        session = rtad_chat.load_current(
-            CONFIG_DIR,
-            path,
-            struct=struct,
-            displayed=displayed,
-            prior_report=prior_report,
-        )
+        if (stable_key or "").strip():
+            session = rtad_chat.load_by_key(
+                CONFIG_DIR,
+                stable_key,
+                struct=struct,
+                displayed=displayed,
+                prior_report=prior_report,
+            )
+        else:
+            session = rtad_chat.load_current(
+                CONFIG_DIR,
+                path,
+                struct=struct,
+                displayed=displayed,
+                prior_report=prior_report,
+            )
     except Exception as exc:
         logging.warning(f"Chat: cronologia non caricata: {exc}")
         session = None
@@ -6600,6 +6825,19 @@ def open_gemini_chat(
         resumed = True
         if source_path and not session.get("source_path"):
             session["source_path"] = source_path
+        if hit_notice:
+            session["hit_notice"] = hit_notice
+        if material_text:
+            session["locked_material"] = True
+            session["material_text"] = material_text
+        if (stable_key or "").strip():
+            session["stable_key"] = stable_key.strip()
+        if (title or "").strip():
+            session["title"] = title.strip()
+        try:
+            rtad_chat.refresh_context(session)
+        except Exception:
+            logging.debug("Chat: punto della ricerca non applicato", exc_info=True)
     else:
         session = rtad_chat.new_session(
             kind,
@@ -6608,6 +6846,10 @@ def open_gemini_chat(
             displayed=displayed,
             prior_report=prior_report,
             source_path=source_path,
+            hit_notice=hit_notice,
+            material_text=material_text,
+            stable_key=stable_key,
+            title=title,
         )
     frm = GeminiChatFrame(
         session,
@@ -6621,7 +6863,7 @@ def open_gemini_chat(
     frm.Raise()
 
 
-def open_gemini_chat_from_report(path, parent=None):
+def open_gemini_chat_from_report(path, parent=None, hit_notice=""):
     """Dal .rtad.txt già salvato. Non rifà la descrizione né la trascrizione."""
     if rtad_chat is None:
         speak_accessible("Modulo conversazione non disponibile.")
@@ -6688,6 +6930,13 @@ def open_gemini_chat_from_report(path, parent=None):
         session = loaded
     else:
         session = fresh
+    if (hit_notice or "").strip():
+        session["hit_notice"] = hit_notice.strip()
+        try:
+            rtad_chat.set_text_extractor(extract_document_text)
+            rtad_chat.refresh_context(session)
+        except Exception:
+            logging.debug("Chat: punto della ricerca non applicato", exc_info=True)
     frm = GeminiChatFrame(session, resumed=resumed)
     _track_gemini_chat(frm)
     frm.Show()
@@ -6935,7 +7184,9 @@ class GeminiChatFrame(wx.Frame):
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
-        notice = ((session or {}).get("report_notice") or "").strip()
+        hit = ((session or {}).get("hit_notice") or "").strip()
+        report_note = ((session or {}).get("report_notice") or "").strip()
+        notice = " ".join(part for part in (hit, report_note) if part)
         self.lbl_status = wx.StaticText(
             panel,
             label=(
@@ -7120,9 +7371,11 @@ class GeminiChatFrame(wx.Frame):
             if not (self.session.get("turns") or []):
                 text = (text or "").replace("(Nessuno scambio ancora.)", "")
             text = (text or "").rstrip() + f"\n\nTu:\n{question}\n\nGemini:\n{body}\n"
-        notice = ((self.session or {}).get("report_notice") or "").strip()
-        if notice and not (text or "").startswith(notice):
-            text = notice + "\n\n" + (text or "")
+        hit = ((self.session or {}).get("hit_notice") or "").strip()
+        report_note = ((self.session or {}).get("report_notice") or "").strip()
+        lead = "\n\n".join(part for part in (hit, report_note) if part)
+        if lead and not (text or "").startswith(hit or report_note):
+            text = lead + "\n\n" + (text or "")
         self.txt_history.SetValue(text or "")
         idx = (text or "").rfind("\nGemini:\n")
         if idx < 0:
@@ -8829,45 +9082,35 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Confronta file…: da due a dodici file, in Strumenti\n"
-            "  e nel menu del risultato. Confronta, senza chiave,\n"
-            "  mostra e dice solo le parti diverse, con il nome\n"
-            "  del file davanti. Le parti uguali non si rileggono.\n"
-            "  In cima a ogni file, solo se non coincidono in tutti:\n"
-            "  tipo, dimensione, ultima modifica e, per un audio\n"
-            "  o un video, la durata.\n"
-            "  Alt+A aggiunge, anche se sei sull'elenco.\n"
-            "  Alt+L toglie il file sotto il cursore, anche mentre\n"
-            "  ne aggiungi altri. Canc sull'elenco fa lo stesso.\n"
-            "  Nella scelta: i più recenti in cima. Ogni riga dice\n"
-            "  nome, data, tipo e dimensione. Il primo è già selezionato.\n"
-            "  Shift+freccia giù prende un gruppo di fila.\n"
-            "  Control+freccia salta, e quelli già presi restano.\n"
-            "  Poi di nuovo Shift+freccia giù: un altro gruppo.\n"
-            "  Control+Spazio aggiunge o toglie un file solo.\n"
-            "  Alt+C cambia cartella. La finestra di Windows resta.\n"
-            "  Sotto, i file già nel confronto: Alt+L ne toglie uno\n"
-            "  prima di Invio. Senza file: «Nessun file nel confronto.»\n"
-            "  Con meno di due: «Servono almeno due file.»\n"
-            "  La stessa lista, con la scritta «Allegati», è nella\n"
-            "  scelta di Gemini. Senza allegati: «Nessun allegato presente.»\n"
-            "  Sulla conversazione, Alt+L toglie un allegato già messo.\n"
-            "  Chiedi a Gemini spiega quelle differenze, non i file interi.\n"
-            "  Senza la chiave il confronto resta:\n"
+            "• Chiedi a Gemini… su ogni risultato che ha un file,\n"
+            "  un messaggio o un estratto: anche un messaggio dentro\n"
+            "  una casella Thunderbird, un .eml, un vecchio .doc,\n"
+            "  uno zip, un feed. In chat, a schermo e a voce:\n"
+            "  «Punto della ricerca: … Estratto: …».\n"
+            "  Gemini riceve lo stesso punto.\n"
+            "  Un messaggio della casella è una chat sua,\n"
+            "  non tutta la casella. Un allegato PDF già estratto\n"
+            "  apre la chat su quel PDF.\n"
+            "  Una riga che è solo un indirizzo dice, a schermo e a voce:\n"
+            "  «Questa riga è solo un indirizzo. Aprilo nel browser.»\n"
+            "  Senza la chiave resta:\n"
             "  «Per conversare con Gemini serve la chiave personale, da Strumenti.»\n"
-            "  Se non hai ancora confrontato: «Prima fai Confronta.»\n"
-            "  Copia e Salva testo. Salva propone Confronto.txt\n"
-            "  nella cartella del primo file. Se c'è già:\n"
-            "  Confronto (1).txt, poi Confronto (2).txt.\n"
-            "  Un nome .chat.txt diventa Confronto (1).chat.txt.\n"
-            "  Un audio, un video o un'immagine non si trascrivono\n"
-            "  in questo confronto: se non c'è testo, la riga è\n"
-            "  «Nessun testo letto.»\n"
-            "• Un PDF firmato con DocuSign si legge: ogni font trova\n"
-            "  la sua tabella anche se il collegamento sta in uno\n"
-            "  stream compresso. Il sommario dice «Spett.le» e «PREMESSO».\n"
-            "  Virgolette, «sub-licenze» e «proporVi» restano a posto.\n"
-            "  «trascriv iamo» resta con lo spazio.\n"
+            "• Ctrl+H e Ctrl+Shift+H ricordano fino a 200 testi\n"
+            "  e 200 percorsi. L'ultimo usato sta in cima.\n"
+            "  I venti già salvati restano: il ventunesimo si aggiunge\n"
+            "  quando cerchi o scegli un percorso nuovo.\n"
+            "• Ctrl+Alt+V, se negli Appunti non c'è un file,\n"
+            "  prende il testo di un messaggio e lo mette in elenco.\n"
+            "  A schermo e a voce:\n"
+            "  «Messaggio incollato. È in elenco: titolo.\n"
+            "  Da qui puoi fare altre operazioni.»\n"
+            "  Da lì, Chiedi a Gemini.\n"
+            "  Un file .eml copiato o trascinato resta un file, come gli altri:\n"
+            "  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»\n"
+            "  Poi chiede: «Apri ora la lettura di questo documento?»\n"
+            "  Se sì, si apre il lettore.\n"
+            "• Resta dalla 1.8.9: Confronta file… e i PDF firmati\n"
+            "  con DocuSign. «trascriv iamo» resta con lo spazio.\n"
             "• Resta dalla 1.8.8: scheda video, glossario nel lettore,\n"
             "  pagine HTML, indirizzo Internet in elenco.\n"
             "• Resta dalla 1.8.7: punti di lettura, cifre nei PDF, lettere EPUB,\n"
@@ -8988,7 +9231,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Ctrl + Shift + H : Cronologia percorsi usati\n"
             "  - Ctrl + F : Salta alla casella per filtrare i risultati trovati\n"
             "  - Alt + T : Seleziona TUTTO IL PC (tutte le unità attive)\n"
-            "  - Ctrl + Alt + V : Incolla percorso dagli Appunti (file o path)\n"
+            "  - Ctrl + Alt + V : Incolla dagli Appunti un file, un percorso o il testo di un messaggio\n"
             "  - Ctrl + Shift + G : Conversazioni Gemini già salvate\n"
             "  - Alt + B : Conversazioni Gemini (finestra principale)\n"
             "  - Alt + Q : Nuova conversazione Gemini, anche senza un file\n"
@@ -9177,8 +9420,8 @@ class MainWindow(wx.Frame):
 
         btn_paste_path = wx.Button(panel, label="Incolla…")
         btn_paste_path.SetToolTip(
-            "Incolla dagli Appunti un file/cartella copiati in Esplora "
-            "oppure un percorso testo (Ctrl+Alt+V)"
+            "Incolla dagli Appunti un file, un percorso o il testo di un messaggio "
+            "(Ctrl+Alt+V)"
         )
         btn_paste_path.Bind(wx.EVT_BUTTON, self.on_paste_path_from_clipboard)
         hbox_path.Add(btn_paste_path, 0, wx.ALL, 5)
@@ -9440,12 +9683,65 @@ class MainWindow(wx.Frame):
                 paths.append(p)
         logging.info(f"Drop file ricevuto: n={len(paths)} paths={paths!r}")
         if not paths:
-            speak_accessible("Nessun file o cartella riconosciuti nel trascinamento.")
+            msg = "Nessun file o cartella riconosciuti nel trascinamento."
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg)
             return
         if len(paths) == 1:
             self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
         else:
             self.apply_search_path(paths, offer_open=False)
+
+    def show_pasted_message_in_list(self, text):
+        """Un messaggio copiato, senza percorso, diventa una riga dell'elenco."""
+        body = pasted_message_text(text)
+        path = write_pasted_message_file(text)
+        if not body or not path:
+            return False
+        title = pasted_message_title(body)
+        snippet = " ".join(body.split())[:200]
+        try:
+            mtime = os.path.getmtime(path)
+        except Exception:
+            mtime = 0
+        item = {
+            "file_path": path,
+            "file_name": title,
+            "prefix": "[EML]",
+            "mtime": mtime,
+            "line_number": None,
+            "paragraph_index": None,
+            "location_info": "Messaggio incollato",
+            "snippet": snippet,
+            "viewer_text": body,
+        }
+        self.current_matches = [item]
+        self.current_query = "(Messaggio incollato)"
+        self._results_ready = True
+        try:
+            self.txt_filter.ChangeValue("")
+        except Exception:
+            try:
+                self.txt_filter.SetValue("")
+            except Exception:
+                pass
+        self.update_list_display()
+        if self.lst_results.GetCount() > 0:
+            self.lst_results.SetSelection(0)
+            self.lst_results.SetFocus()
+        msg = (
+            f"Messaggio incollato. È in elenco: {title}. "
+            "Da qui puoi fare altre operazioni."
+        )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg)
+        return True
 
     def _init_menu_bar(self):
         menubar = wx.MenuBar()
@@ -9727,15 +10023,24 @@ class MainWindow(wx.Frame):
             return
         open_saved_gemini_chat(row.get("path") or "", parent=self)
 
-    def on_result_gemini(self, file_path):
-        """Dal risultato: riprende la chat salvata, oppure ne apre una sul file."""
+    def on_result_gemini(self, item):
+        """Dal risultato: chat sul file, sul messaggio o sul punto trovato."""
         if rtad_chat is None:
             speak_accessible("Modulo conversazione non disponibile.")
             return
-        path = (file_path or "").strip()
-        if not path:
+        item = _result_item(item)
+        path = (item.get("file_path") or "").strip()
+        viewer = (item.get("viewer_text") or "").strip()
+        if not path and not viewer:
             return
-        if path.lower().endswith(".chat.txt"):
+        try:
+            notice = rtad_chat.format_hit_notice(
+                item.get("location_info") or "",
+                item.get("snippet") or "",
+            )
+        except Exception:
+            notice = ""
+        if path.lower().endswith(".chat.txt") and os.path.isfile(path):
             found = ""
             try:
                 found = rtad_chat.find_export(CONFIG_DIR, path)
@@ -9744,22 +10049,70 @@ class MainWindow(wx.Frame):
             if found:
                 open_saved_gemini_chat(found, parent=self)
                 return
-            speak_accessible(
+            msg = (
                 "Nessuna conversazione collegata a questo testo. "
                 "Apri Conversazioni Gemini dal menù Strumenti."
             )
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg)
             return
-        if path.lower().endswith(".rtad.txt"):
-            open_gemini_chat_from_report(path, parent=self)
+        if path.lower().endswith(".rtad.txt") and os.path.isfile(path):
+            open_gemini_chat_from_report(path, parent=self, hit_notice=notice)
             return
-        if rtad_chat.has_saved(CONFIG_DIR, path):
-            open_saved_gemini_chat(
-                rtad_chat.saved_json_path(CONFIG_DIR, path), parent=self
+        att = (item.get("attachment_export_path") or "").strip()
+        if att and os.path.isfile(att):
+            open_gemini_chat("document", att, parent=self, hit_notice=notice)
+            return
+        prefix = str(item.get("prefix") or "")
+        use_viewer = bool(viewer) and (
+            prefix.startswith(("[MBOX]", "[FEED]", "[RSS]", "[FEED-RIGA]", "[EML]"))
+            or path.lower().endswith(".eml")
+        )
+        if use_viewer:
+            key = ""
+            try:
+                key = rtad_chat.result_message_key(path, prefix, item.get("line_number"), viewer, "")
+            except Exception:
+                key = ""
+            open_gemini_chat(
+                "document",
+                path,
+                parent=self,
+                hit_notice=notice,
+                material_text=viewer,
+                stable_key=key,
+                title=(item.get("file_name") or "").strip(),
             )
+            return
+        if path.lower().startswith(("http://", "https://")) and not os.path.isfile(path):
+            snip = " ".join((item.get("snippet") or "").split())
+            if not snip or snip == path or snip.lower().startswith(("http://", "https://")):
+                msg = "Questa riga è solo un indirizzo. Aprilo nel browser."
+                try:
+                    self.txt_status_progress.SetValue(msg)
+                except Exception:
+                    pass
+                speak_accessible(msg)
+                return
+            open_gemini_chat(
+                "document",
+                path,
+                parent=self,
+                hit_notice=notice,
+                material_text=snip,
+                stable_key=rtad_chat.text_result_key(path),
+                title=(item.get("file_name") or "").strip(),
+            )
+            return
+        if not path or not os.path.isfile(path):
+            speak_accessible("File non trovato. La conversazione resta sul file aperto.")
             return
         ext = os.path.splitext(path)[1].lower()
         if ext in IMG_EXTS:
-            open_gemini_chat("image", path, parent=self)
+            open_gemini_chat("image", path, parent=self, hit_notice=notice)
             return
         if ext in MEDIA_EXTS:
             open_gemini_chat(
@@ -9776,9 +10129,10 @@ class MainWindow(wx.Frame):
                     ),
                 },
                 parent=self,
+                hit_notice=notice,
             )
             return
-        open_gemini_chat("document", path, parent=self)
+        open_gemini_chat("document", path, parent=self, hit_notice=notice)
 
     def on_add_bookmark(self, event=None):
         path = self.txt_path.GetValue().strip()
@@ -11371,6 +11725,8 @@ class MainWindow(wx.Frame):
             offer = ("media-all", "Apri ora «Tutto sull'audio/video» per questo file?")
         elif ext in SHELL_DOCUMENT_EXTS:
             offer = ("open-doc", "Apri ora questo documento in Ricerca Testuale?")
+        elif ext == ".eml":
+            offer = ("read-eml", "Apri ora la lettura di questo documento?")
         if not offer:
             return
         action, ask = offer
@@ -11379,20 +11735,34 @@ class MainWindow(wx.Frame):
         )
         if dlg.ShowModal() == wx.ID_YES:
             dlg.Destroy()
-            _dispatch_cli_action(
-                self, action, selected_path, None, selected_path, delay_ms=200
-            )
+            if action == "read-eml":
+                self.read_document_file(selected_path)
+            else:
+                _dispatch_cli_action(
+                    self, action, selected_path, None, selected_path, delay_ms=200
+                )
         else:
             dlg.Destroy()
 
     def on_paste_path_from_clipboard(self, event=None):
-        """Strumenti / Incolla… / Ctrl+Alt+V: file o path dagli Appunti → percorso."""
+        """Strumenti / Incolla… / Ctrl+Alt+V: file, percorso o testo di un messaggio."""
         paths = paths_from_windows_clipboard()
+        real = [p for p in paths if os.path.isfile(p) or os.path.isdir(p)]
+        if real:
+            paths = real
+        elif self.show_pasted_message_in_list(clipboard_unicode_text()):
+            return
         if not paths:
-            speak_accessible(
-                "Negli Appunti non c’è un file o un percorso utilizzabile. "
-                "In Esplora seleziona un file e premi Ctrl+C, oppure copia il percorso."
+            msg = (
+                "Negli Appunti non c’è un file, un percorso o un messaggio. "
+                "In Esplora seleziona un file e premi Ctrl+C, copia il percorso, "
+                "oppure copia il testo del messaggio."
             )
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg)
             return
         # Un solo file → offerta apertura; più path → solo campo percorso
         if len(paths) == 1:
@@ -12751,6 +13121,7 @@ class MainWindow(wx.Frame):
                                         "file_path": file_path, "file_name": file_name, "prefix": prefix,
                                         "mtime": msg_ts, "line_number": line_idx + 1, "paragraph_index": None,
                                         "location_info": f"Testo Email{date_suffix}", "snippet": snippet,
+                                        "viewer_text": _format_email_viewer_text(msg),
                                     })
                                     found_in_content = True
                                     break
@@ -12761,6 +13132,7 @@ class MainWindow(wx.Frame):
                                 "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
                                 "location_info": f"Intestazione Email{date_suffix}",
                                 "snippet": f"Trovato nell'intestazione: {subject} da {sender}",
+                                "viewer_text": _format_email_viewer_text(msg),
                             })
                             found_in_content = True
 
@@ -12775,6 +13147,7 @@ class MainWindow(wx.Frame):
                                         "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
                                         "location_info": f"Allegato PDF (non scaricato) Email{date_suffix}",
                                         "snippet": f"nome allegato (corpo assente in locale): {att_name}",
+                                        "viewer_text": _format_email_viewer_text(msg),
                                     })
                                     found_in_content = True
                                     pdf_attachment_hits += 1
@@ -12797,6 +13170,7 @@ class MainWindow(wx.Frame):
                                 "mtime": msg_ts, "line_number": 1, "paragraph_index": None,
                                 "location_info": f"Allegato PDF Email{date_suffix}",
                                 "snippet": f"{via}: {snip}",
+                                "viewer_text": _format_email_viewer_text(msg),
                                 "attachment_name": att_name or "allegato.pdf",
                                 "attachment_export_path": cached_pdf,
                             })
@@ -13629,6 +14003,17 @@ class MainWindow(wx.Frame):
             menu = wx.Menu()
             item_open = menu.Append(wx.ID_ANY, "Apri pagina nel browser\tINVIO")
             menu.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
+            if _result_asks_gemini(item_data):
+                if _result_gemini_saved(item_data):
+                    label_g = "Riprendi conversazione &Gemini…"
+                else:
+                    label_g = "Chiedi a &Gemini…"
+                item_gemini = menu.Append(wx.ID_ANY, label_g)
+                menu.Bind(
+                    wx.EVT_MENU,
+                    lambda e, item=item_data: self.on_result_gemini(item),
+                    item_gemini,
+                )
             self.PopupMenu(menu)
             menu.Destroy()
             return
@@ -13647,36 +14032,24 @@ class MainWindow(wx.Frame):
         if source_url:
             item_browser = menu.Append(wx.ID_ANY, "Apri pagina nel browser")
         item_gemini = None
-        if rtad_chat is not None and file_path and os.path.isfile(file_path):
-            ext_g = os.path.splitext(file_path)[1].lower()
-            chatable = (
-                ext_g in IMG_EXTS
-                or ext_g in MEDIA_EXTS
-                or ext_g in SHELL_DOCUMENT_EXTS
-                or file_path.lower().endswith(".chat.txt")
-            )
-            if chatable:
-                if file_path.lower().endswith(".chat.txt"):
+        if _result_asks_gemini(item_data):
+            path_g = item_data.get("file_path") or ""
+            if str(path_g).lower().endswith(".chat.txt"):
+                linked = ""
+                try:
+                    linked = rtad_chat.find_export(CONFIG_DIR, path_g)
+                except Exception:
                     linked = ""
-                    try:
-                        linked = rtad_chat.find_export(CONFIG_DIR, file_path)
-                    except Exception:
-                        linked = ""
-                    if linked:
-                        item_gemini = menu.Append(
-                            wx.ID_ANY, "Apri conversazione &Gemini…"
-                        )
-                elif rtad_chat.has_saved(
-                    CONFIG_DIR,
-                    rtad_chat.chat_anchor_for_report(file_path)
-                    if file_path.lower().endswith(".rtad.txt")
-                    else file_path,
-                ):
+                if linked:
                     item_gemini = menu.Append(
-                        wx.ID_ANY, "Riprendi conversazione &Gemini…"
+                        wx.ID_ANY, "Apri conversazione &Gemini…"
                     )
-                else:
-                    item_gemini = menu.Append(wx.ID_ANY, "Chiedi a &Gemini…")
+            elif _result_gemini_saved(item_data):
+                item_gemini = menu.Append(
+                    wx.ID_ANY, "Riprendi conversazione &Gemini…"
+                )
+            else:
+                item_gemini = menu.Append(wx.ID_ANY, "Chiedi a &Gemini…")
         att_path = item_data.get("attachment_export_path") or ""
         has_att = bool(att_path and os.path.isfile(att_path))
         item_open_msg = None
@@ -13780,7 +14153,7 @@ class MainWindow(wx.Frame):
         if item_gemini is not None:
             self.Bind(
                 wx.EVT_MENU,
-                lambda e, p=file_path: self.on_result_gemini(p),
+                lambda e, item=item_data: self.on_result_gemini(item),
                 item_gemini,
             )
         if item_open_msg is not None:

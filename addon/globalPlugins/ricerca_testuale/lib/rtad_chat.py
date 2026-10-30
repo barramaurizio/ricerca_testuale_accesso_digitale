@@ -45,6 +45,12 @@ NOTICE_REPORT_ORPHAN = (
     "Il file originale non è più accanto a questo resoconto. "
     "La conversazione resta sul testo salvato."
 )
+NOTICE_HIT_ONLY = (
+    "Da questo risultato non esce un testo intero. "
+    "La conversazione parte dal punto della ricerca."
+)
+NOTICE_NO_TEXT = "In questo file non c'è testo da leggere."
+_MESSAGE_PREFIXES = ("[MBOX]", "[FEED]", "[RSS]", "[FEED-RIGA]")
 _REPORT_MATERIAL_MESSAGE = (
     "Resoconto già salvato in RTAD. Non è stata rifatta l'analisi del file."
 )
@@ -625,6 +631,126 @@ def _image_bytes(path: str) -> tuple:
     return base64.b64encode(raw).decode("ascii"), mime
 
 
+def format_hit_notice(location: str, snippet: str) -> str:
+    """Frase del risultato, a schermo e in voce, e nel materiale di Gemini."""
+    loc = " ".join((location or "").split())
+    snip = " ".join((snippet or "").split())
+    if len(snip) > 240:
+        snip = snip[:240].rstrip() + "…"
+    if loc and snip:
+        return f"Punto della ricerca: {loc}. Estratto: {snip}"
+    if loc:
+        return f"Punto della ricerca: {loc}."
+    if snip:
+        return f"Estratto della ricerca: {snip}"
+    return ""
+
+
+def message_storage_key(file_path: str, index) -> str:
+    """Una conversazione per messaggio, non per l'intera casella o il feed."""
+    try:
+        number = int(index)
+    except (TypeError, ValueError):
+        number = 0
+    token = _file_key(file_path) + f":msg:{number}"
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:20]
+
+
+def text_result_key(token: str) -> str:
+    """Conversazione su una riga che non è un file sul disco (notizia, indirizzo)."""
+    raw = (token or "").strip().lower()
+    if not raw:
+        return ""
+    return hashlib.sha256(
+        ("rtad-hit:" + raw).encode("utf-8", errors="replace")
+    ).hexdigest()[:20]
+
+
+def result_message_key(path, prefix, index, viewer_text, attachment_path="") -> str:
+    """Chiave se il risultato è un messaggio dentro un archivio. Vuota altrimenti."""
+    if (attachment_path or "").strip() and os.path.isfile(attachment_path):
+        return ""
+    if not (viewer_text or "").strip():
+        return ""
+    if not str(prefix or "").startswith(_MESSAGE_PREFIXES):
+        return ""
+    if index is None:
+        return ""
+    return message_storage_key(path, index)
+
+
+def _cap_stored(text: str) -> str:
+    text = (text or "").strip()
+    if len(text) > STORED_TEXT_CAP:
+        return (
+            text[:STORED_TEXT_CAP]
+            + "\n\n(Il resto del testo non è stato caricato in memoria.)"
+        )
+    return text
+
+
+def _with_hit(text: str, session: dict) -> str:
+    note = ((session or {}).get("hit_notice") or "").strip()
+    body = (text or "").strip()
+    if not note:
+        return body
+    if body.startswith(note):
+        return body
+    if not body:
+        return note
+    return note + "\n\n" + body
+
+
+def _document_body(struct) -> str:
+    if not isinstance(struct, dict):
+        return ""
+    return (struct.get("body") or struct.get("plain") or "").strip()
+
+
+def _fill_document_body(session: dict, struct, path: str) -> dict:
+    """Testo del file, oppure il messaggio già letto in ricerca. Non rilegge una casella intera."""
+    if session.get("locked_material"):
+        body = _cap_stored(session.get("material_text") or "")
+        session["material_text"] = body
+        return {
+            "body": body,
+            "plain": body,
+            "outline": [],
+            "message": "",
+        }
+    if not isinstance(struct, dict):
+        struct = {}
+    else:
+        struct = dict(struct)
+    if (
+        not _document_body(struct)
+        and path
+        and os.path.isfile(path)
+        and _text_extractor is not None
+    ):
+        try:
+            extra = (_text_extractor(path) or "").strip()
+        except Exception as exc:
+            logging.debug(f"Chat: testo del file non letto: {exc}")
+            extra = ""
+        if extra:
+            extra = _cap_stored(extra)
+            struct["body"] = extra
+            struct["plain"] = extra
+            low = (struct.get("message") or "").lower()
+            if "non supportat" in low or "non espone" in low:
+                struct["message"] = ""
+    if not _document_body(struct):
+        msg = (struct.get("message") or "").strip()
+        low = msg.lower()
+        generic = (not msg) or ("non supportat" in low) or ("non espone" in low)
+        if (session.get("hit_notice") or "").strip() and generic:
+            struct["message"] = NOTICE_HIT_ONLY
+        elif not msg and path:
+            struct["message"] = NOTICE_NO_TEXT
+    return struct
+
+
 def new_session(
     kind: str,
     path: str,
@@ -634,6 +760,10 @@ def new_session(
     prior_report: str = "",
     source_path: str = "",
     do_refresh: bool = True,
+    hit_notice: str = "",
+    material_text: str = "",
+    stable_key: str = "",
+    title: str = "",
 ) -> dict:
     now = datetime.datetime.now().replace(microsecond=0).isoformat(timespec="seconds")
     session = {
@@ -664,6 +794,25 @@ def new_session(
         session["_displayed"] = displayed or ""
     if session["kind"] == "image":
         session["_prior"] = prior_report or ""
+    notice = (hit_notice or "").strip()
+    if notice:
+        session["hit_notice"] = notice
+    material = _cap_stored(material_text or "")
+    if material:
+        session["locked_material"] = True
+        session["material_text"] = material
+        session["_struct"] = {
+            "body": material,
+            "plain": material,
+            "outline": [],
+            "message": "",
+        }
+        session["_displayed"] = material
+    key = (stable_key or "").strip()
+    if key:
+        session["stable_key"] = key
+    if (title or "").strip():
+        session["title"] = title.strip()
     if do_refresh:
         refresh_context(session)
     return session
@@ -787,7 +936,7 @@ def refresh_context(session: dict) -> None:
     path = session.get("path") or ""
     ts, _label = _mtime_label(path) if path else (None, "")
     old = session.get("mtime")
-    if old and ts and abs(float(ts) - float(old)) > 1:
+    if old and ts and abs(float(ts) - float(old)) > 1 and not session.get("locked_material"):
         session["context_note"] = (
             "Il file sul disco è stato modificato dopo l'ultimo scambio di questa conversazione."
         )
@@ -811,25 +960,38 @@ def refresh_context(session: dict) -> None:
             session["image_missing"] = False
         elif not session.get("image_b64"):
             session["image_missing"] = True
-        session["context_text"] = compose_image_text(
-            path,
-            session.get("_prior") or "",
-            session.get("source_path") or "",
+        session["context_text"] = _with_hit(
+            compose_image_text(
+                path,
+                session.get("_prior") or "",
+                session.get("source_path") or "",
+            ),
+            session,
         )
         session["full_text"] = session["context_text"]
         return
 
-    struct = session.get("_struct")
-    if struct is None and path and rtad_docstruct is not None and os.path.isfile(path):
+    struct = None if session.get("locked_material") else session.get("_struct")
+    if (
+        not session.get("locked_material")
+        and struct is None
+        and path
+        and rtad_docstruct is not None
+        and os.path.isfile(path)
+    ):
         try:
             struct = rtad_docstruct.extract_document_structure(path)
-            session["_struct"] = struct
         except Exception as exc:
             logging.debug(f"Chat: struttura documento non riletta: {exc}")
             struct = None
-    if struct:
+    struct = _fill_document_body(session, struct, path)
+    session["_struct"] = struct
+    if struct and struct.get("outline"):
         session["outline"] = list(struct.get("outline") or [])
-    full = compose_document_text(path, struct, session.get("_displayed") or "")
+    full = _with_hit(
+        compose_document_text(path, struct, session.get("_displayed") or ""),
+        session,
+    )
     session["full_text"] = full
     if len(full) > CONTEXT_CHAR_CAP:
         session["context_text"] = (
@@ -1589,6 +1751,9 @@ def _public_dict(session: dict) -> dict:
         **({"report_path": session.get("report_path")} if session.get("report_path") else {}),
         **({"report_orphan": True} if session.get("report_orphan") else {}),
         **({"report_notice": session.get("report_notice")} if session.get("report_notice") else {}),
+        **({"hit_notice": session.get("hit_notice")} if session.get("hit_notice") else {}),
+        **({"locked_material": True} if session.get("locked_material") else {}),
+        **({"material_text": session.get("material_text") or ""} if session.get("locked_material") else {}),
         "turns": [
             {
                 "role": t.get("role"),
@@ -1739,6 +1904,11 @@ def _session_from_public(
     session["report_orphan"] = bool(data.get("report_orphan"))
     if data.get("report_notice"):
         session["report_notice"] = data.get("report_notice")
+    if data.get("hit_notice"):
+        session["hit_notice"] = data.get("hit_notice")
+    if data.get("locked_material"):
+        session["locked_material"] = True
+        session["material_text"] = data.get("material_text") or ""
     if do_refresh:
         refresh_context(session)
     else:
@@ -1877,6 +2047,52 @@ def load_saved(
         prior_report=prior_report,
         do_refresh=do_refresh,
     )
+
+
+def load_by_key(
+    base_dir: str,
+    key: str,
+    *,
+    struct=None,
+    displayed="",
+    prior_report="",
+) -> dict | None:
+    """Cronologia di un messaggio o di una riga, non del file intero."""
+    key = (key or "").strip()
+    if not key:
+        return None
+    dest = os.path.join(chat_dir(base_dir), key + ".json")
+    if not os.path.isfile(dest):
+        return None
+    try:
+        with open(dest, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception as exc:
+        logging.warning(f"Chat: lettura cronologia non riuscita: {exc}")
+        return None
+    if not isinstance(data, dict):
+        return None
+    return _session_from_public(
+        data,
+        struct=struct,
+        displayed=displayed,
+        prior_report=prior_report,
+    )
+
+
+def has_saved_key(base_dir: str, key: str) -> bool:
+    key = (key or "").strip()
+    if not key:
+        return False
+    dest = os.path.join(chat_dir(base_dir), key + ".json")
+    if not os.path.isfile(dest):
+        return False
+    try:
+        with open(dest, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return False
+    return isinstance(data, dict) and bool(data.get("turns"))
 
 
 def has_saved(base_dir: str, file_path: str) -> bool:

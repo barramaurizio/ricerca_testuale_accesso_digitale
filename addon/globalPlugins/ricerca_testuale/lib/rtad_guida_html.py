@@ -129,7 +129,34 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Confronta file…:</strong> da due a dodici file, in Strumenti
+    <li><strong>Chiedi a Gemini…</strong> su ogni risultato che ha un file,
+      un messaggio o un estratto: anche un messaggio dentro
+      una casella Thunderbird, un .eml, un vecchio .doc,
+      uno zip, un feed. In chat, a schermo e a voce:
+      «Punto della ricerca: … Estratto: …».
+      Gemini riceve lo stesso punto.
+      Un messaggio della casella è una chat sua,
+      non tutta la casella. Un allegato PDF già estratto
+      apre la chat su quel PDF.
+      Una riga che è solo un indirizzo dice, a schermo e a voce:
+      «Questa riga è solo un indirizzo. Aprilo nel browser.»
+      Senza la chiave resta:
+      «Per conversare con Gemini serve la chiave personale, da Strumenti.»</li>
+    <li><strong>Ctrl+H e Ctrl+Shift+H</strong> ricordano fino a 200 testi
+      e 200 percorsi. L'ultimo usato sta in cima.
+      I venti già salvati restano: il ventunesimo si aggiunge
+      quando cerchi o scegli un percorso nuovo.</li>
+    <li><strong>Ctrl+Alt+V</strong>, se negli Appunti non c'è un file,
+      prende il testo di un messaggio e lo mette in elenco.
+      A schermo e a voce:
+      «Messaggio incollato. È in elenco: titolo.
+      Da qui puoi fare altre operazioni.»
+      Da lì, Chiedi a Gemini.
+      Un file .eml copiato o trascinato resta un file, come gli altri:
+      «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
+      Poi chiede: «Apri ora la lettura di questo documento?»
+      Se sì, si apre il lettore.</li>
+    <li><strong>Resta dalla 1.8.9. Confronta file…:</strong> da due a dodici file, in Strumenti
       e nel menu del risultato. Confronta, senza chiave, mostra e dice
       solo le parti diverse, con il nome del file davanti.
       Le parti uguali non si rileggono.
@@ -251,9 +278,17 @@ Poi in Ricerca Testuale:</p>
 <p>Funziona anche se negli Appunti c’è un <strong>percorso testo</strong>
 («Copia come percorso» / Ctrl+V nel campo). Se il file è immagine, audio/video
 o documento, può offrirti di aprirlo subito come con Sfoglia.</p>
+<p>Se negli Appunti c’è il testo di un messaggio, non un file,
+<strong>Ctrl+Alt+V</strong> lo mette in elenco. A schermo e a voce:
+«Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.»
+Da lì puoi chiedere a Gemini. Un testo di due parole non basta: senti e leggi
+«Negli Appunti non c’è un file, un percorso o un messaggio.»</p>
 <p>Solo Standalone: puoi anche <strong>trascinare</strong> un file o una cartella
 sulla finestra del programma (stesso effetto). Dalla 1.7.6 il rilascio funziona
 in qualunque punto della finestra (non solo sul titolo).</p>
+<p>Se il file è un <strong>.eml</strong>, dopo la riga in elenco il programma chiede:
+«Apri ora la lettura di questo documento?» Se rispondi sì, si apre il lettore.
+Se rispondi no, la riga resta e da lì fai le altre operazioni.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="cd-audio">4.2 CD audio, DVD e file .cda</h2>
@@ -643,12 +678,12 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
 
 <h2 id="scorciatoie">13. Scorciatoie principali (Standalone)</h2>
 <ul>
-  <li><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> — cronologia testi / percorsi</li>
+  <li><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> — cronologia testi / percorsi, fino a 200, l’ultimo in cima</li>
   <li>Nel lettore: <kbd>Ctrl</kbd>+<kbd>B</kbd> aggiunge un punto di lettura, quanti ne vuoi.
     <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> torna all’ultimo. Invio sull’elenco sceglie. Non è Ctrl+D.</li>
   <li><kbd>Ctrl</kbd>+<kbd>F</kbd> — filtro risultati</li>
   <li><kbd>Alt</kbd>+<kbd>T</kbd> — tutto il PC</li>
-  <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> — Incolla percorso dagli Appunti</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> — Incolla dagli Appunti un file, un percorso o il testo di un messaggio</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> — verifica aggiornamenti</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> — Trascrivi e cerca…</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> — Conversazioni Gemini</li>

@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.8.9)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.0)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.0
+
+- **Chiedi a Gemini…** su ogni risultato che ha un file, un messaggio o un estratto: anche un messaggio dentro una casella Thunderbird, un .eml, un vecchio .doc, uno zip, un feed. In chat, a schermo e a voce: «Punto della ricerca: … Estratto: …». Gemini riceve lo stesso punto. Un messaggio della casella è una chat sua, non tutta la casella. Un allegato PDF già estratto apre la chat su quel PDF. Una riga che è solo un indirizzo dice, a schermo e a voce: «Questa riga è solo un indirizzo. Aprilo nel browser.» Senza la chiave resta: «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+- **Ctrl+H e Ctrl+Shift+H** ricordano fino a 200 testi e 200 percorsi. L'ultimo usato sta in cima. I venti già salvati restano: il ventunesimo si aggiunge quando cerchi o scegli un percorso nuovo.
+- **Ctrl+Alt+V**, se negli Appunti non c'è un file, prende il testo di un messaggio e lo mette in elenco. A schermo e a voce: «Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.» Da lì, Chiedi a Gemini. Un file .eml copiato o trascinato resta un file, come gli altri: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.» Poi chiede: «Apri ora la lettura di questo documento?» Se sì, si apre il lettore.
 
 ### 🌟 Novità della Versione 1.8.9
 
@@ -295,6 +301,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.0
+
+- **Ask Gemini…** on every result that has a file, a message or an excerpt: a message inside a Thunderbird mailbox, an .eml, an old .doc, a zip, a feed. In the chat, on screen and by voice: «Punto della ricerca: … Estratto: …». Gemini receives that same point. A mailbox message is its own chat, not the whole mailbox. An extracted PDF attachment opens the chat on that PDF. A row that is only an address says, on screen and by voice: «Questa riga è solo un indirizzo. Aprilo nel browser.» Without the key, the sentence stays: «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+- **Ctrl+H and Ctrl+Shift+H** remember up to 200 search texts and 200 paths. The latest is at the top. The twenty already stored stay: the twenty-first is added when you search or choose a new path.
+- **Ctrl+Alt+V**, when the clipboard has no file, takes the text of a message and puts it in the list. On screen and by voice: «Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.» From there, Ask Gemini. A copied or dropped .eml stays a file, like the others: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.» Then it asks: «Apri ora la lettura di questo documento?» If you answer yes, the reader opens.
 
 ### 🌟 What's New in Version 1.8.9
 

@@ -1,9 +1,8 @@
 # Piano RTAD 1.8.9
 
-**Ultima pubblicata:** `1.8.8` — 28/10/2026. Non hotfixarla.  
-GitHub `v1.8.8` / `app-v1.8.8`, commit `93faddb`. DataStore #12565 chiuso via #12566, accettato.  
-Commit `ee28948`: finestra di benvenuto e guida HTML allineate. Gli exe della Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.  
-**Questa versione:** `1.8.9`, testi scritti il 29/10/2026. Il pacchetto Add-on locale è pronto. I due exe li compila Maurizio. Non è ancora su GitHub né sullo store.
+**Pubblicata** il 29/10/2026. Non hotfixarla.  
+GitHub `v1.8.9` / `app-v1.8.9`, commit `bdc84ff`. DataStore #12598 chiuso via #12599, accettato.  
+Il pacchetto Add-on dello store è quello accettato. Gli exe della Standalone sono sulle release.
 
 ## Prima cosa: lettore sui PDF DocuSign firmati
 
@@ -40,11 +39,12 @@ Quattro, in quest’ordine, quando la 1.8.9 è pubblicata:
 3. OneCore: la voce di Windows nella Standalone, oltre a SAPI.
 4. Export multipli: più di un formato nello stesso passaggio.
 
-Più avanti, non in quelle quattro:
+Nel lettore, anche un browser: seguire i link e le intestazioni, dentro RTAD. Ne abbiamo parlato il 28/10: il lettore HTML non segue i link. Non è deciso se entra prima delle tre qui sopra. Si sceglie quando la 1.9.0 è pubblicata.
+
+Più avanti, non in questa lista:
 
 - Confrontare il parlato di un audio o di un video. Prima la trascrizione che c’è già (Whisper sul PC, oppure Gemini se c’è la chiave), poi lo stesso confronto delle frasi. Non è un ritocco a Whisper.
 - Confrontare il testo di un’immagine. L’OCR che c’è già, oppure una descrizione con Gemini. Il confronto locale resta sul testo già letto.
-- Un browser che segua i link.
 
 Un feedback vero, o un altro file che si comporta male, passa davanti a questa lista.
 

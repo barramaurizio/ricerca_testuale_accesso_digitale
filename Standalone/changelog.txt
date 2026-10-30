@@ -1,3 +1,8 @@
+Novità nella Versione 1.9.0
+- Chiedi a Gemini… su ogni risultato che ha un file, un messaggio o un estratto: anche un messaggio dentro una casella Thunderbird, un .eml, un vecchio .doc, uno zip, un feed. In chat, a schermo e a voce: «Punto della ricerca: … Estratto: …». Gemini riceve lo stesso punto. Un messaggio della casella è una chat sua, non tutta la casella. Un allegato PDF già estratto apre la chat su quel PDF. Una riga che è solo un indirizzo dice, a schermo e a voce: «Questa riga è solo un indirizzo. Aprilo nel browser.» Senza la chiave resta: «Per conversare con Gemini serve la chiave personale, da Strumenti.»
+- Ctrl+H e Ctrl+Shift+H ricordano fino a 200 testi e 200 percorsi. L'ultimo usato sta in cima. I venti già salvati restano: il ventunesimo si aggiunge quando cerchi o scegli un percorso nuovo
+- Ctrl+Alt+V, se negli Appunti non c'è un file, prende il testo di un messaggio e lo mette in elenco. A schermo e a voce: «Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.» Da lì, Chiedi a Gemini. Un file .eml copiato o trascinato resta un file, come gli altri: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.» Poi chiede: «Apri ora la lettura di questo documento?» Se sì, si apre il lettore.
+
 Novità nella Versione 1.8.9
 - Confronta file…: da due a dodici file, in Strumenti e nel menu del risultato. Confronta, senza chiave, mostra e dice solo le parti diverse, con il nome del file davanti. Le parti uguali non si rileggono
 - In cima a ogni file, solo se non coincidono in tutti: tipo, dimensione, ultima modifica e, per un audio o un video, la durata

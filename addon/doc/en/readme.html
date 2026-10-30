@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.8.9 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.9.0 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,18 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.8.9</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.9.0</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.9.0</strong>
+        <ul>
+            <li><strong>Ask Gemini…</strong> on every result that has a file, a message or an excerpt: a message inside a Thunderbird mailbox, an .eml, an old .doc, a zip, a feed. In the chat, on screen and by voice: «Punto della ricerca: … Estratto: …». Gemini receives that same point. A mailbox message is its own chat, not the whole mailbox. An extracted PDF attachment opens the chat on that PDF. A row that is only an address says, on screen and by voice: «Questa riga è solo un indirizzo. Aprilo nel browser.» Without the key, the sentence stays: «Per conversare con Gemini serve la chiave personale, da Strumenti.»</li>
+            <li><strong>Ctrl+H and Ctrl+Shift+H</strong> remember up to 200 search texts and 200 paths. The latest is at the top. The twenty already stored stay: the twenty-first is added when you search or choose a new path.</li>
+            <li><strong>Ctrl+Alt+V</strong>, when the clipboard has no file, takes the text of a message and puts it in the list. On screen and by voice: «Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.» From there, Ask Gemini. A copied or dropped .eml stays a file, like the others: «Il file è in elenco: nome. Da qui puoi fare altre operazioni.» Then it asks: «Apri ora la lettura di questo documento?» If you answer yes, the reader opens.</li>
+            <li>Last tested NVDA version: 2026.3. The add-on’s chats stay in the NVDA profile.</li>
+        </ul>
         <strong>What's New in Version 1.8.9</strong>
         <ul>
             <li><strong>Compare files…:</strong> from two to twelve files, in Tools and in the result menu. Compare, without a key, shows and speaks only the parts that differ, with the file name in front. Shared parts are not read again. At the top of each file, only when they are not the same in every file: type, size, last modified and, for an audio or a video, the duration. Alt+A adds, even from the list. Alt+L removes the file under the cursor, also while you are still adding. Delete on the list does the same. In the chooser: newest first, a row with name, date, type and size, the first file already selected. Shift+Down takes a contiguous group. Control+arrow moves and keeps what is already selected. Shift+Down again takes another group. Control+Space toggles one file. Alt+C changes folder. The Windows dialog stays. Below, the files already in the comparison: Alt+L removes one before Enter. With no file: “Nessun file nel confronto.” With fewer than two: “Servono almeno due file.” The same list, titled “Allegati”, is in Gemini’s chooser. With no attachment: “Nessun allegato presente.” In the conversation, Alt+L still removes an attachment already added. On the main window Alt+L remains the Google key. Ask Gemini explains those differences, not the whole files. Without the key the comparison stays: “Per conversare con Gemini serve la chiave personale, da Strumenti.” If you have not compared yet: “Prima fai Confronta.” Copy and Save text. Save proposes Confronto.txt in the first file’s folder. If it exists: Confronto (1).txt, then Confronto (2).txt. A .chat.txt name becomes Confronto (1).chat.txt. An audio, a video or an image is not transcribed in this comparison: if there is no text, the line is “Nessun testo letto.”</li>

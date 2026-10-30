@@ -1,5 +1,5 @@
 🌟 Novità della Versione 1.8.9
-Testi pronti il 29/10/2026. Non ancora pubblicata. Il pacchetto Add-on locale è ricerca_testuale_accesso_digitale-1.8.9.nvda-addon. I due exe della Standalone li compila Maurizio.
+Pubblicata il 29/10/2026. GitHub v1.8.9 / app-v1.8.9, commit bdc84ff. DataStore #12598 chiuso via #12599, accettato. Gli exe della Standalone sono sulle release. Il pacchetto Add-on dello store è quello accettato.
 (Testi pronti da incollare — ordine = campi Web con NVDA)
 
 Ordine campi GitHub «Draft new release»:

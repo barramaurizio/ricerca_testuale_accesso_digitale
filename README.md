@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.0)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.1)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,11 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.1
+
+- **Leggi documento** su una pagina HTML, o su un indirizzo Internet già scaricato come pagina, apre il lettore dentro RTAD. A schermo e a voce: «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.» Invio su un’intestazione va a quel punto, qui. Invio su un link della stessa pagina va a quel punto. Invio su un link di un altro sito apre quella pagina, qui. Indietro e Avanti tornano al punto di prima: un’altra intestazione della stessa pagina, o un altro sito. Anche Alt+freccia sinistra e Alt+freccia destra. «Apri nel browser di Windows» apre il link selezionato. Per un’intestazione, prima Invio nel lettore, poi lo stesso pulsante: il browser si apre su quel punto. Invio resta nel lettore. Senza intestazioni: «Nessuna intestazione in questa pagina.» Senza link: «Nessun link in questa pagina.» Word, EPUB e PDF restano sul lettore di prima.
+- **Nelle guide,** il procedimento per FFmpeg (un file già sul computer), per yt-dlp (un indirizzo Internet) e per i crediti prepagati di Gemini.
 
 ### 🌟 Novità della Versione 1.9.0
 
@@ -301,6 +306,11 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.1
+
+- **Read document** on an HTML page, or on an Internet address already saved as a page, opens the reader inside RTAD. On screen and by voice: «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.» Enter on a heading goes to that point, here. Enter on a link of the same page goes to that point. Enter on a link of another site opens that page, here. Back and Forward return to the previous point: another heading on the same page, or another site. Also Alt+Left and Alt+Right. «Apri nel browser di Windows» opens the selected link. For a heading, Enter in the reader first, then the same button: the browser opens on that point. Enter stays in the reader. With no headings: «Nessuna intestazione in questa pagina.» With no links: «Nessun link in questa pagina.» Word, EPUB and PDF stay on the reader they already have.
+- **In the guides,** the steps for FFmpeg (a file already on the computer), for yt-dlp (an Internet address) and for the Gemini prepaid credits.
 
 ### 🌟 What's New in Version 1.9.0
 

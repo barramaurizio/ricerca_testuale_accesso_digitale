@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import filecmp
+import html as html_lib
+import re
 import shutil
 import sys
 from pathlib import Path
+
+_URL_RE = re.compile(r"https?://[^\s<]+")
 
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / "addon" / "globalPlugins" / "ricerca_testuale" / "lib"
@@ -21,10 +25,18 @@ def main() -> int:
 
     text = g.get_guide_text()
     (ROOT / "docs" / "GUIDA_PRATICA.txt").write_text(text, encoding="utf-8")
+    body = html_lib.escape(text, quote=False)
+    body = _URL_RE.sub(
+        lambda m: (
+            f'<a href="{m.group(0)}" target="_blank" rel="noopener">'
+            f"{m.group(0)}</a>"
+        ),
+        body,
+    )
     html = (
         "<!DOCTYPE html><html lang=it><head><meta charset=utf-8>"
         "<title>Guida pratica</title></head><body><pre>\n"
-        + text
+        + body
         + "\n</pre></body></html>\n"
     )
     (ROOT / "addon" / "doc" / "it" / "guida_pratica.html").write_text(
@@ -49,6 +61,9 @@ def main() -> int:
     )
     shutil.copy2(
         ROOT / "Standalone" / "rtad_compare.py", LIB / "rtad_compare.py"
+    )
+    shutil.copy2(
+        ROOT / "Standalone" / "rtad_html_page.py", LIB / "rtad_html_page.py"
     )
     shutil.copy2(
         ROOT / "Standalone" / "rtad_guida_html.py", LIB / "rtad_guida_html.py"
@@ -89,6 +104,11 @@ def main() -> int:
             "rtad_compare.py",
             ROOT / "Standalone" / "rtad_compare.py",
             LIB / "rtad_compare.py",
+        ),
+        (
+            "rtad_html_page.py",
+            ROOT / "Standalone" / "rtad_html_page.py",
+            LIB / "rtad_html_page.py",
         ),
     ]
     all_ok = True

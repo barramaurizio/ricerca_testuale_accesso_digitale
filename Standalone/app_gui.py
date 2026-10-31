@@ -90,6 +90,11 @@ except ImportError:
     rtad_compare = None
 
 try:
+    import rtad_html_page
+except ImportError:
+    rtad_html_page = None
+
+try:
     import rtad_translate
 except ImportError:
     rtad_translate = None
@@ -100,7 +105,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.9.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -9082,7 +9087,26 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Chiedi a Gemini… su ogni risultato che ha un file,\n"
+            "• Leggi documento su una pagina HTML, o su un indirizzo\n"
+            "  Internet già scaricato come pagina, apre il lettore\n"
+            "  dentro RTAD. A schermo e a voce:\n"
+            "  «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.»\n"
+            "  Invio su un'intestazione va a quel punto, qui.\n"
+            "  Invio su un link della stessa pagina va a quel punto.\n"
+            "  Invio su un link di un altro sito apre quella pagina, qui.\n"
+            "  Indietro e Avanti tornano al punto di prima:\n"
+            "  un'altra intestazione della stessa pagina, o un altro sito.\n"
+            "  Anche Alt+freccia sinistra e Alt+freccia destra.\n"
+            "  «Apri nel browser di Windows» apre il link selezionato.\n"
+            "  Per un'intestazione, prima Invio nel lettore, poi lo stesso pulsante:\n"
+            "  il browser si apre su quel punto. Invio resta nel lettore.\n"
+            "  Senza intestazioni: «Nessuna intestazione in questa pagina.»\n"
+            "  Senza link: «Nessun link in questa pagina.»\n"
+            "  Word, EPUB e PDF restano sul lettore di prima.\n"
+            "• Nelle guide, il procedimento per FFmpeg (un file già\n"
+            "  sul computer), per yt-dlp (un indirizzo Internet)\n"
+            "  e per i crediti prepagati di Gemini.\n"
+            "• Resta dalla 1.9.0: Chiedi a Gemini… su ogni risultato che ha un file,\n"
             "  un messaggio o un estratto: anche un messaggio dentro\n"
             "  una casella Thunderbird, un .eml, un vecchio .doc,\n"
             "  uno zip, un feed. In chat, a schermo e a voce:\n"
@@ -15791,6 +15815,37 @@ class MainWindow(wx.Frame):
         frm.Show()
         frm.Raise()
 
+    def _listed_source_url(self, file_path):
+        """Indirizzo Internet della riga in elenco, se il file è stato scaricato da lì."""
+        try:
+            norm = os.path.normpath(file_path or "")
+        except Exception:
+            return ""
+        for item in list(getattr(self, "current_matches", None) or []):
+            fp = (item or {}).get("file_path") or ""
+            if not fp:
+                continue
+            try:
+                if os.path.normpath(fp) == norm:
+                    return ((item or {}).get("source_url") or "").strip()
+            except Exception:
+                continue
+        return ""
+
+    def _show_html_browser(self, file_path, page_url=""):
+        """Pagina HTML: intestazioni e link, dentro RTAD."""
+        if rtad_html_page is None:
+            speak_accessible("Lettore pagina non disponibile.")
+            return
+        if not hasattr(self, "_doc_struct_frames") or self._doc_struct_frames is None:
+            self._doc_struct_frames = []
+        rtad_html_page.open_browser(
+            speak_accessible,
+            file_path,
+            keep=self._doc_struct_frames,
+            page_url=page_url or "",
+        )
+
     def _offer_pdf_scan_describe(self, file_path, struct=None):
         """PDF senza testo ma con immagini: proponi Descrivi, altrimenti lettore."""
         name = os.path.basename(file_path) if file_path else "PDF"
@@ -15843,6 +15898,10 @@ class MainWindow(wx.Frame):
             if file_path.lower().endswith(".rtad.txt"):
                 apply_glossary_to_rtad_txt_file(file_path)
             ext = os.path.splitext(file_path)[1].lower()
+            if ext in (".html", ".htm") and rtad_html_page is not None:
+                page_url = self._listed_source_url(file_path)
+                wx.CallAfter(self._show_html_browser, file_path, page_url)
+                return
             if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc", ".pdf"):
                 try:
                     struct = rtad_docstruct.extract_document_structure(file_path)

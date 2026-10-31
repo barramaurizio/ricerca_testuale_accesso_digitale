@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.9.1
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.1
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Leggi documento su una pagina HTML, o su un indirizzo Internet già scaricato come pagina, apre il lettore dentro RTAD. A schermo e a voce: «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.» Invio su un’intestazione va a quel punto, qui. Invio su un link della stessa pagina va a quel punto. Invio su un link di un altro sito apre quella pagina, qui. Indietro e Avanti tornano al punto di prima: un’altra intestazione della stessa pagina, o un altro sito. Anche Alt+freccia sinistra e Alt+freccia destra. «Apri nel browser di Windows» apre il link selezionato. Per un’intestazione, prima Invio nel lettore, poi lo stesso pulsante: il browser si apre su quel punto. Invio resta nel lettore. Senza intestazioni: «Nessuna intestazione in questa pagina.» Senza link: «Nessun link in questa pagina.» Word, EPUB e PDF restano sul lettore di prima.
+- Nelle guide, il procedimento per FFmpeg (un file già sul computer), per yt-dlp (un indirizzo Internet) e per i crediti prepagati di Gemini.
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- Read document on an HTML page, or on an Internet address already saved as a page, opens the reader inside RTAD. On screen and by voice: «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.» Enter on a heading goes to that point, here. Enter on a link of the same page goes to that point. Enter on a link of another site opens that page, here. Back and Forward return to the previous point: another heading on the same page, or another site. Also Alt+Left and Alt+Right. «Apri nel browser di Windows» opens the selected link. For a heading, Enter in the reader first, then the same button: the browser opens on that point. Enter stays in the reader. With no headings: «Nessuna intestazione in questa pagina.» With no links: «Nessun link in questa pagina.» Word, EPUB and PDF stay on the reader they already have.
+- In the guides, the steps for FFmpeg (a file already on the computer), for yt-dlp (an Internet address) and for the Gemini prepaid credits.
+- Last tested NVDA version: 2026.3. The add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.1.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.1
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.1.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.1.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Leggi documento su una pagina HTML apre il lettore dentro RTAD: per un'intestazione, prima Invio, poi il browser di Windows su quel punto.
+
+Summary EN:
+Read document on an HTML page opens the reader inside RTAD: for a heading, Enter first, then the Windows browser on that point.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.1/ricerca_testuale_accesso_digitale-1.9.1.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.1
+
+Description:
+Leggi documento su una pagina HTML apre il lettore dentro RTAD: intestazioni, link, Indietro e il browser di Windows. Word, EPUB e PDF restano sul lettore di prima. Nelle guide, i procedimenti per FFmpeg, yt-dlp e i crediti prepagati di Gemini.

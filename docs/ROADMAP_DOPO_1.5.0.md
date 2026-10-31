@@ -192,7 +192,15 @@ Contenuto previsto `1.6.0`:
 33. ~~**`1.8.7`:** punti di lettura, cifre nei PDF, lettere EPUB, Apri con apre solo questo programma.~~ **pubblicata** il 27/10/2026. Piano: `docs/PIANO_1.8.7.md`. GitHub `v1.8.7` / `app-v1.8.7`, commit `868c9b2`. DataStore #12546 via #12547 accettato.  
 34. ~~**`1.8.8`:** scheda video, glossario nel lettore, pagine HTML, indirizzo Internet in elenco.~~ **pubblicata** il 28/10/2026. Piano: `docs/PIANO_1.8.8.md`. GitHub `v1.8.8` / `app-v1.8.8`, commit `93faddb`. DataStore #12565 via #12566 accettato. Commit `ee28948`: finestra di benvenuto e guida HTML. Gli exe Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.  
 35. ~~**`1.8.9`:** PDF DocuSign firmati e confronto tra più file.~~ **pubblicata** il 29/10/2026. Piano: `docs/PIANO_1.8.9.md`. GitHub `v1.8.9` / `app-v1.8.9`, commit `bdc84ff`. DataStore #12598 via #12599 accettato.  
-36. **`1.9.0` scritta, non ancora pubblicata:** Gemini su ogni risultato, elenco fino a 200, incolla di un messaggio. Poi, non iniziati: VIDEO_TS (avviso su un DVD commerciale, niente copia del film); OneCore nella Standalone; export multipli. Nel lettore, anche un browser (link e intestazioni): forse prima di quelle tre, si decide a 1.9.0 pubblicata. Più avanti: confronto del parlato (prima la trascrizione già presente), confronto del testo di un’immagine. Piano: `docs/PIANO_1.9.0.md`.
+36. ~~**`1.9.0`:** Gemini su ogni risultato, elenco fino a 200, incolla di un messaggio.~~ **pubblicata** il 30/10/2026. Piano: `docs/PIANO_1.9.0.md`. GitHub `v1.9.0` / `app-v1.9.0`, commit `8365774`. DataStore #12641 via #12642 accettato.  
+37. **`1.9.1` in corso:** Leggi documento su una pagina HTML apre il lettore dentro RTAD (intestazioni, link, Indietro, browser di Windows). Word, EPUB e PDF restano sul lettore di prima. Nelle guide: FFmpeg, yt-dlp, crediti prepagati. Piano: `docs/PIANO_1.9.1.md`.
+38. **`1.9.2`:** un capitolo EPUB nello stesso lettore. I link interni restano nel libro.
+39. **`1.9.3`:** la stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat.
+40. **`1.9.4`:** in Word, il link interno salta al titolo. In ODT arrivano titoli e link.
+41. **`1.9.5`:** VIDEO_TS, avviso su un DVD commerciale incontrato con la ricerca. Niente copia del film. Versione corta, di proposito.
+42. **`1.9.6`:** OneCore, la voce di Windows nella Standalone.
+43. **`1.9.7`:** export multipli, più di un formato nello stesso passaggio.
+Più avanti: confronto del parlato, confronto del testo di un’immagine.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA
 

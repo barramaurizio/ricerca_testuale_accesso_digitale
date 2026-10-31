@@ -1,5 +1,5 @@
 🌟 Novità della Versione 1.9.0
-Pronta da incollare. Non ancora pubblicata: gli exe li compila Maurizio, poi le due release.
+Pubblicata il 30/10/2026. GitHub v1.9.0 / app-v1.9.0, commit 8365774. DataStore #12641 chiuso via #12642, accettato. Gli exe della Standalone sono sulle release. Il pacchetto Add-on dello store è quello accettato.
 (Testi pronti da incollare — ordine = campi Web con NVDA)
 
 Ordine campi GitHub «Draft new release»:

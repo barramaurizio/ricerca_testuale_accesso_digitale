@@ -14,9 +14,28 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.0
+Novità recenti (in parole semplici) — versione 1.9.1
 ----------------------------------------------------
-• Chiedi a Gemini… su ogni risultato che ha un file,
+• Leggi documento su una pagina HTML, o su un indirizzo
+  Internet già scaricato come pagina, apre il lettore
+  dentro RTAD. A schermo e a voce:
+  «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.»
+  Invio su un'intestazione va a quel punto, qui.
+  Invio su un link della stessa pagina va a quel punto.
+  Invio su un link di un altro sito apre quella pagina, qui.
+  Indietro e Avanti tornano al punto di prima:
+  un'altra intestazione della stessa pagina, o un altro sito.
+  Anche Alt+freccia sinistra e Alt+freccia destra.
+  «Apri nel browser di Windows» apre il link selezionato.
+  Per un'intestazione, prima Invio nel lettore, poi lo stesso pulsante:
+  il browser si apre su quel punto. Invio resta nel lettore.
+  Senza intestazioni: «Nessuna intestazione in questa pagina.»
+  Senza link: «Nessun link in questa pagina.»
+  Word, EPUB e PDF restano sul lettore di prima.
+• Nelle guide, il procedimento per FFmpeg (un file già
+  sul computer), per yt-dlp (un indirizzo Internet)
+  e per i crediti prepagati di Gemini.
+• Resta dalla 1.9.0: Chiedi a Gemini… su ogni risultato che ha un file,
   un messaggio o un estratto: anche un messaggio dentro
   una casella Thunderbird, un .eml, un vecchio .doc,
   uno zip, un feed. In chat, a schermo e a voce:
@@ -151,6 +170,10 @@ Novità recenti (in parole semplici) — versione 1.9.0
   Se c'era, resta com'era. Da lì valgono Chiedi a Gemini e Traduci.
 • Un secondo avvio mentre lavora interrompe, a voce e a schermo:
   «Interruzione richiesta. Attendi la chiusura.»
+• Se la prima riga inizia con «Per questo formato serve ffmpeg»,
+  il file è già sul computer: paragrafo 12.
+  Se inizia con «yt-dlp non trovato» o «serve yt-dlp nel PATH»,
+  è un link Internet: paragrafo 13.
 • Resta dalla 1.8.5: puoi tradurre il testo che hai già davanti: la trascrizione
   di un video, un resoconto .rtad.txt, il testo di un documento
   nel lettore. Pulsante «Traduci» (Alt+U).
@@ -222,6 +245,7 @@ Novità recenti (in parole semplici) — versione 1.9.0
 • Se i crediti prepagati della chiave sono finiti, la frase lo
   dice in italiano: si ricaricano in Google AI Studio.
   In quel caso non si prova un altro modello.
+  Il procedimento è al paragrafo 14.
 • Resta dalla 1.8.2: se Gemini è occupato su un modello, si prova
   quello dopo. Alt+L chiave Google, Alt+H chiave Gemini,
   Alt+B conversazioni. Alt+G sulla finestra principale apre
@@ -305,6 +329,10 @@ Puoi limitare la ricerca a:
   (Whisper)» oppure con Gemini, oppure «Trascrivi e cerca»
   o analizza la cartella
   (non ascolta da solo tutti i video del disco a ogni ricerca).
+  Un file già sul disco, come un m4a, può chiedere FFmpeg:
+  paragrafo 12. Un indirizzo Internet, come YouTube,
+  chiede yt-dlp: paragrafo 13.
+  I crediti della chiave Gemini: paragrafo 14.
 • oppure un’estensione che scegli tu (es. solo .pdf o solo .epub).
 
 Per la posta (Thunderbird e simili): il programma può cercare nei messaggi
@@ -392,7 +420,128 @@ il Setup; se usi la Portable, scarica la Portable. Per l’Add-on:
 Store NVDA oppure il file .nvda-addon.
 
 
-12. Dove approfondire (guida tecnica)
+12. FFmpeg: un file audio già sul computer
+------------------------------------------
+FFmpeg serve quando il file è già sul computer, per esempio
+un m4a in Musica. Serve a Whisper, e anche a unire audio e video
+scaricati da Internet. Non è yt-dlp.
+
+La frase del programma, se manca, inizia con
+«Per questo formato serve ffmpeg».
+L'esempio che il programma scrive è:
+winget install Gyan.FFmpeg
+Quel comando e il file zip qui sotto sono lo stesso pacchetto.
+Non prendere un ffmpeg.exe singolo da un altro sito.
+
+Nella guida HTML, da Aiuto → Guida completa, gli indirizzi
+qui sotto sono link: Invio li apre.
+
+A mano, dal browser:
+1) Apri https://www.gyan.dev/ffmpeg/builds/
+   e scarica ffmpeg-release-essentials.zip.
+2) Apri lo zip. Dentro c'è una sola cartella.
+   Il nome cambia con la data: per esempio
+   ffmpeg-2026-10-25-git-46f23be8b1-essentials_build.
+   Dentro quella ci sono altre cartelle. Quella che serve
+   si chiama bin.
+   Lì ci sono ffmpeg.exe e ffprobe.exe. Servono tutti e due.
+   Se c'è anche ffplay.exe, si copia insieme e non dà fastidio.
+3) In Esplora file, sul disco C:, crea la cartella ffmpeg
+   e, dentro, la cartella bin.
+   Copia in C:\ffmpeg\bin tutto il contenuto di quel bin,
+   i file .exe.
+4) Tasto Windows, scrivi variabili d'ambiente.
+   La voce che appare è
+   «Modifica le variabili di ambiente relative al sistema,
+   Pannello di controllo».
+   Apre le proprietà del sistema. Nella scheda Avanzate
+   c'è il pulsante Variabili d'ambiente.
+   Le liste sono due. Si lavora su quella in alto,
+   «Variabili utente» dell'account.
+   Seleziona Path, poi Modifica, poi Nuovo, e incolla
+   C:\ffmpeg\bin.
+   Conferma con OK fino a chiudere tutte le finestre.
+5) Chiudi l'Installer di Ricerca Testuale Accesso Digitale
+   e riaprilo.
+
+Per capire se Windows lo vede: Tasto Windows e R insieme.
+Nella casella scrivi ffmpeg e premi Invio.
+• Se compare «Windows non trova il file», il percorso
+  non è attivo. La finestra di Esegui non dà dettagli:
+  non dice in quali cartelle ha cercato.
+  In C:\ffmpeg\bin devono esserci ffmpeg.exe e ffprobe.exe.
+  In Path, nella lista in alto, una riga sola con
+  C:\ffmpeg\bin.
+  Poi esci da Windows e rientra, e riapri l'Installer.
+• Se lampeggia una finestra nera e si chiude, Windows
+  lo ha trovato. Chiudi l'Installer con la X, riaprilo
+  e riprova l'm4a o il file che vuoi.
+
+Se Esegui non lo trova, con Internet acceso apri PowerShell,
+incolla solo questa riga e dai Invio. Attendi la fine.
+Poi chiudi PowerShell, chiudi l'Installer e riaprilo:
+winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
+
+Aver messo FFmpeg e aver riavviato Windows non fa sparire
+una frase che parla di yt-dlp. Quella è il paragrafo 13.
+
+
+13. yt-dlp: scaricare da un indirizzo Internet
+----------------------------------------------
+yt-dlp serve per scaricare da un indirizzo Internet,
+come YouTube. Un m4a già sul disco non ne ha bisogno.
+
+La frase del programma inizia con «yt-dlp non trovato»
+oppure dice «serve yt-dlp nel PATH».
+Nello stesso testo il programma cita anche
+winget install Gyan.FFmpeg.
+Per questo i due nomi sembrano la stessa cosa.
+Non lo sono. Prima di installare altro, la prova è
+Esegui con ffmpeg, come nel paragrafo 12.
+Poi si guarda la prima riga del programma:
+• se inizia con «Per questo formato serve ffmpeg», è FFmpeg;
+• se inizia con «yt-dlp non trovato» o «serve yt-dlp nel PATH»,
+  è il programma per i link Internet.
+
+Solo in quel secondo caso, con Internet acceso, in PowerShell
+incolla solo questa riga e dai Invio. Attendi la fine.
+Poi chiudi PowerShell, chiudi l'Installer e riaprilo:
+winget install --id yt-dlp.yt-dlp -e --accept-source-agreements --accept-package-agreements
+
+
+14. Crediti prepagati della chiave Gemini
+-----------------------------------------
+Se compare
+«Gemini non ha risposto: i crediti prepagati di questa chiave
+sono finiti. Si ricaricano in Google AI Studio.»
+quella frase è del programma, non di Gemini.
+La chiave è accettata e la domanda è arrivata a Google.
+Google ha risposto che i crediti prepagati di questa chiave
+sono finiti. In quel caso non si prova un altro modello.
+
+Il tetto, per esempio da 25 euro, è un altro conteggio
+ed è ancora a zero. Alzarlo non mette soldi nei crediti
+prepagati. La carta e il tetto non li mettono da soli.
+Vanno comprati i crediti prepagati, in Google AI Studio,
+con lo stesso account Google della chiave.
+
+1) Apri https://aistudio.google.com/billing
+2) Scegli Buy credits. In italiano può chiamarsi
+   Acquista crediti. Il minimo è 5 dollari.
+3) Paga con la carta e attendi che il saldo dei crediti
+   sia sopra zero.
+«Modifica limite di spesa» è il tetto, non la ricarica.
+
+Poi chiudi Ricerca Testuale, riaprilo e rifai la domanda.
+Se il pulsante non c'è, nella lista dei progetti cerca
+la scritta No credits o Set up Prepay e cliccaci sopra:
+è il collegamento per la stessa ricarica.
+
+Nella guida HTML, da Aiuto → Guida completa, l'indirizzo
+di questa pagina è un link: Invio lo apre.
+
+
+15. Dove approfondire (guida tecnica)
 -------------------------------------
 Questa pagina è solo l’ingresso semplice.
 Per elenco comandi, dettagli e novità di versione:

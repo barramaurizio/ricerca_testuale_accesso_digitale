@@ -110,12 +110,16 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
     <li><a href="#ocr">Testo nelle immagini (OCR)</a></li>
     <li><a href="#vision">Chiave API Google Cloud Vision (passo-passo)</a></li>
     <li><a href="#gemini">Chiave API Gemini / Google AI Studio (passo-passo)</a>
-      (anche <a href="#chat">conversazione sul file</a>
+      (anche <a href="#crediti">crediti prepagati finiti</a>,
+      <a href="#chat">conversazione sul file</a>
       e <a href="#confronto">confronto tra più file</a>)</li>
     <li><a href="#immagini">Descrivere immagini e «Tutto sull’immagine»</a></li>
     <li><a href="#media">Audio e video</a>
-      (anche <a href="#media-ricerca">cercare parole nel parlato</a>)</li>
-    <li><a href="#documenti">Documenti, PDF, Excel, lettore</a></li>
+      (anche <a href="#media-ricerca">cercare parole nel parlato</a>,
+      <a href="#ffmpeg">FFmpeg per un file già sul computer</a>
+      e <a href="#ytdlp">yt-dlp per un indirizzo Internet</a>)</li>
+    <li><a href="#documenti">Documenti, PDF, Excel, lettore</a>
+      (anche <a href="#pagina-html">pagina HTML nel lettore</a>)</li>
     <li><a href="#explorer">Menù contestuale di Esplora file (solo Standalone)</a></li>
     <li><a href="#cd-audio">CD audio, DVD e file .cda</a></li>
     <li><a href="#aggiornamenti">Aggiornamenti: Installer e Portable</a></li>
@@ -129,7 +133,26 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Chiedi a Gemini…</strong> su ogni risultato che ha un file,
+    <li><strong>Leggi documento</strong> su una pagina HTML, o su un
+      indirizzo Internet già scaricato come pagina, apre il lettore
+      dentro RTAD. A schermo e a voce:
+      «Pagina: titolo. N intestazioni, M link. Passo 1 di 1.»
+      Invio su un’intestazione va a quel punto, qui.
+      Invio su un link della stessa pagina va a quel punto.
+      Invio su un link di un altro sito apre quella pagina, qui.
+      Indietro e Avanti tornano al punto di prima:
+      un’altra intestazione della stessa pagina, o un altro sito.
+      Anche Alt+freccia sinistra e Alt+freccia destra.
+      «Apri nel browser di Windows» apre il link selezionato.
+      Per un’intestazione, prima Invio nel lettore, poi lo stesso pulsante:
+      il browser si apre su quel punto. Invio resta nel lettore.
+      Senza intestazioni: «Nessuna intestazione in questa pagina.»
+      Senza link: «Nessun link in questa pagina.»
+      Word, EPUB e PDF restano sul lettore di prima.</li>
+    <li><strong>Nelle guide,</strong> il procedimento per FFmpeg
+      (un file già sul computer), per yt-dlp (un indirizzo Internet)
+      e per i crediti prepagati di Gemini.</li>
+    <li><strong>Resta dalla 1.9.0 — Chiedi a Gemini…</strong> su ogni risultato che ha un file,
       un messaggio o un estratto: anche un messaggio dentro
       una casella Thunderbird, un .eml, un vecchio .doc,
       uno zip, un feed. In chat, a schermo e a voce:
@@ -206,7 +229,11 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       Il testo diventa <code>nome.rtad.txt</code> se accanto non c’era già.
       Se c’era, resta com’era. Un secondo avvio mentre lavora interrompe,
       a voce e a schermo: «Interruzione richiesta. Attendi la chiusura.»
-      Gemini resta la trascrizione quando la casella è spenta.</li>
+      Gemini resta la trascrizione quando la casella è spenta.
+      Un file già sul disco, come un m4a, può chiedere FFmpeg:
+      <a href="#ffmpeg">come si installa</a>.
+      Un indirizzo Internet, come YouTube, chiede yt-dlp:
+      <a href="#ytdlp">è un altro programma</a>.</li>
     <li><strong>Resta dalla 1.8.5 — Traduci</strong> il testo già aperto:
       trascrizione, resoconto o documento nel lettore. Pulsante Traduci
       (Alt+U). L’originale resta, la traduzione si aggiunge sotto e nel
@@ -409,6 +436,40 @@ audio/video, e — dalla 1.8.0 — per la
   «Descrivi» (serve connessione). Su un audio/video puoi provare riassunto
   o trascrizione (opt-in) dall’hub «Tutto sull’audio/video».
 </div>
+
+<h3 id="crediti">Crediti prepagati finiti</h3>
+<p>Se compare questa frase:</p>
+<div class="note">
+  «Gemini non ha risposto: i crediti prepagati di questa chiave
+  sono finiti. Si ricaricano in Google AI Studio.»
+</div>
+<p>Quella frase è del programma, non di Gemini.
+La chiave è accettata e la domanda è arrivata a Google.
+Google ha risposto che i crediti prepagati di questa chiave sono finiti.
+In quel caso non si prova un altro modello.</p>
+<p>Il tetto, per esempio da 25 euro, è un altro conteggio ed è ancora a zero.
+Alzarlo non mette soldi nei crediti prepagati.
+La carta e il tetto non li mettono da soli.
+Vanno comprati i crediti prepagati, in Google AI Studio,
+con lo stesso account Google della chiave.</p>
+<ol class="passi">
+  <li>Apri:
+    <a href="https://aistudio.google.com/billing" target="_blank" rel="noopener">
+    https://aistudio.google.com/billing</a>.</li>
+  <li>Scegli <strong>Buy credits</strong>. In italiano può chiamarsi
+    <strong>Acquista crediti</strong>. Il minimo è 5 dollari.</li>
+  <li>Paga con la carta e attendi che il saldo dei crediti
+    sia sopra zero.</li>
+</ol>
+<div class="note">
+  <strong>Modifica limite di spesa</strong> è il tetto, non la ricarica.
+</div>
+<p>Poi chiudi Ricerca Testuale, riaprilo e rifai la domanda.
+Se il pulsante non c’è, nella lista dei progetti cerca la scritta
+<strong>No credits</strong> o <strong>Set up Prepay</strong> e cliccaci sopra:
+è il collegamento per la stessa ricarica.</p>
+<p class="top"><a href="#indice">↑ Indice</a></p>
+
 <h3 id="chat">Conversazione con Gemini (dalla 1.8.0, ampliata in 1.8.4)</h3>
 <p>Si può partire da un file già aperto, da zero, oppure da un
 resoconto <code>.rtad.txt</code> già salvato. Il file, se c’è, resta.
@@ -469,7 +530,9 @@ Il programma Windows e l’Add-on NVDA fanno la stessa cosa, ma
 le conversazioni già fatte in uno non compaiono nell’altro.</p>
 <p>Serve la tua chiave di Google AI Studio (sopra). RTAD non addebita
 nulla: eventuali costi sono quelli del tuo account Google.
-Il modello usato è Flash.</p>
+Il modello usato è Flash.
+Se la frase dice che i crediti prepagati sono finiti, il procedimento
+è in <a href="#crediti">Crediti prepagati finiti</a>.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h3 id="confronto">Confrontare più file (dalla 1.8.9)</h3>
@@ -540,7 +603,11 @@ Le parti uguali non si rileggono.</p>
     se la accendi, sotto la trascrizione compare la traduzione,
     con gli stessi timestamp. Salva testo propone lo stesso
     <code>nome.rtad.txt</code>: sovrascrivendo, l’originale resta
-    e la traduzione si aggiunge sotto.</li>
+    e la traduzione si aggiunge sotto.
+    Un file già sul disco, come un m4a, può chiedere FFmpeg:
+    <a href="#ffmpeg">come si installa</a>.
+    Un indirizzo Internet chiede yt-dlp:
+    <a href="#ytdlp">è un altro programma</a>.</li>
   <li>Batch cartella: analizza più file e salva i report <code>.rtad.txt</code> accanto.</li>
   <li><strong>Trascrivi e cerca…</strong> (Ctrl+Shift+T): cerca parole nel parlato
     usando i report già fatti, oppure trascrive con Gemini (limite per sessione).</li>
@@ -584,11 +651,125 @@ nei file <code>.rtad.txt</code> accanto al media (la trascrizione / report).</p>
   I report «orfani» (testo senza il media gemello nella stessa cartella)
   restano cercabili con il filtro Solo Audio/Video.
 </div>
-<p>Per scaricare da URL (YouTube e simili) serve <strong>yt-dlp</strong> aggiornato;
-il programma può segnalarlo e proporti l’aggiornamento.</p>
+<h3 id="ffmpeg">9.2 FFmpeg: un file audio già sul computer</h3>
+<p>FFmpeg serve quando il file è già sul computer, per esempio
+un m4a in Musica. Serve a Whisper, e anche a unire audio e video
+scaricati da Internet. Non è yt-dlp.</p>
+<p>La frase del programma, se manca, inizia con
+«Per questo formato serve ffmpeg».
+L’esempio che il programma scrive è
+<code>winget install Gyan.FFmpeg</code>.
+Quel comando e il file zip qui sotto sono lo stesso pacchetto.
+Non prendere un ffmpeg.exe singolo da un altro sito.</p>
+<ol class="passi">
+  <li>Dal browser apri
+    <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener">
+    https://www.gyan.dev/ffmpeg/builds/</a>
+    e scarica <code>ffmpeg-release-essentials.zip</code>.</li>
+  <li>Apri lo zip. Dentro c’è una sola cartella.
+    Il nome cambia con la data: per esempio
+    <code>ffmpeg-2026-10-25-git-46f23be8b1-essentials_build</code>.
+    Dentro quella ci sono altre cartelle. Quella che serve si chiama
+    <code>bin</code>.
+    Lì ci sono <code>ffmpeg.exe</code> e <code>ffprobe.exe</code>.
+    Servono tutti e due.
+    Se c’è anche <code>ffplay.exe</code>, si copia insieme e non dà fastidio.</li>
+  <li>In Esplora file, sul disco C:, crea la cartella <code>ffmpeg</code>
+    e, dentro, la cartella <code>bin</code>.
+    Copia in <code>C:\\ffmpeg\\bin</code> tutto il contenuto di quel bin,
+    i file .exe.</li>
+  <li>Tasto Windows, scrivi <strong>variabili d'ambiente</strong>.
+    La voce che appare è
+    «Modifica le variabili di ambiente relative al sistema,
+    Pannello di controllo».
+    Apre le proprietà del sistema. Nella scheda Avanzate
+    c’è il pulsante <strong>Variabili d’ambiente</strong>.
+    Le liste sono due. Si lavora su quella in alto,
+    «Variabili utente» dell’account.
+    Seleziona <strong>Path</strong>, poi <strong>Modifica</strong>, poi <strong>Nuovo</strong>,
+    e incolla <code>C:\\ffmpeg\\bin</code>.
+    Conferma con OK fino a chiudere tutte le finestre.</li>
+  <li>Chiudi l’Installer di Ricerca Testuale Accesso Digitale e riaprilo.</li>
+</ol>
+<div class="box">
+  <strong>Per capire se Windows lo vede:</strong> Tasto Windows e R insieme.
+  Nella casella scrivi <code>ffmpeg</code> e premi Invio.
+  <ul>
+    <li>Se compare «Windows non trova il file», il percorso non è attivo.
+      La finestra di Esegui non dà dettagli: non dice in quali cartelle
+      ha cercato.
+      In <code>C:\\ffmpeg\\bin</code> devono esserci
+      <code>ffmpeg.exe</code> e <code>ffprobe.exe</code>.
+      In Path, nella lista in alto, una riga sola con
+      <code>C:\\ffmpeg\\bin</code>.
+      Poi esci da Windows e rientra, e riapri l’Installer.</li>
+    <li>Se lampeggia una finestra nera e si chiude, Windows lo ha trovato.
+      Chiudi l’Installer con la X, riaprilo e riprova l’m4a
+      o il file che vuoi.</li>
+  </ul>
+</div>
+<p>Se Esegui non lo trova, con Internet acceso apri PowerShell,
+incolla solo questa riga e dai Invio. Attendi la fine.
+Poi chiudi PowerShell, chiudi l’Installer e riaprilo:</p>
+<p><code>winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements</code></p>
+<p>Aver messo FFmpeg e aver riavviato Windows non fa sparire
+una frase che parla di yt-dlp. Quella è la sezione successiva.</p>
+
+<h3 id="ytdlp">9.3 yt-dlp: scaricare da un indirizzo Internet</h3>
+<p>yt-dlp serve per scaricare da un indirizzo Internet, come YouTube.
+Un m4a già sul disco non ne ha bisogno.
+Il programma può segnalare che yt-dlp manca e proporti l’aggiornamento.</p>
+<p>La frase del programma inizia con «yt-dlp non trovato»
+oppure dice «serve yt-dlp nel PATH».
+Nello stesso testo il programma cita anche
+<code>winget install Gyan.FFmpeg</code>.
+Per questo i due nomi sembrano la stessa cosa.
+Non lo sono. Prima di installare altro, la prova è Esegui con
+<code>ffmpeg</code>, come nella sezione
+<a href="#ffmpeg">FFmpeg</a>.
+Poi si guarda la prima riga del programma:</p>
+<ul>
+  <li>se inizia con «Per questo formato serve ffmpeg», è FFmpeg;</li>
+  <li>se inizia con «yt-dlp non trovato» o «serve yt-dlp nel PATH»,
+    è il programma per i link Internet.</li>
+</ul>
+<p>Solo in quel secondo caso, con Internet acceso, in PowerShell
+incolla solo questa riga e dai Invio. Attendi la fine.
+Poi chiudi PowerShell, chiudi l’Installer e riaprilo:</p>
+<p><code>winget install --id yt-dlp.yt-dlp -e --accept-source-agreements --accept-package-agreements</code></p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="documenti">10. Documenti, PDF, Excel, lettore</h2>
+<h3 id="pagina-html">Pagina HTML nel lettore</h3>
+<p>Su un file <code>.html</code> o <code>.htm</code>, e su un indirizzo
+Internet già scaricato come pagina, <strong>Leggi documento</strong>
+apre il lettore dentro RTAD. A schermo e a voce:
+«Pagina: titolo. N intestazioni, M link. Passo 1 di 1.»</p>
+<ul>
+  <li>Invio su un’intestazione va a quel punto, qui.
+    Invio su un link della stessa pagina va a quel punto.
+    Invio su un link di un altro sito apre quella pagina, qui.</li>
+  <li><strong>Indietro</strong> e <strong>Avanti</strong> tornano
+    al punto di prima: un’altra intestazione della stessa pagina,
+    o un altro sito. Anche Alt+freccia sinistra e Alt+freccia destra.
+    Se non c’è un punto, la frase lo dice:
+    «Non c’è un punto precedente.»
+    «Non c’è un punto successivo.»</li>
+  <li><strong>Apri nel browser di Windows</strong> apre il link
+    selezionato nell’elenco Link.
+    Per un’intestazione, prima Invio nel lettore, poi lo stesso pulsante:
+    il browser si apre su quel punto.
+    Invio resta nel lettore.
+    Nel testo, un indirizzo https si attiva con Invio.
+    Maiusc+Tab dal testo seleziona quel link nell’elenco.
+    I tasti H e K di NVDA si usano in quel browser:
+    qui si usano gli elenchi Intestazioni e Link.</li>
+  <li>Senza intestazioni, la riga selezionata dice
+    «Nessuna intestazione in questa pagina.»
+    Senza link: «Nessun link in questa pagina.»</li>
+  <li>Word, EPUB e PDF restano sul lettore di prima:
+    sommario, link e salto nel testo.</li>
+</ul>
 <ul>
   <li>PDF con testo, Word, EPUB, HTML, testo, Excel <code>.xlsx</code>: ricerca nel contenuto.</li>
   <li><strong>Leggi documento…</strong> / lettore interno: cerca e titoli, dove supportato.</li>

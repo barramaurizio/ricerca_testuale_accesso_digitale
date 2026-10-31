@@ -1,8 +1,8 @@
 # Piano RTAD 1.9.0
 
-**Ultima pubblicata:** `1.8.9` — 29/10/2026. Non hotfixarla.  
-GitHub `v1.8.9` / `app-v1.8.9`, commit `bdc84ff`. DataStore #12598 chiuso via #12599, accettato.  
-**Questa versione:** numero `1.9.0` nel programma, novità scritte il 30/10. Non ancora pubblicata: gli exe li compila Maurizio.
+**Pubblicata** il 30/10/2026. Non hotfixarla.  
+GitHub `v1.9.0` / `app-v1.9.0`, commit `8365774`. DataStore #12641 chiuso via #12642, accettato.  
+Il pacchetto Add-on dello store è quello accettato. Gli exe della Standalone sono sulle release.
 
 ## Prima cosa: Gemini su ogni risultato
 
@@ -27,15 +27,19 @@ Anche, nello stesso codice: testi cercati e percorsi ricordati arrivano a 200, n
 
 Ctrl+Alt+V, se negli Appunti non c’è un file, prende il testo di un messaggio (almeno un messaggio vero, non due parole) e lo mette in elenco: «Messaggio incollato. È in elenco: … Da qui puoi fare altre operazioni.» Da lì, Chiedi a Gemini. Provato da Maurizio il 30/10: testo copiato da un messaggio, e un `.eml` salvato incollato senza aprirlo. Il trascinamento di un file, compreso un `.eml`, resta quello di prima. Se il file è un `.eml`, dopo la riga in elenco sia la Standalone sia l’Add-on chiedono: «Apri ora la lettura di questo documento?» Se sì, si apre il lettore. La prova col mouse la fa papà sull’Installer pubblicato.
 
-## Poi, non iniziati
+## Dopo, deciso il 30/10
 
-In quest’ordine, salvo la scelta sul lettore:
+`1.9.1`: nel lettore, un browser dentro RTAD per le pagine HTML. Vale un indirizzo Internet e un file `.html` già sul disco: è lo stesso formato. Segue i link (un’altra pagina o un `#` nella stessa) e le intestazioni, a schermo e a voce, con Indietro e «Apri nel browser di Windows» per i siti che chiedono l’accesso. Il lettore HTML di oggi toglie i tag e tiene titoli e paragrafi, e non segue i link.
+
+Word, EPUB e PDF restano sul lettore di oggi: sommario, elenco link, Invio che salta nel testo. Un link `http` esce già verso il browser di Windows. Non si sostituisce quel testo con una pagina web: NVDA lo legge meglio così. Lo stesso browser, più avanti e una cosa per versione, può mostrare un capitolo EPUB, il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat. Non un visualizzatore PDF. Non un secondo Edge (moduli, login, video).
+
+Una sola cosa, nella chat nuova. Il numero nel programma resta `1.9.0` finché non si scrivono le novità. Le guide, nei sorgenti dal 31/10, hanno già i procedimenti di FFmpeg, yt-dlp e crediti prepagati: escono con questa build, senza rifare la 1.9.0.
+
+Poi, una per versione, in quest’ordine:
 
 1. VIDEO_TS: un avviso chiaro su un DVD commerciale, anche quando ci arrivi con la ricerca. Niente copia del film. La frase di quando scegli la cartella c’è già dalla 1.7.6.
 2. OneCore: la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI.
 3. Export multipli: più di un formato nello stesso passaggio.
-
-Nel lettore, anche un browser dentro RTAD: seguire i link e le intestazioni. Ne abbiamo parlato il 28/10: il lettore HTML toglie i tag e tiene titoli e paragrafi, e non segue i link. Non è un browser. Non è deciso se questa entra prima delle tre qui sopra. Si sceglie quando la 1.9.0 è pubblicata.
 
 Più avanti, non in questa lista:
 

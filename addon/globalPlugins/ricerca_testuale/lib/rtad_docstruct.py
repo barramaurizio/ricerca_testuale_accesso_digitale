@@ -532,6 +532,211 @@ def extract_structure_from_epub(file_path: str) -> dict:
         return res
 
 
+_NAV_TOC_RE = re.compile(
+    r'(?is)<nav\b[^>]*\btype\s*=\s*["\'][^"\']*\btoc\b[^"\']*["\'][^>]*>(.*?)</nav>'
+)
+_NAV_A_RE = re.compile(r"(?is)<a\b([^>]*)>(.*?)</a>")
+_NAV_HREF_RE = re.compile(
+    r"""(?is)\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')"""
+)
+MSG_EPUB_NO_CHAPTER = "Questo EPUB non ha capitoli."
+MSG_EPUB_CHAPTER_MISS = "Questo capitolo non c'è nel libro."
+
+
+def _zip_norm(path: str) -> str:
+    parts = []
+    for piece in (path or "").replace("\\", "/").split("/"):
+        if piece in ("", "."):
+            continue
+        if piece == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(piece)
+    return "/".join(parts)
+
+
+def _resolve_member(base_member: str, href: str) -> tuple[str, str]:
+    """Percorso nel libro e punto #, a partire dal file che contiene il link."""
+    raw = unquote((href or "").replace("\\", "/").strip())
+    if not raw:
+        return "", ""
+    low = raw.lower()
+    if low.startswith(("http://", "https://", "mailto:", "javascript:", "data:")):
+        return "", ""
+    path, frag = (raw.split("#", 1) + [""])[:2]
+    frag = unquote(frag)
+    if not path:
+        member = (base_member or "").split("#", 1)[0]
+        return member, frag
+    path = path.lstrip("/")
+    directory = base_member.rsplit("/", 1)[0] if "/" in (base_member or "") else ""
+    full = f"{directory}/{path}" if directory else path
+    return _zip_norm(full), frag
+
+
+def _toc_from_nav(zf: zipfile.ZipFile, nav_path: str) -> list:
+    try:
+        raw = zf.read(nav_path).decode("utf-8", errors="ignore")
+    except Exception:
+        return []
+    found = _NAV_TOC_RE.search(raw)
+    if not found:
+        return []
+    items = []
+    for match in _NAV_A_RE.finditer(found.group(1)):
+        href_m = _NAV_HREF_RE.search(match.group(1) or "")
+        if not href_m:
+            continue
+        href = href_m.group(1) if href_m.group(1) is not None else href_m.group(2)
+        label = _strip_html_text(match.group(2))
+        member, frag = _resolve_member(nav_path, href or "")
+        if not label or not member:
+            continue
+        if not member.lower().endswith((".xhtml", ".html", ".htm", ".xml")):
+            continue
+        items.append(
+            {"level": 1, "title": label, "member": member, "fragment": frag}
+        )
+        if len(items) >= MAX_OUTLINE:
+            break
+    return items
+
+
+def _toc_from_ncx(zf: zipfile.ZipFile, ncx_path: str) -> tuple[str, list]:
+    title = ""
+    items = []
+    try:
+        root = ET.fromstring(zf.read(ncx_path))
+    except Exception:
+        return title, items
+
+    def walk(el, level: int):
+        for child in list(el):
+            if _local(child.tag) != "navPoint":
+                continue
+            label = ""
+            src = ""
+            for sub in child:
+                if _local(sub.tag) == "navLabel" and not label:
+                    label = "".join(sub.itertext()).strip()
+                if _local(sub.tag) == "content" and not src:
+                    src = (sub.attrib.get("src") or "").strip()
+            label = _strip_html_text(label)
+            member, frag = _resolve_member(ncx_path, src)
+            if label and member.lower().endswith((".xhtml", ".html", ".htm", ".xml")):
+                items.append(
+                    {
+                        "level": level,
+                        "title": label,
+                        "member": member,
+                        "fragment": frag,
+                    }
+                )
+            if len(items) < MAX_OUTLINE:
+                walk(child, level + 1)
+
+    for el in root.iter():
+        if _local(el.tag) == "docTitle" and not title:
+            title = _strip_html_text("".join(el.itertext()))
+        if _local(el.tag) == "navMap":
+            walk(el, 1)
+            break
+    return title, items
+
+
+def epub_book(file_path: str) -> dict:
+    """Sommario e primo capitolo. Non legge il testo di tutto il libro."""
+    res = {
+        "ok": False,
+        "message": "File non trovato.",
+        "title": "",
+        "start": "",
+        "toc": [],
+    }
+    try:
+        if not file_path or not os.path.isfile(file_path):
+            return res
+        try:
+            size = os.path.getsize(file_path)
+        except OSError:
+            size = 0
+        if size > MAX_EPUB_BYTES:
+            res["message"] = "EPUB troppo grande per l'analisi struttura."
+            return res
+        with zipfile.ZipFile(file_path, "r") as zf:
+            opf = _find_opf_path(zf)
+            if not opf:
+                res["message"] = "EPUB senza OPF leggibile."
+                return res
+            nav_path, ncx_path = _opf_nav_ncx_paths(zf, opf)
+            title = ""
+            toc = _toc_from_nav(zf, nav_path) if nav_path else []
+            if not toc and ncx_path:
+                title, toc = _toc_from_ncx(zf, ncx_path)
+            elif ncx_path and not title:
+                title, _ignored = _toc_from_ncx(zf, ncx_path)
+            hrefs = _opf_spine_hrefs(zf, opf)
+            start = ""
+            for href in hrefs:
+                if href.lower().endswith((".xhtml", ".html", ".htm", ".xml")):
+                    start = href
+                    break
+            if not start and toc:
+                start = toc[0].get("member") or ""
+            if not start:
+                res["message"] = MSG_EPUB_NO_CHAPTER
+                return res
+            if not title:
+                title = os.path.splitext(os.path.basename(file_path))[0]
+            res.update(
+                {
+                    "ok": True,
+                    "message": f"EPUB: {len(toc)} voci di sommario.",
+                    "title": title,
+                    "start": start,
+                    "toc": toc,
+                }
+            )
+            return res
+    except Exception as e:
+        logging.debug(f"epub_book: {e}")
+        res["message"] = f"Errore lettura EPUB: {e}"
+        return res
+
+
+def read_epub_chapter(file_path: str, member: str) -> tuple[str, str]:
+    """HTML di un capitolo. (testo, errore)."""
+    member = (member or "").replace("\\", "/").split("#", 1)[0]
+    if not file_path or not os.path.isfile(file_path):
+        return "", "File non trovato."
+    if not member:
+        return "", MSG_EPUB_CHAPTER_MISS
+    try:
+        size = os.path.getsize(file_path)
+    except OSError:
+        size = 0
+    if size > MAX_EPUB_BYTES:
+        return "", "EPUB troppo grande per l'analisi struttura."
+    try:
+        with zipfile.ZipFile(file_path, "r") as zf:
+            raw = _read_zip_member(zf, member)
+    except Exception as e:
+        logging.debug(f"read_epub_chapter: {e}")
+        return "", MSG_EPUB_CHAPTER_MISS
+    if not raw:
+        return "", MSG_EPUB_CHAPTER_MISS
+    if len(raw) > MAX_EPUB_CHAPTER_XML_BYTES:
+        raw = raw[:MAX_EPUB_CHAPTER_XML_BYTES]
+    if raw.startswith(b"\xef\xbb\xbf"):
+        text = raw.decode("utf-8-sig", errors="ignore")
+    else:
+        text = raw.decode("utf-8", errors="ignore")
+    if not text.strip():
+        return "", "La pagina è vuota."
+    return text, ""
+
+
 # Molti PDF (anche 1.4 linearizzati) usano solo \r come fine riga: (?m)^ non basta.
 _PDF_OBJ_RE = re.compile(br"(?:[\r\n]|^)(\d+)\s+(\d+)\s+obj\b")
 _PDF_STRING_AFTER = br"\s*(\((?:\\.|[^\\)])*\)|<([0-9A-Fa-f\s]+)>)"

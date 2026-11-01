@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.1)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.2)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,10 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.2
+
+- **Leggi documento** su un EPUB apre un capitolo nel lettore dentro RTAD. A schermo e a voce: «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.» Il sommario del libro è nella finestra: Invio apre quel capitolo, qui. Invio su un’intestazione va a quel punto, qui. Invio su un link interno resta nel libro. Indietro e Avanti tornano al capitolo di prima. Anche Alt+freccia sinistra e Alt+freccia destra. Un link http esce nel browser di Windows: «Apertura sito web esterno: titolo.» Senza intestazioni: «Nessuna intestazione in questa pagina.» Senza link: «Nessun link in questa pagina.» Senza sommario: «Nessuna voce di sommario.» Word e PDF restano sul lettore di prima.
 
 ### 🌟 Novità della Versione 1.9.1
 
@@ -306,6 +310,10 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.2
+
+- **Read document** on an EPUB opens one chapter in the reader inside RTAD. On screen and by voice: «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.» The book's table of contents is in the window: Enter opens that chapter, here. Enter on a heading goes to that point, here. Enter on an internal link stays in the book. Back and Forward return to the previous chapter. Also Alt+Left and Alt+Right. An http link leaves to the Windows browser: «Apertura sito web esterno: titolo.» With no headings: «Nessuna intestazione in questa pagina.» With no links: «Nessun link in questa pagina.» With no table of contents: «Nessuna voce di sommario.» Word and PDF stay on the reader they already have.
 
 ### 🌟 What's New in Version 1.9.1
 

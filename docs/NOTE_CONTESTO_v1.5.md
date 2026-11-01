@@ -3,7 +3,7 @@
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
 **Ultima pubblicata:** `1.9.0` — piano `docs/PIANO_1.9.0.md` (30/10/2026, GitHub `v1.9.0` / `app-v1.9.0`, commit `8365774`, DataStore #12641 chiuso via #12642, accettato). Non hotfixarla.  
-**In corso:** `1.9.1`. Leggi documento su una pagina HTML apre il lettore dentro RTAD: intestazioni, link, Indietro, «Apri nel browser di Windows». Word, EPUB e PDF restano sul lettore di prima. Piano: `docs/PIANO_1.9.1.md`. Poi: 1.9.2 capitolo EPUB, 1.9.3 e-mail HTML / feed / fonte chat, 1.9.4 link interno Word e struttura ODT, 1.9.5 VIDEO_TS (avviso, niente copia del film), 1.9.6 OneCore, 1.9.7 export multipli. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà.  
+**In corso:** `1.9.2`. Leggi documento su un EPUB apre un capitolo nella finestra della pagina HTML: sommario e link interni restano nel libro, un link http esce nel browser di Windows. La 1.9.1 (pagina HTML) è scritta e non è uscita da sola: entra in questa build. Piano: `docs/PIANO_1.9.2.md`. Poi: 1.9.3 e-mail HTML / feed / fonte chat, 1.9.4 link interno Word e struttura ODT, 1.9.5 VIDEO_TS (avviso, niente copia del film), 1.9.6 OneCore, 1.9.7 export multipli. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà.  
 **NVDA:** ultima versione testata sull’Add-on pubblicato: `2026.3.0` (`lastTestedNVDAVersion`).
 
 ## Sorgente
@@ -29,9 +29,9 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 - Verifica commit prima del push: `git --no-pager show --stat -1`
 
 ### Versione in corso
-`1.9.1`. Leggi documento su HTML apre il lettore dentro RTAD. Piano: `docs/PIANO_1.9.1.md`.
+`1.9.2`. Leggi documento su un EPUB apre un capitolo nella finestra della pagina HTML. Piano: `docs/PIANO_1.9.2.md`. La pagina HTML della 1.9.1 entra in questa build.
 
-Poi, una alla volta: 1.9.2 capitolo EPUB; 1.9.3 e-mail HTML, articolo di un feed, fonte della chat; 1.9.4 link interno di Word e titoli/link ODT; 1.9.5 VIDEO_TS (avviso, niente copia del film); 1.9.6 OneCore; 1.9.7 export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine.
+Poi, una alla volta: 1.9.3 e-mail HTML, articolo di un feed, fonte della chat; 1.9.4 link interno di Word e titoli/link ODT; 1.9.5 VIDEO_TS (avviso, niente copia del film); 1.9.6 OneCore; 1.9.7 export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB.
 
 La 1.9.0 resta com’è. «trascriv iamo» resta con lo spazio.
 
@@ -43,4 +43,4 @@ La 1.9.0 resta com’è. «trascriv iamo» resta con lo spazio.
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD. Ultima pubblicata 1.9.0 il 30/10/2026: GitHub v1.9.0 / app-v1.9.0, commit 8365774. DataStore #12641 chiuso via #12642, accettato. Non hotfixare la 1.9.0. «trascriv iamo» resta con lo spazio. La 1.9.1 è scritta il 31/10/2026 e non è ancora pubblicata: Leggi documento su una pagina HTML apre il lettore dentro RTAD. Word, EPUB e PDF restano sul lettore di prima. Nelle guide: FFmpeg, yt-dlp, crediti prepagati. Piano: docs/PIANO_1.9.1.md. Dopo la pubblicazione, la prossima è la 1.9.2: un capitolo EPUB nello stesso lettore. Poi 1.9.3 e-mail HTML, feed e fonte chat; 1.9.4 link interno Word e ODT; 1.9.5 VIDEO_TS; 1.9.6 OneCore; 1.9.7 export multipli. Il trascinamento del file .eml lo prova papà sull’Installer.»
+«RTAD. Ultima pubblicata 1.9.0 il 30/10/2026: GitHub v1.9.0 / app-v1.9.0, commit 8365774. DataStore #12641 chiuso via #12642, accettato. Non hotfixare la 1.9.0. «trascriv iamo» resta con lo spazio. In corso 1.9.2: Leggi documento su un EPUB apre un capitolo nella finestra della pagina HTML. Sommario e link interni restano nel libro. Un link http esce nel browser di Windows. La 1.9.1 non è uscita da sola ed entra in questa build. Piano: docs/PIANO_1.9.2.md. Poi 1.9.3 e-mail HTML, feed e fonte chat; 1.9.4 link interno Word e ODT; 1.9.5 VIDEO_TS; 1.9.6 OneCore; 1.9.7 export multipli. Il trascinamento del file .eml lo prova papà sull’Installer.»

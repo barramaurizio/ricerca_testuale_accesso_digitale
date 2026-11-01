@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.1"
+APP_VERSION = "1.9.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -9348,6 +9348,21 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
+            "• Leggi documento su un EPUB apre un capitolo nel lettore\n"
+            "  dentro RTAD. A schermo e a voce:\n"
+            "  «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»\n"
+            "  Il sommario del libro è nella finestra:\n"
+            "  Invio apre quel capitolo, qui.\n"
+            "  Invio su un'intestazione va a quel punto, qui.\n"
+            "  Invio su un link interno resta nel libro.\n"
+            "  Indietro e Avanti tornano al capitolo di prima.\n"
+            "  Anche Alt+freccia sinistra e Alt+freccia destra.\n"
+            "  Un link http esce nel browser di Windows:\n"
+            "  «Apertura sito web esterno: titolo.»\n"
+            "  Senza intestazioni: «Nessuna intestazione in questa pagina.»\n"
+            "  Senza link: «Nessun link in questa pagina.»\n"
+            "  Senza sommario: «Nessuna voce di sommario.»\n"
+            "  Word e PDF restano sul lettore di prima.\n"
             "• Leggi documento su una pagina HTML, o su un indirizzo\n"
             "  Internet già scaricato come pagina, apre il lettore\n"
             "  dentro RTAD. A schermo e a voce:\n"
@@ -9363,7 +9378,7 @@ class WhatsNewFrame(wx.Frame):
             "  il browser si apre su quel punto. Invio resta nel lettore.\n"
             "  Senza intestazioni: «Nessuna intestazione in questa pagina.»\n"
             "  Senza link: «Nessun link in questa pagina.»\n"
-            "  Word, EPUB e PDF restano sul lettore di prima.\n"
+            "  Word e PDF restano sul lettore di prima.\n"
             "• Nelle guide, il procedimento per FFmpeg (un file già\n"
             "  sul computer), per yt-dlp (un indirizzo Internet)\n"
             "  e per i crediti prepagati di Gemini.\n"
@@ -14335,6 +14350,19 @@ class SearchFrame(wx.Frame):
             page_url=page_url or "",
         )
 
+    def _show_epub_reader(self, file_path):
+        """Un capitolo EPUB nella stessa finestra della pagina HTML."""
+        if rtad_html_page is None:
+            rtad_speak("Lettore capitolo non disponibile.")
+            return
+        if not hasattr(self, "_doc_struct_frames") or self._doc_struct_frames is None:
+            self._doc_struct_frames = []
+        rtad_html_page.open_epub(
+            rtad_speak,
+            file_path,
+            keep=self._doc_struct_frames,
+        )
+
     def _offer_pdf_scan_describe(self, file_path, struct=None):
         """PDF senza testo ma con immagini: proponi Descrivi, altrimenti lettore."""
         name = os.path.basename(file_path) if file_path else "PDF"
@@ -14390,6 +14418,9 @@ class SearchFrame(wx.Frame):
             if ext in (".html", ".htm") and rtad_html_page is not None:
                 page_url = self._listed_source_url(file_path)
                 wx.CallAfter(self._show_html_browser, file_path, page_url)
+                return
+            if ext == ".epub" and rtad_html_page is not None:
+                wx.CallAfter(self._show_epub_reader, file_path)
                 return
             if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc", ".pdf"):
                 try:

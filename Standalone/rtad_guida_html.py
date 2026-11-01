@@ -119,7 +119,8 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       <a href="#ffmpeg">FFmpeg per un file già sul computer</a>
       e <a href="#ytdlp">yt-dlp per un indirizzo Internet</a>)</li>
     <li><a href="#documenti">Documenti, PDF, Excel, lettore</a>
-      (anche <a href="#pagina-html">pagina HTML nel lettore</a>)</li>
+      (anche <a href="#pagina-html">pagina HTML nel lettore</a>
+      e <a href="#capitolo-epub">capitolo EPUB nel lettore</a>)</li>
     <li><a href="#explorer">Menù contestuale di Esplora file (solo Standalone)</a></li>
     <li><a href="#cd-audio">CD audio, DVD e file .cda</a></li>
     <li><a href="#aggiornamenti">Aggiornamenti: Installer e Portable</a></li>
@@ -133,6 +134,20 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
+    <li><strong>Leggi documento</strong> su un EPUB apre un capitolo
+      nel lettore dentro RTAD. A schermo e a voce:
+      «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
+      Il sommario del libro è nella finestra: Invio apre quel capitolo, qui.
+      Invio su un’intestazione va a quel punto, qui.
+      Invio su un link interno resta nel libro.
+      Indietro e Avanti tornano al capitolo di prima.
+      Anche Alt+freccia sinistra e Alt+freccia destra.
+      Un link http esce nel browser di Windows:
+      «Apertura sito web esterno: titolo.»
+      Senza intestazioni: «Nessuna intestazione in questa pagina.»
+      Senza link: «Nessun link in questa pagina.»
+      Senza sommario: «Nessuna voce di sommario.»
+      Word e PDF restano sul lettore di prima.</li>
     <li><strong>Leggi documento</strong> su una pagina HTML, o su un
       indirizzo Internet già scaricato come pagina, apre il lettore
       dentro RTAD. A schermo e a voce:
@@ -148,7 +163,7 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       il browser si apre su quel punto. Invio resta nel lettore.
       Senza intestazioni: «Nessuna intestazione in questa pagina.»
       Senza link: «Nessun link in questa pagina.»
-      Word, EPUB e PDF restano sul lettore di prima.</li>
+      Word e PDF restano sul lettore di prima.</li>
     <li><strong>Nelle guide,</strong> il procedimento per FFmpeg
       (un file già sul computer), per yt-dlp (un indirizzo Internet)
       e per i crediti prepagati di Gemini.</li>
@@ -767,8 +782,27 @@ apre il lettore dentro RTAD. A schermo e a voce:
   <li>Senza intestazioni, la riga selezionata dice
     «Nessuna intestazione in questa pagina.»
     Senza link: «Nessun link in questa pagina.»</li>
-  <li>Word, EPUB e PDF restano sul lettore di prima:
+  <li>Word e PDF restano sul lettore di prima:
     sommario, link e salto nel testo.</li>
+</ul>
+<h3 id="capitolo-epub">Capitolo EPUB nel lettore</h3>
+<p>Su un file <code>.epub</code>, <strong>Leggi documento</strong>
+apre un capitolo nella stessa finestra. A schermo e a voce:
+«Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»</p>
+<ul>
+  <li>Il sommario del libro è nella finestra.
+    Invio apre quel capitolo, qui, sul punto indicato.</li>
+  <li>Invio su un’intestazione va a quel punto, qui.
+    Invio su un link interno resta nel libro.</li>
+  <li><strong>Indietro</strong> e <strong>Avanti</strong> tornano
+    al capitolo di prima. Anche Alt+freccia sinistra e Alt+freccia destra.</li>
+  <li>Un link http esce nel browser di Windows:
+    «Apertura sito web esterno: titolo.»</li>
+  <li>Senza sommario: «Nessuna voce di sommario.»
+    Senza intestazioni: «Nessuna intestazione in questa pagina.»
+    Senza link: «Nessun link in questa pagina.»</li>
+  <li>La ricerca di una frase nel libro resta quella di sempre.
+    Le figure restano nel file: questa versione legge il testo del capitolo.</li>
 </ul>
 <ul>
   <li>PDF con testo, Word, EPUB, HTML, testo, Excel <code>.xlsx</code>: ricerca nel contenuto.</li>

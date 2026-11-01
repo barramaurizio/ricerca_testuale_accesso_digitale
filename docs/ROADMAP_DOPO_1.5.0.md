@@ -193,8 +193,8 @@ Contenuto previsto `1.6.0`:
 34. ~~**`1.8.8`:** scheda video, glossario nel lettore, pagine HTML, indirizzo Internet in elenco.~~ **pubblicata** il 28/10/2026. Piano: `docs/PIANO_1.8.8.md`. GitHub `v1.8.8` / `app-v1.8.8`, commit `93faddb`. DataStore #12565 via #12566 accettato. Commit `ee28948`: finestra di benvenuto e guida HTML. Gli exe Standalone sulla release sono stati sostituiti. Il pacchetto Add-on dello store resta quello accettato.  
 35. ~~**`1.8.9`:** PDF DocuSign firmati e confronto tra più file.~~ **pubblicata** il 29/10/2026. Piano: `docs/PIANO_1.8.9.md`. GitHub `v1.8.9` / `app-v1.8.9`, commit `bdc84ff`. DataStore #12598 via #12599 accettato.  
 36. ~~**`1.9.0`:** Gemini su ogni risultato, elenco fino a 200, incolla di un messaggio.~~ **pubblicata** il 30/10/2026. Piano: `docs/PIANO_1.9.0.md`. GitHub `v1.9.0` / `app-v1.9.0`, commit `8365774`. DataStore #12641 via #12642 accettato.  
-37. **`1.9.1` in corso:** Leggi documento su una pagina HTML apre il lettore dentro RTAD (intestazioni, link, Indietro, browser di Windows). Word, EPUB e PDF restano sul lettore di prima. Nelle guide: FFmpeg, yt-dlp, crediti prepagati. Piano: `docs/PIANO_1.9.1.md`.
-38. **`1.9.2`:** un capitolo EPUB nello stesso lettore. I link interni restano nel libro.
+37. **`1.9.1` scritta, non pubblicata da sola:** Leggi documento su una pagina HTML apre il lettore dentro RTAD. Entra nella build 1.9.2. Piano: `docs/PIANO_1.9.1.md`.
+38. **`1.9.2` in corso:** un capitolo EPUB nello stesso lettore. I link interni restano nel libro. Un link http esce nel browser di Windows. Piano: `docs/PIANO_1.9.2.md`.
 39. **`1.9.3`:** la stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat.
 40. **`1.9.4`:** in Word, il link interno salta al titolo. In ODT arrivano titoli e link.
 41. **`1.9.5`:** VIDEO_TS, avviso su un DVD commerciale incontrato con la ricerca. Niente copia del film. Versione corta, di proposito.

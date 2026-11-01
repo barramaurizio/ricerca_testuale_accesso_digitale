@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Lettore di una pagina HTML: intestazioni, link, indietro.
+"""Lettore di una pagina HTML e di un capitolo EPUB.
 
 Una pagina Internet e un file .html locale sono lo stesso formato.
-Word, EPUB e PDF restano sul lettore dei documenti.
+Un capitolo EPUB usa la stessa finestra: il sommario e i link interni
+restano nel libro. Un link http esce nel browser di Windows.
+Word e PDF restano sul lettore dei documenti.
 """
 
 from __future__ import annotations
@@ -58,6 +60,15 @@ MSG_DOWNLOAD = "Impossibile scaricare la pagina."
 MSG_NOT_HTML = "Questo file non è una pagina HTML."
 MSG_NOT_FOUND = "File non trovato."
 MSG_EMPTY = "La pagina è vuota."
+MSG_CHAPTER = "Capitolo: {title}. {heads} intestazioni, {links} link."
+MSG_LOADING_CHAPTER = "Carico il capitolo: {name}. Attendere."
+MSG_LOADING_CHAPTER_ROW = "Carico il capitolo. Attendere."
+MSG_NO_TOC = "Nessuna voce di sommario."
+MSG_SITE = "Apertura sito web esterno: {title}."
+MSG_STAYS = "Questo link resta nel libro."
+MSG_POINT_STAYS = "Questo punto resta nel libro."
+MSG_HERE = "Sei già in questo capitolo."
+EPUB_MARK = "rtad-epub:"
 
 HINT = (
     "Tab: intestazioni, link e testo. "
@@ -71,6 +82,17 @@ HINT = (
     "Per un'intestazione, prima Invio qui, poi lo stesso pulsante: "
     "il browser si apre su quel punto. "
     "I tasti H e K di NVDA si usano in quel browser: qui si usano gli elenchi."
+)
+
+HINT_EPUB = (
+    "Tab: sommario, intestazioni, link e testo. "
+    "Invio sul sommario apre quel capitolo, qui. "
+    "Invio su un'intestazione o su un link interno resta nel libro. "
+    "Un link http esce nel browser di Windows. "
+    "Indietro e Avanti tornano al capitolo di prima, "
+    "anche con Alt+freccia sinistra e Alt+freccia destra. "
+    "Apri nel browser di Windows, su un link http, apre quel sito. "
+    "Su un capitolo o su un link interno resta nel libro."
 )
 
 _UA = (
@@ -200,7 +222,164 @@ def http_base_from_html(text: str) -> str:
     return ""
 
 
+def is_epub_source(source: str) -> bool:
+    root, _fragment = urllib.parse.urldefrag(source or "")
+    return root.startswith(EPUB_MARK)
+
+
+def epub_source(path: str, member: str, fragment: str = "") -> str:
+    path_q = urllib.parse.quote(os.path.abspath(path), safe=":/\\")
+    mem_q = urllib.parse.quote((member or "").replace("\\", "/"), safe="/")
+    src = f"{EPUB_MARK}{path_q}|{mem_q}"
+    if fragment:
+        src += "#" + urllib.parse.quote(fragment, safe="")
+    return src
+
+
+def parse_epub_source(source: str) -> tuple[str, str, str]:
+    root, fragment = urllib.parse.urldefrag(source or "")
+    fragment = urllib.parse.unquote(fragment or "")
+    rest = root[len(EPUB_MARK):] if root.startswith(EPUB_MARK) else ""
+    path_q, sep, mem_q = rest.partition("|")
+    if not sep:
+        return "", "", fragment
+    return urllib.parse.unquote(path_q), urllib.parse.unquote(mem_q), fragment
+
+
+def _zip_norm(path: str) -> str:
+    parts = []
+    for piece in (path or "").replace("\\", "/").split("/"):
+        if piece in ("", "."):
+            continue
+        if piece == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(piece)
+    return "/".join(parts)
+
+
+def _resolve_zip_href(member: str, href_path: str) -> str:
+    path = (href_path or "").replace("\\", "/").lstrip("/")
+    if not path:
+        return (member or "").split("#", 1)[0]
+    directory = member.rsplit("/", 1)[0] if "/" in (member or "") else ""
+    full = f"{directory}/{path}" if directory else path
+    return _zip_norm(full)
+
+
+def _chapter_html_file(member: str) -> bool:
+    return (member or "").lower().endswith((".xhtml", ".html", ".htm", ".xml"))
+
+
+def _classify_epub_href(base: str, href: str) -> dict:
+    raw = html_lib.unescape((href or "").strip())
+    low = raw.lower()
+    path, member, _fragment = parse_epub_source(base)
+    empty = {"kind": "skip", "target": "", "fragment": "", "href": raw}
+    if not raw or low.startswith(_SKIP_SCHEME):
+        return empty
+    if low.startswith("mailto:"):
+        return {"kind": "mailto", "target": raw, "fragment": "", "href": raw}
+    if low.startswith(("http://", "https://")):
+        absolute, fragment = urllib.parse.urldefrag(raw)
+        return {
+            "kind": "http",
+            "target": absolute,
+            "fragment": urllib.parse.unquote(fragment or ""),
+            "href": raw,
+        }
+    link, fragment = urllib.parse.urldefrag(raw)
+    fragment = urllib.parse.unquote(fragment or "")
+    link = urllib.parse.unquote(link or "")
+    if not link:
+        return {"kind": "anchor", "target": "", "fragment": fragment, "href": raw}
+    resolved = _resolve_zip_href(member, link)
+    if not _chapter_html_file(resolved):
+        return {"kind": "other", "target": "", "fragment": fragment, "href": raw}
+    if resolved == member:
+        return {"kind": "anchor", "target": "", "fragment": fragment, "href": raw}
+    return {
+        "kind": "epub",
+        "target": epub_source(path, resolved, fragment),
+        "fragment": fragment,
+        "href": raw,
+    }
+
+
+def _toc_title(toc: list, member: str, fragment: str) -> str:
+    fallback = ""
+    for item in toc or []:
+        if (item.get("member") or "") != member:
+            continue
+        title = (item.get("title") or "").strip()
+        if fragment and (item.get("fragment") or "") == fragment and title:
+            return title
+        if title and not fallback:
+            fallback = title
+    return fallback
+
+
+def _load_epub_page(source: str) -> tuple[dict, str]:
+    import rtad_docstruct as docstruct
+
+    path, member, fragment = parse_epub_source(source)
+    if not path or not member:
+        return {}, MSG_NOT_FOUND
+    book = docstruct.epub_book(path)
+    if not book.get("ok"):
+        return {}, book.get("message") or docstruct.MSG_EPUB_NO_CHAPTER
+    text, err = docstruct.read_epub_chapter(path, member)
+    if err:
+        return {}, err
+    base = epub_source(path, member)
+    page = build_page(text, base)
+    toc = list(book.get("toc") or [])
+    title = (page.get("title") or "").strip()
+    if title in ("", "Pagina"):
+        title = _toc_title(toc, member, fragment) or os.path.basename(member)
+    page["title"] = title
+    page["kind"] = "epub"
+    page["toc"] = toc
+    page["source"] = epub_source(path, member, fragment)
+    page["base"] = base
+    page["address"] = os.path.basename(path)
+    page["link_base"] = ""
+    page["message"] = MSG_CHAPTER.format(
+        title=title,
+        heads=len(page.get("headings") or []),
+        links=len(page.get("links") or []),
+    )
+    if fragment:
+        marker = ""
+        place_title = ""
+        occ = 1
+        for head in page.get("headings") or []:
+            if (head.get("anchor") or "") == fragment:
+                marker = head.get("marker") or ""
+                place_title = head.get("title") or fragment
+                occ = head.get("occ") or 1
+                break
+        if not marker:
+            marker = (page.get("anchors") or {}).get(fragment) or ""
+            place_title = fragment
+            for head in page.get("headings") or []:
+                if (head.get("marker") or "") == marker:
+                    place_title = head.get("title") or place_title
+                    occ = head.get("occ") or 1
+                    break
+        if marker:
+            page["place_marker"] = marker
+            page["place_title"] = place_title
+            page["place_occ"] = occ
+        else:
+            page["message"] = MSG_ANCHOR_MISS + " " + page["message"]
+    return page, ""
+
+
 def classify_href(base: str, href: str) -> dict:
+    if is_epub_source(base):
+        return _classify_epub_href(base, href)
     raw = html_lib.unescape((href or "").strip())
     low = raw.lower()
     if not raw or low.startswith(_SKIP_SCHEME):
@@ -246,6 +425,7 @@ def build_page(raw: str, base: str) -> dict:
     heading_level = 0
     heading_anchor = ""
     heading_href = ""
+    heading_ids: list[str] = []
     line_hrefs: list[str] = []
     skip_until = ""
     marker_occ: dict[str, int] = {}
@@ -275,6 +455,9 @@ def build_page(raw: str, base: str) -> dict:
                 }
             )
         remember(anchor, marker)
+        for extra in heading_ids:
+            remember(extra, marker)
+        heading_ids.clear()
 
     def remember(anchor: str, marker: str):
         if anchor and marker and not anchors.get(anchor):
@@ -334,6 +517,8 @@ def build_page(raw: str, base: str) -> dict:
             current.clear()
             if text:
                 add_heading(heading_level, text, heading_anchor, heading_href)
+            else:
+                heading_ids.clear()
             heading_level = 0
             heading_anchor = ""
             heading_href = ""
@@ -362,6 +547,7 @@ def build_page(raw: str, base: str) -> dict:
             heading_level = int(head.group(1))
             heading_anchor = _attr(tag, "id")
             heading_href = ""
+            heading_ids.clear()
             continue
         if not closing and name == "a":
             href = _attr(tag, "href")
@@ -369,7 +555,11 @@ def build_page(raw: str, base: str) -> dict:
                 heading_href = href
             elif href and not heading_level:
                 line_hrefs.append(href)
-        if not closing and not heading_level:
+        if heading_level and not closing:
+            inner = _attr(tag, "id") or (name == "a" and _attr(tag, "name"))
+            if inner and inner != heading_anchor and inner not in heading_ids:
+                heading_ids.append(inner)
+        elif not closing:
             anchor = _attr(tag, "id") or (name == "a" and _attr(tag, "name"))
             if anchor and anchor not in anchors and anchor not in pending_anchors:
                 pending_anchors.append(anchor)
@@ -508,6 +698,8 @@ def load_page(source: str, page_url: str = "") -> tuple[dict, str]:
     """
     source = (source or "").strip()
     page_url = (page_url or "").strip()
+    if is_epub_source(source):
+        return _load_epub_page(source)
     if _is_http(source):
         text, base, err = fetch_html(source)
     elif _is_file_url(source):
@@ -545,6 +737,19 @@ def load_page(source: str, page_url: str = "") -> tuple[dict, str]:
 
 def display_name(source: str) -> str:
     source = (source or "").strip()
+    if is_epub_source(source):
+        path, member, fragment = parse_epub_source(source)
+        try:
+            import rtad_docstruct as docstruct
+
+            book = docstruct.epub_book(path) if path else {}
+        except Exception:
+            book = {}
+        title = _toc_title(book.get("toc") or [], member, fragment)
+        if title:
+            return title[:80]
+        stem = os.path.splitext(os.path.basename(member))[0]
+        return stem or "capitolo"
     if _is_http(source):
         parsed = urllib.parse.urlparse(source)
         name = urllib.parse.unquote(os.path.basename(parsed.path or "") or "")
@@ -644,28 +849,46 @@ class HtmlBrowserFrame(wx.Frame):
         self.history: list[dict] = []
         self.index = -1
         self._last_list = "heads"
+        self._epub = is_epub_source(source)
         name = display_name(source)
+        kind = "capitolo" if self._epub else "pagina"
         super().__init__(
             parent,
-            title=f"Lettore pagina — {name}",
+            title=f"Lettore {kind} — {name}",
             size=(820, 720),
             style=wx.DEFAULT_FRAME_STYLE,
         )
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
-        self.lbl_status = wx.StaticText(panel, label=MSG_LOADING.format(name=name))
+        loading = MSG_LOADING_CHAPTER if self._epub else MSG_LOADING
+        self.lbl_status = wx.StaticText(panel, label=loading.format(name=name))
         self.lbl_status.SetName("Stato pagina")
         vbox.Add(self.lbl_status, 0, wx.ALL | wx.EXPAND, 8)
-        self.lbl_address = wx.StaticText(panel, label=source)
+        self.lbl_address = wx.StaticText(panel, label=name if self._epub else source)
         self.lbl_address.SetName("Indirizzo della pagina")
         vbox.Add(self.lbl_address, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
-        self.lbl_hint = wx.StaticText(panel, label=HINT)
+        self.lbl_hint = wx.StaticText(panel, label=HINT_EPUB if self._epub else HINT)
         vbox.Add(self.lbl_hint, 0, wx.ALL | wx.EXPAND, 8)
+
+        self.lst_toc = None
+        if self._epub:
+            vbox.Add(wx.StaticText(panel, label="&Sommario"), 0, wx.LEFT | wx.RIGHT, 8)
+            self.lst_toc = wx.ListBox(panel, style=wx.LB_SINGLE)
+            self.lst_toc.SetName("Sommario")
+            try:
+                self.lst_toc.SetMinSize((-1, 90))
+            except Exception:
+                pass
+            self.lst_toc.Append(MSG_LOADING_CHAPTER_ROW)
+            self.lst_toc.SetSelection(0)
+            vbox.Add(self.lst_toc, 0, wx.EXPAND | wx.ALL, 8)
+            self.lst_toc.Bind(wx.EVT_LISTBOX_DCLICK, self.on_toc)
+            self.lst_toc.Bind(wx.EVT_SET_FOCUS, lambda e: self._remember_list("toc", e))
 
         vbox.Add(wx.StaticText(panel, label="&Intestazioni"), 0, wx.LEFT | wx.RIGHT, 8)
         self.lst_heads = wx.ListBox(panel, style=wx.LB_SINGLE)
         self.lst_heads.SetName("Intestazioni")
-        self.lst_heads.Append(MSG_LOADING_ROW)
+        self.lst_heads.Append(MSG_LOADING_CHAPTER_ROW if self._epub else MSG_LOADING_ROW)
         self.lst_heads.SetSelection(0)
         vbox.Add(self.lst_heads, 0, wx.EXPAND | wx.ALL, 8)
         self.lst_heads.Bind(wx.EVT_LISTBOX_DCLICK, self.on_heading)
@@ -674,7 +897,7 @@ class HtmlBrowserFrame(wx.Frame):
         vbox.Add(wx.StaticText(panel, label="&Link"), 0, wx.LEFT | wx.RIGHT, 8)
         self.lst_links = wx.ListBox(panel, style=wx.LB_SINGLE)
         self.lst_links.SetName("Link")
-        self.lst_links.Append(MSG_LOADING_ROW)
+        self.lst_links.Append(MSG_LOADING_CHAPTER_ROW if self._epub else MSG_LOADING_ROW)
         self.lst_links.SetSelection(0)
         vbox.Add(self.lst_links, 0, wx.EXPAND | wx.ALL, 8)
         self.lst_links.Bind(wx.EVT_LISTBOX_DCLICK, self.on_link)
@@ -727,7 +950,7 @@ class HtmlBrowserFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self._set_nav_enabled()
         self.Show()
-        self._say(HINT, force_hint=True)
+        self._say(HINT_EPUB if self._epub else HINT, force_hint=True)
         self.load(source, push=True, page_url=page_url)
 
     def _on_close(self, event):
@@ -764,14 +987,18 @@ class HtmlBrowserFrame(wx.Frame):
             return self.history[self.index]
         return {}
 
+    def _window_kind(self) -> str:
+        return "capitolo" if self._epub else "pagina"
+
     def load(self, source: str, push: bool, page_url: str = ""):
         self._gen += 1
         gen = self._gen
         name = display_name(source)
-        self.SetTitle(f"Lettore pagina — {name}")
-        self._set_status(MSG_LOADING.format(name=name))
+        self.SetTitle(f"Lettore {self._window_kind()} — {name}")
+        loading = MSG_LOADING_CHAPTER if self._epub else MSG_LOADING
+        self._set_status(loading.format(name=name))
         self._fill_lists([], [], loading=True)
-        self._say(MSG_LOADING.format(name=name))
+        self._say(loading.format(name=name))
 
         def work():
             page, err = load_page(source, page_url=page_url)
@@ -807,12 +1034,36 @@ class HtmlBrowserFrame(wx.Frame):
         self._set_nav_enabled()
         self._say(err)
 
-    def _fill_lists(self, headings, links, loading=False):
+    def _link_dest(self, item: dict) -> str:
+        kind = item.get("kind") or ""
+        if kind == "epub":
+            return "nel libro"
+        if kind == "anchor":
+            return "in questo capitolo" if self._epub else (item.get("href") or "")
+        if kind in ("http", "file"):
+            return item.get("target") or item.get("href") or ""
+        return item.get("href") or ""
+
+    def _fill_lists(self, headings, links, loading=False, toc=None):
+        row = MSG_LOADING_CHAPTER_ROW if self._epub else MSG_LOADING_ROW
+        if self.lst_toc is not None:
+            self.lst_toc.Clear()
+            if loading:
+                self.lst_toc.Append(row)
+            elif toc:
+                for i, item in enumerate(toc, 1):
+                    level = int(item.get("level") or 1)
+                    indent = "  " * max(0, level - 1)
+                    self.lst_toc.Append(f"{i}. {indent}{item.get('title') or ''}")
+            else:
+                self.lst_toc.Append(MSG_NO_TOC)
+            if self.lst_toc.GetCount():
+                self.lst_toc.SetSelection(0)
         self.lst_heads.Clear()
         self.lst_links.Clear()
         if loading:
-            self.lst_heads.Append(MSG_LOADING_ROW)
-            self.lst_links.Append(MSG_LOADING_ROW)
+            self.lst_heads.Append(row)
+            self.lst_links.Append(row)
         else:
             if headings:
                 for i, item in enumerate(headings, 1):
@@ -823,10 +1074,9 @@ class HtmlBrowserFrame(wx.Frame):
                 self.lst_heads.Append(MSG_NO_HEAD)
             if links:
                 for i, item in enumerate(links, 1):
-                    dest = item.get("href") or ""
-                    if item.get("kind") in ("http", "file"):
-                        dest = item.get("target") or dest
-                    self.lst_links.Append(f"{i}. {item.get('text') or ''} -> {dest}")
+                    self.lst_links.Append(
+                        f"{i}. {item.get('text') or ''} -> {self._link_dest(item)}"
+                    )
             else:
                 self.lst_links.Append(MSG_NO_LINK)
         if self.lst_heads.GetCount():
@@ -834,9 +1084,26 @@ class HtmlBrowserFrame(wx.Frame):
         if self.lst_links.GetCount():
             self.lst_links.SetSelection(0)
 
+    def _select_toc(self, page: dict):
+        if self.lst_toc is None:
+            return
+        _path, member, fragment = parse_epub_source(page.get("source") or "")
+        toc = page.get("toc") or []
+        chosen = 0
+        for i, item in enumerate(toc):
+            if (item.get("member") or "") != member:
+                continue
+            chosen = i
+            if fragment and (item.get("fragment") or "") == fragment:
+                break
+            if not fragment:
+                break
+        if 0 <= chosen < self.lst_toc.GetCount():
+            self.lst_toc.SetSelection(chosen)
+
     def _render(self, page: dict):
-        title = page.get("title") or "Pagina"
-        self.SetTitle(f"Lettore pagina — {title}")
+        title = page.get("title") or ("Capitolo" if self._epub else "Pagina")
+        self.SetTitle(f"Lettore {self._window_kind()} — {title}")
         message = page.get("message") or MSG_READY.format(
             title=title,
             heads=len(page.get("headings") or []),
@@ -848,7 +1115,13 @@ class HtmlBrowserFrame(wx.Frame):
         message = message + " " + self._step_sentence()
         self._set_status(message)
         self.lbl_address.SetLabel(page.get("address") or page.get("base") or "")
-        self._fill_lists(page.get("headings") or [], page.get("links") or [])
+        self._fill_lists(
+            page.get("headings") or [],
+            page.get("links") or [],
+            toc=page.get("toc") or [],
+        )
+        if page.get("kind") == "epub":
+            self._select_toc(page)
         self.txt.SetValue(page.get("body") or MSG_NO_TEXT)
         self._set_nav_enabled()
         marker = page.get("place_marker") or ""
@@ -857,6 +1130,13 @@ class HtmlBrowserFrame(wx.Frame):
             self._jump_marker(
                 marker, point, announce=False, occ=page.get("place_occ") or 1
             )
+        elif (
+            self._epub
+            and self.lst_toc is not None
+            and self.index <= 0
+            and (page.get("toc") or [])
+        ):
+            self.lst_toc.SetFocus()
         elif page.get("headings"):
             self.lst_heads.SetFocus()
         else:
@@ -872,9 +1152,28 @@ class HtmlBrowserFrame(wx.Frame):
             return None
         return items[sel]
 
+    def on_toc(self, event=None):
+        if self.lst_toc is None:
+            return
+        label = self.lst_toc.GetStringSelection() or ""
+        if label in (MSG_LOADING_ROW, MSG_LOADING_CHAPTER_ROW, MSG_NO_TOC):
+            self._say(label)
+            return
+        page = self.current_page()
+        item = self._selected(self.lst_toc, page.get("toc") or [], MSG_NO_TOC)
+        if not item:
+            return
+        path, _member, _fragment = parse_epub_source(page.get("source") or page.get("base") or "")
+        member = item.get("member") or ""
+        if not path or not member:
+            self._set_status(MSG_NOT_FOUND)
+            self._say(MSG_NOT_FOUND)
+            return
+        self.load(epub_source(path, member, item.get("fragment") or ""), push=True)
+
     def on_heading(self, event=None):
         label = self.lst_heads.GetStringSelection() or ""
-        if label in (MSG_LOADING_ROW, MSG_NO_HEAD):
+        if label in (MSG_LOADING_ROW, MSG_LOADING_CHAPTER_ROW, MSG_NO_HEAD):
             self._say(label)
             return
         page = self.current_page()
@@ -937,14 +1236,28 @@ class HtmlBrowserFrame(wx.Frame):
         try:
             self.txt.ShowPosition(start)
             self.txt.SetSelection(start, end)
+            # Su Windows il cursore resta alla fine della selezione.
+            # Una nota lunga farebbe partire NVDA dalle ultime righe.
+            self.txt.SetInsertionPoint(start)
         except Exception:
             pass
+        wx.CallAfter(self._park_caret, start)
         if announce:
             self._say(MSG_HEADING.format(title=title or marker))
 
+    def _park_caret(self, start: int):
+        if not self._alive:
+            return
+        try:
+            self.txt.SetFocus()
+            self.txt.SetInsertionPoint(int(start))
+            self.txt.ShowPosition(int(start))
+        except Exception:
+            pass
+
     def on_link(self, event=None):
         label = self.lst_links.GetStringSelection() or ""
-        if label in (MSG_LOADING_ROW, MSG_NO_LINK):
+        if label in (MSG_LOADING_ROW, MSG_LOADING_CHAPTER_ROW, MSG_NO_LINK):
             self._say(label)
             return
         page = self.current_page()
@@ -988,7 +1301,7 @@ class HtmlBrowserFrame(wx.Frame):
         if sel == wx.NOT_FOUND or sel < 0 or sel >= len(items):
             return None
         label = ctrl.GetStringSelection() or ""
-        if label in (MSG_LOADING_ROW, MSG_NO_HEAD, MSG_NO_LINK):
+        if label in (MSG_LOADING_ROW, MSG_LOADING_CHAPTER_ROW, MSG_NO_HEAD, MSG_NO_LINK, MSG_NO_TOC):
             return None
         return items[sel]
 
@@ -1042,6 +1355,21 @@ class HtmlBrowserFrame(wx.Frame):
             return
         kind = item.get("kind") or ""
         page = self.current_page()
+        if kind == "epub":
+            target = item.get("target") or ""
+            if not is_epub_source(target):
+                self._set_status(MSG_STAYS)
+                self._say(MSG_STAYS)
+                return
+            self.load(target, push=True)
+            return
+        if kind == "http" and self._epub:
+            self._open_site(item.get("target") or "", item.get("text") or item.get("href") or "")
+            return
+        if kind == "anchor" and self._epub and not (item.get("fragment") or ""):
+            self._set_status(MSG_HERE)
+            self._say(MSG_HERE)
+            return
         if kind == "anchor":
             fragment = item.get("fragment") or ""
             anchors = page.get("anchors") or {}
@@ -1089,6 +1417,15 @@ class HtmlBrowserFrame(wx.Frame):
             return
         self._set_status(MSG_NOT_PAGE.format(href=item.get("href") or ""))
         self._say(MSG_NOT_PAGE.format(href=item.get("href") or ""))
+
+    def _open_site(self, target: str, title: str):
+        sentence = MSG_SITE.format(title=title or target)
+        if target and open_in_windows_browser(target):
+            self._set_status(sentence)
+            self._say(sentence)
+            return
+        self._set_status(MSG_EXTERNAL_FAIL)
+        self._say(MSG_EXTERNAL_FAIL)
 
     def _follow_text_url(self, url: str):
         page = self.current_page()
@@ -1143,7 +1480,35 @@ class HtmlBrowserFrame(wx.Frame):
                 return heading_open_address(head, base)
         return "", ""
 
+    def _epub_windows_target(self) -> tuple[str, str]:
+        page = self.current_page()
+        focus = self.FindFocus()
+        base = page.get("base") or ""
+        lists = (self.lst_heads, self.txt, self.lst_toc)
+        if focus is self.lst_links or (focus not in lists and self._last_list == "links"):
+            item = self._item_at(self.lst_links, page.get("links") or [])
+            if item and item.get("kind") == "http" and item.get("target"):
+                title = item.get("text") or item.get("href") or ""
+                return item.get("target") or "", MSG_SITE.format(title=title)
+            return "", MSG_STAYS
+        if focus is self.txt:
+            token = ""
+            try:
+                token = self._url_on_caret_line()
+            except Exception:
+                token = ""
+            if token.lower().startswith(("http://", "https://")):
+                info = classify_href(base, token)
+                if info.get("kind") == "http" and info.get("target"):
+                    return info.get("target") or "", MSG_SITE.format(title=token)
+            return "", MSG_POINT_STAYS
+        if focus is self.lst_heads or self._last_list == "heads":
+            return "", MSG_POINT_STAYS
+        return "", MSG_STAYS
+
     def _windows_target(self) -> tuple[str, str]:
+        if self._epub:
+            return self._epub_windows_target()
         page = self.current_page()
         base = (page.get("base") or page.get("address") or page.get("source") or "").strip()
         focus = self.FindFocus()
@@ -1206,6 +1571,9 @@ class HtmlBrowserFrame(wx.Frame):
             return
         if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
             focus = self.FindFocus()
+            if self.lst_toc is not None and focus is self.lst_toc:
+                self.on_toc()
+                return
             if focus is self.lst_heads:
                 self.on_heading()
                 return
@@ -1236,3 +1604,18 @@ def open_browser(speak, source, keep=None, page_url: str = ""):
 
         frame.Bind(wx.EVT_CLOSE, _cleanup)
     return frame
+
+
+def open_epub(speak, file_path, keep=None):
+    """Apre il primo capitolo di un EPUB nella stessa finestra della pagina HTML."""
+    import rtad_docstruct as docstruct
+
+    book = docstruct.epub_book(file_path)
+    if not book.get("ok") or not book.get("start"):
+        sentence = book.get("message") or docstruct.MSG_EPUB_NO_CHAPTER
+        try:
+            (speak or (lambda *_a, **_k: None))(sentence)
+        except Exception:
+            pass
+        return None
+    return open_browser(speak, epub_source(file_path, book["start"]), keep=keep)

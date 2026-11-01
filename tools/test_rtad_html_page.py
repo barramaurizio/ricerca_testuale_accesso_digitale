@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "Standalone"))
@@ -168,6 +169,109 @@ class HtmlPageTests(unittest.TestCase):
         self.assertTrue(argv)
         self.assertIn("file:///C:/guida.html#crediti", argv)
         self.assertTrue(os.path.isfile(argv[0]))
+
+
+def _write_sample_epub(path: str) -> None:
+    container = """<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>"""
+    opf = """<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+<manifest>
+<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>
+<item id="c2" href="c2.xhtml" media-type="application/xhtml+xml"/>
+</manifest>
+<spine>
+<itemref idref="c1"/>
+<itemref idref="c2"/>
+</spine>
+</package>"""
+    nav = """<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<body><nav epub:type="toc"><ol>
+<li><a href="c1.xhtml#ch01">Capitolo uno</a></li>
+<li><a href="c2.xhtml#ch02">Capitolo due</a></li>
+</ol></nav></body></html>"""
+    c1 = """<html><head><title>Capitolo uno</title></head><body>
+<h1 id="ch01">Uno</h1>
+<p>Testo del primo. <a href="#nota">La nota</a>
+<a href="c2.xhtml#ch02">Avanti</a>
+<a href="https://example.com/sito">Sul web</a>
+<a href="stile.css">Stile</a></p>
+<p id="nota">Testo della nota.</p>
+</body></html>"""
+    c2 = """<html><head><title>Capitolo due</title></head><body>
+<h1 id="ch02">Due</h1><p>Secondo capitolo.</p>
+</body></html>"""
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("mimetype", "application/epub+zip")
+        zf.writestr("META-INF/container.xml", container)
+        zf.writestr("OEBPS/content.opf", opf)
+        zf.writestr("OEBPS/nav.xhtml", nav)
+        zf.writestr("OEBPS/c1.xhtml", c1)
+        zf.writestr("OEBPS/c2.xhtml", c2)
+
+
+class EpubChapterTests(unittest.TestCase):
+    def test_chapter_toc_and_links(self):
+        import rtad_docstruct as ds
+
+        folder = tempfile.mkdtemp()
+        path = os.path.join(folder, "prova.epub")
+        _write_sample_epub(path)
+        book = ds.epub_book(path)
+        self.assertTrue(book["ok"])
+        self.assertEqual(book["start"], "OEBPS/c1.xhtml")
+        self.assertEqual([item["title"] for item in book["toc"]], ["Capitolo uno", "Capitolo due"])
+        page, err = hp.load_page(hp.epub_source(path, book["start"]))
+        self.assertEqual(err, "")
+        self.assertTrue(page["message"].startswith("Capitolo: Capitolo uno."))
+        self.assertIn("1 intestazioni, 4 link", page["message"])
+        kinds = {item["text"]: item["kind"] for item in page["links"]}
+        self.assertEqual(kinds["La nota"], "anchor")
+        self.assertEqual(kinds["Avanti"], "epub")
+        self.assertEqual(kinds["Sul web"], "http")
+        self.assertEqual(kinds["Stile"], "other")
+        jumped, err = hp.load_page(hp.epub_source(path, "OEBPS/c2.xhtml", "ch02"))
+        self.assertEqual(err, "")
+        self.assertEqual(jumped["place_marker"], "[H1] Due")
+        self.assertIn("Secondo capitolo.", jumped["body"])
+
+    def test_mark_inside_heading_is_that_heading(self):
+        page = hp.build_page(
+            '<h1 id="introduzione"><a id="fm01"></a>INTRODUZIONE</h1><p>Testo.</p>',
+            "https://example.com/cap.html",
+        )
+        self.assertEqual(page["anchors"].get("fm01"), "[H1] INTRODUZIONE")
+        self.assertEqual(page["anchors"].get("introduzione"), "[H1] INTRODUZIONE")
+
+    def test_carroll_book_if_present(self):
+        import rtad_docstruct as ds
+
+        path = r"I:\Libri\Sean Carroll - La fisica dei quanti.epub"
+        if not os.path.isfile(path):
+            return
+        book = ds.epub_book(path)
+        self.assertTrue(book["ok"], book.get("message"))
+        titles = [item["title"] for item in book["toc"]]
+        self.assertTrue(any("Funzioni" in title for title in titles))
+        chapter = next(item for item in book["toc"] if "Funzioni" in item["title"])
+        page, err = hp.load_page(
+            hp.epub_source(path, chapter["member"], chapter.get("fragment") or "")
+        )
+        self.assertEqual(err, "")
+        self.assertIn("Planck", page["body"])
+        self.assertTrue(page["message"].startswith("Capitolo:"))
+        internal = [item for item in page["links"] if item["kind"] in ("anchor", "epub")]
+        self.assertTrue(internal)
+        intro = next(item for item in book["toc"] if "Introduzione" in item["title"])
+        opened, err = hp.load_page(
+            hp.epub_source(path, intro["member"], intro.get("fragment") or "")
+        )
+        self.assertEqual(err, "")
+        self.assertNotIn("punto non c'è", opened["message"])
+        self.assertEqual(opened.get("place_marker"), "[H1] INTRODUZIONE")
 
 
 if __name__ == "__main__":

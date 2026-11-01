@@ -15,8 +15,23 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.1
+Novità recenti (in parole semplici) — versione 1.9.2
 ----------------------------------------------------
+• Leggi documento su un EPUB apre un capitolo nel lettore
+  dentro RTAD. A schermo e a voce:
+  «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
+  Il sommario del libro è nella finestra:
+  Invio apre quel capitolo, qui.
+  Invio su un'intestazione va a quel punto, qui.
+  Invio su un link interno resta nel libro.
+  Indietro e Avanti tornano al capitolo di prima.
+  Anche Alt+freccia sinistra e Alt+freccia destra.
+  Un link http esce nel browser di Windows:
+  «Apertura sito web esterno: titolo.»
+  Senza intestazioni: «Nessuna intestazione in questa pagina.»
+  Senza link: «Nessun link in questa pagina.»
+  Senza sommario: «Nessuna voce di sommario.»
+  Word e PDF restano sul lettore di prima.
 • Leggi documento su una pagina HTML, o su un indirizzo
   Internet già scaricato come pagina, apre il lettore
   dentro RTAD. A schermo e a voce:
@@ -32,7 +47,7 @@ Novità recenti (in parole semplici) — versione 1.9.1
   il browser si apre su quel punto. Invio resta nel lettore.
   Senza intestazioni: «Nessuna intestazione in questa pagina.»
   Senza link: «Nessun link in questa pagina.»
-  Word, EPUB e PDF restano sul lettore di prima.
+  Word e PDF restano sul lettore di prima.
 • Nelle guide, il procedimento per FFmpeg (un file già
   sul computer), per yt-dlp (un indirizzo Internet)
   e per i crediti prepagati di Gemini.
@@ -144,8 +159,9 @@ Novità recenti (in parole semplici) — versione 1.9.1
 • Sull'elenco, «Copia testo del documento» copia il libro intero:
   prima il sommario e i link, poi i capitoli.
   «Copia Testo pulito» e «Copia OCR completo» servono alle immagini,
-  non al libro. «Leggi documento (struttura e testo)» è la stessa
-  lettura che parte da Esplora file.
+  non al libro. «Leggi documento» su un EPUB apre un capitolo.
+  Su Word e PDF resta il lettore di prima.
+  È la stessa lettura che parte da Esplora file.
 • Se apri un file o una cartella da Esplora file, anche a programma
   chiuso, restano in elenco. A schermo e a voce:
   «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»

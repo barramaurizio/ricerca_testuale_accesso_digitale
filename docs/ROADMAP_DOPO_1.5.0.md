@@ -194,8 +194,8 @@ Contenuto previsto `1.6.0`:
 35. ~~**`1.8.9`:** PDF DocuSign firmati e confronto tra più file.~~ **pubblicata** il 29/10/2026. Piano: `docs/PIANO_1.8.9.md`. GitHub `v1.8.9` / `app-v1.8.9`, commit `bdc84ff`. DataStore #12598 via #12599 accettato.  
 36. ~~**`1.9.0`:** Gemini su ogni risultato, elenco fino a 200, incolla di un messaggio.~~ **pubblicata** il 30/10/2026. Piano: `docs/PIANO_1.9.0.md`. GitHub `v1.9.0` / `app-v1.9.0`, commit `8365774`. DataStore #12641 via #12642 accettato.  
 37. **`1.9.1` scritta, non pubblicata da sola:** Leggi documento su una pagina HTML apre il lettore dentro RTAD. Entra nella build 1.9.2. Piano: `docs/PIANO_1.9.1.md`.
-38. **`1.9.2` in corso:** un capitolo EPUB nello stesso lettore. I link interni restano nel libro. Un link http esce nel browser di Windows. Piano: `docs/PIANO_1.9.2.md`.
-39. **`1.9.3`:** la stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat.
+38. ~~**`1.9.2`:** un capitolo EPUB nello stesso lettore. I link interni restano nel libro. Un link http esce nel browser di Windows.~~ **pubblicata** l’1/11/2026. Piano: `docs/PIANO_1.9.2.md`. GitHub `v1.9.2` / `app-v1.9.2`, commit `d381367`. DataStore #12681 via #12682 accettato.
+39. **`1.9.3`:** la stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat. Se l’immagine viene da Internet, l’indirizzo diretto sta in scheda e in descrizione, e si può salvare il file. L’audio o il video già scaricato per l’analisi si può salvare. Ogni pagina passa da yt-dlp, anche `.m3u8` e `.mpd`. Codice scritto, in prova. Piano: `docs/PIANO_1.9.3.md`.
 40. **`1.9.4`:** in Word, il link interno salta al titolo. In ODT arrivano titoli e link.
 41. **`1.9.5`:** VIDEO_TS, avviso su un DVD commerciale incontrato con la ricerca. Niente copia del film. Versione corta, di proposito.
 42. **`1.9.6`:** OneCore, la voce di Windows nella Standalone.

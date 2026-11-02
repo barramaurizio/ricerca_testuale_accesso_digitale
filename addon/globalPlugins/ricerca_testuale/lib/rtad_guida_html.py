@@ -134,7 +134,32 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li><strong>Leggi documento</strong> su un EPUB apre un capitolo
+    <li>Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte
+      della chat si aprono nel lettore di pagina.
+      Invio o doppio clic su un'intestazione o su un link
+      della stessa pagina va a quel punto, qui.
+      Invio su Apri nel browser di Windows apre la pagina anche lì,
+      e un clic sullo stesso pulsante.
+      Word e PDF restano sul lettore di prima.</li>
+    <li>Se l'immagine viene da Internet, la scheda tecnica
+      e la descrizione avanzata dicono
+      «Indirizzo immagine: https://….».
+      Se la pagina è un altro indirizzo, anche «Pagina: https://….».
+      Solo un'area dello schermo:
+      «Immagine dallo schermo. Un indirizzo non c'è.»
+      Invio su Salva immagine, e un clic, tengono la copia.
+      A schermo e a voce il punto in cui il file è stato scritto.</li>
+    <li>Salva video, o Salva audio se è arrivata solo la traccia,
+      tiene il file già scaricato per l'analisi.
+      Se video e audio sono due tracce, salva entrambi.
+      Invio sul pulsante, e un clic.
+      A schermo e a voce il punto in cui il file è stato scritto.
+      Un link diretto scrive «Indirizzo file: https://….».
+      Su YouTube, X e le altre pagine l'indirizzo temporaneo
+      non si scrive. Ogni pagina passa da yt-dlp,
+      anche una playlist .m3u8 o .mpd.
+      Un contenuto protetto resta non scaricabile.</li>
+    <li><strong>Resta dalla 1.9.2 — Leggi documento</strong> su un EPUB apre un capitolo
       nel lettore dentro RTAD. A schermo e a voce:
       «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
       Il sommario del libro è nella finestra: Invio apre quel capitolo, qui.
@@ -185,15 +210,19 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       I venti già salvati restano: il ventunesimo si aggiunge
       quando cerchi o scegli un percorso nuovo.</li>
     <li><strong>Ctrl+Alt+V</strong>, se negli Appunti non c'è un file,
-      prende il testo di un messaggio e lo mette in elenco.
+      prende il testo di un messaggio, lo mette in elenco
+      e lo apre nel lettore di pagina.
       A schermo e a voce:
       «Messaggio incollato. È in elenco: titolo.
-      Da qui puoi fare altre operazioni.»
+      Si apre ora. Invio o doppio clic sulla riga lo riapre.»
       Da lì, Chiedi a Gemini.
       Un file .eml copiato o trascinato resta un file, come gli altri:
       «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
-      Poi chiede: «Apri ora la lettura di questo documento?»
-      Se sì, si apre il lettore.</li>
+      Poi chiede: «Apri ora questo messaggio nel lettore di pagina?»
+      Invio sul pulsante Sì, oppure un clic.
+      Se il messaggio non ha un corpo HTML resta il lettore della posta.
+      La stessa voce sta nel menu del tasto destro, o del tasto applicazioni:
+      «Apri nel lettore di pagina». Invio sulla voce, oppure un clic.</li>
     <li><strong>Resta dalla 1.8.9. Confronta file…:</strong> da due a dodici file, in Strumenti
       e nel menu del risultato. Confronta, senza chiave, mostra e dice
       solo le parti diverse, con il nome del file davanti.
@@ -321,16 +350,21 @@ Poi in Ricerca Testuale:</p>
 («Copia come percorso» / Ctrl+V nel campo). Se il file è immagine, audio/video
 o documento, può offrirti di aprirlo subito come con Sfoglia.</p>
 <p>Se negli Appunti c’è il testo di un messaggio, non un file,
-<strong>Ctrl+Alt+V</strong> lo mette in elenco. A schermo e a voce:
-«Messaggio incollato. È in elenco: titolo. Da qui puoi fare altre operazioni.»
+<strong>Ctrl+Alt+V</strong> lo mette in elenco e lo apre nel lettore di pagina.
+A schermo e a voce:
+«Messaggio incollato. È in elenco: titolo. Si apre ora. Invio o doppio clic sulla riga lo riapre.»
 Da lì puoi chiedere a Gemini. Un testo di due parole non basta: senti e leggi
 «Negli Appunti non c’è un file, un percorso o un messaggio.»</p>
 <p>Solo Standalone: puoi anche <strong>trascinare</strong> un file o una cartella
 sulla finestra del programma (stesso effetto). Dalla 1.7.6 il rilascio funziona
 in qualunque punto della finestra (non solo sul titolo).</p>
 <p>Se il file è un <strong>.eml</strong>, dopo la riga in elenco il programma chiede:
-«Apri ora la lettura di questo documento?» Se rispondi sì, si apre il lettore.
-Se rispondi no, la riga resta e da lì fai le altre operazioni.</p>
+«Apri ora questo messaggio nel lettore di pagina?» Invio sul pulsante Sì, oppure un clic.
+Se il messaggio ha un corpo HTML si apre nel lettore di pagina.
+Se non ce l’ha, resta il lettore della posta.
+Se rispondi no, la riga resta e da lì fai le altre operazioni.
+Nel menu del tasto destro, o del tasto applicazioni, la voce è
+«Apri nel lettore di pagina»: Invio sulla voce, oppure un clic.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="cd-audio">4.2 CD audio, DVD e file .cda</h2>
@@ -531,10 +565,16 @@ e Cronologia.</p>
 <p>La casella <strong>Consulta anche il web</strong> è accesa: puoi spegnerla.
 Quando è accesa, la risposta separa «Nel file» da «Approfondimento».</p>
 <div class="note">
-  <strong>Aprire un link.</strong> L’elenco Fonti e link non apre il browser
+  <strong>Aprire un link.</strong> L’elenco Fonti e link non apre la pagina
   con Invio né con il doppio clic. Per aprirne una: Tab fino al pulsante
-  <strong>Apri fonte</strong>, poi Invio. Alt+F fa lo stesso, anche se sei
-  sull’elenco. Finché non c’è un link, l’elenco dice
+  <strong>Apri fonte</strong>, poi Invio, oppure un clic sullo stesso pulsante.
+  Alt+F fa lo stesso, anche se sei sull’elenco.
+  La fonte si apre nel lettore di pagina.
+  Invio o doppio clic su un’intestazione o su un link della stessa pagina
+  va a quel punto, qui.
+  Invio su Apri nel browser di Windows apre la pagina anche lì,
+  e un clic sullo stesso pulsante.
+  Finché non c’è un link, l’elenco dice
   «Ancora nessuna fonte.»
 </div>
 <p>Se il file arriva da un indirizzo Internet, la conversazione resta

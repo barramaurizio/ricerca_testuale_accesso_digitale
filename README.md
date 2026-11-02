@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.3
+
+- Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte della chat si aprono nel lettore di pagina. Invio o doppio clic su un'intestazione o su un link della stessa pagina va a quel punto, qui. Invio su Apri nel browser di Windows apre la pagina anche lì, e un clic sullo stesso pulsante. Word e PDF restano sul lettore di prima.
+- Se l'immagine viene da Internet, la scheda tecnica e la descrizione avanzata dicono «Indirizzo immagine: https://….». Se la pagina è un altro indirizzo, anche «Pagina: https://….». Solo un'area dello schermo: «Immagine dallo schermo. Un indirizzo non c'è.» Invio su Salva immagine, e un clic, tengono la copia. A schermo e a voce il punto in cui il file è stato scritto.
+- Salva video, o Salva audio se è arrivata solo la traccia, tiene il file già scaricato per l'analisi. Se video e audio sono due tracce, salva entrambi. Invio sul pulsante, e un clic. A schermo e a voce il punto in cui il file è stato scritto. Un link diretto scrive «Indirizzo file: https://….». Su YouTube, X e le altre pagine l'indirizzo temporaneo non si scrive. Ogni pagina passa da yt-dlp, anche una playlist .m3u8 o .mpd. Un contenuto protetto resta non scaricabile.
 
 ### 🌟 Novità della Versione 1.9.2
 
@@ -310,6 +316,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.3
+
+- The HTML body of an email, a feed article and a chat source open in the page reader. Enter or a double click on a heading or on a link of the same page goes to that point, here. Enter on Open in the Windows browser opens the page there too, and a click on the same button. Word and PDF stay on the reader they already have.
+- If the image comes from the Internet, the technical sheet and the advanced description say «Indirizzo immagine: https://….». If the page is another address, also «Pagina: https://….». A screen area only: «Immagine dallo schermo. Un indirizzo non c'è.» Enter on Save image, and a click, keep the copy. On screen and by voice, the place where the file was written.
+- Save video, or Save audio if only the track arrived, keeps the file already downloaded for the analysis. If video and audio are two tracks, it saves both. Enter on the button, and a click. On screen and by voice, the place where the file was written. A direct link writes «Indirizzo file: https://….». On YouTube, X and the other pages the temporary address is not written. Every page goes through yt-dlp, including an .m3u8 or .mpd playlist. Protected content stays not downloadable.
 
 ### 🌟 What's New in Version 1.9.2
 

@@ -105,7 +105,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.2"
+APP_VERSION = "1.9.3"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -370,19 +370,32 @@ def write_pasted_message_file(text):
         return ""
     path = os.path.join(folder, "messaggio_incollato.eml")
     title = pasted_message_title(body).replace("\r", " ").replace("\n", " ")
-    head = "\n".join(body.split("\n")[:40])
-    if _MAIL_HEADER_RE.search(head):
+    if rtad_html_page is not None and rtad_html_page.looks_like_raw_mime_message(body):
         payload = body.replace("\n", "\r\n") + "\r\n"
     else:
-        payload = (
-            f"Subject: {title}\r\n"
-            "From: (incollato)\r\n"
-            "MIME-Version: 1.0\r\n"
-            "Content-Type: text/plain; charset=utf-8\r\n"
-            "\r\n"
-            + body.replace("\n", "\r\n")
-            + "\r\n"
-        )
+        html_body = ""
+        if rtad_html_page is not None:
+            html_body = rtad_html_page.html_page_from_copied_text(body, title)
+        if html_body:
+            payload = (
+                f"Subject: {title}\r\n"
+                "From: (incollato)\r\n"
+                "MIME-Version: 1.0\r\n"
+                "Content-Type: text/html; charset=utf-8\r\n"
+                "\r\n"
+                + html_body.replace("\n", "\r\n")
+                + "\r\n"
+            )
+        else:
+            payload = (
+                f"Subject: {title}\r\n"
+                "From: (incollato)\r\n"
+                "MIME-Version: 1.0\r\n"
+                "Content-Type: text/plain; charset=utf-8\r\n"
+                "\r\n"
+                + body.replace("\n", "\r\n")
+                + "\r\n"
+            )
     try:
         with open(path, "w", encoding="utf-8", newline="") as handle:
             handle.write(payload)
@@ -4750,6 +4763,30 @@ def load_last_media_report_dir():
     return p if p and os.path.isdir(p) else ""
 
 
+def load_last_keep_dir():
+    """Ultima cartella usata da Salva immagine, Salva audio o Salva video."""
+    data = _load_settings_dict()
+    p = str(data.get("last_keep_dir", "") or "").strip()
+    return p if p and os.path.isdir(p) else ""
+
+
+def save_last_keep_dir(path):
+    try:
+        if path and os.path.isfile(path):
+            d = os.path.dirname(os.path.abspath(path))
+        elif path and os.path.isdir(path):
+            d = os.path.abspath(path)
+        else:
+            return
+    except Exception:
+        return
+    if not d or not os.path.isdir(d) or _looks_like_temp_dir(d):
+        return
+    data = _load_settings_dict()
+    data["last_keep_dir"] = d
+    _save_settings_dict(data)
+
+
 def save_last_media_report_dir(path):
     try:
         if path and os.path.isfile(path):
@@ -6379,6 +6416,8 @@ class ImageInfoFrame(wx.Frame):
         action_label="",
         action_cb=None,
         after_close_cb=None,
+        image_url="",
+        page_url="",
     ):
         # Ignora parent: top-level indipendente (non si chiude col dialogo padre)
         super(ImageInfoFrame, self).__init__(
@@ -6389,6 +6428,8 @@ class ImageInfoFrame(wx.Frame):
         )
         self.image_path = image_path or ""
         self.source_path = source_path or ""
+        self.image_url = (image_url or "").strip()
+        self.page_url = (page_url or "").strip()
         self.body_text = wrap_report_text(body_text or "")
         self._action_cb = action_cb
         self._after_close_cb = after_close_cb
@@ -6417,6 +6458,7 @@ class ImageInfoFrame(wx.Frame):
         except Exception:
             pass
         vbox.Add(self.lbl_translate, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+        self._install_keep_file(panel, vbox)
 
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         btn_copy = wx.Button(panel, label="&Copia testo")
@@ -6461,6 +6503,237 @@ class ImageInfoFrame(wx.Frame):
         if src and (os.path.isfile(src) or os.path.isdir(src)):
             return src
         return (self.image_path or "").strip()
+
+    def _keep_file_kind(self):
+        path = self.image_path or ""
+        base = os.path.basename(path)
+        if not path or not os.path.isfile(path):
+            return ""
+        if base.startswith("rtad_media_"):
+            return "media"
+        if base.startswith(("rtad_web_", "rtad_cap_", "rtad_clip_")):
+            return "image"
+        return ""
+
+    def _keep_default_dir(self):
+        remembered = load_last_keep_dir()
+        if remembered:
+            return remembered
+        home = os.path.expanduser("~")
+        desk = os.path.join(home, "Desktop")
+        if os.path.isdir(desk):
+            return desk
+        return home
+
+    def _keep_names(self):
+        path = self.image_path or ""
+        kind = self._keep_file_kind()
+        ext = os.path.splitext(path)[1].lower()
+        if not ext:
+            ext = ".png" if kind == "image" else ".mp4"
+        audio_exts = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma"}
+        title = ""
+        companion = ""
+        is_audio = ext in audio_exts
+        if kind == "media" and rtad_media is not None:
+            try:
+                meta = rtad_media.read_media_source_meta(path)
+                title = (meta.get("title") or "").strip()
+            except Exception:
+                title = ""
+            try:
+                is_audio = rtad_media.media_kind(path) == "audio"
+            except Exception:
+                pass
+            try:
+                companion = rtad_media.media_companion_audio_path(path) or ""
+            except Exception:
+                companion = ""
+        if kind == "image":
+            label = "Salva &immagine…"
+            hint = "Invio, con Salva immagine attivo, e un clic salvano la copia."
+            stem = "immagine"
+            if rtad_ocr is not None:
+                try:
+                    stem = rtad_ocr.suggest_image_save_stem(
+                        getattr(self, "page_url", ""),
+                        getattr(self, "image_url", ""),
+                    ) or stem
+                except Exception:
+                    stem = "immagine"
+            if ext in (".webp", ".bmp", ".png"):
+                ext = ".jpg"
+        elif is_audio:
+            label = "Salva &audio…"
+            hint = "Invio, con Salva audio attivo, e un clic salvano la copia."
+            stem = "audio"
+        else:
+            label = "Salva &video…"
+            if companion:
+                hint = (
+                    "Invio, con Salva video attivo, e un clic salvano il video "
+                    "e la traccia audio accanto."
+                )
+            else:
+                hint = "Invio, con Salva video attivo, e un clic salvano la copia."
+            stem = "video"
+        if not title:
+            title = stem
+        title = re.sub(r'[<>:"/\\|?*\r\n]+', " ", title).strip() or stem
+        title = title[:80].rstrip(" .")
+        if not title.lower().endswith(ext):
+            title += ext
+        return label, hint, title, companion
+
+    def _install_keep_file(self, panel, vbox):
+        self.lbl_keep_hint = None
+        self.lbl_keep_result = wx.StaticText(panel, label="")
+        try:
+            self.lbl_keep_result.SetName("Esito salvataggio")
+        except Exception:
+            pass
+        if not self._keep_file_kind():
+            vbox.Add(self.lbl_keep_result, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+            return
+        _label, hint, _name, _companion = self._keep_names()
+        self.lbl_keep_hint = wx.StaticText(panel, label=hint)
+        try:
+            self.lbl_keep_hint.SetName("Come salvare il file")
+        except Exception:
+            pass
+        vbox.Add(self.lbl_keep_hint, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        vbox.Add(self.lbl_keep_result, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+        btn = wx.Button(panel, label=_label)
+        btn.Bind(wx.EVT_BUTTON, self.on_keep_file)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(btn, 0, wx.ALL, 5)
+        vbox.Add(row, 0, wx.ALIGN_CENTER)
+
+    def _say_keep(self, sentence):
+        try:
+            self.lbl_keep_result.SetLabel(sentence)
+            self.lbl_keep_result.Wrap(680)
+        except Exception:
+            pass
+        speak_accessible(sentence)
+
+    def _keep_save_wildcard(self, ext):
+        """Il tipo del file, come gli altri salvataggi. Tutti i file resta la seconda voce."""
+        ext = (ext or "").lower()
+        labels = {
+            ".mp4": "Video MP4",
+            ".mkv": "Video MKV",
+            ".webm": "Video WebM",
+            ".mov": "Video MOV",
+            ".m4v": "Video M4V",
+            ".mp3": "Audio MP3",
+            ".m4a": "Audio M4A",
+            ".aac": "Audio AAC",
+            ".flac": "Audio FLAC",
+            ".ogg": "Audio OGG",
+            ".opus": "Audio Opus",
+            ".wav": "Audio WAV",
+            ".wma": "Audio WMA",
+            ".png": "Immagine PNG",
+            ".jpg": "Immagine JPEG",
+            ".jpeg": "Immagine JPEG",
+            ".gif": "Immagine GIF",
+            ".webp": "Immagine WebP",
+            ".bmp": "Immagine BMP",
+            ".tif": "Immagine TIFF",
+            ".tiff": "Immagine TIFF",
+        }
+        if ext in (".jpg", ".jpeg"):
+            return "Immagine JPEG (*.jpg;*.jpeg)|*.jpg;*.jpeg|Tutti i file (*.*)|*.*"
+        if ext in (".tif", ".tiff"):
+            return "Immagine TIFF (*.tif;*.tiff)|*.tif;*.tiff|Tutti i file (*.*)|*.*"
+        label = labels.get(ext)
+        if not label or not ext:
+            return "Tutti i file (*.*)|*.*"
+        pat = "*" + ext
+        return f"{label} ({pat})|{pat}|Tutti i file (*.*)|*.*"
+
+    def on_keep_file(self, event=None):
+        path = self.image_path or ""
+        kind = self._keep_file_kind()
+        if not kind or not os.path.isfile(path):
+            self._say_keep("Il file temporaneo non c'è più.")
+            return
+        label, _hint, name, companion = self._keep_names()
+        ext = os.path.splitext(name)[1].lower()
+        dlg = wx.FileDialog(
+            self,
+            label.replace("&", "").replace("…", ""),
+            defaultDir=self._keep_default_dir(),
+            defaultFile=name,
+            wildcard=self._keep_save_wildcard(ext),
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                self._say_keep("Salvataggio annullato.")
+                return
+            dest = dlg.GetPath()
+        finally:
+            dlg.Destroy()
+        if ext and not os.path.splitext(dest)[1]:
+            dest += ext
+        src_ext = os.path.splitext(path)[1].lower()
+        dest_ext = os.path.splitext(dest)[1].lower()
+        jpeg_failed = False
+        try:
+            wrote_jpeg = False
+            if (
+                kind == "image"
+                and src_ext in (".webp", ".bmp", ".png")
+                and dest_ext in (".jpg", ".jpeg")
+                and rtad_ocr is not None
+            ):
+                wrote_jpeg = bool(rtad_ocr.save_image_as_jpeg(path, dest))
+            if not wrote_jpeg:
+                if (
+                    kind == "image"
+                    and src_ext in (".webp", ".bmp", ".png")
+                    and dest_ext in (".jpg", ".jpeg")
+                ):
+                    dest = os.path.splitext(dest)[0] + (src_ext or ".webp")
+                    jpeg_failed = True
+                shutil.copy2(path, dest)
+        except Exception as exc:
+            logging.warning(f"Salvataggio copia: {exc}")
+            self._say_keep("Impossibile salvare il file.")
+            return
+        save_last_keep_dir(dest)
+        if kind == "image":
+            self._kept_image_dest = dest
+        audio_dest = ""
+        if companion and os.path.isfile(companion):
+            base, _ext = os.path.splitext(dest)
+            aext = os.path.splitext(companion)[1] or ".m4a"
+            audio_dest = base + "_audio" + aext
+            try:
+                shutil.copy2(companion, audio_dest)
+            except Exception as exc:
+                logging.warning(f"Salvataggio traccia audio: {exc}")
+                self._say_keep(
+                    f"Video salvato in {dest}. La traccia audio non è stata salvata."
+                )
+                return
+        if audio_dest:
+            self._say_keep(f"Video salvato in {dest}. Audio salvato in {audio_dest}.")
+            return
+        if kind == "image":
+            if jpeg_failed:
+                self._say_keep(
+                    f"Immagine salvata in {dest}. Il JPEG non è riuscito, resta il file originale."
+                )
+            else:
+                self._say_keep(f"Immagine salvata in {dest}.")
+            return
+        if "audio" in label.lower():
+            self._say_keep(f"Audio salvato in {dest}.")
+            return
+        self._say_keep(f"Video salvato in {dest}.")
 
     def _on_action(self, event=None):
         # Evita un secondo hub alla chiusura se già aperto da questo pulsante
@@ -6528,10 +6801,48 @@ class ImageInfoFrame(wx.Frame):
         else:
             speak_accessible("Impossibile aprire gli appunti.")
 
+    def _image_text_save_target(self):
+        """Cartella e nome del testo, uguali a quelli dell'immagine salvata."""
+        if self._keep_file_kind() != "image":
+            return "", ""
+        kept = getattr(self, "_kept_image_dest", "") or ""
+        if kept and os.path.isdir(os.path.dirname(kept)):
+            folder = os.path.dirname(kept)
+            stem = os.path.splitext(os.path.basename(kept))[0]
+        else:
+            folder = self._keep_default_dir()
+            _label, _hint, name, _companion = self._keep_names()
+            stem = os.path.splitext(name)[0]
+        stem = _safe_filename_stem(stem, fallback="immagine")
+        return folder, stem
+
     def on_save_text(self, event=None):
         text = self.txt_display.GetValue() or ""
         if not text.strip():
             speak_accessible("Niente da salvare.")
+            return
+        image_dir, image_stem = self._image_text_save_target()
+        if image_dir and image_stem:
+            dlg = wx.FileDialog(
+                self,
+                "Salva testo report",
+                defaultDir=image_dir,
+                defaultFile=f"{image_stem}.rtad.txt",
+                wildcard="Testo (*.txt)|*.txt|Tutti i file (*.*)|*.*",
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+            )
+            try:
+                if dlg.ShowModal() != wx.ID_OK:
+                    return
+                path = dlg.GetPath()
+            finally:
+                dlg.Destroy()
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(text)
+                self._say_keep(f"Testo salvato in {path}.")
+            except Exception as e:
+                speak_accessible(f"Salvataggio non riuscito: {e}")
             return
         ref = self._save_ref_path()
         stem = report_save_stem_for_path(ref)
@@ -7419,12 +7730,23 @@ class GeminiChatFrame(wx.Frame):
         if not url:
             speak_accessible("Questo link non ha un indirizzo.")
             return
+        if url.lower().startswith(("http://", "https://")) and rtad_html_page is not None:
+            if not hasattr(self, "_page_frames") or self._page_frames is None:
+                self._page_frames = []
+            rtad_html_page.open_browser(
+                speak_accessible, url, keep=self._page_frames
+            )
+            self.lbl_status.SetLabel(rtad_html_page.MSG_CHAT_PAGE)
+            speak_accessible(rtad_html_page.MSG_CHAT_PAGE)
+            return
         try:
             webbrowser.open(url)
         except Exception as exc:
             speak_accessible(f"Impossibile aprire il browser: {exc}")
             return
-        speak_accessible(f"Apro nel browser: {rtad_chat.link_label(item)}")
+        sentence = f"Apro nel browser: {rtad_chat.link_label(item)}"
+        self.lbl_status.SetLabel(sentence)
+        speak_accessible(sentence)
 
     def _set_busy(self, busy):
         self._busy = busy
@@ -9087,7 +9409,32 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Leggi documento su un EPUB apre un capitolo nel lettore\n"
+            "• Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte\n"
+            "  della chat si aprono nel lettore di pagina.\n"
+            "  Invio o doppio clic su un'intestazione o su un link\n"
+            "  della stessa pagina va a quel punto, qui.\n"
+            "  Invio su Apri nel browser di Windows apre la pagina anche lì,\n"
+            "  e un clic sullo stesso pulsante.\n"
+            "  Word e PDF restano sul lettore di prima.\n"
+            "• Se l'immagine viene da Internet, la scheda tecnica\n"
+            "  e la descrizione avanzata dicono\n"
+            "  «Indirizzo immagine: https://….».\n"
+            "  Se la pagina è un altro indirizzo, anche «Pagina: https://….».\n"
+            "  Solo un'area dello schermo:\n"
+            "  «Immagine dallo schermo. Un indirizzo non c'è.»\n"
+            "  Invio su Salva immagine, e un clic, tengono la copia.\n"
+            "  A schermo e a voce il punto in cui il file è stato scritto.\n"
+            "• Salva video, o Salva audio se è arrivata solo la traccia,\n"
+            "  tiene il file già scaricato per l'analisi.\n"
+            "  Se video e audio sono due tracce, salva entrambi.\n"
+            "  Invio sul pulsante, e un clic.\n"
+            "  A schermo e a voce il punto in cui il file è stato scritto.\n"
+            "  Un link diretto scrive «Indirizzo file: https://….».\n"
+            "  Su YouTube, X e le altre pagine l'indirizzo temporaneo\n"
+            "  non si scrive. Ogni pagina passa da yt-dlp,\n"
+            "  anche una playlist .m3u8 o .mpd.\n"
+            "  Un contenuto protetto resta non scaricabile.\n"
+            "• Resta dalla 1.9.2: Leggi documento su un EPUB apre un capitolo nel lettore\n"
             "  dentro RTAD. A schermo e a voce:\n"
             "  «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»\n"
             "  Il sommario del libro è nella finestra:\n"
@@ -9139,15 +9486,19 @@ class WhatsNewFrame(wx.Frame):
             "  I venti già salvati restano: il ventunesimo si aggiunge\n"
             "  quando cerchi o scegli un percorso nuovo.\n"
             "• Ctrl+Alt+V, se negli Appunti non c'è un file,\n"
-            "  prende il testo di un messaggio e lo mette in elenco.\n"
+            "  prende il testo di un messaggio, lo mette in elenco\n"
+            "  e lo apre nel lettore di pagina.\n"
             "  A schermo e a voce:\n"
             "  «Messaggio incollato. È in elenco: titolo.\n"
-            "  Da qui puoi fare altre operazioni.»\n"
+            "  Si apre ora. Invio o doppio clic sulla riga lo riapre.»\n"
             "  Da lì, Chiedi a Gemini.\n"
             "  Un file .eml copiato o trascinato resta un file, come gli altri:\n"
             "  «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»\n"
-            "  Poi chiede: «Apri ora la lettura di questo documento?»\n"
-            "  Se sì, si apre il lettore.\n"
+            "  Poi chiede: «Apri ora questo messaggio nel lettore di pagina?»\n"
+            "  Invio sul pulsante Sì, oppure un clic.\n"
+            "  Se non ha un corpo HTML resta il lettore della posta.\n"
+            "  Nel menu del tasto destro, o del tasto applicazioni:\n"
+            "  «Apri nel lettore di pagina». Invio sulla voce, oppure un clic.\n"
             "• Resta dalla 1.8.9: Confronta file… e i PDF firmati\n"
             "  con DocuSign. «trascriv iamo» resta con lo spazio.\n"
             "• Resta dalla 1.8.8: scheda video, glossario nel lettore,\n"
@@ -9773,13 +10124,14 @@ class MainWindow(wx.Frame):
             self.lst_results.SetFocus()
         msg = (
             f"Messaggio incollato. È in elenco: {title}. "
-            "Da qui puoi fare altre operazioni."
+            "Si apre ora. Invio o doppio clic sulla riga lo riapre."
         )
         try:
             self.txt_status_progress.SetValue(msg)
         except Exception:
             pass
         speak_accessible(msg)
+        self._open_message_html_or_viewer(path, None, "", "", "[EML]")
         return True
 
     def _init_menu_bar(self):
@@ -11653,7 +12005,9 @@ class MainWindow(wx.Frame):
             return True
         msg = (
             f"L'indirizzo è in elenco: {name}. "
-            "Da qui puoi fare altre operazioni."
+            "Nel menu del tasto destro, o del tasto applicazioni: "
+            "Audio/video da questo URL, Descrivi immagine da questo URL, "
+            "Apri nel lettore di pagina. Invio sulla voce, oppure un clic."
         )
         try:
             self.txt_status_progress.SetValue(msg)
@@ -11765,7 +12119,12 @@ class MainWindow(wx.Frame):
         elif ext in SHELL_DOCUMENT_EXTS:
             offer = ("open-doc", "Apri ora questo documento in Ricerca Testuale?")
         elif ext == ".eml":
-            offer = ("read-eml", "Apri ora la lettura di questo documento?")
+            offer = (
+                "read-eml",
+                "Apri ora questo messaggio nel lettore di pagina? "
+                "Se non ha un corpo HTML resta il lettore della posta. "
+                "Invio sul pulsante Sì, oppure un clic.",
+            )
         if not offer:
             return
         action, ask = offer
@@ -11775,7 +12134,9 @@ class MainWindow(wx.Frame):
         if dlg.ShowModal() == wx.ID_YES:
             dlg.Destroy()
             if action == "read-eml":
-                self.read_document_file(selected_path)
+                self._open_message_html_or_viewer(
+                    selected_path, None, "", "", "[EML]"
+                )
             else:
                 _dispatch_cli_action(
                     self, action, selected_path, None, selected_path, delay_ms=200
@@ -13858,6 +14219,38 @@ class MainWindow(wx.Frame):
         if sel != wx.NOT_FOUND and sel in self.file_map:
             item = self.file_map[sel]
             file_to_open = item["file_path"]
+            line_num = item.get("line_number")
+            prefix_open = item.get("prefix") or ""
+            if prefix_open in ("[RSS]", "[FEED]"):
+                url = item.get("article_url") or file_to_open
+                if url and (
+                    str(url).startswith("http://") or str(url).startswith("https://")
+                ):
+                    sentence = (
+                        rtad_html_page.MSG_FEED_PAGE
+                        if rtad_html_page is not None
+                        else "Pagina aperta nel browser di Windows."
+                    )
+                    self._open_http_page(url, sentence)
+                    return
+                if prefix_open == "[FEED]":
+                    if line_num is not None and isinstance(line_num, int) and line_num >= 0:
+                        self._open_message_html_or_viewer(
+                            file_to_open,
+                            line_num,
+                            self.current_query,
+                            item.get("viewer_text"),
+                            "[MBOX]",
+                        )
+                        return
+                    if line_num:
+                        speak_accessible(
+                            f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}"
+                        )
+                        jump_to_line_in_editor(file_to_open, line_num)
+                        return
+                speak_accessible("Collegamento articolo non disponibile.")
+                return
             if item.get("internet_url") or str(file_to_open).lower().startswith(
                 ("http://", "https://")
             ):
@@ -13891,38 +14284,6 @@ class MainWindow(wx.Frame):
                     speak_accessible("Riga non disponibile.")
                 return
 
-            if item.get("prefix") in ("[RSS]", "[FEED]"):
-                url = item.get("article_url") or file_to_open
-                if url and (str(url).startswith("http://") or str(url).startswith("https://")):
-                    speak_accessible(
-                        "Apertura articolo nel browser. "
-                        "Se compare un banner sui cookie, accettarlo per leggere la notizia."
-                    )
-                    webbrowser.open(url)
-                    return
-                if item.get("prefix") == "[FEED]":
-                    # fallback: editor or mbox viewer
-                    if line_num is not None and isinstance(line_num, int) and line_num >= 0:
-                        try:
-                            viewer = MboxViewerFrame(
-                                self,
-                                file_to_open,
-                                line_num,
-                                self.current_query,
-                                cached_text=item.get("viewer_text"),
-                            )
-                            viewer.Show()
-                            speak_accessible("Apertura articolo feed nel lettore interno")
-                            return
-                        except Exception:
-                            pass
-                    if line_num:
-                        speak_accessible(f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}")
-                        jump_to_line_in_editor(file_to_open, line_num)
-                        return
-                speak_accessible("Collegamento articolo non disponibile.")
-                return
-
             if item.get("prefix") == "[MBOX]":
                 att_path = item.get("attachment_export_path") or ""
                 if att_path and os.path.isfile(att_path):
@@ -13934,15 +14295,13 @@ class MainWindow(wx.Frame):
                         logging.error(f"Errore apertura allegato PDF {att_path}: {e}")
                         speak_accessible("Errore apertura allegato PDF.")
                     return
-                speak_accessible(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
-                viewer = MboxViewerFrame(
-                    self,
+                self._open_message_html_or_viewer(
                     file_to_open,
                     line_num,
                     self.current_query,
-                    cached_text=item.get("viewer_text"),
+                    item.get("viewer_text"),
+                    "[MBOX]",
                 )
-                viewer.Show()
                 return
 
             if ext == ".eml" and item.get("attachment_export_path"):
@@ -13973,9 +14332,13 @@ class MainWindow(wx.Frame):
                 open_excel_at_row(file_to_open, row_n, sheet)
                 return
             if ext == ".eml":
-                speak_accessible(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
-                viewer = EmlViewerFrame(self, file_to_open, self.current_query)
-                viewer.Show()
+                self._open_message_html_or_viewer(
+                    file_to_open,
+                    None,
+                    self.current_query,
+                    "",
+                    "[EML]",
+                )
                 return
 
             # Report media: con glossario attivo corregge il .rtad.txt prima di aprirlo
@@ -14036,12 +14399,48 @@ class MainWindow(wx.Frame):
             speak_accessible("Scaricamento in corso, attendere.")
             return
         file_path = item_data["file_path"]
-        if item_data.get("internet_url") or str(file_path).lower().startswith(
-            ("http://", "https://")
+        prefix_menu = str(item_data.get("prefix") or "")
+        if prefix_menu not in ("[RSS]", "[FEED]") and (
+            item_data.get("internet_url")
+            or str(file_path).lower().startswith(("http://", "https://"))
         ):
             menu = wx.Menu()
             item_open = menu.Append(wx.ID_ANY, "Apri pagina nel browser\tINVIO")
             menu.Bind(wx.EVT_MENU, lambda e: self.open_selected_file(), item_open)
+            row_url = ""
+            for key in ("source_url", "article_url", "file_path"):
+                cand = str(item_data.get(key) or "").strip()
+                if cand.lower().startswith(("http://", "https://")):
+                    row_url = cand
+                    break
+            if row_url and rtad_html_page is not None:
+                item_reader = menu.Append(wx.ID_ANY, "Apri nel lettore di pagina")
+                menu.Bind(
+                    wx.EVT_MENU,
+                    lambda e, u=row_url: self._open_http_page(
+                        u, rtad_html_page.MSG_ANY_PAGE
+                    ),
+                    item_reader,
+                )
+            if row_url:
+                item_img_url = menu.Append(
+                    wx.ID_ANY, "Descrivi immagine da questo URL"
+                )
+                menu.Bind(
+                    wx.EVT_MENU,
+                    lambda e, u=row_url: self.on_describe_from_url(url=u),
+                    item_img_url,
+                )
+                item_av_url = menu.Append(
+                    wx.ID_ANY, "Audio/video da questo URL"
+                )
+                menu.Bind(
+                    wx.EVT_MENU,
+                    lambda e, u=row_url: self.open_media_hub_dialog(
+                        initial_url=u, clear_source=True
+                    ),
+                    item_av_url,
+                )
             if _result_asks_gemini(item_data):
                 if _result_gemini_saved(item_data):
                     label_g = "Riprendi conversazione &Gemini…"
@@ -14059,7 +14458,17 @@ class MainWindow(wx.Frame):
         snippet = item_data["snippet"]
 
         menu = wx.Menu()
-        item_open = menu.Append(wx.ID_ANY, "Apri File (alla riga esatta) / Browser\tRETURN")
+        ext_menu = os.path.splitext(str(file_path))[1].lower()
+        page_reader_row = (
+            prefix_menu in ("[EML]", "[MBOX]", "[RSS]", "[FEED]")
+            or ext_menu == ".eml"
+        )
+        open_label = (
+            "Apri nel lettore di pagina\tRETURN"
+            if page_reader_row
+            else "Apri File (alla riga esatta) / Browser\tRETURN"
+        )
+        item_open = menu.Append(wx.ID_ANY, open_label)
         item_compare = menu.Append(wx.ID_ANY, "Confronta &file…")
         menu.Bind(
             wx.EVT_MENU,
@@ -14067,9 +14476,16 @@ class MainWindow(wx.Frame):
             item_compare,
         )
         item_browser = None
+        item_reader_url = None
+        item_img_url = None
+        item_av_url = None
         source_url = item_data.get("source_url") or ""
-        if source_url:
+        if source_url.lower().startswith(("http://", "https://")):
             item_browser = menu.Append(wx.ID_ANY, "Apri pagina nel browser")
+            if rtad_html_page is not None:
+                item_reader_url = menu.Append(wx.ID_ANY, "Apri nel lettore di pagina")
+            item_img_url = menu.Append(wx.ID_ANY, "Descrivi immagine da questo URL")
+            item_av_url = menu.Append(wx.ID_ANY, "Audio/video da questo URL")
         item_gemini = None
         if _result_asks_gemini(item_data):
             path_g = item_data.get("file_path") or ""
@@ -14096,7 +14512,9 @@ class MainWindow(wx.Frame):
         if has_att:
             att_label = item_data.get("attachment_name") or os.path.basename(att_path)
             item_open.SetItemLabel(f"Apri allegato PDF ({att_label})")
-            item_open_msg = menu.Append(wx.ID_ANY, "Apri messaggio posta (testo)")
+            item_open_msg = menu.Append(
+                wx.ID_ANY, "Apri messaggio nel lettore di pagina"
+            )
             item_save_att = menu.Append(wx.ID_ANY, "Salva allegato PDF...")
         item_preview = menu.Append(wx.ID_ANY, "Ascolta Anteprima Vocale\tSPACE")
         item_copy_snippet = menu.Append(wx.ID_ANY, "Copia Blocco Notizia")
@@ -14188,6 +14606,28 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e, u=source_url: self.open_page_in_browser(u),
                 item_browser,
+            )
+        if item_reader_url is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, u=source_url: self._open_http_page(
+                    u, rtad_html_page.MSG_ANY_PAGE
+                ),
+                item_reader_url,
+            )
+        if item_img_url is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, u=source_url: self.on_describe_from_url(url=u),
+                item_img_url,
+            )
+        if item_av_url is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, u=source_url: self.open_media_hub_dialog(
+                    initial_url=u, clear_source=True
+                ),
+                item_av_url,
             )
         if item_gemini is not None:
             self.Bind(
@@ -15445,6 +15885,9 @@ class MainWindow(wx.Frame):
         sections=None,
         *,
         source_path="",
+        image_url="",
+        page_url="",
+        from_screen=False,
     ):
         """Descrivi / etichette / scheda tecnica su un file immagine (UI o CLI).
 
@@ -15458,6 +15901,9 @@ class MainWindow(wx.Frame):
             return
         self._ensure_image_api_keys()
         src_path = (source_path or "").strip()
+        img_url = (image_url or "").strip()
+        pg_url = (page_url or "").strip()
+        screen = bool(from_screen)
 
         if mode in ("describe", "copy-describe", "alt", "alt-long", "all") and not load_gemini_api_key():
             speak_accessible(
@@ -15483,11 +15929,20 @@ class MainWindow(wx.Frame):
                         include_tech=sec.get("include_tech", True),
                         include_ocr=sec.get("include_ocr", False),
                         source_path=src_path,
+                        image_url=img_url,
+                        page_url=pg_url,
+                        from_screen=screen,
                     )
                 elif mode == "tech":
                     title = "Scheda tecnica immagine"
                     body = rtad_ocr.format_tech_sheet(
-                        rtad_ocr.get_image_tech_info(file_path, source_path=src_path)
+                        rtad_ocr.get_image_tech_info(
+                            file_path,
+                            source_path=src_path,
+                            image_url=img_url,
+                            page_url=pg_url,
+                            from_screen=screen,
+                        )
                     )
                 elif mode == "labels":
                     title = "Etichette e oggetti"
@@ -15520,11 +15975,21 @@ class MainWindow(wx.Frame):
                 elif mode == "alt-long":
                     title = "Alt-text e descrizione"
                     body = rtad_ocr.format_alt_and_long_description(
-                        file_path, source_path=src_path
+                        file_path,
+                        source_path=src_path,
+                        image_url=img_url,
+                        page_url=pg_url,
+                        from_screen=screen,
                     )
                 else:
                     title = "Descrizione immagine"
-                    body = rtad_ocr.describe_image(file_path, source_path=src_path)
+                    body = rtad_ocr.describe_image(
+                        file_path,
+                        source_path=src_path,
+                        image_url=img_url,
+                        page_url=pg_url,
+                        from_screen=screen,
+                    )
             except Exception as e:
                 title = "Errore analisi immagine"
                 body = str(e)
@@ -15549,6 +16014,8 @@ class MainWindow(wx.Frame):
                     body,
                     image_path=file_path,
                     source_path=src_path,
+                    image_url=img_url,
+                    page_url=pg_url,
                 )
 
                 def _on_close(evt, frame=frm, path=file_path, do_del=delete_after):
@@ -15671,7 +16138,9 @@ class MainWindow(wx.Frame):
             if source_url and not is_dir:
                 msg = (
                     f"L'indirizzo è in elenco: {name}. "
-                    "Da qui puoi fare altre operazioni."
+                    "Nel menu del tasto destro, o del tasto applicazioni: "
+                    "Audio/video da questo URL, Descrivi immagine da questo URL, "
+                    "Apri nel lettore di pagina. Invio sulla voce, oppure un clic."
                 )
             elif is_dir:
                 msg = (
@@ -15829,6 +16298,83 @@ class MainWindow(wx.Frame):
         self._doc_struct_frames.append(frm)
         frm.Show()
         frm.Raise()
+
+    def _page_frames(self):
+        if not hasattr(self, "_doc_struct_frames") or self._doc_struct_frames is None:
+            self._doc_struct_frames = []
+        return self._doc_struct_frames
+
+    def _say_status(self, sentence):
+        try:
+            self.txt_status_progress.SetValue(sentence)
+        except Exception:
+            pass
+        speak_accessible(sentence)
+
+    def _open_http_page(self, url, sentence):
+        url = (url or "").strip()
+        if not url:
+            self._say_status("Collegamento articolo non disponibile.")
+            return
+        if rtad_html_page is None:
+            try:
+                webbrowser.open(url)
+            except Exception:
+                self._say_status("Impossibile aprire la pagina.")
+                return
+            self._say_status("Pagina aperta nel browser di Windows.")
+            return
+        rtad_html_page.open_browser(
+            speak_accessible, url, keep=self._page_frames()
+        )
+        self._say_status(sentence)
+
+    def _open_message_html_or_viewer(self, path, index, query, cached_text, prefix):
+        self._say_status("Apertura del messaggio. Attendere.")
+
+        def work():
+            msg = None
+            try:
+                if prefix == "[MBOX]":
+                    msg = load_mbox_message_by_index(path, index)
+                else:
+                    try:
+                        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                            msg = email.message_from_file(handle, policy=policy.default)
+                    except Exception:
+                        with open(path, "r", encoding="latin1", errors="ignore") as handle:
+                            msg = email.message_from_file(handle, policy=policy.default)
+            except Exception as exc:
+                logging.warning(f"Lettura messaggio: {exc}")
+                msg = None
+
+            def show():
+                opened = None
+                if msg is not None and rtad_html_page is not None:
+                    try:
+                        opened = rtad_html_page.open_message_html(
+                            speak_accessible, msg, keep=self._page_frames()
+                        )
+                    except Exception as exc:
+                        logging.warning(f"Lettore HTML del messaggio: {exc}")
+                        opened = None
+                if opened is not None:
+                    self._say_status(rtad_html_page.MSG_MAIL_HTML)
+                    return
+                if prefix == "[MBOX]":
+                    viewer = MboxViewerFrame(
+                        self, path, index, query, cached_text=cached_text
+                    )
+                    viewer.Show()
+                    self._say_status("Messaggio aperto nel lettore della posta.")
+                    return
+                viewer = EmlViewerFrame(self, path, query)
+                viewer.Show()
+                self._say_status("Messaggio aperto nel lettore della posta.")
+
+            wx.CallAfter(show)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _listed_source_url(self, file_path):
         """Indirizzo Internet della riga in elenco, se il file è stato scaricato da lì."""
@@ -16124,23 +16670,25 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
         self.describe_image_from_pdf(path, mode="describe")
 
-    def on_describe_from_url(self, event=None):
+    def on_describe_from_url(self, event=None, url=""):
         """Chiede un URL immagine, lo scarica e avvia Descrivi (gemello Add-on)."""
         if rtad_ocr is None:
             speak_accessible("Modulo immagini non disponibile.")
             return
-        dlg = wx.TextEntryDialog(
-            self,
-            "Incolla l'URL completo dell'immagine da descrivere\n"
-            "(http o https, anche da gallerie o articoli web):",
-            "Descrivi immagine da URL",
-            "",
-        )
-        if dlg.ShowModal() != wx.ID_OK:
+        url = (url or "").strip().strip('"').strip("'")
+        if not url:
+            dlg = wx.TextEntryDialog(
+                self,
+                "Incolla l'URL completo dell'immagine da descrivere\n"
+                "(http o https, anche da gallerie o articoli web):",
+                "Descrivi immagine da URL",
+                "",
+            )
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            url = (dlg.GetValue() or "").strip().strip('"').strip("'")
             dlg.Destroy()
-            return
-        url = (dlg.GetValue() or "").strip().strip('"').strip("'")
-        dlg.Destroy()
         if not url:
             speak_accessible("URL non inserito.")
             return
@@ -16160,6 +16708,7 @@ class MainWindow(wx.Frame):
                 "describe",
                 False,
                 True,
+                image_url=res.get("url") or url,
             )
 
         threading.Thread(target=_work, daemon=True).start()
@@ -16233,6 +16782,7 @@ class MainWindow(wx.Frame):
                     "describe",
                     False,
                     True,
+                    image_url=res.get("url") or url_text,
                 )
 
             threading.Thread(target=_work, daemon=True).start()
@@ -16261,7 +16811,9 @@ class MainWindow(wx.Frame):
         if not res.get("ok") or not res.get("path"):
             speak_accessible(res.get("error") or "Cattura schermo non riuscita.")
             return
-        self.show_image_analysis(res["path"], mode="describe", delete_after=True)
+        self.show_image_analysis(
+            res["path"], mode="describe", delete_after=True, from_screen=True
+        )
 
     def change_sort_order(self, sort_type):
         self.sort_and_display_matches(sort_type)
@@ -16280,20 +16832,22 @@ class MainWindow(wx.Frame):
         line_num = item.get("line_number")
         prefix = item.get("prefix", "")
         if prefix == "[MBOX]":
-            speak_accessible(f"Apertura messaggio {line_num + 1} dall'archivio MBOX")
-            viewer = MboxViewerFrame(
-                self,
+            self._open_message_html_or_viewer(
                 file_to_open,
                 line_num,
                 self.current_query,
-                cached_text=item.get("viewer_text"),
+                item.get("viewer_text"),
+                "[MBOX]",
             )
-            viewer.Show()
             return
         if os.path.splitext(file_to_open)[1].lower() == ".eml":
-            speak_accessible(f"Apertura email nel lettore interno: {os.path.basename(file_to_open)}")
-            viewer = EmlViewerFrame(self, file_to_open, self.current_query)
-            viewer.Show()
+            self._open_message_html_or_viewer(
+                file_to_open,
+                None,
+                self.current_query,
+                "",
+                "[EML]",
+            )
 
     def save_attachment_pdf(self, item_data):
         """Salva l'allegato PDF estratto in una cartella scelta dall'utente."""

@@ -1306,6 +1306,11 @@ def format_media_tech_sheet(info: dict) -> str:
         lines.append(
             f"URL sorgente: {src_meta.get('webpage_url') or src_meta.get('url')}."
         )
+    file_url = (src_meta.get("url") or "").strip()
+    if (src_meta.get("via") or "").strip() == "http" and is_likely_direct_media_url(
+        file_url
+    ):
+        lines.append(f"Indirizzo file: {file_url}.")
     # Scarichi yt-dlp sotto tetto dimensione: spesso solo traccia audio (m4a/webm)
     fname = (info.get("file_name") or "").lower()
     if kind == "audio" and fname.startswith("rtad_media_"):
@@ -2958,9 +2963,9 @@ _WEB_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
-# Domini dove di solito serve yt-dlp (pagina HTML, non file .mp4 diretto).
-# yt-dlp supporta molte altre piattaforme: se manca qui, si prova comunque
-# il download HTTP e, se arriva HTML, un messaggio guida l'utente.
+# Pagine note: si va subito a yt-dlp, senza scaricare l'HTML.
+# Ogni altra pagina, e una playlist .m3u8 o .mpd, arriva comunque a yt-dlp
+# se il download diretto non è un file audio o video.
 _PAGE_MEDIA_HOSTS = (
     "youtube.com", "youtu.be", "m.youtube.com", "music.youtube.com",
     "vimeo.com",
@@ -2978,6 +2983,12 @@ _PAGE_MEDIA_HOSTS = (
 def is_likely_direct_media_url(url: str) -> bool:
     path = urllib.parse.urlparse(url or "").path.lower()
     return any(path.endswith(ext) for ext in MEDIA_EXTS)
+
+
+def is_stream_manifest_url(url: str) -> bool:
+    """Playlist HLS o DASH: la ricostruisce yt-dlp con ffmpeg."""
+    path = urllib.parse.urlparse(url or "").path.lower()
+    return path.endswith(".m3u8") or path.endswith(".mpd")
 
 
 def is_page_media_url(url: str) -> bool:
@@ -3206,23 +3217,23 @@ def update_ytdlp(timeout: int = 180) -> dict:
 
 
 def _ytdlp_format_prefer_under_limit() -> str:
-    """Muxati se esistono; altrimenti bv+ba (merge ffmpeg o coppia per Gemini).
+    """Il video MP4 più nitido che sta nel tetto, con il suo audio.
 
-    Non usare mai «best[filesize]»: su Shorts sceglie spesso solo video muto
-    e Gemini inventa la telecronaca.
+    Su YouTube il 4K è quasi sempre WebM. Qui si tiene l'MP4, il più alto
+    che il sito offre in quel formato. Senza video si prende l'audio.
+    Mai un video muto come prima scelta.
     """
     lim = int(MAX_MEDIA_BYTES)
-    # Lascia margine per la traccia audio (~2 MB) nel tetto combinato.
     vlim = max(int(lim * 0.85), lim - 2 * 1024 * 1024)
     return (
-        f"best[vcodec!=none][acodec!=none][filesize<={lim}]/"
-        f"best[vcodec!=none][acodec!=none][filesize_approx<={lim}]/"
-        f"bv*[filesize<={vlim}]+ba/"
-        f"bv*[filesize_approx<={vlim}]+ba/"
+        f"bv*[ext=mp4][filesize<={vlim}]+ba[ext=m4a]/"
+        f"bv*[ext=mp4][filesize_approx<={vlim}]+ba[ext=m4a]/"
+        f"bv*[ext=mp4]+ba[ext=m4a]/"
+        f"b[ext=mp4][filesize<={lim}]/"
+        f"b[ext=mp4]/"
         f"bestaudio[ext=m4a][filesize<={lim}]/"
-        f"bestaudio[filesize<={lim}]/"
-        f"bestaudio[filesize_approx<={lim}]/"
-        f"worstaudio/bestaudio"
+        f"bestaudio[ext=m4a]/"
+        f"bestaudio"
     )
 
 
@@ -3434,6 +3445,8 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
         "--no-playlist",
         "--no-cache-dir",
         "--force-overwrites",
+        "--extractor-args",
+        "youtube:lang=it",
         "--merge-output-format",
         "mp4",
         "-f",
@@ -3621,7 +3634,8 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
         out["error"] = "Serve un URL http o https."
         return out
 
-    if is_page_media_url(u) and not is_likely_direct_media_url(u):
+    direct = is_likely_direct_media_url(u)
+    if is_stream_manifest_url(u) or (is_page_media_url(u) and not direct):
         return _materialize_via_ytdlp(
             u, timeout=max(timeout, 180), on_progress=on_progress
         )
@@ -3641,14 +3655,17 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
             data = resp.read(MAX_MEDIA_BYTES + 1)
             final_url = resp.geturl() or u
     except urllib.error.HTTPError as e:
-        # Pagine che rispondono HTML: prova yt-dlp
-        if e.code in (403, 404) and is_page_media_url(u):
+        if not direct or (e.code in (403, 404) and is_page_media_url(u)):
             return _materialize_via_ytdlp(
                 u, timeout=max(timeout, 180), on_progress=on_progress
             )
         out["error"] = f"HTTP {e.code}: download media non riuscito."
         return out
     except Exception as e:
+        if not direct:
+            return _materialize_via_ytdlp(
+                u, timeout=max(timeout, 180), on_progress=on_progress
+            )
         out["error"] = f"Download non riuscito: {e}"
         return out
 
@@ -3662,22 +3679,24 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
         )
         return out
     ctype_l = ctype.lower()
-    if "text/html" in ctype_l or data.lstrip()[:15].lower().startswith(b"<!doctype html"):
-        if is_page_media_url(final_url) or is_page_media_url(u):
-            return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 180), on_progress=on_progress
-            )
-        out["error"] = (
-            "L'URL punta a una pagina web, non a un file audio/video. "
-            + ytdlp_install_hint()
+    sample = data.lstrip()[:20].lower()
+    looks_html = (
+        "text/html" in ctype_l
+        or sample.startswith(b"<!doctype html")
+        or sample.startswith(b"<html")
+    )
+    looks_json = "application/json" in ctype_l and data.lstrip()[:1] in (b"{", b"[")
+    if looks_html or looks_json:
+        return _materialize_via_ytdlp(
+            u, timeout=max(timeout, 180), on_progress=on_progress
         )
-        return out
-    if "application/json" in ctype_l and data.lstrip()[:1] in (b"{", b"["):
-        out["error"] = "L'URL non punta a un file media (ricevuto JSON)."
-        return out
 
     ext = _sniff_media_ext(data, ctype, final_url)
     if not ext:
+        if not direct:
+            return _materialize_via_ytdlp(
+                u, timeout=max(timeout, 180), on_progress=on_progress
+            )
         out["error"] = "Formato audio/video non riconosciuto dall'URL."
         return out
     saved = _save_media_temp(data, ext)

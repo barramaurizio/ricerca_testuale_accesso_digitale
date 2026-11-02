@@ -48,6 +48,10 @@ MSG_EXTERNAL_NO_ANCHOR = (
     "Pagina aperta nel browser di Windows, dall'inizio. "
     "L'intestazione {title} non ha un indirizzo proprio."
 )
+MSG_EXTERNAL_TEXT = (
+    "Pagina aperta nel browser di Windows, sull'intestazione {title}. "
+    "Se quel testo non c'è nella pagina, resta dall'inizio."
+)
 MSG_ANCHOR_MISS = "Questo link resta in questa pagina, ma il punto non c'è."
 MSG_NOT_PAGE = "Questo link non è una pagina. Destinazione: {href}"
 MSG_FILE_FROM_WEB = "Da una pagina Internet non si apre un file del computer."
@@ -72,22 +76,52 @@ EPUB_MARK = "rtad-epub:"
 
 HINT = (
     "Tab: intestazioni, link e testo. "
-    "Invio resta qui: un'intestazione o un link della stessa pagina "
-    "vanno a quel punto, un link di un altro sito apre quella pagina. "
+    "Invio o doppio clic su un'intestazione o su un link della stessa pagina "
+    "va a quel punto, qui. "
+    "Invio o doppio clic su un link di un altro sito apre quella pagina. "
     "Nel testo, un indirizzo https si attiva con Invio. "
     "Maiusc+Tab dal testo seleziona quel link nell'elenco. "
     "Indietro e Avanti tornano al punto di prima, "
     "anche con Alt+freccia sinistra e Alt+freccia destra. "
-    "Apri nel browser di Windows apre il link selezionato nell'elenco. "
-    "Per un'intestazione, prima Invio qui, poi lo stesso pulsante: "
+    "Invio su Apri nel browser di Windows, e un clic sullo stesso pulsante, "
+    "apre il link selezionato nell'elenco. "
+    "Per un'intestazione, prima Invio o doppio clic qui, "
+    "poi Invio su Apri nel browser di Windows, o un clic sullo stesso pulsante: "
     "il browser si apre su quel punto. "
     "I tasti H e K di NVDA si usano in quel browser: qui si usano gli elenchi."
 )
 
+MSG_MAIL_HTML = (
+    "Corpo HTML del messaggio nel lettore di pagina. "
+    "Invio o doppio clic su un'intestazione o su un link della stessa pagina "
+    "va a quel punto, qui."
+)
+MSG_ANY_PAGE = (
+    "Pagina aperta nel lettore di pagina. "
+    "Invio o doppio clic su un'intestazione o su un link della stessa pagina "
+    "va a quel punto, qui. "
+    "Invio su Apri nel browser di Windows apre la pagina anche lì, "
+    "e un clic sullo stesso pulsante."
+)
+MSG_FEED_PAGE = (
+    "Articolo nel lettore di pagina. "
+    "Invio o doppio clic su un'intestazione o su un link della stessa pagina "
+    "va a quel punto, qui. "
+    "Invio su Apri nel browser di Windows apre la pagina anche lì, "
+    "e un clic sullo stesso pulsante."
+)
+MSG_CHAT_PAGE = (
+    "Fonte aperta nel lettore di pagina. "
+    "Invio o doppio clic su un'intestazione o su un link della stessa pagina "
+    "va a quel punto, qui. "
+    "Invio su Apri nel browser di Windows apre la pagina anche lì, "
+    "e un clic sullo stesso pulsante."
+)
+
 HINT_EPUB = (
     "Tab: sommario, intestazioni, link e testo. "
-    "Invio sul sommario apre quel capitolo, qui. "
-    "Invio su un'intestazione o su un link interno resta nel libro. "
+    "Invio o doppio clic sul sommario apre quel capitolo, qui. "
+    "Invio o doppio clic su un'intestazione o su un link interno resta nel libro. "
     "Un link http esce nel browser di Windows. "
     "Indietro e Avanti tornano al capitolo di prima, "
     "anche con Alt+freccia sinistra e Alt+freccia destra. "
@@ -761,16 +795,110 @@ def display_name(source: str) -> str:
     return os.path.basename(source) or "pagina.html"
 
 
-def heading_open_address(head: dict, base: str) -> tuple[str, str]:
+def _clip_fragment_text(text: str, limit: int = 80) -> str:
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    space = cut.rfind(" ")
+    if space >= 20:
+        cut = cut[:space]
+    return cut
+
+
+def _text_fragment(title: str, follow: str = "") -> str:
+    """Frammento che Edge e Chrome usano per andare a quel testo.
+
+    Un titolo di una o due parole, da solo, è spesso ambiguo e il browser
+    resta in cima. In quel caso si aggiunge la riga che nel lettore viene dopo.
+    """
+    start = _clip_fragment_text(title, 100)
+    if len(start) < 3:
+        return ""
+    end = ""
+    if len(start.split()) <= 2:
+        end = _clip_fragment_text(follow, 80)
+        if end.lower() == start.lower() or len(end) < 12:
+            end = ""
+
+    def enc(value: str) -> str:
+        return urllib.parse.quote(value, safe="").replace("-", "%2D")
+
+    if end:
+        return ":~:text=" + enc(start) + "," + enc(end)
+    return ":~:text=" + enc(start)
+
+
+def _with_text_fragment(address: str, title: str, follow: str = "") -> str:
+    directive = _text_fragment(title, follow)
+    if not directive or not (address or "").strip():
+        return address
+    root, fragment = urllib.parse.urldefrag(address)
+    if ":~:text=" in (fragment or ""):
+        return address
+    if fragment:
+        return root + "#" + fragment + directive
+    return root + "#" + directive
+
+
+def heading_follow_text(body: str, marker: str, occ: int = 1) -> str:
+    """Prima riga di testo dopo l'intestazione, nel lettore."""
+    lines = (body or "").splitlines()
+    seen = 0
+    target = (marker or "").strip()
+    for index, line in enumerate(lines):
+        if line.strip() != target:
+            continue
+        seen += 1
+        if seen != max(int(occ or 1), 1):
+            continue
+        for nxt in lines[index + 1 : index + 8]:
+            text = " ".join(nxt.split())
+            if not text or text.startswith("[H") or text.lower().startswith("http"):
+                continue
+            return text
+        return ""
+    return ""
+
+
+def heading_open_address(head: dict, base: str, follow: str = "") -> tuple[str, str]:
     """Indirizzo da aprire nel browser per un'intestazione, e la frase."""
     title = (head or {}).get("title") or ""
     href = ((head or {}).get("href") or "").strip()
-    if href and (_is_http(href) or _is_file_url(href)):
-        return href, MSG_EXTERNAL_HEAD.format(title=title)
     anchor = ((head or {}).get("anchor") or "").strip()
-    if anchor:
-        return _with_fragment(base, anchor), MSG_EXTERNAL_HEAD.format(title=title)
-    return base, MSG_EXTERNAL_NO_ANCHOR.format(title=title)
+    if href and (_is_http(href) or _is_file_url(href)):
+        address = href
+        had_point = bool(urllib.parse.urldefrag(href)[1])
+    elif anchor:
+        address = _with_fragment(base, anchor)
+        had_point = True
+    else:
+        address = base
+        had_point = False
+    if had_point:
+        return address, MSG_EXTERNAL_HEAD.format(title=title)
+    pointed = _with_text_fragment(address, title, follow)
+    if pointed != address:
+        return pointed, MSG_EXTERNAL_TEXT.format(title=title)
+    return address, MSG_EXTERNAL_NO_ANCHOR.format(title=title)
+
+
+_HEADING_OPEN_RE = re.compile(r"(?i)<h([1-6])\b([^>]*)>")
+
+
+def stamp_heading_ids(html: str) -> str:
+    """Dà un id alle intestazioni che non ne hanno, così il browser ci atterra."""
+    count = 0
+
+    def repl(match):
+        nonlocal count
+        count += 1
+        attrs = match.group(2) or ""
+        if re.search(r"(?i)\bid\s*=", attrs):
+            return match.group(0)
+        return f'<h{match.group(1)} id="rtad-h-{count}"{attrs}>'
+
+    return _HEADING_OPEN_RE.sub(repl, html or "")
 
 
 def windows_browser_argv(url: str) -> list[str]:
@@ -802,21 +930,31 @@ def windows_browser_argv(url: str) -> list[str]:
     return [exe, url]
 
 
-def open_in_windows_browser(address: str) -> bool:
-    """Apre l'indirizzo, anche con #punto, nel browser di Windows."""
+def windows_browser_url(address: str) -> str:
+    """Indirizzo pronto per il browser. Il pezzo :~:text= non si ricodifica."""
     target = (address or "").strip()
     if not target:
+        return ""
+    root, fragment = urllib.parse.urldefrag(target)
+    if _is_http(root) or _is_file_url(root):
+        url = root
+    elif os.path.isfile(root):
+        url = path_to_file_url(root)
+    else:
+        return ""
+    if not fragment:
+        return url
+    if ":~:" in fragment:
+        return url + "#" + fragment
+    return url + "#" + urllib.parse.quote(fragment, safe="")
+
+
+def open_in_windows_browser(address: str) -> bool:
+    """Apre l'indirizzo, anche con #punto, nel browser di Windows."""
+    url = windows_browser_url(address)
+    if not url:
         return False
     try:
-        root, fragment = urllib.parse.urldefrag(target)
-        if _is_http(root) or _is_file_url(root):
-            url = root
-        elif os.path.isfile(root):
-            url = path_to_file_url(root)
-        else:
-            return False
-        if fragment:
-            url += "#" + urllib.parse.quote(fragment, safe="")
         argv = windows_browser_argv(url)
         if argv:
             import subprocess
@@ -841,7 +979,9 @@ def _with_fragment(base: str, fragment: str) -> str:
 class HtmlBrowserFrame(wx.Frame):
     """Pagina HTML dentro RTAD. La stessa frase è in etichetta e in voce."""
 
-    def __init__(self, speak, source, parent=None, page_url: str = ""):
+    def __init__(
+        self, speak, source, parent=None, page_url: str = "", address_label: str = ""
+    ):
         self.speak = speak or (lambda *_a, **_k: None)
         self._alive = True
         self._gen = 0
@@ -864,7 +1004,9 @@ class HtmlBrowserFrame(wx.Frame):
         self.lbl_status = wx.StaticText(panel, label=loading.format(name=name))
         self.lbl_status.SetName("Stato pagina")
         vbox.Add(self.lbl_status, 0, wx.ALL | wx.EXPAND, 8)
-        self.lbl_address = wx.StaticText(panel, label=name if self._epub else source)
+        self._address_label = (address_label or "").strip()
+        shown_address = self._address_label or (name if self._epub else source)
+        self.lbl_address = wx.StaticText(panel, label=shown_address)
         self.lbl_address.SetName("Indirizzo della pagina")
         vbox.Add(self.lbl_address, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
         self.lbl_hint = wx.StaticText(panel, label=HINT_EPUB if self._epub else HINT)
@@ -1114,7 +1256,11 @@ class HtmlBrowserFrame(wx.Frame):
             message = MSG_POINT.format(title=point) + " " + message
         message = message + " " + self._step_sentence()
         self._set_status(message)
-        self.lbl_address.SetLabel(page.get("address") or page.get("base") or "")
+        source_now = str(page.get("source") or "")
+        if self._address_label and "rtad_page_" in os.path.basename(source_now):
+            self.lbl_address.SetLabel(self._address_label)
+        else:
+            self.lbl_address.SetLabel(page.get("address") or page.get("base") or "")
         self._fill_lists(
             page.get("headings") or [],
             page.get("links") or [],
@@ -1477,7 +1623,8 @@ class HtmlBrowserFrame(wx.Frame):
                 continue
             seen += 1
             if seen == occ:
-                return heading_open_address(head, base)
+                follow = heading_follow_text(page.get("body") or "", marker, occ)
+                return heading_open_address(head, base, follow)
         return "", ""
 
     def _epub_windows_target(self) -> tuple[str, str]:
@@ -1588,9 +1735,13 @@ class HtmlBrowserFrame(wx.Frame):
         event.Skip()
 
 
-def open_browser(speak, source, keep=None, page_url: str = ""):
+def open_browser(
+    speak, source, keep=None, page_url: str = "", address_label: str = ""
+):
     """Apre il lettore e, se serve, lo tiene in una lista contro il garbage collector."""
-    frame = HtmlBrowserFrame(speak, source, page_url=page_url)
+    frame = HtmlBrowserFrame(
+        speak, source, page_url=page_url, address_label=address_label
+    )
     if keep is not None:
         keep.append(frame)
 
@@ -1619,3 +1770,197 @@ def open_epub(speak, file_path, keep=None):
             pass
         return None
     return open_browser(speak, epub_source(file_path, book["start"]), keep=keep)
+
+
+def _decode_mail_header(raw) -> str:
+    if not raw:
+        return ""
+    try:
+        from email.header import decode_header
+
+        parts = decode_header(str(raw))
+        out = ""
+        for part, encoding in parts:
+            if isinstance(part, bytes):
+                out += part.decode(encoding or "utf-8", errors="ignore")
+            else:
+                out += str(part)
+        return " ".join(out.splitlines()).strip()
+    except Exception:
+        return str(raw).strip()
+
+
+def message_html_document(msg) -> str:
+    """Corpo text/html, con oggetto, mittente e data in testa. Vuoto se non c'è HTML."""
+    if msg is None:
+        return ""
+    chunks = []
+    try:
+        parts = msg.walk() if msg.is_multipart() else [msg]
+    except Exception:
+        return ""
+    for part in parts:
+        try:
+            ctype = (part.get_content_type() or "").lower()
+        except Exception:
+            continue
+        if ctype != "text/html":
+            continue
+        disp = str(part.get("Content-Disposition") or "").lower()
+        if "attachment" in disp:
+            continue
+        try:
+            payload = part.get_payload(decode=True)
+        except Exception:
+            payload = None
+        if not payload:
+            continue
+        head = payload[:8192]
+        if head.startswith(b"%PDF") or b"\x00" in head:
+            continue
+        if len(payload) > MAX_FETCH_BYTES:
+            payload = payload[:MAX_FETCH_BYTES]
+        charset = ""
+        try:
+            charset = part.get_content_charset() or ""
+        except Exception:
+            charset = ""
+        text = ""
+        for encoding in (charset, "utf-8", "cp1252", "latin1"):
+            if not encoding:
+                continue
+            try:
+                text = payload.decode(encoding, errors="ignore")
+                break
+            except LookupError:
+                continue
+        if (text or "").strip():
+            chunks.append(text)
+    if not chunks:
+        return ""
+    subject = _decode_mail_header(msg.get("subject")) or "Messaggio"
+    sender = _decode_mail_header(msg.get("from"))
+    date = " ".join(str(msg.get("date") or "").splitlines()).strip()
+    title = html_lib.escape(subject)
+    who = html_lib.escape(sender)
+    when = html_lib.escape(date)
+    head_html = (
+        f"<p><strong>Oggetto:</strong> {title}<br>"
+        f"<strong>Da:</strong> {who}<br>"
+        f"<strong>Data:</strong> {when}</p>\n"
+    )
+    body = head_html + "\n".join(chunks)
+    if "<title" not in body[:4000].lower():
+        body = (
+            "<html><head><meta charset=\"utf-8\">"
+            f"<title>{title}</title></head><body>\n{body}\n</body></html>"
+        )
+    return body
+
+
+def open_html_text(speak, html, title="", page_url="", keep=None, address_label=""):
+    """Apre un HTML già in memoria. Il file temporaneo si cancella alla chiusura."""
+    html = stamp_heading_ids(html or "")
+    if not html.strip():
+        return None
+    import tempfile
+
+    try:
+        fd, path = tempfile.mkstemp(suffix=".html", prefix="rtad_page_")
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(html)
+    except Exception:
+        return None
+    label = (address_label or title or "Corpo HTML del messaggio").strip()
+    frame = open_browser(
+        speak, path, keep=keep, page_url=page_url or "", address_label=label
+    )
+    if frame is None:
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+        return None
+
+    def _drop(evt, held_path=path):
+        try:
+            if os.path.isfile(held_path):
+                os.remove(held_path)
+        except Exception:
+            pass
+        evt.Skip()
+
+    frame.Bind(wx.EVT_CLOSE, _drop)
+    return frame
+
+
+def looks_like_raw_mime_message(text: str) -> bool:
+    """True se il testo è un messaggio con intestazioni MIME, non una copia a vista."""
+    head = "\n".join((text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")[:40]).lower()
+    return (
+        "mime-version:" in head
+        or "content-type:" in head
+        or "content-transfer-encoding:" in head
+    )
+
+
+_HTML_MARK_RE = re.compile(
+    r"<(?:html|body|p|div|br|table|a|img|h[1-6]|ul|ol|span|td|tr)\b",
+    re.IGNORECASE,
+)
+_URL_IN_TEXT_RE = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+
+
+def html_page_from_copied_text(text: str, title: str = "") -> str:
+    """Pagina del lettore a partire dal testo copiato di un messaggio.
+
+    Se la copia contiene già HTML, lo tiene. Altrimenti il testo resta
+    leggibile e ogni indirizzo http diventa un link.
+    """
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not raw:
+        return ""
+    low = raw[:8000].lower()
+    if "<html" in low or "<body" in low or _HTML_MARK_RE.search(raw[:8000]):
+        if "<html" not in low:
+            safe_title = html_lib.escape((title or "Messaggio").strip() or "Messaggio")
+            return (
+                "<html><head><meta charset=\"utf-8\">"
+                f"<title>{safe_title}</title></head><body>\n{raw}\n</body></html>"
+            )
+        return raw
+    safe_title = html_lib.escape((title or "Messaggio").strip() or "Messaggio")
+
+    def _link(match):
+        url = match.group(0)
+        shown = html_lib.escape(url)
+        href = html_lib.escape(url, quote=True)
+        return f'<a href="{href}">{shown}</a>'
+
+    parts = []
+    for block in re.split(r"\n\s*\n", raw):
+        block = block.strip()
+        if not block:
+            continue
+        linked = _URL_IN_TEXT_RE.sub(_link, html_lib.escape(block))
+        parts.append("<p>" + linked.replace("\n", "<br>\n") + "</p>")
+    body = "\n".join(parts) or "<p></p>"
+    return (
+        "<html><head><meta charset=\"utf-8\">"
+        f"<title>{safe_title}</title></head><body>\n{body}\n</body></html>"
+    )
+
+
+def open_message_html(speak, msg, keep=None):
+    """Apre il corpo HTML del messaggio. None se il messaggio non ha HTML."""
+    html = message_html_document(msg)
+    if not html:
+        return None
+    subject = _decode_mail_header(msg.get("subject")) or "Messaggio"
+    return open_html_text(
+        speak,
+        html,
+        title=subject,
+        keep=keep,
+        address_label=f"Corpo HTML: {subject}",
+    )

@@ -3187,19 +3187,31 @@ def _read_image_dimensions(path: str) -> tuple:
                             return int(w), int(h)
                         break
                     f.seek(length - 2, os.SEEK_CUR)
-            # WebP (RIFF....WEBP)
+            # WebP (RIFF....WEBP). Il payload parte dopo FourCC e dimensione.
             if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
                 f.seek(12)
-                chunk = f.read(16)
-                if chunk[:4] == b"VP8 " and len(chunk) >= 14:
-                    # lossy: width/height in frame header after 10 bytes of payload start
-                    pass
-                if chunk[:4] == b"VP8X" and len(chunk) >= 14:
-                    # canvas size: 3 bytes each little-endian minus 1
-                    raw = chunk[8:14] if len(chunk) >= 14 else b""
-                    if len(raw) == 6:
-                        w = 1 + raw[0] + (raw[1] << 8) + (raw[2] << 16)
-                        h = 1 + raw[3] + (raw[4] << 8) + (raw[5] << 16)
+                fourcc = f.read(4)
+                size_b = f.read(4)
+                if len(fourcc) < 4 or len(size_b) < 4:
+                    return 0, 0
+                if fourcc == b"VP8X":
+                    payload = f.read(10)
+                    if len(payload) >= 10:
+                        w = 1 + payload[4] + (payload[5] << 8) + (payload[6] << 16)
+                        h = 1 + payload[7] + (payload[8] << 8) + (payload[9] << 16)
+                        return int(w), int(h)
+                elif fourcc == b"VP8 ":
+                    payload = f.read(10)
+                    if len(payload) >= 10 and payload[3:6] == b"\x9d\x01\x2a":
+                        w = struct.unpack("<H", payload[6:8])[0] & 0x3FFF
+                        h = struct.unpack("<H", payload[8:10])[0] & 0x3FFF
+                        return int(w), int(h)
+                elif fourcc == b"VP8L":
+                    payload = f.read(5)
+                    if len(payload) >= 5 and payload[0] == 0x2F:
+                        b0, b1, b2, b3 = payload[1], payload[2], payload[3], payload[4]
+                        w = 1 + (((b1 & 0x3F) << 8) | b0)
+                        h = 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6))
                         return int(w), int(h)
     except Exception:
         pass
@@ -3299,7 +3311,30 @@ def _mtime_label_for_path(path: str) -> tuple:
         return 0.0, ""
 
 
-def get_image_tech_info(path: str, source_path: str = "") -> dict:
+def image_address_lines(image_url="", page_url="", from_screen=False) -> list:
+    """Righe di indirizzo per scheda tecnica e descrizione avanzata."""
+    image_url = (image_url or "").strip()
+    page_url = (page_url or "").strip()
+    if from_screen and not image_url:
+        return ["Immagine dallo schermo. Un indirizzo non c'è."]
+    if not image_url:
+        return []
+    lines = [f"Indirizzo immagine: {image_url}."]
+    image_key = image_url.split("#")[0].rstrip("/")
+    page_key = page_url.split("#")[0].rstrip("/")
+    if page_url and page_key != image_key:
+        lines.append(f"Pagina: {page_url}.")
+    return lines
+
+
+def get_image_tech_info(
+    path: str,
+    source_path: str = "",
+    *,
+    image_url: str = "",
+    page_url: str = "",
+    from_screen: bool = False,
+) -> dict:
     """Scheda tecnica locale (B): dimensioni, formato, dimensione file, date, EXIF base.
 
     source_path: file originale (es. PDF da cui è estratto un temp) per
@@ -3321,6 +3356,9 @@ def get_image_tech_info(path: str, source_path: str = "") -> dict:
         "source_mtime_label": "",
         "exif_datetime": "",
         "exif_camera": "",
+        "image_url": (image_url or "").strip(),
+        "page_url": (page_url or "").strip(),
+        "from_screen": bool(from_screen),
         "ok": False,
         "error": "",
     }
@@ -3428,6 +3466,13 @@ def format_tech_sheet(info: dict) -> str:
         lines.append(f"Data scatto (EXIF): {info['exif_datetime']}.")
     if info.get("exif_camera"):
         lines.append(f"Fotocamera: {info['exif_camera']}.")
+    lines.extend(
+        image_address_lines(
+            info.get("image_url") or "",
+            info.get("page_url") or "",
+            bool(info.get("from_screen")),
+        )
+    )
     return "\n".join(lines)
 
 
@@ -4408,7 +4453,14 @@ def describe_image_alt_text(path: str, should_abort=None, use_cache: bool = True
 
 
 def format_alt_and_long_description(
-    path: str, should_abort=None, include_tech: bool = True, source_path: str = ""
+    path: str,
+    should_abort=None,
+    include_tech: bool = True,
+    source_path: str = "",
+    *,
+    image_url: str = "",
+    page_url: str = "",
+    from_screen: bool = False,
 ) -> str:
     """Alt-text breve + descrizione lunga (+ scheda tecnica opzionale)."""
     return format_full_image_report(
@@ -4419,6 +4471,9 @@ def format_alt_and_long_description(
         include_tech=include_tech,
         should_abort=should_abort,
         source_path=source_path,
+        image_url=image_url,
+        page_url=page_url,
+        from_screen=from_screen,
     )
 
 
@@ -4432,6 +4487,9 @@ def format_full_image_report(
     include_ocr: bool = False,
     should_abort=None,
     source_path: str = "",
+    image_url: str = "",
+    page_url: str = "",
+    from_screen: bool = False,
 ) -> str:
     """Report unificato «Tutto sull'immagine» (sezioni a richiesta, 1.6.6)."""
     src = (source_path or "").strip()
@@ -4480,6 +4538,9 @@ def format_full_image_report(
             include_ocr=True,
             prefer_gemini=True,
             source_path=src,
+            image_url=image_url,
+            page_url=page_url,
+            from_screen=from_screen,
         )
         if long_body:
             parts.extend(["=== Descrizione dettagliata ===", "", long_body.strip(), ""])
@@ -4495,7 +4556,13 @@ def format_full_image_report(
     if include_tech:
         try:
             tech_block = format_tech_sheet(
-                get_image_tech_info(path, source_path=src)
+                get_image_tech_info(
+                    path,
+                    source_path=src,
+                    image_url=image_url,
+                    page_url=page_url,
+                    from_screen=from_screen,
+                )
             )
             if tech_block:
                 parts.extend(["=== Scheda tecnica ===", "", tech_block.strip(), ""])
@@ -4600,28 +4667,46 @@ def describe_image(
     include_ocr: bool = True,
     prefer_gemini: bool = True,
     source_path: str = "",
+    image_url: str = "",
+    page_url: str = "",
+    from_screen: bool = False,
 ) -> str:
     """Descrizione completa: Gemini (se chiave) altrimenti Vision + scheda tecnica."""
     src = (source_path or "").strip()
-    tech = get_image_tech_info(path, source_path=src)
+    tech = get_image_tech_info(
+        path,
+        source_path=src,
+        image_url=image_url,
+        page_url=page_url,
+        from_screen=from_screen,
+    )
     tech_block = format_tech_sheet(tech) if include_tech else ""
+    addr = "\n".join(image_address_lines(image_url, page_url, from_screen))
     display = (
         os.path.basename(src)
         if src and os.path.isfile(src)
         else (os.path.basename(path) or "immagine")
     )
 
+    def _pack(desc: str) -> str:
+        parts = [(desc or "").strip()]
+        if addr:
+            parts.append(addr)
+        if tech_block:
+            parts.append(tech_block.strip())
+        return "\n\n".join(part for part in parts if part).strip()
+
     if prefer_gemini and has_gemini_api_key():
         adv = describe_image_gemini(path, should_abort=should_abort, use_cache=True)
         if adv.get("ok") and (adv.get("text") or "").strip():
-            parts = [
-                f"Descrizione avanzata di: {display}",
-                "",
-                (adv.get("text") or "").strip(),
-            ]
-            if tech_block:
-                parts.extend(["", tech_block])
-            return "\n".join(parts).strip()
+            desc = "\n".join(
+                [
+                    f"Descrizione avanzata di: {display}",
+                    "",
+                    (adv.get("text") or "").strip(),
+                ]
+            )
+            return _pack(desc)
         # Gemini fallita: continua con fallback Vision (segnala l’errore)
         note = (
             adv.get("error")
@@ -4633,16 +4718,14 @@ def describe_image(
             path, visual=visual, tech=tech,
             include_tech=False, include_ocr=include_ocr,
         )
-        parts = [base, "", f"Nota: descrizione avanzata Gemini non usata ({note})."]
-        if tech_block:
-            parts.extend(["", tech_block])
-        return "\n".join(parts).strip()
+        return _pack(base + f"\n\nNota: descrizione avanzata Gemini non usata ({note}).")
 
     visual = analyze_image_visual(path, should_abort=should_abort, use_cache=True)
-    return format_image_description(
+    base = format_image_description(
         path, visual=visual, tech=tech,
-        include_tech=include_tech, include_ocr=include_ocr,
+        include_tech=False, include_ocr=include_ocr,
     )
+    return _pack(base)
 
 
 def vision_status_message() -> str:
@@ -4862,6 +4945,186 @@ def materialize_image_from_bytes(
         return out
 
 
+def _jpeg_alternative_urls(url: str) -> list:
+    """Stesso indirizzo in JPEG, se il sito ha anche quel file.
+
+    WordPress tiene spesso sala.jpg accanto a sala.webp. Se il JPEG non
+    c'è, si tiene il WebP: l'immagine non si perde.
+    """
+    u = (url or "").strip()
+    try:
+        parts = urllib.parse.urlsplit(u)
+    except Exception:
+        return []
+    path = parts.path or ""
+    low = path.lower()
+    found = []
+    if low.endswith(".webp"):
+        stem = path[: -len(".webp")]
+        for ext in (".jpg", ".jpeg"):
+            found.append(
+                urllib.parse.urlunsplit(
+                    (parts.scheme, parts.netloc, stem + ext, parts.query, "")
+                )
+            )
+    query = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    changed = False
+    new_q = []
+    for key, value in query:
+        if key.lower() in ("format", "fm") and (value or "").lower() == "webp":
+            new_q.append((key, "jpg"))
+            changed = True
+        else:
+            new_q.append((key, value))
+    if changed:
+        found.append(
+            urllib.parse.urlunsplit(
+                (
+                    parts.scheme,
+                    parts.netloc,
+                    parts.path,
+                    urllib.parse.urlencode(new_q),
+                    "",
+                )
+            )
+        )
+    return found
+
+
+def _download_url_bytes(url: str, timeout: int):
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": _WEB_UA,
+            "Accept": "image/jpeg,image/png,image/gif,image/webp,image/*;q=0.8",
+        },
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        ctype = resp.headers.get("Content-Type", "") or ""
+        data = resp.read(_WEB_MAX_BYTES + 1)
+        final_url = resp.geturl() or url
+    return data, ctype, final_url
+
+
+def suggest_image_save_stem(page_url: str = "", image_url: str = "") -> str:
+    """Nome file dall'indirizzo della pagina, altrimenti da quello dell'immagine."""
+    skip = {
+        "status", "photo", "photos", "media", "image", "images", "img",
+        "uploads", "wp-content", "content", "static", "assets", "p", "i",
+    }
+
+    def clean(text: str) -> str:
+        text = urllib.parse.unquote(text or "")
+        text = re.sub(r'[<>:"/\\|?*\r\n]+', " ", text)
+        text = re.sub(r"\s+", " ", text).strip(" .-_")
+        return text
+
+    def tokens(url: str) -> list:
+        try:
+            path = urllib.parse.urlparse(url or "").path
+        except Exception:
+            return []
+        out = []
+        for part in path.split("/"):
+            if not part:
+                continue
+            stem, ext = os.path.splitext(part)
+            if ext.lower() in _IMG_EXTS:
+                part = stem
+            part = clean(part)
+            if part:
+                out.append(part)
+        return out
+
+    def usable(token: str) -> bool:
+        if not token or len(token) < 3 or token.isdigit():
+            return False
+        if token.lower() in skip:
+            return False
+        if len(token) >= 20 and "-" not in token and " " not in token:
+            return False
+        return True
+
+    page = ""
+    for token in reversed(tokens(page_url)):
+        if usable(token):
+            page = token
+            break
+    image = ""
+    for token in reversed(tokens(image_url)):
+        if usable(token):
+            image = token
+            break
+    if page and image and image.lower() not in page.lower():
+        name = f"{page} {image}"
+    else:
+        name = page or image or "immagine"
+    return name[:70].rstrip(" .-_") or "immagine"
+
+
+def _save_jpeg_with_wic(src: str, dest: str) -> bool:
+    """WebP, BMP o PNG in JPEG tramite Windows. wx in NVDA non legge il WebP."""
+    if not src or not dest or not os.path.isfile(src):
+        return False
+    script = (
+        "Add-Type -AssemblyName PresentationCore; "
+        "$uri = New-Object System.Uri($env:RTAD_IMG_SRC); "
+        "$bmp = [System.Windows.Media.Imaging.BitmapFrame]::Create("
+        "$uri, "
+        "[System.Windows.Media.Imaging.BitmapCreateOptions]::None, "
+        "[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad); "
+        "$enc = New-Object System.Windows.Media.Imaging.JpegBitmapEncoder; "
+        "$enc.QualityLevel = 90; "
+        "$enc.Frames.Add($bmp); "
+        "$fs = [System.IO.File]::Open($env:RTAD_IMG_DEST, 'Create'); "
+        "try { $enc.Save($fs) } finally { $fs.Close() }"
+    )
+    env = os.environ.copy()
+    env["RTAD_IMG_SRC"] = os.path.abspath(src)
+    env["RTAD_IMG_DEST"] = os.path.abspath(dest)
+    try:
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        run = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            env=env,
+            capture_output=True,
+            timeout=40,
+            creationflags=flags,
+        )
+    except Exception:
+        return False
+    return (
+        run.returncode == 0
+        and os.path.isfile(dest)
+        and os.path.getsize(dest) > 0
+    )
+
+
+def save_image_as_jpeg(src: str, dest: str) -> bool:
+    """Scrive un JPEG. Prima Windows, poi wx se il formato gli è noto."""
+    if _save_jpeg_with_wic(src, dest):
+        return True
+    try:
+        import wx
+        no_log = wx.LogNull()
+        try:
+            img = wx.Image(src, wx.BITMAP_TYPE_ANY)
+            if not img.IsOk():
+                return False
+            if img.HasAlpha():
+                img.ClearAlpha()
+            try:
+                img.SetOption(wx.IMAGE_OPTION_QUALITY, "90")
+            except Exception:
+                pass
+            return bool(img.SaveFile(dest, wx.BITMAP_TYPE_JPEG))
+        finally:
+            del no_log
+    except Exception:
+        return False
+
+
 def materialize_image_from_url(url: str, timeout: int = 45) -> dict:
     """Scarica un'immagine da URL http(s) su file temp. Dict: ok, path, error, url."""
     out = {"ok": False, "path": "", "error": "", "url": (url or "").strip()}
@@ -4876,25 +5139,33 @@ def materialize_image_from_url(url: str, timeout: int = 45) -> dict:
     if path_l.endswith(".svg"):
         out["error"] = "URL SVG: usare cattura area (non è un raster)."
         return out
-    try:
-        req = urllib.request.Request(
-            u,
-            headers={
-                "User-Agent": _WEB_UA,
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            },
-            method="GET",
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            ctype = resp.headers.get("Content-Type", "") or ""
-            data = resp.read(_WEB_MAX_BYTES + 1)
-            final_url = resp.geturl() or u
-    except urllib.error.HTTPError as e:
-        out["error"] = f"HTTP {e.code}: download immagine non riuscito."
-        return out
-    except Exception as e:
-        out["error"] = f"Download non riuscito: {e}"
-        return out
+    # Se il sito ha anche il JPEG, si prende quello. Altrimenti l'indirizzo dato.
+    chosen = None
+    if path_l.endswith(".webp") or "format=webp" in u.lower() or "fm=webp" in u.lower():
+        for alt in _jpeg_alternative_urls(u):
+            try:
+                data_a, ctype_a, final_a = _download_url_bytes(alt, timeout)
+            except Exception:
+                continue
+            if not data_a or len(data_a) > _WEB_MAX_BYTES:
+                continue
+            if not _is_raster_image_bytes(data_a):
+                continue
+            suffix_a = _sniff_image_suffix(data_a, ctype_a, final_a)
+            if suffix_a in (".jpg", ".jpeg"):
+                chosen = (data_a, ctype_a, final_a)
+                break
+    if chosen is None:
+        try:
+            data, ctype, final_url = _download_url_bytes(u, timeout)
+        except urllib.error.HTTPError as e:
+            out["error"] = f"HTTP {e.code}: download immagine non riuscito."
+            return out
+        except Exception as e:
+            out["error"] = f"Download non riuscito: {e}"
+            return out
+    else:
+        data, ctype, final_url = chosen
     if not data:
         out["error"] = "Risposta vuota dal server."
         return out

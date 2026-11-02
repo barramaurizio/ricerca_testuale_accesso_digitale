@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.9.3
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.3
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte della chat si aprono nel lettore di pagina. Invio o doppio clic su un'intestazione o su un link della stessa pagina va a quel punto, qui. Invio su Apri nel browser di Windows apre la pagina anche lì, e un clic sullo stesso pulsante. Word e PDF restano sul lettore di prima.
+- Se l'immagine viene da Internet, la scheda tecnica e la descrizione avanzata dicono «Indirizzo immagine: https://….». Se la pagina è un altro indirizzo, anche «Pagina: https://….». Solo un'area dello schermo: «Immagine dallo schermo. Un indirizzo non c'è.» Invio su Salva immagine, e un clic, tengono la copia. A schermo e a voce il punto in cui il file è stato scritto.
+- Salva video, o Salva audio se è arrivata solo la traccia, tiene il file già scaricato per l'analisi. Se video e audio sono due tracce, salva entrambi. Invio sul pulsante, e un clic. A schermo e a voce il punto in cui il file è stato scritto. Un link diretto scrive «Indirizzo file: https://….». Su YouTube, X e le altre pagine l'indirizzo temporaneo non si scrive. Ogni pagina passa da yt-dlp, anche una playlist .m3u8 o .mpd. Un contenuto protetto resta non scaricabile.
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- The HTML body of an email, a feed article and a chat source open in the page reader. Enter or a double click on a heading or on a link of the same page goes to that point, here. Enter on Open in the Windows browser opens the page there too, and a click on the same button. Word and PDF stay on the reader they already have.
+- If the image comes from the Internet, the technical sheet and the advanced description say «Indirizzo immagine: https://….». If the page is another address, also «Pagina: https://….». A screen area only: «Immagine dallo schermo. Un indirizzo non c'è.» Enter on Save image, and a click, keep the copy. On screen and by voice, the place where the file was written.
+- Save video, or Save audio if only the track arrived, keeps the file already downloaded for the analysis. If video and audio are two tracks, it saves both. Enter on the button, and a click. On screen and by voice, the place where the file was written. A direct link writes «Indirizzo file: https://….». On YouTube, X and the other pages the temporary address is not written. Every page goes through yt-dlp, including an .m3u8 or .mpd playlist. Protected content stays not downloadable.
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.3.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.3
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.3.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.3.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte della chat si aprono nel lettore di pagina. Si salvano l'immagine, l'audio e il video già scaricati. Ogni pagina passa da yt-dlp.
+
+Summary EN:
+The HTML body of an email, a feed article and a chat source open in the page reader. The image, audio and video already downloaded can be saved. Every page goes through yt-dlp.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.3/ricerca_testuale_accesso_digitale-1.9.3.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.3
+
+Description:
+Tre porte sul lettore di pagina (e-mail HTML, articolo di un feed, fonte della chat). Indirizzo dell'immagine e Salva immagine. Salva audio o video sulla copia già scaricata. Ogni pagina passa da yt-dlp, anche .m3u8 e .mpd.

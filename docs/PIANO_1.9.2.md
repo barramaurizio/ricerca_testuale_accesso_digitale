@@ -1,7 +1,7 @@
 # Piano RTAD 1.9.2
 
-**In corso.** Il numero nel programma diventa `1.9.2` con il capitolo EPUB.  
-La 1.9.0 resta pubblicata. La 1.9.1 è scritta e non è uscita da sola: la pagina HTML entra in questa build.
+**Pubblicata** l’1/11/2026. GitHub `v1.9.2` / `app-v1.9.2`, commit `d381367`. DataStore #12681 chiuso via #12682, accettato. Non si rifà.  
+La 1.9.1 non è uscita da sola: la pagina HTML è in questa build.
 
 ## Questa versione: un capitolo EPUB nello stesso lettore
 
@@ -24,7 +24,7 @@ Le figure restano nel file. In questo libro sono formule senza didascalia: non s
 
 ## Dopo, una versione alla volta
 
-1. **`1.9.3` — la stessa finestra da tre porte.** Il corpo HTML di un’e-mail, l’articolo di un feed, e una fonte della chat.
+1. **`1.9.3` — tre porte, indirizzo dell’immagine, salva il media.** La stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat. Se l’immagine viene da Internet: l’indirizzo diretto e Salva immagine. L’audio o il video già scaricato per l’analisi si può salvare. Piano: `docs/PIANO_1.9.3.md`.
 2. **`1.9.4` — struttura, senza una finestra nuova.** In Word, un link interno salta al titolo. In ODT arrivano titoli e link.
 3. **`1.9.5` — VIDEO_TS.** Un avviso quando la ricerca incontra un DVD commerciale. Niente copia del film.
 4. **`1.9.6` — OneCore.** La voce di Windows nella Standalone.

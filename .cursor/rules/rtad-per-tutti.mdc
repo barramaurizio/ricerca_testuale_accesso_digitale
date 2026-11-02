@@ -14,6 +14,16 @@ Standalone e Add-on sono per tutti: chi usa la voce, chi è ipovedente, chi vede
 - Le istruzioni dei tasti stanno scritte nella finestra, non solo nella guida o nella voce.
 - Se tocchi una frase in un gemello, la stessa frase va nell’altro (SA e Add-on).
 
+## Tasto e mouse, nella stessa frase
+
+Chi non vede usa il tasto. Chi vede usa il mouse, e c’è anche chi preme Invio. Ogni istruzione, nella finestra, nella guida e nelle novità, nomina tutti e due. Stessa frase a voce e a schermo, in Standalone e nell’Add-on.
+
+- Su una riga di elenco: Invio e doppio clic fanno la stessa cosa. Un clic solo seleziona la riga.
+- Su un pulsante: Invio, quando il pulsante ha il focus, e un clic.
+- Scrivi solo il gesto che la finestra fa davvero. Se il doppio clic non è collegato, non nominarlo.
+
+Esempio: «Invio o doppio clic sul sommario apre quel capitolo, qui.»
+
 ## Esempio
 
 Dopo Invio sugli allegati, la chat mostra e dice la stessa cosa: «Allegati 4 su 6. Non entrati: …». Senza allegati, l’elenco mostra «Nessun allegato presente.»

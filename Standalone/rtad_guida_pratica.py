@@ -28,9 +28,34 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.2
+Novità recenti (in parole semplici) — versione 1.9.3
 ----------------------------------------------------
-• Leggi documento su un EPUB apre un capitolo nel lettore
+• Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte
+  della chat si aprono nel lettore di pagina.
+  Invio o doppio clic su un'intestazione o su un link
+  della stessa pagina va a quel punto, qui.
+  Invio su Apri nel browser di Windows apre la pagina anche lì,
+  e un clic sullo stesso pulsante.
+  Word e PDF restano sul lettore di prima.
+• Se l'immagine viene da Internet, la scheda tecnica
+  e la descrizione avanzata dicono
+  «Indirizzo immagine: https://….».
+  Se la pagina è un altro indirizzo, anche «Pagina: https://….».
+  Solo un'area dello schermo:
+  «Immagine dallo schermo. Un indirizzo non c'è.»
+  Invio su Salva immagine, e un clic, tengono la copia.
+  A schermo e a voce il punto in cui il file è stato scritto.
+• Salva video, o Salva audio se è arrivata solo la traccia,
+  tiene il file già scaricato per l'analisi.
+  Se video e audio sono due tracce, salva entrambi.
+  Invio sul pulsante, e un clic.
+  A schermo e a voce il punto in cui il file è stato scritto.
+  Un link diretto scrive «Indirizzo file: https://….».
+  Su YouTube, X e le altre pagine l'indirizzo temporaneo
+  non si scrive. Ogni pagina passa da yt-dlp,
+  anche una playlist .m3u8 o .mpd.
+  Un contenuto protetto resta non scaricabile.
+• Resta dalla 1.9.2: Leggi documento su un EPUB apre un capitolo nel lettore
   dentro RTAD. A schermo e a voce:
   «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
   Il sommario del libro è nella finestra:
@@ -82,15 +107,19 @@ Novità recenti (in parole semplici) — versione 1.9.2
   I venti già salvati restano: il ventunesimo si aggiunge
   quando cerchi o scegli un percorso nuovo.
 • Ctrl+Alt+V, se negli Appunti non c'è un file,
-  prende il testo di un messaggio e lo mette in elenco.
+  prende il testo di un messaggio, lo mette in elenco
+  e lo apre nel lettore di pagina.
   A schermo e a voce:
   «Messaggio incollato. È in elenco: titolo.
-  Da qui puoi fare altre operazioni.»
+  Si apre ora. Invio o doppio clic sulla riga lo riapre.»
   Da lì, Chiedi a Gemini.
   Un file .eml copiato o trascinato resta un file, come gli altri:
   «Il file è in elenco: nome. Da qui puoi fare altre operazioni.»
-  Poi chiede: «Apri ora la lettura di questo documento?»
-  Se sì, si apre il lettore.
+  Poi chiede: «Apri ora questo messaggio nel lettore di pagina?»
+  Invio sul pulsante Sì, oppure un clic.
+  Se il messaggio non ha un corpo HTML resta il lettore della posta.
+  La stessa voce sta nel menu del tasto destro, o del tasto applicazioni:
+  «Apri nel lettore di pagina». Invio sulla voce, oppure un clic.
 • Resta dalla 1.8.9. Confronta file…: da due a dodici file, in Strumenti
   e nel menu del risultato. Confronta, senza chiave,
   mostra e dice solo le parti diverse, con il nome
@@ -377,7 +406,14 @@ documento normale. Non serve scompattare il file a mano.
 -----------------
 Se segui siti o feed Thunderbird, puoi cercare nelle notizie.
 Il pulsante «Feed Thunderbird» prova a trovare da solo le cartelle giuste.
-Nei risultati, Invio su una notizia apre di solito l’articolo nel browser.
+Nei risultati, Invio o doppio clic su una notizia apre l'articolo
+nel lettore di pagina. A schermo e a voce:
+«Articolo nel lettore di pagina.»
+Nel menu del tasto destro, o del tasto applicazioni, la voce è
+«Apri nel lettore di pagina»: Invio sulla voce, oppure un clic.
+Dentro, Invio su Apri nel browser di Windows apre la pagina anche lì,
+e un clic sullo stesso pulsante.
+Una riga grezza del file feed resta sull'editor, alla riga trovata.
 
 
 7. Leggere il testo nelle immagini (OCR)

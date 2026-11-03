@@ -46,7 +46,7 @@ I cookie del browser, solo se l’utente lo chiede: un video pubblico che chiede
 
 ## Dopo, una versione alla volta
 
-1. **`1.9.4` — struttura, senza una finestra nuova.** In Word, un link interno salta al titolo. In ODT arrivano titoli e link.
+1. **`1.9.4` — struttura, senza una finestra nuova.** In Word, un link interno salta al titolo. In ODT arrivano titoli e link. Le due guide del programma, la HTML del menu e la pratica, si pubblicano su GitHub Pages. Stesso testo di chi ha il programma installato, rigenerate a ogni versione. Non il file del profilo NVDA e non `docs/GUIDA_COMPLETA.html`. Le novità di ogni versione stanno già in quelle due guide.
 2. **`1.9.5` — VIDEO_TS.** Un avviso quando la ricerca incontra un DVD commerciale. Niente copia del film.
 3. **`1.9.6` — OneCore.** La voce di Windows nella Standalone.
 4. **`1.9.7` — export multipli.** Più di un formato nello stesso passaggio.

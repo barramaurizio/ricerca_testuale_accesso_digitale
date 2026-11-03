@@ -5060,7 +5060,7 @@ def suggest_image_save_stem(page_url: str = "", image_url: str = "") -> str:
         name = f"{page} {image}"
     else:
         name = page or image or "immagine"
-    return name[:70].rstrip(" .-_") or "immagine"
+    return name[:240].rstrip(" .-_") or "immagine"
 
 
 def _save_jpeg_with_wic(src: str, dest: str) -> bool:

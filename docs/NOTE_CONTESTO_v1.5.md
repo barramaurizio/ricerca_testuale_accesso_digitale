@@ -2,8 +2,8 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `1.9.2` — piano `docs/PIANO_1.9.2.md` (1/11/2026, GitHub `v1.9.2` / `app-v1.9.2`, commit `d381367`, DataStore #12681 chiuso via #12682, accettato). Non hotfixarla. La 1.9.1 (pagina HTML) non è uscita da sola: è in questa build.  
-**Prossima:** `1.9.3`, codice scritto, in prova da papà, non pubblicata. Tre porte sulla stessa finestra (corpo HTML di un’e-mail, articolo di un feed, fonte della chat) e, se l’immagine viene da Internet, l’indirizzo diretto in scheda e in descrizione, più Salva immagine. L’audio o il video già scaricato per l’analisi si può salvare; se le tracce sono due, si salvano entrambe. Ogni pagina passa da yt-dlp, anche `.m3u8` e `.mpd`. I cookie del browser restano per dopo, su scelta dell’utente, e non aprono i flussi protetti. Piano: `docs/PIANO_1.9.3.md`. Poi: 1.9.4 link interno Word e struttura ODT, 1.9.5 VIDEO_TS (avviso, niente copia del film), 1.9.6 OneCore, 1.9.7 export multipli. Papà (22/10, sera) ha tolto le chiavi Gemini e Cloud Vision dal programma e non fa da tester su quei conti. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà.  
+**Ultima pubblicata:** `1.9.3` — piano `docs/PIANO_1.9.3.md` (2/11/2026, GitHub `v1.9.3` / `app-v1.9.3`, commit `08832c4`, DataStore #12733 chiuso via #12734, accettato). Non hotfixarla.  
+**In corso:** `1.9.4`, non ancora pubblicata. In Word, un link interno salta al titolo. In ODT arrivano titoli e link. Salva immagine, audio o video propone il nome della pagina il più lungo che Windows accetta; se lo cambi, anche solo qualche carattere, Salva testo propone lo stesso nome. Le due guide del programma (la HTML del menu e la pratica) si pubblicano su GitHub Pages, stesso testo di chi ha il programma installato, e si rigenerano a ogni versione. Non il file del profilo NVDA e non `docs/GUIDA_COMPLETA.html`. Le novità di ogni versione stanno già in quelle due guide. I cookie del browser restano per dopo, su scelta dell’utente, e non aprono i flussi protetti. Poi: 1.9.5 VIDEO_TS (avviso, niente copia del film), 1.9.6 OneCore, 1.9.7 export multipli. Papà ha rimesso la chiave Gemini e la usa. Cloud Vision per l’OCR non lo usa: da vedente non lo ritiene indispensabile. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà.  
 **NVDA:** ultima versione testata sull’Add-on pubblicato: `2026.3.0` (`lastTestedNVDAVersion`).
 
 ## Sorgente
@@ -17,11 +17,11 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (1/11/2026)
-- **Ultima pubblicata:** `1.9.2` — capitolo EPUB nel lettore della pagina HTML. Un link http esce nel browser di Windows.  
-  Pubblicata l’1/11/2026. GitHub `v1.9.2` / `app-v1.9.2`, commit `d381367`. DataStore #12681 chiuso via #12682, accettato.  
-  **Non hotfixare 1.9.2.** La 1.9.1 è in questa build.  
-  Prima: `1.9.0` il 30/10 (DataStore #12641); `1.8.9` il 29/10 (DataStore #12598).
+## Stato attuale (2/11/2026)
+- **Ultima pubblicata:** `1.9.3` — lettore di pagina per e-mail HTML, feed e fonte della chat; Salva immagine, audio e video.  
+  Pubblicata il 2/11/2026. GitHub `v1.9.3` / `app-v1.9.3`, commit `08832c4`. DataStore #12733 chiuso via #12734, accettato.  
+  **Non hotfixare 1.9.3.**  
+  Prima: `1.9.2` l’1/11 (DataStore #12681); `1.9.0` il 30/10 (DataStore #12641).
 - Chiavi opt-in: Google Vision + Gemini (AI Studio), locali
 - Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_whisper.py`, `rtad_epub.py`, `rtad_docstruct.py`, `rtad_reading_mark.py`, `rtad_chat.py`, `rtad_attach_dialog.py`, `rtad_compare.py`, `rtad_html_page.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`
 - Solo SA: `rtad_copie.py` (Trova copie)
@@ -29,11 +29,15 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 - Verifica commit prima del push: `git --no-pager show --stat -1`
 
 ### Versione in corso
-`1.9.3`, codice scritto, in prova. Non pubblicata. Piano: `docs/PIANO_1.9.3.md`.
+`1.9.4` scritta nei sorgenti, non ancora pubblicata. Piano: `docs/PIANO_1.9.4.md`. Non hotfixare la 1.9.3.
 
-Tre pezzi, stessa versione. La finestra già fatta si apre anche sul corpo HTML di un’e-mail, sull’articolo di un feed e su una fonte della chat. Se l’immagine analizzata viene da Internet, scheda tecnica e descrizione avanzata mostrano e dicono l’indirizzo diretto del file; Salva immagine tiene la copia. L’audio o il video già scaricato per l’analisi si salva con Salva video o Salva audio; se le tracce sono due, si salvano entrambe. Su YouTube e X l’indirizzo temporaneo del file non si scrive in scheda: scade. Ogni pagina passa da yt-dlp, anche `.m3u8` e `.mpd`. I cookie del browser restano per dopo. Vale per Standalone e Add-on. Un file già sul disco non si risalva.
+`1.9.3` pubblicata il 2/11/2026. GitHub `v1.9.3` / `app-v1.9.3`, commit `08832c4`. DataStore #12733 chiuso via #12734, accettato. Piano: `docs/PIANO_1.9.3.md`.
 
-Poi, una alla volta: 1.9.4 link interno di Word e titoli/link ODT; 1.9.5 VIDEO_TS (avviso, niente copia del film); 1.9.6 OneCore; 1.9.7 export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB.
+In Word, Invio o doppio clic su un link interno va a quel titolo, qui. In un ODT, Leggi documento mostra titoli e link. Salva immagine, audio o video propone il nome della pagina il più lungo che Windows accetta; una modifica anche di pochi caratteri passa a Salva testo. Le due guide, HTML del menu e pratica, stanno in `docs/guida/` e si pubblicano su GitHub Pages: stesso testo del programma, aggiornate a ogni versione. Non il file del profilo NVDA e non `docs/GUIDA_COMPLETA.html`.
+
+La 1.9.3 resta com’è: lettore di pagina per e-mail, feed e fonte della chat; Salva immagine, audio e video. I cookie del browser restano per dopo e non aprono i flussi protetti. Un contenuto protetto resta non scaricabile.
+
+Poi, una alla volta: 1.9.5 VIDEO_TS (avviso, niente copia del film); 1.9.6 OneCore; 1.9.7 export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB.
 
 La 1.9.2 resta com’è. «trascriv iamo» resta con lo spazio.
 
@@ -45,4 +49,4 @@ La 1.9.2 resta com’è. «trascriv iamo» resta con lo spazio.
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD. Ultima pubblicata 1.9.2 l’1/11/2026: GitHub v1.9.2 / app-v1.9.2, commit d381367. DataStore #12681 chiuso via #12682, accettato. Non hotfixare la 1.9.2. La 1.9.1 non è uscita da sola ed è in quella build. «trascriv iamo» resta con lo spazio. Prossima 1.9.3, piano docs/PIANO_1.9.3.md: la stessa finestra per e-mail HTML, articolo di un feed e fonte della chat; se l’immagine viene da Internet, indirizzo diretto in scheda e descrizione, e Salva immagine; Salva video o Salva audio sul file già scaricato per l’analisi. Su YouTube e X l’indirizzo temporaneo del file non si scrive: scade. Standalone e Add-on. Poi 1.9.4 link interno Word e ODT; 1.9.5 VIDEO_TS; 1.9.6 OneCore; 1.9.7 export multipli. Il trascinamento del file .eml lo prova papà sull’Installer.»
+«RTAD. Ultima pubblicata 1.9.3 il 2/11/2026: GitHub v1.9.3 / app-v1.9.3, commit 08832c4. DataStore #12733 chiuso via #12734, accettato. Non hotfixare la 1.9.3. «trascriv iamo» resta con lo spazio. In corso 1.9.4, non ancora pubblicata: in Word il link interno salta al titolo, in ODT arrivano titoli e link, il nome salvato di immagine audio e video è quello della pagina il più lungo possibile e Salva testo lo segue anche se cambi solo qualche carattere, e le due guide del programma (HTML del menu e pratica) si pubblicano su GitHub Pages, stesso testo di chi ha il programma, aggiornate a ogni versione. Non il file del profilo NVDA e non docs/GUIDA_COMPLETA.html. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa: da vedente non lo ritiene indispensabile. Poi 1.9.5 VIDEO_TS; 1.9.6 OneCore; 1.9.7 export multipli. I cookie del browser restano per dopo. I contenuti protetti restano non scaricabili.»

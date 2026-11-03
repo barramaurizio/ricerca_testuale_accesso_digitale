@@ -134,7 +134,23 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li>Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte
+    <li>In Word, Invio o doppio clic su un link interno va a quel titolo, qui.
+      A schermo e a voce: «Titolo “nome”, qui nel testo.»
+      Se il titolo non c'è: «Il titolo di destinazione non c'è.»
+      Un clic solo seleziona la riga.</li>
+    <li>In un file ODT, Leggi documento mostra i titoli e i link, come in Word.
+      Invio o doppio clic su un titolo del sommario, o su un link interno,
+      va a quel titolo, qui. Un clic solo seleziona la riga.
+      Un sito web si apre fuori.</li>
+    <li>Salva immagine, Salva audio o Salva video propone il nome della pagina,
+      il più lungo che Windows accetta per un file.
+      Se lo cambi, anche solo qualche carattere, Salva testo propone
+      lo stesso nome, con .rtad.txt. Invio sul pulsante, e un clic.</li>
+    <li>La guida del menu e la guida pratica sono anche sul web,
+      lo stesso testo di chi ha il programma, aggiornate a ogni versione.
+      L'indirizzo è
+      <a href="https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/">https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/</a>.</li>
+    <li>Resta dalla 1.9.3: Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte
       della chat si aprono nel lettore di pagina.
       Invio o doppio clic su un'intestazione o su un link
       della stessa pagina va a quel punto, qui.

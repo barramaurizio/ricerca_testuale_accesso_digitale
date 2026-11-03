@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.3"
+APP_VERSION = "1.9.4"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -2246,6 +2246,9 @@ def extract_document_text(file_path):
             return "\n".join(extract_lines_from_pdf(file_path)).strip()
         if ext in (".docx", ".doc"):
             return "\n".join(extract_paragraphs_from_docx(file_path)).strip()
+        if ext == ".odt" and rtad_docstruct is not None:
+            struct = rtad_docstruct.extract_structure_from_odt(file_path)
+            return (struct.get("plain") or "").strip()
         if ext == ".xlsx":
             return "\n".join(
                 (row.get("text") or "") for row in extract_rows_from_xlsx(file_path)
@@ -4104,12 +4107,56 @@ def save_notify_search_end_preference(enabled):
     _save_settings_dict(data)
 
 
-def _safe_filename_stem(text, fallback="rtad_report", max_len=220):
+def _win_save_dialog_texts(dlg):
+    """Testi delle caselle nome nel dialogo Salva di Windows."""
+    if not sys.platform.startswith("win"):
+        return []
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        hwnd = int(dlg.GetHandle() or 0)
+        if not hwnd:
+            return []
+        found = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _visit(child, _lp):
+            cls = ctypes.create_unicode_buffer(128)
+            user32.GetClassNameW(child, cls, 128)
+            if cls.value in ("Edit", "ComboBox"):
+                n = user32.GetWindowTextLengthW(child)
+                if 0 < n < 300:
+                    buf = ctypes.create_unicode_buffer(n + 1)
+                    user32.GetWindowTextW(child, buf, n + 1)
+                    if buf.value:
+                        found.append(buf.value)
+            return True
+
+        user32.EnumChildWindows(hwnd, _visit, 0)
+        return found
+    except Exception:
+        return []
+
+
+def _file_dialog_chosen_path(dlg):
+    """Percorso scelto. Una modifica parziale del nome resta quella scritta."""
+    path = dlg.GetPath() or ""
+    if rtad_media is None or not hasattr(rtad_media, "prefer_dialog_filename"):
+        return path
+    try:
+        return rtad_media.prefer_dialog_filename(path, _win_save_dialog_texts(dlg)) or path
+    except Exception:
+        return path
+
+
+def _safe_filename_stem(text, fallback="rtad_report", max_len=240):
     """Riduce titolo/query a stem di nome file Windows-safe.
 
-    max_len~220: titoli lunghi (YouTube ecc.) restano quasi interi;
-    sotto i ~255 del solo nome file (+ .rtad.txt). Il percorso intero
-    resta soggetto al MAX_PATH (~260) se LongPaths non è attivo.
+    max_len 240: il nome della pagina resta il più lungo possibile.
+    Con .rtad.txt o _audio.m4a si resta sotto i 255 del solo nome file.
+    Il percorso intero resta soggetto al MAX_PATH (~260) se LongPaths non è attivo.
     """
     raw = (text or "").strip()
     if not raw:
@@ -8320,7 +8367,7 @@ class ImageInfoFrame(wx.Frame):
         if not title:
             title = stem
         title = re.sub(r'[<>:"/\\|?*\r\n]+', " ", title).strip() or stem
-        title = title[:80].rstrip(" .")
+        title = _safe_filename_stem(title, fallback=stem, max_len=240)
         if not title.lower().endswith(ext):
             title += ext
         return label, hint, title, companion
@@ -8413,7 +8460,7 @@ class ImageInfoFrame(wx.Frame):
             if dlg.ShowModal() != wx.ID_OK:
                 self._say_keep("Salvataggio annullato.")
                 return
-            dest = dlg.GetPath()
+            dest = _file_dialog_chosen_path(dlg)
         finally:
             dlg.Destroy()
         if ext and not os.path.splitext(dest)[1]:
@@ -8444,6 +8491,7 @@ class ImageInfoFrame(wx.Frame):
             self._say_keep("Impossibile salvare il file.")
             return
         save_last_keep_dir(dest)
+        self._kept_dest = dest
         if kind == "image":
             self._kept_image_dest = dest
         audio_dest = ""
@@ -8540,10 +8588,17 @@ class ImageInfoFrame(wx.Frame):
             rtad_speak("Impossibile aprire gli appunti.")
 
     def _image_text_save_target(self):
-        """Cartella e nome del testo, uguali a quelli dell'immagine salvata."""
-        if self._keep_file_kind() != "image":
+        """Cartella e nome del testo, uguali al file appena salvato.
+
+        Vale per immagine, audio e video. Anche una modifica di alcuni
+        caratteri del nome: il testo prende quel nome, non quello della pagina.
+        """
+        kind = self._keep_file_kind()
+        if kind not in ("image", "media"):
             return "", ""
-        kept = getattr(self, "_kept_image_dest", "") or ""
+        kept = getattr(self, "_kept_dest", "") or ""
+        if not kept and kind == "image":
+            kept = getattr(self, "_kept_image_dest", "") or ""
         if kept and os.path.isdir(os.path.dirname(kept)):
             folder = os.path.dirname(kept)
             stem = os.path.splitext(os.path.basename(kept))[0]
@@ -8551,7 +8606,8 @@ class ImageInfoFrame(wx.Frame):
             folder = self._keep_default_dir()
             _label, _hint, name, _companion = self._keep_names()
             stem = os.path.splitext(name)[0]
-        stem = _safe_filename_stem(stem, fallback="immagine")
+        fallback = "immagine" if kind == "image" else "media"
+        stem = _safe_filename_stem(stem, fallback=fallback, max_len=240)
         return folder, stem
 
     def on_save_text(self, event=None):
@@ -8572,7 +8628,7 @@ class ImageInfoFrame(wx.Frame):
             try:
                 if dlg.ShowModal() != wx.ID_OK:
                     return
-                path = dlg.GetPath()
+                path = _file_dialog_chosen_path(dlg)
             finally:
                 dlg.Destroy()
             try:
@@ -8605,7 +8661,7 @@ class ImageInfoFrame(wx.Frame):
         try:
             if dlg.ShowModal() != wx.ID_OK:
                 return
-            path = dlg.GetPath()
+            path = _file_dialog_chosen_path(dlg)
         finally:
             dlg.Destroy()
         try:
@@ -8721,6 +8777,7 @@ class DocumentStructureFrame(wx.Frame):
         else:
             self.lst_outline = None
 
+        self.lbl_link_result = None
         if self.links:
             vbox.Add(
                 wx.StaticText(panel, label="Lin&k nel documento"),
@@ -8728,10 +8785,29 @@ class DocumentStructureFrame(wx.Frame):
                 wx.LEFT | wx.RIGHT,
                 8,
             )
+            self.lbl_link_hint = wx.StaticText(
+                panel,
+                label=(
+                    "Invio o doppio clic: un link interno va a quel titolo, qui. "
+                    "Un sito web si apre fuori. Un clic solo seleziona la riga."
+                ),
+            )
+            try:
+                self.lbl_link_hint.SetName("Come aprire un link")
+            except Exception:
+                pass
+            vbox.Add(self.lbl_link_hint, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+            self.lbl_link_result = wx.StaticText(panel, label="")
+            try:
+                self.lbl_link_result.SetName("Esito link")
+            except Exception:
+                pass
+            vbox.Add(self.lbl_link_result, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
             self.lst_links = wx.ListBox(panel, style=wx.LB_SINGLE)
             for i, item in enumerate(self.links, 1):
+                dest = item.get("where") or item.get("href") or ""
                 self.lst_links.Append(
-                    f"{i}. {item.get('text') or ''} -> {item.get('href') or ''}"
+                    f"{i}. {item.get('text') or ''} -> {dest}"
                 )
             vbox.Add(self.lst_links, 0, wx.EXPAND | wx.ALL, 8)
             self.lst_links.Bind(wx.EVT_LISTBOX_DCLICK, self.on_link_activate)
@@ -8887,7 +8963,9 @@ class DocumentStructureFrame(wx.Frame):
             "Control+H / Control+Shift+H: titolo successivo o precedente. "
             "Control+B: segna un punto di lettura, quanti ne vuoi. "
             "Control+Shift+B: torna all'ultimo. Invio sull'elenco: scegli un altro. "
-            "I link «Sito web» sono esterni."
+            "I link «Sito web» sono esterni. "
+            "Invio o doppio clic: un link interno va a quel titolo, qui. "
+            "Un sito web si apre fuori. Un clic solo seleziona la riga."
             + (" Alt+U: traduci." if rtad_translate is not None else "")
         )
 
@@ -9105,6 +9183,27 @@ class DocumentStructureFrame(wx.Frame):
         else:
             _after_open("")
 
+    def _say_link(self, sentence):
+        try:
+            if self.lbl_link_result is not None:
+                self.lbl_link_result.SetLabel(sentence)
+                self.lbl_link_result.Wrap(680)
+        except Exception:
+            pass
+        speak_accessible(sentence)
+
+    def _activate_internal_link(self, item):
+        title = str((item or {}).get("target_title") or "").strip()
+        if not title:
+            self._say_link("Link interno. Il titolo di destinazione non c'è.")
+            return
+        level = int((item or {}).get("target_level") or 1) or 1
+        jumped = self._jump_outline_in_text({"title": title, "level": level})
+        if jumped:
+            self._say_link(f"Titolo «{title}», qui nel testo.")
+            return
+        self._say_link(f"Il titolo «{title}» non è in questo testo.")
+
     def on_link_activate(self, event=None):
         if not self.links:
             rtad_speak("Nessun link in questo documento.")
@@ -9155,6 +9254,16 @@ class DocumentStructureFrame(wx.Frame):
                 return
             except Exception:
                 pass
+        where = str(item.get("where") or "")
+        if (
+            item.get("target_title")
+            or href.startswith("#")
+            or href == "(destinazione interna)"
+            or where.startswith("titolo ")
+            or where.startswith("destinazione interna")
+        ):
+            self._activate_internal_link(item)
+            return
         if wx.TheClipboard.Open():
             wx.TheClipboard.SetData(wx.TextDataObject(href or text))
             wx.TheClipboard.Close()
@@ -9460,7 +9569,7 @@ class DocumentStructureFrame(wx.Frame):
         try:
             if dlg.ShowModal() != wx.ID_OK:
                 return
-            path = dlg.GetPath()
+            path = _file_dialog_chosen_path(dlg)
         finally:
             dlg.Destroy()
         try:
@@ -9739,7 +9848,23 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte\n"
+            "• In Word, Invio o doppio clic su un link interno va a quel titolo, qui.\n"
+            "  A schermo e a voce: «Titolo “nome”, qui nel testo.»\n"
+            "  Se il titolo non c'è: «Il titolo di destinazione non c'è.»\n"
+            "  Un clic solo seleziona la riga.\n"
+            "• In un file ODT, Leggi documento mostra i titoli e i link, come in Word.\n"
+            "  Invio o doppio clic su un titolo del sommario, o su un link interno,\n"
+            "  va a quel titolo, qui. Un clic solo seleziona la riga.\n"
+            "  Un sito web si apre fuori.\n"
+            "• Salva immagine, Salva audio o Salva video propone il nome della pagina,\n"
+            "  il più lungo che Windows accetta per un file.\n"
+            "  Se lo cambi, anche solo qualche carattere, Salva testo propone\n"
+            "  lo stesso nome, con .rtad.txt. Invio sul pulsante, e un clic.\n"
+            "• La guida del menu e la guida pratica sono anche sul web,\n"
+            "  lo stesso testo di chi ha il programma, aggiornate a ogni versione.\n"
+            "  L'indirizzo è\n"
+            "  https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/\n"
+            "• Resta dalla 1.9.3: Il corpo HTML di un'e-mail, l'articolo di un feed e una fonte\n"
             "  della chat si aprono nel lettore di pagina.\n"
             "  Invio o doppio clic su un'intestazione o su un link\n"
             "  della stessa pagina va a quel punto, qui.\n"
@@ -15034,7 +15159,7 @@ class SearchFrame(wx.Frame):
             if ext == ".epub" and rtad_html_page is not None:
                 wx.CallAfter(self._show_epub_reader, file_path)
                 return
-            if rtad_docstruct is not None and ext in (".docx", ".epub", ".doc", ".pdf"):
+            if rtad_docstruct is not None and ext in (".docx", ".odt", ".epub", ".doc", ".pdf"):
                 try:
                     struct = rtad_docstruct.extract_document_structure(file_path)
                 except Exception as e:
@@ -15048,7 +15173,7 @@ class SearchFrame(wx.Frame):
                         "message": f"Errore analisi struttura: {e}",
                     }
                 body = (struct.get("body") or struct.get("plain") or "").strip()
-                if not body and ext in (".docx", ".epub", ".pdf"):
+                if not body and ext in (".docx", ".odt", ".epub", ".pdf"):
                     plain = extract_document_text(file_path)
                     if plain:
                         struct["body"] = plain

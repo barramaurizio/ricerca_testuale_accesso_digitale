@@ -1,0 +1,93 @@
+🌟 Novità della Versione 1.9.4
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.4
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- In Word, Invio o doppio clic su un link interno va a quel titolo, qui. A schermo e a voce: «Titolo “nome”, qui nel testo.» Se il titolo non c'è: «Il titolo di destinazione non c'è.» Un clic solo seleziona la riga.
+- In un file ODT, Leggi documento mostra i titoli e i link, come in Word. Invio o doppio clic su un titolo del sommario, o su un link interno, va a quel titolo, qui. Un clic solo seleziona la riga. Un sito web si apre fuori.
+- Salva immagine, Salva audio o Salva video propone il nome della pagina, il più lungo che Windows accetta per un file. Se lo cambi, anche solo qualche carattere, Salva testo propone lo stesso nome, con .rtad.txt. Invio sul pulsante, e un clic.
+- La guida del menu e la guida pratica sono anche sul web, lo stesso testo di chi ha il programma, aggiornate a ogni versione. L'indirizzo è https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- In Word, Enter or a double click on an internal link goes to that title, here. On screen and by voice: «Titolo “nome”, qui nel testo.» If the title is missing: «Il titolo di destinazione non c'è.» A single click only selects the row.
+- In an ODT file, Read document shows the titles and the links, as in Word. Enter or a double click on a title in the outline, or on an internal link, goes to that title, here. A single click only selects the row. A website opens outside.
+- Save image, Save audio or Save video proposes the name from the page, as long as Windows allows for a file name. If you change it, even only a few characters, Save text proposes the same name, with .rtad.txt. Enter on the button, and a click.
+- The menu guide and the practical guide are also on the web, the same text as in the installed program, updated with every version. The address is https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.4.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.4
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.4.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.4.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+In Word, Invio o doppio clic su un link interno va a quel titolo, qui. In un ODT arrivano titoli e link. Il nome del file segue la pagina, e Salva testo lo stesso nome.
+
+Summary EN:
+In Word, Enter or a double click on an internal link goes to that title, here. An ODT file brings titles and links. The file name follows the page, and Save text uses that same name.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.4/ricerca_testuale_accesso_digitale-1.9.4.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.4
+
+Description:
+In Word il link interno salta al titolo. In ODT arrivano titoli e link. Il nome salvato di immagine, audio e video segue la pagina, e il testo accanto usa lo stesso nome. Le due guide del programma si pubblicano sul web.

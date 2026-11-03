@@ -15,6 +15,40 @@ ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / "addon" / "globalPlugins" / "ricerca_testuale" / "lib"
 
 
+def _write_guide_pages(pratica_html: str) -> None:
+    """Le due guide del programma, stesso testo, per GitHub Pages."""
+    import rtad_guida_html as guida_html
+
+    app = (ROOT / "Standalone" / "app_gui.py").read_text(encoding="utf-8")
+    found = re.search(r'^APP_VERSION\s*=\s*"([^"]+)"', app, re.M)
+    version = found.group(1) if found else ""
+    guide = ROOT / "docs" / "guida"
+    guide.mkdir(parents=True, exist_ok=True)
+    menu = guida_html.build_guida_html(
+        "Ricerca Testuale Accesso Digitale",
+        version,
+    )
+    (guide / "guida.html").write_text(menu, encoding="utf-8")
+    (guide / "pratica.html").write_text(pratica_html, encoding="utf-8")
+    index = (
+        "<!DOCTYPE html>\n"
+        '<html lang="it">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>Guide di Ricerca Testuale Accesso Digitale {version}</title>\n"
+        "</head>\n<body>\n"
+        "<h1>Guide di Ricerca Testuale Accesso Digitale</h1>\n"
+        f"<p>Versione {version}. Lo stesso testo di chi ha il programma installato.</p>\n"
+        "<ul>\n"
+        '<li><a href="guida.html">Guida completa</a>. '
+        "È la guida HTML del menu Aiuto. Invio o un clic la apre.</li>\n"
+        '<li><a href="pratica.html">Guida pratica</a>. '
+        "Invio o un clic apre quella guida.</li>\n"
+        "</ul>\n</body>\n</html>\n"
+    )
+    (guide / "index.html").write_text(index, encoding="utf-8")
+    print(f"pages guida OK, versione {version}")
+
+
 def main() -> int:
     src_guida = ROOT / "Standalone" / "rtad_guida_pratica.py"
     dst_guida = LIB / "rtad_guida_pratica.py"
@@ -42,6 +76,7 @@ def main() -> int:
     (ROOT / "addon" / "doc" / "it" / "guida_pratica.html").write_text(
         html, encoding="utf-8"
     )
+    _write_guide_pages(html)
 
     shutil.copy2(
         ROOT / "Standalone" / "rtad_docstruct.py", LIB / "rtad_docstruct.py"

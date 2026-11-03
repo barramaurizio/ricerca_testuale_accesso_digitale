@@ -39,6 +39,71 @@ VIDEO_EXTS = {
     ".mpg", ".mpeg", ".3gp",
 }
 
+
+def _looks_like_partial_rename(old: str, new: str) -> bool:
+    """True se new è lo stesso nome con alcuni caratteri cambiati."""
+    old = old or ""
+    new = new or ""
+    if not old or not new or old == new:
+        return False
+    shared = 0
+    for left, right in zip(old, new):
+        if left != right:
+            break
+        shared += 1
+    if shared >= 6:
+        return True
+    shorter = old if len(old) <= len(new) else new
+    if len(shorter) >= 4 and (old.startswith(new) or new.startswith(old)):
+        return True
+    return False
+
+
+def prefer_dialog_filename(reported: str, control_texts) -> str:
+    """Nome della casella di salvataggio, se GetPath ha ancora quello iniziale.
+
+    Su Windows una modifica di alcuni caratteri a volte non entra in GetPath.
+    La casella mostra il nome che la persona ha scritto. Se l'estensione
+    non è visibile, si tiene quella del file.
+    """
+    reported = (reported or "").strip()
+    base = os.path.basename(reported.replace("/", "\\"))
+    ext = os.path.splitext(base)[1].lower()
+    stem = os.path.splitext(base)[0]
+    if not ext:
+        return reported
+    dotted: list[str] = []
+    plain: list[str] = []
+    for raw in control_texts or []:
+        text = str(raw or "").strip().strip('"')
+        if not text or len(text) > 250:
+            continue
+        if any(ch in text for ch in "\\/\r\n"):
+            continue
+        if os.path.splitext(text)[1].lower() == ext:
+            if text not in dotted:
+                dotted.append(text)
+        elif "." not in text and _looks_like_partial_rename(stem, text):
+            if text not in plain:
+                plain.append(text)
+    chosen = ""
+    if len(dotted) == 1:
+        chosen = dotted[0]
+    elif len(dotted) > 1:
+        edited = [text for text in dotted if text != base]
+        if len(edited) == 1:
+            chosen = edited[0]
+    if not chosen or chosen == base:
+        edits = [text for text in plain if text != stem]
+        if len(edits) == 1:
+            chosen = edits[0] + ext
+    if not chosen or chosen == base:
+        return reported
+    folder = os.path.dirname(reported)
+    if folder:
+        return os.path.join(folder, chosen)
+    return chosen
+
 # Limiti = tetti Google File API (docs ai.google.dev), non tetti artificiali RTAD.
 # Inline ≤20 MB; oltre → File API. Per-file max 2 GB; video fino a ~3 h (1M ctx, low res).
 MAX_MEDIA_INLINE_BYTES = 20 * 1024 * 1024

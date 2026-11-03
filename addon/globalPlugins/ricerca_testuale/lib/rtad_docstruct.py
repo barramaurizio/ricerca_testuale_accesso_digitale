@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""RTAD — struttura documenti (outline/TOC + link) per DOCX, EPUB e PDF.
+"""RTAD — struttura documenti (outline/TOC + link) per DOCX, ODT, EPUB e PDF.
 
 Gemello SA/Add-on. Solo stdlib (zipfile + xml.etree + zlib per PDF).
 PDF: sommario (/Outlines) e link URI (/Annot /Link); il testo piano
@@ -144,19 +144,110 @@ def _docx_para_text(p_el) -> str:
     return "".join(parts).strip()
 
 
-def _docx_collect_links(p_el, rels: dict, links: list) -> None:
+_W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_HYPERLINK_L_RE = re.compile(r'HYPERLINK\s+\\l\s+"([^"]+)"', re.I)
+
+
+def _w_attr(el, name: str) -> str:
+    return (el.attrib.get(f"{_W_NS}{name}") or el.attrib.get(name) or "").strip()
+
+
+def _docx_bookmark_names(p_el) -> list[str]:
+    names = []
+    for el in p_el.iter():
+        if _local(el.tag) != "bookmarkStart":
+            continue
+        name = _w_attr(el, "name")
+        if not name or name == "_GoBack":
+            continue
+        if name not in names:
+            names.append(name)
+    return names
+
+
+def _docx_field_anchors(p_el) -> list[str]:
+    parts = []
+    for el in p_el.iter():
+        if _local(el.tag) == "instrText" and el.text:
+            parts.append(el.text)
+    blob = "".join(parts)
+    if "HYPERLINK" not in blob.upper():
+        return []
+    found = []
+    for match in _HYPERLINK_L_RE.finditer(blob):
+        name = (match.group(1) or "").strip()
+        if name and name not in found:
+            found.append(name)
+    return found
+
+
+def _link_title_keys(text: str) -> list[str]:
+    raw = re.sub(r"\s+", " ", (text or "").strip())
+    if not raw:
+        return []
+    keys: list[str] = []
+
+    def add(value: str) -> None:
+        value = re.sub(r"\s+", " ", (value or "").strip())
+        folded = value.casefold()
+        if value and folded not in keys:
+            keys.append(folded)
+
+    add(raw)
+    head = raw.split("\t", 1)[0]
+    add(head)
+    add(re.sub(r"\s+\d+\s*$", "", head))
+    add(re.sub(r"\s*\.+\s*\d+\s*$", "", head))
+    return keys
+
+
+def _resolve_internal_links(links: list, bookmarks: dict, outline: list) -> None:
+    """Un link interno punta al titolo del segnalibro, o al titolo con lo stesso testo."""
+    by_title: dict[str, dict] = {}
+    for item in outline:
+        for key in _link_title_keys(item.get("title") or ""):
+            by_title.setdefault(key, item)
+    for link in links:
+        href = str(link.get("href") or "")
+        low = href.lower()
+        if low.startswith(("http://", "https://", "mailto:")):
+            continue
+        anchor = str(link.get("anchor") or "").strip()
+        if href.startswith("#") and not anchor:
+            anchor = href[1:].strip()
+        target = bookmarks.get(anchor) if anchor else None
+        if not target:
+            for key in _link_title_keys(link.get("text") or ""):
+                item = by_title.get(key)
+                if item:
+                    target = {
+                        "title": item.get("title") or "",
+                        "level": int(item.get("level") or 1),
+                    }
+                    break
+        title = str((target or {}).get("title") or "").strip()
+        if title:
+            link["target_title"] = title
+            link["target_level"] = int((target or {}).get("level") or 1) or 1
+            link["where"] = f"titolo «{title}»"
+        else:
+            link["where"] = "destinazione interna, titolo non trovato"
+
+
+def _docx_collect_links(p_el, rels: dict, links: list, seen: set) -> None:
+    before = len(links)
     for el in p_el.iter():
         if _local(el.tag) != "hyperlink":
             continue
         rid = el.attrib.get(
             "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
         ) or el.attrib.get("id")
-        anchor = el.attrib.get(
-            "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}anchor"
-        ) or el.attrib.get("anchor")
+        anchor = _w_attr(el, "anchor")
         href = ""
         if rid and rid in rels:
             href = rels[rid]
+            if anchor and "#" not in href:
+                href = f"{href}#{anchor}"
         elif anchor:
             href = f"#{anchor}"
         text = "".join(
@@ -166,7 +257,31 @@ def _docx_collect_links(p_el, rels: dict, links: list) -> None:
         ).strip()
         if not text and not href:
             continue
-        links.append({"text": text or href, "href": href or "(destinazione interna)"})
+        if not href:
+            href = "(destinazione interna)"
+        key = (text, href)
+        if key in seen:
+            continue
+        seen.add(key)
+        links.append({"text": text or href, "href": href, "anchor": anchor})
+        if len(links) >= MAX_LINKS:
+            return
+    if len(links) >= MAX_LINKS:
+        return
+    para_anchors = {
+        str(item.get("anchor") or "")
+        for item in links[before:]
+    }
+    for anchor in _docx_field_anchors(p_el):
+        if anchor in para_anchors:
+            continue
+        text = _docx_para_text(p_el)
+        href = f"#{anchor}"
+        key = (text, href)
+        if key in seen:
+            continue
+        seen.add(key)
+        links.append({"text": text or href, "href": href, "anchor": anchor})
         if len(links) >= MAX_LINKS:
             return
 
@@ -206,25 +321,38 @@ def extract_structure_from_docx(file_path: str) -> dict:
             rels = _docx_rels_map(zf)
             outline = []
             links = []
+            seen_links: set = set()
+            bookmarks: dict[str, dict] = {}
             body_lines = []
             plain_lines = []
             for p in tree.iter():
                 if _local(p.tag) != "p":
                     continue
                 text = _docx_para_text(p)
-                if not text:
-                    _docx_collect_links(p, rels, links)
-                    continue
-                level = _docx_heading_level(p)
-                if level:
-                    outline.append({"level": level, "title": text, "anchor": ""})
+                names = _docx_bookmark_names(p)
+                level = _docx_heading_level(p) if text else None
+                if text and level:
+                    outline.append(
+                        {
+                            "level": level,
+                            "title": text,
+                            "anchor": names[0] if names else "",
+                        }
+                    )
                     body_lines.append(f"[H{level}] {text}")
-                else:
+                elif text:
                     body_lines.append(text)
-                plain_lines.append(text)
-                _docx_collect_links(p, rels, links)
-                if len(outline) >= MAX_OUTLINE:
+                if text:
+                    plain_lines.append(text)
+                    for name in names:
+                        bookmarks.setdefault(
+                            name,
+                            {"title": text, "level": int(level or 0)},
+                        )
+                _docx_collect_links(p, rels, links, seen_links)
+                if len(outline) >= MAX_OUTLINE and len(links) >= MAX_LINKS:
                     break
+            _resolve_internal_links(links, bookmarks, outline)
             body = "\n".join(body_lines)
             if len(body) > MAX_BODY_CHARS:
                 body = body[:MAX_BODY_CHARS] + "\n…"
@@ -1999,8 +2127,144 @@ def open_pdf_at_page(
         return ""
 
 
+def _odt_attr(el, local_name: str) -> str:
+    for key, value in el.attrib.items():
+        if key.rsplit("}", 1)[-1] == local_name:
+            return (value or "").strip()
+    return ""
+
+
+def extract_structure_from_odt(file_path: str) -> dict:
+    """Titoli (text:h) e link (text:a) da un ODT. Il testo piano c'era già."""
+    res = _empty_result("odt")
+    try:
+        if not file_path or not os.path.isfile(file_path):
+            res["message"] = "File non trovato."
+            return res
+        with open(file_path, "rb") as handle:
+            magic = handle.read(4)
+        if magic[:2] != b"PK":
+            res["message"] = "Questo .odt non è un archivio leggibile."
+            return res
+        with zipfile.ZipFile(file_path, "r") as zf:
+            try:
+                info = zf.getinfo("content.xml")
+            except KeyError:
+                res["message"] = "ODT senza content.xml leggibile."
+                return res
+            if info.file_size > MAX_DOCX_XML_BYTES:
+                res["message"] = "Documento troppo grande per l'analisi struttura."
+                return res
+            raw = zf.read("content.xml")
+        if len(raw) > MAX_DOCX_XML_BYTES:
+            raw = raw[:MAX_DOCX_XML_BYTES]
+        try:
+            tree = ET.fromstring(raw)
+        except Exception as exc:
+            res["message"] = f"XML ODT non valido: {exc}"
+            return res
+        outline = []
+        links = []
+        seen_links: set = set()
+        bookmarks: dict[str, dict] = {}
+        body_lines = []
+        plain_lines = []
+        for el in tree.iter():
+            tag = _local(el.tag)
+            if tag not in ("h", "p"):
+                continue
+            text = re.sub(r"\s+", " ", "".join(el.itertext())).strip()
+            level = None
+            if tag == "h":
+                try:
+                    level = int(_odt_attr(el, "outline-level") or "1")
+                except ValueError:
+                    level = 1
+                if not 1 <= level <= 9:
+                    level = 1
+            names = []
+            for sub in el.iter():
+                if _local(sub.tag) not in ("bookmark", "bookmark-start"):
+                    continue
+                name = _odt_attr(sub, "name")
+                if name and name not in names:
+                    names.append(name)
+            if text and level:
+                if len(outline) < MAX_OUTLINE:
+                    outline.append(
+                        {
+                            "level": level,
+                            "title": text,
+                            "anchor": names[0] if names else "",
+                        }
+                    )
+                body_lines.append(f"[H{level}] {text}")
+            elif text:
+                body_lines.append(text)
+            if text:
+                plain_lines.append(text)
+                for name in names:
+                    if len(bookmarks) < 4000:
+                        bookmarks.setdefault(
+                            name,
+                            {"title": text, "level": int(level or 0)},
+                        )
+            for sub in el.iter():
+                if _local(sub.tag) != "a":
+                    continue
+                href = _odt_attr(sub, "href")
+                link_text = re.sub(r"\s+", " ", "".join(sub.itertext())).strip()
+                anchor = ""
+                if href.startswith("#"):
+                    anchor = unquote(href[1:].strip())
+                    href = f"#{anchor}" if anchor else href
+                if not link_text and not href:
+                    continue
+                if not href:
+                    href = "(destinazione interna)"
+                key = (link_text, href)
+                if key in seen_links:
+                    continue
+                seen_links.add(key)
+                if len(links) < MAX_LINKS:
+                    links.append(
+                        {
+                            "text": link_text or href,
+                            "href": href,
+                            "anchor": anchor,
+                        }
+                    )
+        _resolve_internal_links(links, bookmarks, outline)
+        body = "\n".join(body_lines)
+        if len(body) > MAX_BODY_CHARS:
+            body = body[:MAX_BODY_CHARS] + "\n…"
+        plain = "\n".join(plain_lines)
+        has_struct = bool(outline or links)
+        res.update(
+            {
+                "ok": True,
+                "title": os.path.basename(file_path),
+                "outline": outline[:MAX_OUTLINE],
+                "links": links[:MAX_LINKS],
+                "body": body,
+                "plain": plain,
+                "has_structure": has_struct,
+                "message": (
+                    f"ODT: {len(outline)} titoli, {len(links)} link."
+                    if has_struct
+                    else "ODT senza titoli né link rilevati. Mostro il testo piano."
+                ),
+            }
+        )
+        return res
+    except Exception as exc:
+        logging.debug(f"extract_structure_from_odt: {exc}")
+        res["message"] = f"Errore lettura ODT: {exc}"
+        return res
+
+
 def extract_document_structure(file_path: str) -> dict:
-    """Facade: struttura DOCX/EPUB/PDF; altri formati con messaggio onesto."""
+    """Facade: struttura DOCX/ODT/EPUB/PDF; altri formati con messaggio onesto."""
     if not file_path or not os.path.isfile(file_path):
         return _empty_result(message="File non trovato.")
     ext = os.path.splitext(file_path)[1].lower()
@@ -2018,14 +2282,9 @@ def extract_document_structure(file_path: str) -> dict:
     if ext == ".pdf":
         return extract_structure_from_pdf(file_path)
     if ext == ".odt":
-        res = _empty_result("odt")
-        res["message"] = (
-            "Struttura ODT (titoli/link) non ancora supportata. "
-            "Il testo piano resta disponibile da «Leggi testo»."
-        )
-        return res
+        return extract_structure_from_odt(file_path)
     return _empty_result(
-        message="Formato non supportato per la lettura strutturata (DOCX, EPUB, PDF)."
+        message="Formato non supportato per la lettura strutturata (DOCX, ODT, EPUB, PDF)."
     )
 
 
@@ -2033,7 +2292,7 @@ def format_document_copy(file_path: str, plain_text: str) -> str:
     """Testo da copiare: sommario e link del lettore, poi i capitoli."""
     plain = (plain_text or "").strip()
     ext = os.path.splitext(file_path or "")[1].lower()
-    if ext not in (".docx", ".epub", ".pdf", ".doc"):
+    if ext not in (".docx", ".odt", ".epub", ".pdf", ".doc"):
         return plain
     try:
         struct = extract_document_structure(file_path)
@@ -2070,9 +2329,8 @@ def format_structure_report(struct: dict) -> str:
     if links:
         lines.append("=== Link ===")
         for i, item in enumerate(links, 1):
-            lines.append(
-                f"{i}. {item.get('text') or ''} -> {item.get('href') or ''}"
-            )
+            dest = item.get("where") or item.get("href") or ""
+            lines.append(f"{i}. {item.get('text') or ''} -> {dest}")
         lines.append("")
     body = (struct.get("body") or struct.get("plain") or "").strip()
     if body:

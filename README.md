@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,13 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.4
+
+- In Word, Invio o doppio clic su un link interno va a quel titolo, qui. A schermo e a voce: «Titolo “nome”, qui nel testo.» Se il titolo non c'è: «Il titolo di destinazione non c'è.» Un clic solo seleziona la riga.
+- In un file ODT, Leggi documento mostra i titoli e i link, come in Word. Invio o doppio clic su un titolo del sommario, o su un link interno, va a quel titolo, qui. Un clic solo seleziona la riga. Un sito web si apre fuori.
+- Salva immagine, Salva audio o Salva video propone il nome della pagina, il più lungo che Windows accetta per un file. Se lo cambi, anche solo qualche carattere, Salva testo propone lo stesso nome, con .rtad.txt. Invio sul pulsante, e un clic.
+- La guida del menu e la guida pratica sono anche sul web, lo stesso testo di chi ha il programma, aggiornate a ogni versione. L'indirizzo è https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
 
 ### 🌟 Novità della Versione 1.9.3
 
@@ -316,6 +323,13 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.4
+
+- In Word, Enter or a double click on an internal link goes to that title, here. On screen and by voice: «Titolo “nome”, qui nel testo.» If the title is missing: «Il titolo di destinazione non c'è.» A single click only selects the row.
+- In an ODT file, Read document shows the titles and the links, as in Word. Enter or a double click on a title in the outline, or on an internal link, goes to that title, here. A single click only selects the row. A website opens outside.
+- Save image, Save audio or Save video proposes the name from the page, as long as Windows allows for a file name. If you change it, even only a few characters, Save text proposes the same name, with .rtad.txt. Enter on the button, and a click.
+- The menu guide and the practical guide are also on the web, the same text as in the installed program, updated with every version. The address is https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
 
 ### 🌟 What's New in Version 1.9.3
 

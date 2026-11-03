@@ -39,10 +39,12 @@ def _write_guide_pages(pratica_html: str) -> None:
         "<h1>Guide di Ricerca Testuale Accesso Digitale</h1>\n"
         f"<p>Versione {version}. Lo stesso testo di chi ha il programma installato.</p>\n"
         "<ul>\n"
-        '<li><a href="guida.html">Guida completa</a>. '
-        "È la guida HTML del menu Aiuto. Invio o un clic la apre.</li>\n"
-        '<li><a href="pratica.html">Guida pratica</a>. '
-        "Invio o un clic apre quella guida.</li>\n"
+        '<li><a href="guida.html" target="_blank" rel="noopener">Guida completa</a>. '
+        "È la guida HTML del menu Aiuto. Invio o un clic la apre in una finestra nuova. "
+        "Questa pagina resta aperta.</li>\n"
+        '<li><a href="pratica.html" target="_blank" rel="noopener">Guida pratica</a>. '
+        "Invio o un clic la apre in una finestra nuova. "
+        "Questa pagina resta aperta.</li>\n"
         "</ul>\n</body>\n</html>\n"
     )
     (guide / "index.html").write_text(index, encoding="utf-8")

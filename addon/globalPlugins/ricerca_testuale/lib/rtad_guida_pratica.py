@@ -28,9 +28,27 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.4
+Novità recenti (in parole semplici) — versione 1.9.5
 ----------------------------------------------------
-• In Word, Invio o doppio clic su un link interno va a quel titolo, qui.
+• La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:
+  «La ricerca ha incontrato un DVD video (VIDEO_TS).
+  RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»
+  I file dati nelle altre cartelle restano.
+• La conversazione di Gemini usa il nome del file già salvato.
+  Salva conversazione propone quello stesso nome.
+  Invio sul pulsante, e un clic.
+• Salva Immagine sull'elenco ricorda l'ultima cartella,
+  la stessa della finestra di analisi.
+  Invio sul pulsante, e un clic.
+• Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome
+  non viene letto subito. Tab e poi Shift+Tab lo legge sempre:
+  la voce si riattiva. Salva testo di solito lo legge da solo.
+  Nell'Add-on il nome si sente subito.
+• Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic,
+  apre le guide sul web, la pagina con i due link.
+  L'indirizzo è
+  https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+• Resta dalla 1.9.4: In Word, Invio o doppio clic su un link interno va a quel titolo, qui.
   A schermo e a voce: «Titolo “nome”, qui nel testo.»
   Se il titolo non c'è: «Il titolo di destinazione non c'è.»
   Un clic solo seleziona la riga.
@@ -408,6 +426,11 @@ Puoi limitare la ricerca a:
   paragrafo 12. Un indirizzo Internet, come YouTube,
   chiede yt-dlp: paragrafo 13.
   I crediti della chiave Gemini: paragrafo 14.
+  Nella Standalone, aprendo Salva video o Salva immagine, a volte
+  il nome non viene letto subito. Tab e poi Shift+Tab lo legge sempre:
+  la voce si riattiva. Il nome proposto è già quello.
+  Salva testo, la descrizione, di solito lo legge da solo.
+  Nell'Add-on il nome si sente subito.
 • oppure un’estensione che scegli tu (es. solo .pdf o solo .epub).
 
 Per la posta (Thunderbird e simili): il programma può cercare nei messaggi

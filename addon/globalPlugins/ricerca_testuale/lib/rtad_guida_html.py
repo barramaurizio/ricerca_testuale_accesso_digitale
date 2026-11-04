@@ -134,7 +134,25 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li>In Word, Invio o doppio clic su un link interno va a quel titolo, qui.
+    <li>La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:
+      «La ricerca ha incontrato un DVD video (VIDEO_TS).
+      RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»
+      I file dati nelle altre cartelle restano.</li>
+    <li>La conversazione di Gemini usa il nome del file già salvato.
+      Salva conversazione propone quello stesso nome.
+      Invio sul pulsante, e un clic.</li>
+    <li>Salva Immagine sull'elenco ricorda l'ultima cartella,
+      la stessa della finestra di analisi.
+      Invio sul pulsante, e un clic.</li>
+    <li>Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome
+      non viene letto subito. Tab e poi Shift+Tab lo legge sempre:
+      la voce si riattiva. Salva testo di solito lo legge da solo.
+      Nell'Add-on il nome si sente subito.</li>
+    <li>Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic,
+      apre le guide sul web, la pagina con i due link.
+      L'indirizzo è
+      <a href="https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/">https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/</a>.</li>
+    <li>Resta dalla 1.9.4: In Word, Invio o doppio clic su un link interno va a quel titolo, qui.
       A schermo e a voce: «Titolo “nome”, qui nel testo.»
       Se il titolo non c'è: «Il titolo di destinazione non c'è.»
       Un clic solo seleziona la riga.</li>
@@ -403,7 +421,12 @@ programmi extra, se hai Windows Media Player):</p>
 </ol>
 <p>Non serve masterizzare un altro CD: i file sul disco fisso bastano.
 Un DVD video commerciale (<code>VIDEO_TS</code>) non viene «rippato» da RTAD:
-si cercano solo eventuali file dati presenti sul disco.</p>
+si cercano solo eventuali file dati presenti sul disco.
+Se la ricerca incontra quella cartella, anche dentro un percorso più grande,
+a schermo e a voce:
+«La ricerca ha incontrato un DVD video (VIDEO_TS).
+RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»
+I file dati nelle altre cartelle restano.</p>
 <p class="top"><a href="#indice">↑ Indice</a></p>
 
 <h2 id="ocr">5. Testo nelle immagini (OCR)</h2>
@@ -716,6 +739,14 @@ nei file <code>.rtad.txt</code> accanto al media (la trascrizione / report).</p>
   usa prima «Trascrivi e cerca…» o il batch sulla cartella che ti interessa.
 </div>
 <div class="note">
+  <strong>Nome nel salvataggio, Standalone:</strong> aprendo Salva video
+  o Salva immagine, a volte il nome non viene letto subito.
+  Tab e poi Shift+Tab lo legge sempre: la voce si riattiva.
+  Il nome proposto è già quello.
+  Salva testo, la descrizione, di solito lo legge da solo.
+  Nell'Add-on il nome si sente subito.
+</div>
+<div class="note">
   <strong>Differenza utile:</strong> sul <em>nome file</em> di un video
   la ricerca può funzionare subito (come per qualsiasi file).
   Sul <em>contenuto parlato</em> serve il <code>.rtad.txt</code>.
@@ -1001,6 +1032,7 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
 <h2 id="aiuto">15. Altre voci di Aiuto e supporto</h2>
 <ul>
   <li>Aiuto → Guida pratica (ingresso semplice)</li>
+  <li>Aiuto → Apri le guide: Invio sulla voce, o un clic, apre le guide sul web, la pagina con i due link. Non è una voce dello store NVDA.</li>
   <li>Aiuto → Guida ai Comandi / questa guida HTML</li>
   <li>Aiuto → Novità della Versione</li>
   <li>Pagina GitHub: <a href="{github_url}">{github_url}</a></li>

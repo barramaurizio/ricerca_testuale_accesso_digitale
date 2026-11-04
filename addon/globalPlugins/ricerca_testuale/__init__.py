@@ -114,10 +114,11 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.4"
+APP_VERSION = "1.9.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
+GUIDES_WEB_URL = "https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/"
 GITHUB_API_LATEST = "https://api.github.com/repos/barramaurizio/ricerca_testuale_accesso_digitale/releases/latest"
 GITHUB_API_RELEASES = (
     "https://api.github.com/repos/barramaurizio/"
@@ -2204,6 +2205,41 @@ def _path_looks_like_video_ts(path):
     except Exception:
         pass
     return False
+
+
+VIDEO_TS_SEARCH_NOTICE = (
+    "La ricerca ha incontrato un DVD video (VIDEO_TS). "
+    "RTAD cerca i file dati sul disco (mp3, pdf, foto), "
+    "non copia il film."
+)
+
+
+def _walk_skips_video_ts(root, dirs, found):
+    """True se questa cartella è VIDEO_TS: i file del film non si leggono.
+
+    Una sottocartella VIDEO_TS viene tolta. Le altre cartelle restano.
+    """
+    root_name = os.path.basename(os.path.normpath(root or "")).lower()
+    if root_name == "video_ts":
+        found.append(os.path.normpath(root))
+        dirs[:] = []
+        return True
+    kept = []
+    for name in list(dirs):
+        if (name or "").lower() == "video_ts":
+            found.append(os.path.normpath(os.path.join(root, name)))
+        else:
+            kept.append(name)
+    dirs[:] = kept
+    return False
+
+
+def _remember_video_ts_file(path, found):
+    """True se il file sta in un DVD video: non entra in coda."""
+    if not _path_looks_like_video_ts(path):
+        return False
+    found.append(os.path.normpath(path))
+    return True
 
 
 def message_for_cda_path(path):
@@ -6919,6 +6955,19 @@ def _result_gemini_saved(item):
     return False
 
 
+def _chat_name_already_saved(path):
+    """Percorso vero sul disco. Il file temporaneo non è un nome scelto."""
+    path = (path or "").strip()
+    if not path or not os.path.isfile(path):
+        return ""
+    if os.path.basename(path).lower().startswith("rtad_media_"):
+        return ""
+    folder = os.path.dirname(os.path.abspath(path))
+    if _looks_like_temp_dir(folder):
+        return ""
+    return path
+
+
 def open_gemini_chat(
     kind,
     path,
@@ -6932,6 +6981,7 @@ def open_gemini_chat(
     material_text="",
     stable_key="",
     title="",
+    saved_as="",
 ):
     """Apre la conversazione sul file. kind: image | document."""
     if rtad_chat is None:
@@ -7027,6 +7077,13 @@ def open_gemini_chat(
             stable_key=stable_key,
             title=title,
         )
+    chosen = (saved_as or "").strip() or _chat_name_already_saved(path)
+    if chosen and rtad_chat is not None:
+        try:
+            rtad_chat.apply_saved_name(session, chosen)
+            rtad_chat.refresh_context(session)
+        except Exception:
+            logging.debug("Chat: nome salvato non applicato", exc_info=True)
     frm = GeminiChatFrame(
         session,
         struct=struct,
@@ -8080,13 +8137,21 @@ class GeminiChatFrame(wx.Frame):
         if not text.strip():
             speak_accessible("Niente da salvare.")
             return
-        ref = self.session.get("path") or ""
-        title = (self.session.get("title") or "").strip()
-        if title and not os.path.splitext(title)[0].lower().startswith("rtad_media_"):
-            stem = _safe_filename_stem(title, fallback="conversazione")
+        saved = (self.session.get("saved_as") or "").strip()
+        if saved:
+            stem = os.path.splitext(os.path.basename(saved))[0]
+            if stem.lower().endswith(".rtad"):
+                stem = stem[:-5]
+            stem = _safe_filename_stem(stem, fallback="conversazione", max_len=240)
+            folder = os.path.dirname(saved)
         else:
-            stem = report_save_stem_for_path(ref) or "conversazione"
-        folder = os.path.dirname(ref) if ref else ""
+            ref = self.session.get("path") or ""
+            title = (self.session.get("title") or "").strip()
+            if title and not os.path.splitext(title)[0].lower().startswith("rtad_media_"):
+                stem = _safe_filename_stem(title, fallback="conversazione")
+            else:
+                stem = report_save_stem_for_path(ref) or "conversazione"
+            folder = os.path.dirname(ref) if ref else ""
         if folder and os.path.isdir(folder) and not _looks_like_temp_dir(folder):
             default_dir = folder
         else:
@@ -8555,6 +8620,10 @@ class ImageInfoFrame(wx.Frame):
 
     def on_ask_gemini(self, event=None):
         body = self.txt_display.GetValue() or self.body_text
+        kept = getattr(self, "_kept_dest", "") or ""
+        if not kept:
+            kept = getattr(self, "_kept_image_dest", "") or ""
+        saved_as = kept if kept and os.path.isdir(os.path.dirname(kept)) else ""
         ext = os.path.splitext(self.image_path or "")[1].lower()
         if ext in IMG_EXTS:
             open_gemini_chat(
@@ -8563,6 +8632,7 @@ class ImageInfoFrame(wx.Frame):
                 prior_report=body,
                 source_path=self.source_path,
                 parent=self,
+                saved_as=saved_as,
             )
             return
         open_gemini_chat(
@@ -8576,6 +8646,7 @@ class ImageInfoFrame(wx.Frame):
             },
             displayed=body,
             parent=self,
+            saved_as=saved_as,
         )
 
     def on_copy(self, event=None):
@@ -9848,7 +9919,25 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• In Word, Invio o doppio clic su un link interno va a quel titolo, qui.\n"
+            "• La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:\n"
+            "  «La ricerca ha incontrato un DVD video (VIDEO_TS).\n"
+            "  RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»\n"
+            "  I file dati nelle altre cartelle restano.\n"
+            "• La conversazione di Gemini usa il nome del file già salvato.\n"
+            "  Salva conversazione propone quello stesso nome.\n"
+            "  Invio sul pulsante, e un clic.\n"
+            "• Salva Immagine sull'elenco ricorda l'ultima cartella,\n"
+            "  la stessa della finestra di analisi.\n"
+            "  Invio sul pulsante, e un clic.\n"
+            "• Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome\n"
+            "  non viene letto subito. Tab e poi Shift+Tab lo legge sempre:\n"
+            "  la voce si riattiva. Salva testo di solito lo legge da solo.\n"
+            "  Nell'Add-on il nome si sente subito.\n"
+            "• Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic,\n"
+            "  apre le guide sul web, la pagina con i due link.\n"
+            "  L'indirizzo è\n"
+            "  https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/\n"
+            "• Resta dalla 1.9.4: In Word, Invio o doppio clic su un link interno va a quel titolo, qui.\n"
             "  A schermo e a voce: «Titolo “nome”, qui nel testo.»\n"
             "  Se il titolo non c'è: «Il titolo di destinazione non c'è.»\n"
             "  Un clic solo seleziona la riga.\n"
@@ -10883,6 +10972,7 @@ class SearchFrame(wx.Frame):
         item_html = help_menu.Append(
             wx.ID_ANY, "Guida completa (&HTML, cercabile)…"
         )
+        item_web_guides = help_menu.Append(wx.ID_ANY, "&Apri le guide")
         item_guide = help_menu.Append(wx.ID_ANY, "&Guida ai Comandi\tF1")
         item_print_guide = help_menu.Append(wx.ID_ANY, "Stampa guida ai co&mandi")
         item_github = help_menu.Append(wx.ID_ANY, "Pagina &ufficiale GitHub")
@@ -10901,12 +10991,23 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.show_whats_new_dialog(), item_whatsnew)
         self.Bind(wx.EVT_MENU, lambda e: self.show_practical_guide_dialog(), item_practical)
         self.Bind(wx.EVT_MENU, self.on_open_html_guide, item_html)
+        self.Bind(wx.EVT_MENU, self.on_open_web_guides, item_web_guides)
         self.Bind(wx.EVT_MENU, lambda e: self.show_shortcuts_dialog(), item_guide)
         self.Bind(wx.EVT_MENU, self.on_print_guide, item_print_guide)
         self.Bind(wx.EVT_MENU, lambda e: webbrowser.open(GITHUB_URL), item_github)
         self.Bind(wx.EVT_MENU, self.on_show_info, item_info)
         self.Bind(wx.EVT_MENU, self.on_export_diagnostic, item_diag)
         self.Bind(wx.EVT_MENU, self.on_send_feedback, item_feedback)
+
+    def on_open_web_guides(self, event=None):
+        """Menu Aiuto: la pagina sul web con i due link. Invio sulla voce, o un clic."""
+        msg = "Apro le guide sul web. La pagina con i due link."
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        rtad_speak(msg)
+        webbrowser.open(GUIDES_WEB_URL)
 
     def on_add_bookmark(self, event=None):
         path = self.txt_path.GetValue().strip()
@@ -12774,6 +12875,7 @@ class SearchFrame(wx.Frame):
         self.scanned_count = 0
         self.live_matches_count = 0
         self.last_feed_raw_occurrences = 0
+        self.last_video_ts_hits = []
         save_last_path(target_input)
         if query:
             add_query_to_history(query)
@@ -12906,6 +13008,7 @@ class SearchFrame(wx.Frame):
         rss_sources = []
         opml_files = []
         walked_dirs = 0
+        video_ts_hits = []
 
         wx.CallAfter(
             self.txt_status_progress.SetValue,
@@ -12928,6 +13031,8 @@ class SearchFrame(wx.Frame):
                 ext = os.path.splitext(folder)[1].lower()
                 if is_rtad_noise_file(folder):
                     continue
+                if _remember_video_ts_file(folder, video_ts_hits):
+                    continue
                 if ext == ".opml":
                     opml_files.append(os.path.normpath(folder))
                 elif ext in feed_file_exts:
@@ -12945,6 +13050,8 @@ class SearchFrame(wx.Frame):
                 ]
                 root_lower = root.lower()
                 if any(ign in root_lower for ign in ignored):
+                    continue
+                if _walk_skips_video_ts(root, dirs, video_ts_hits):
                     continue
                 walked_dirs += 1
                 if walked_dirs == 1 or walked_dirs % 25 == 0:
@@ -13077,6 +13184,8 @@ class SearchFrame(wx.Frame):
                         full = os.path.normpath(folder)
                         if full in seen_local_files or is_rtad_noise_file(full):
                             continue
+                        if _remember_video_ts_file(full, video_ts_hits):
+                            continue
                         ext = os.path.splitext(full)[1].lower()
                         is_tb = is_thunderbird_mail_container(full)
                         mail_for_pdf = (
@@ -13109,6 +13218,8 @@ class SearchFrame(wx.Frame):
                             if not any(ign in os.path.join(root, d).lower() for ign in ignored)
                         ]
                         if any(ign in root.lower() for ign in ignored):
+                            continue
+                        if _walk_skips_video_ts(root, dirs, video_ts_hits):
                             continue
                         for file in files:
                             ext = os.path.splitext(file)[1].lower()
@@ -14005,6 +14116,7 @@ class SearchFrame(wx.Frame):
                 time.sleep(0)
 
         self.current_matches = raw_matches
+        self.last_video_ts_hits = video_ts_hits
         self.last_feed_raw_occurrences = feed_raw_total
         self.last_skipped_large_files = skipped_large_files
         self.last_mail_messages_scanned = mail_messages_scanned
@@ -14163,12 +14275,18 @@ class SearchFrame(wx.Frame):
                     saved_note = f" Risultati salvati in {saved_path}."
             except Exception:
                 pass
+        video_ts_note = ""
+        if getattr(self, "last_video_ts_hits", None):
+            video_ts_note = " " + VIDEO_TS_SEARCH_NOTICE
         if self._stop_search:
             text = (
                 f"Ricerca interrotta al {self.current_percent}% ({self.scanned_count} file). "
                 f"Salvati {matches} risultati.{mail_note}{feed_note}{large_note}{ocr_note}{late_note}"
+                f"{video_ts_note}"
             )
-            rtad_speak(f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}")
+            rtad_speak(
+                f"Ricerca annullata. Conservati {matches} risultati.{feed_speak}{video_ts_note}"
+            )
             if tones:
                 try:
                     wx.CallLater(100, lambda: tones.beep(400, 300))
@@ -14190,9 +14308,10 @@ class SearchFrame(wx.Frame):
                     " Nessun file in coda con questi filtri: verifica testo da cercare, "
                     "tipo di file e percorso."
                 )
+            text += video_ts_note
             rtad_speak(
                 f"Ricerca completata. Trovati {matches} risultati ordinati dal più recente."
-                f"{feed_speak}{saved_note}"
+                f"{feed_speak}{saved_note}{video_ts_note}"
             )
             if tones:
                 try:
@@ -17116,7 +17235,7 @@ class SearchFrame(wx.Frame):
             _announce("Nessuna immagine da salvare per questo risultato.")
             return
 
-        default_dir = get_dynamic_desktop_path()
+        default_dir = load_last_keep_dir() or get_dynamic_desktop_path()
         wildcard = (
             "JPEG (*.jpg)|*.jpg|"
             "PNG (*.png)|*.png|"
@@ -17133,13 +17252,15 @@ class SearchFrame(wx.Frame):
                 wildcard=wildcard,
                 style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
             )
-            if dlg.ShowModal() != wx.ID_OK:
+            try:
+                if dlg.ShowModal() != wx.ID_OK:
+                    return
+                dest = _file_dialog_chosen_path(dlg)
+            finally:
                 dlg.Destroy()
-                return
-            dest = dlg.GetPath()
-            dlg.Destroy()
             try:
                 shutil.copy2(file_path, dest)
+                save_last_keep_dir(dest)
                 _announce(f"Immagine salvata in {dest}")
             except Exception:
                 _announce("Impossibile salvare l’immagine.")
@@ -17166,14 +17287,16 @@ class SearchFrame(wx.Frame):
                 wildcard=wildcard,
                 style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
             )
-            if dlg.ShowModal() != wx.ID_OK:
+            try:
+                if dlg.ShowModal() != wx.ID_OK:
+                    return
+                dest = _file_dialog_chosen_path(dlg)
+            finally:
                 dlg.Destroy()
-                return
-            dest = dlg.GetPath()
-            dlg.Destroy()
             if not os.path.splitext(dest)[1]:
                 dest = dest + default_ext
             if save_pdf_image_record_to_path(record, dest):
+                save_last_keep_dir(dest)
                 _announce(
                     f"Immagine salvata, "
                     f"{record['w']} per {record['h']} pixel, in {dest}"

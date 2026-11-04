@@ -1,3 +1,10 @@
+Novità nella Versione 1.9.5
+- La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» I file dati nelle altre cartelle restano.
+- La conversazione di Gemini usa il nome del file già salvato. Salva conversazione propone quello stesso nome. Invio sul pulsante, e un clic.
+- Salva Immagine sull'elenco ricorda l'ultima cartella, la stessa della finestra di analisi. Invio sul pulsante, e un clic.
+- Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome non viene letto subito. Tab e poi Shift+Tab lo legge sempre: la voce si riattiva. Salva testo di solito lo legge da solo. Nell'Add-on il nome si sente subito.
+- Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic, apre le guide sul web, la pagina con i due link. L'indirizzo è https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+
 Novità nella Versione 1.9.4
 - In Word, Invio o doppio clic su un link interno va a quel titolo, qui. A schermo e a voce: «Titolo “nome”, qui nel testo.» Se il titolo non c'è: «Il titolo di destinazione non c'è.» Un clic solo seleziona la riga.
 - In un file ODT, Leggi documento mostra i titoli e i link, come in Word. Invio o doppio clic su un titolo del sommario, o su un link interno, va a quel titolo, qui. Un clic solo seleziona la riga. Un sito web si apre fuori.

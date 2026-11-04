@@ -541,11 +541,44 @@ def _outline_block(outline: list) -> str:
     return "Sommario:\n" + "\n".join(rows)
 
 
-def compose_document_text(path: str, struct: dict | None, displayed: str = "") -> str:
+def apply_saved_name(session: dict, saved_as: str) -> None:
+    """Il nome scelto al salvataggio è quello della conversazione.
+
+    Il file aperto può restare quello temporaneo: Gemini e Salva
+    conversazione parlano del nome già salvato.
+    """
+    saved_as = (saved_as or "").strip()
+    if session is None or not saved_as:
+        return
+    name = os.path.basename(saved_as)
+    if not name:
+        return
+    session["saved_as"] = saved_as
+    session["title"] = name
+
+
+def _file_line(path: str, display_name: str = "") -> list:
+    """Righe «File:» per Gemini. Il nome salvato vince su quello temporaneo."""
+    disk = os.path.basename(path or "")
+    name = (display_name or "").strip() or disk or "file"
+    lines = [f"File: {name}"]
+    if (display_name or "").strip() and (display_name or "").strip() != disk:
+        lines.append(
+            "Questo è il nome con cui il file è stato salvato. "
+            "Quando ne parli, usa questo nome."
+        )
+    return lines
+
+
+def compose_document_text(
+    path: str,
+    struct: dict | None,
+    displayed: str = "",
+    display_name: str = "",
+) -> str:
     struct = struct or {}
     parts = []
-    name = os.path.basename(path or "") or "documento"
-    parts.append(f"File: {name}")
+    parts.extend(_file_line(path, display_name))
     _ts, label = _mtime_label(path) if path else (None, "")
     if label:
         parts.append(f"Data di modifica del file: {label}")
@@ -567,10 +600,15 @@ def compose_document_text(path: str, struct: dict | None, displayed: str = "") -
     return text
 
 
-def compose_image_text(path: str, prior_report: str = "", source_path: str = "") -> str:
+def compose_image_text(
+    path: str,
+    prior_report: str = "",
+    source_path: str = "",
+    display_name: str = "",
+) -> str:
     parts = ["Tipo: immagine"]
-    name = os.path.basename(path or "") or "immagine"
-    parts.append(f"File: {name}")
+    parts.extend(_file_line(path, display_name))
+    name = (display_name or "").strip() or os.path.basename(path or "") or "immagine"
     _ts, label = _mtime_label(path)
     if label:
         parts.append(f"Data di modifica del file: {label}")
@@ -952,6 +990,7 @@ def refresh_context(session: dict) -> None:
         session["image_b64"] = ""
         session["image_missing"] = False
         return
+    shown = os.path.basename((session.get("saved_as") or "").strip())
     if kind == "image":
         b64, mime = _image_bytes(path)
         if b64:
@@ -965,6 +1004,7 @@ def refresh_context(session: dict) -> None:
                 path,
                 session.get("_prior") or "",
                 session.get("source_path") or "",
+                display_name=shown,
             ),
             session,
         )
@@ -989,7 +1029,12 @@ def refresh_context(session: dict) -> None:
     if struct and struct.get("outline"):
         session["outline"] = list(struct.get("outline") or [])
     full = _with_hit(
-        compose_document_text(path, struct, session.get("_displayed") or ""),
+        compose_document_text(
+            path,
+            struct,
+            session.get("_displayed") or "",
+            display_name=shown,
+        ),
         session,
     )
     session["full_text"] = full
@@ -1743,6 +1788,7 @@ def _public_dict(session: dict) -> dict:
         "path": session.get("path") or "",
         "source_path": session.get("source_path") or "",
         "title": session.get("title") or "",
+        **({"saved_as": session.get("saved_as")} if session.get("saved_as") else {}),
         "mtime": session.get("mtime"),
         "created": session.get("created") or "",
         "updated": session.get("updated") or "",
@@ -1894,6 +1940,8 @@ def _session_from_public(
         session["stable_key"] = data.get("stable_key")
     if data.get("source_url"):
         session["source_url"] = data.get("source_url")
+    if data.get("saved_as"):
+        session["saved_as"] = data.get("saved_as")
     saved_title = str(data.get("title") or "").strip()
     if saved_title and not _temp_media_name(saved_title):
         session["title"] = saved_title

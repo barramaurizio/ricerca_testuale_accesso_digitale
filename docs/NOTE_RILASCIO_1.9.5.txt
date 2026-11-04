@@ -1,0 +1,95 @@
+🌟 Novità della Versione 1.9.5
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» I file dati nelle altre cartelle restano.
+- La conversazione di Gemini usa il nome del file già salvato. Salva conversazione propone quello stesso nome. Invio sul pulsante, e un clic.
+- Salva Immagine sull'elenco ricorda l'ultima cartella, la stessa della finestra di analisi. Invio sul pulsante, e un clic.
+- Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome non viene letto subito. Tab e poi Shift+Tab lo legge sempre: la voce si riattiva. Salva testo di solito lo legge da solo. Nell'Add-on il nome si sente subito.
+- Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic, apre le guide sul web, la pagina con i due link. L'indirizzo è https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- When the search meets a video DVD (VIDEO_TS), it says on screen and by voice: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» Data files in the other folders stay.
+- The Gemini conversation uses the name of the file already saved. Save conversation proposes that same name. Enter on the button, and a click.
+- Save Image on the list remembers the last folder, the same one as the analysis window. Enter on the button, and a click.
+- In the Standalone, when opening Save video or Save image, sometimes the name is not read at once. Tab and then Shift+Tab always reads it: the voice comes back. Save text usually reads it by itself. In the Add-on the name is heard at once.
+- In the Help menu, «Apri le guide»: Enter on the item, or a click, opens the guides on the web, the page with the two links. The address is https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.5.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.5
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.5.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.5.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce e non copia il film. La conversazione di Gemini usa il nome già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic.
+
+Summary EN:
+When the search meets a video DVD (VIDEO_TS), it says so on screen and by voice and does not copy the film. The Gemini conversation uses the name already saved. Save Image on the list remembers the last folder. In the Help menu, «Apri le guide»: Enter on the item, or a click.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.5/ricerca_testuale_accesso_digitale-1.9.5.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.5
+
+Description:
+La ricerca, se incontra un DVD video, lo dice e non copia il film. La conversazione di Gemini usa il nome già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nel menu Aiuto, «Apri le guide».

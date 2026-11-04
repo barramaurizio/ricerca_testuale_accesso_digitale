@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.5
+
+- La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» I file dati nelle altre cartelle restano.
+- La conversazione di Gemini usa il nome del file già salvato. Salva conversazione propone quello stesso nome. Invio sul pulsante, e un clic.
+- Salva Immagine sull'elenco ricorda l'ultima cartella, la stessa della finestra di analisi. Invio sul pulsante, e un clic.
+- Nella Standalone, aprendo Salva video o Salva immagine, a volte il nome non viene letto subito. Tab e poi Shift+Tab lo legge sempre: la voce si riattiva. Salva testo di solito lo legge da solo. Nell'Add-on il nome si sente subito.
+- Nel menu Aiuto, «Apri le guide»: Invio sulla voce, o un clic, apre le guide sul web, la pagina con i due link. L'indirizzo è https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
 
 ### 🌟 Novità della Versione 1.9.4
 
@@ -323,6 +331,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.5
+
+- When the search meets a video DVD (VIDEO_TS), it says on screen and by voice: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» Data files in the other folders stay.
+- The Gemini conversation uses the name of the file already saved. Save conversation proposes that same name. Enter on the button, and a click.
+- Save Image on the list remembers the last folder, the same one as the analysis window. Enter on the button, and a click.
+- In the Standalone, when opening Save video or Save image, sometimes the name is not read at once. Tab and then Shift+Tab always reads it: the voice comes back. Save text usually reads it by itself. In the Add-on the name is heard at once.
+- In the Help menu, «Apri le guide»: Enter on the item, or a click, opens the guides on the web, the page with the two links. The address is https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/
 
 ### 🌟 What's New in Version 1.9.4
 

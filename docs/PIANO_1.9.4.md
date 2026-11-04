@@ -56,7 +56,7 @@ I cookie del browser, solo se l’utente lo chiede: un video pubblico che chiede
 
 ## Dopo, una versione alla volta
 
-1. **`1.9.5` — VIDEO_TS.** Un avviso quando la ricerca incontra un DVD commerciale. Niente copia del film.
+1. **`1.9.5` — VIDEO_TS, nome della conversazione, cartella ricordata, guide dal menu.** Un avviso quando la ricerca incontra un DVD commerciale. Niente copia del film. La conversazione di Gemini usa il nome del file già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nella Standalone, Salva video a volte non legge subito il nome: Tab e poi Shift+Tab. Salva testo di solito lo legge. La frase è nelle guide. Menu Aiuto: «Apri le guide». Invio o un clic apre le guide sul web. Non è una voce dello store NVDA.
 2. **`1.9.6` — OneCore.** La voce di Windows nella Standalone.
 3. **`1.9.7` — export multipli.** Più di un formato nello stesso passaggio.
 

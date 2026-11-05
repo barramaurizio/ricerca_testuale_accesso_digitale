@@ -2,8 +2,8 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `1.9.4` — piano `docs/PIANO_1.9.4.md` (3/11/2026, GitHub `v1.9.4` / `app-v1.9.4`, commit `6bd5814`; le guide sul web nei commit `18d09e2` e `ca7f0ee`. DataStore #12743 accettato). Non hotfixarla.  
-**In corso:** `1.9.5`, nei sorgenti, non ancora pubblicata. Piano `docs/PIANO_1.9.5.md`. La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce e non copia il film. La conversazione di Gemini usa il nome del file già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nella Standalone, Salva video o Salva immagine a volte non legge subito il nome: Tab e poi Shift+Tab lo legge sempre, la voce si riattiva. Salva testo di solito lo legge. La frase è nelle guide. Il tentativo di spostare il focus non ha cambiato il video, ed è stato tolto. Menu Aiuto, Standalone e Add-on: «Apri le guide». Invio sulla voce, o un clic, apre https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/ . La pagina con i due link resta quella. Non è una voce dello store NVDA. Il ritorno con Alt+Tab che a volte tace resta così: la finestra non si blocca. I cookie del browser restano per dopo, su scelta dell’utente, e non aprono i flussi protetti. Poi: 1.9.6 OneCore, 1.9.7 export multipli. Papà ha rimesso la chiave Gemini e la usa. Cloud Vision per l’OCR non lo usa: da vedente non lo ritiene indispensabile. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà.  
+**Ultima pubblicata:** `1.9.5` — piano `docs/PIANO_1.9.5.md` (4/11/2026, GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`. DataStore #12756 via #12757 accettato). Non hotfixarla.  
+**Prossima da pubblicare:** `1.9.6` — OneCore, la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI. È nei sorgenti dal 5/11/2026, non ancora su GitHub. L’Add-on resta sulla voce di NVDA. Non iniziare la 1.9.7 prima della pubblicazione. Poi `1.9.7`: descrizione del video. Ogni volta si sceglie. Predefinita, il riassunto breve di oggi. Se si chiede la dettagliata, in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Poi 1.9.8: finestre nostre al posto di Salva e Sfoglia. Poi 1.9.9: export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB. Il ritorno con Alt+Tab che a volte tace resta così: la finestra non si blocca. I cookie del browser restano per dopo, su scelta dell’utente, e non aprono i flussi protetti. Papà ha rimesso la chiave Gemini e la usa. Cloud Vision per l’OCR non lo usa: da vedente non lo ritiene indispensabile. Il trascinamento del file `.eml` lo prova lui sull’Installer pubblicato. I procedimenti di FFmpeg, yt-dlp e crediti prepagati sono nelle guide ed escono con la 1.9.1. La 1.9.0 pubblicata non si rifà. «trascriv iamo» resta con lo spazio.  
 **NVDA:** ultima versione testata sull’Add-on pubblicato: `2026.3.0` (`lastTestedNVDAVersion`).
 
 ## Sorgente
@@ -17,11 +17,11 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
 
-## Stato attuale (3/11/2026)
-- **Ultima pubblicata:** `1.9.4` — in Word il link interno va al titolo; in ODT arrivano titoli e link; il nome salvato segue la pagina e Salva testo lo stesso nome; le due guide sono sul web.  
-  Pubblicata il 3/11/2026. GitHub `v1.9.4` / `app-v1.9.4`, commit `6bd5814`. Guide: `18d09e2`, `ca7f0ee`. DataStore #12743 accettato.  
-  **Non hotfixare 1.9.4.**  
-  Prima: `1.9.3` il 2/11 (DataStore #12733); `1.9.2` l’1/11 (DataStore #12681).
+## Stato attuale (4/11/2026)
+- **Ultima pubblicata:** `1.9.5` — la ricerca, se incontra un DVD video (VIDEO_TS), lo dice e non copia il film. La conversazione di Gemini usa il nome del file già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nella Standalone, Salva video o Salva immagine a volte non legge subito il nome: Tab e poi Shift+Tab, la voce si riattiva. Menu Aiuto: «Apri le guide».  
+  Pubblicata il 4/11/2026. GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`. DataStore #12756 via #12757 accettato.  
+  **Non hotfixare 1.9.5.**  
+  Prima: `1.9.4` il 3/11 (DataStore #12743); `1.9.3` il 2/11 (DataStore #12733).
 - Chiavi opt-in: Google Vision + Gemini (AI Studio), locali
 - Gemello SA ↔ Add-on: `rtad_ocr.py`, `rtad_media.py`, `rtad_whisper.py`, `rtad_epub.py`, `rtad_docstruct.py`, `rtad_reading_mark.py`, `rtad_chat.py`, `rtad_attach_dialog.py`, `rtad_compare.py`, `rtad_html_page.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`
 - Solo SA: `rtad_copie.py` (Trova copie)
@@ -29,19 +29,15 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 - Verifica commit prima del push: `git --no-pager show --stat -1`
 
 ### Versione in corso
-`1.9.5` nei sorgenti, non ancora pubblicata. Non hotfixare la 1.9.4.
+`1.9.6`, nei sorgenti dal 5/11/2026, non ancora pubblicata. Non hotfixare la 1.9.5. Non iniziare la 1.9.7 prima della pubblicazione.
 
-Scritto, da provare. La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce: «La ricerca ha incontrato un DVD video (VIDEO_TS). RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.» I file dati nelle altre cartelle restano. La frase di quando scegli tu la cartella c’è già dalla 1.7.6.
-
-La conversazione di Gemini usa il nome del file già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella, la stessa della finestra di analisi. Nella Standalone, Salva video o Salva immagine a volte non legge subito il nome: Tab e poi Shift+Tab lo legge sempre, la voce si riattiva. Salva testo di solito lo legge. La frase è nelle guide.
-
-Menu Aiuto, Standalone e Add-on: «Apri le guide». Invio sulla voce, o un clic, apre https://barramaurizio.github.io/ricerca_testuale_accesso_digitale/guida/ . La pagina con i due link resta quella. Non è una voce dello store NVDA. A schermo e a voce: «Apro le guide sul web. La pagina con i due link.»
+OneCore: la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI. Menu Voce, «Scegli voce»: Invio sulla voce, o un clic, oppure Ctrl+Shift+V. Invio sul pulsante OK, o un clic, imposta la voce. Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga. Velocità e tono valgono anche per queste voci. L’Add-on resta sulla voce di NVDA. Anche «Solo la voce di questo programma»: Invio sulla voce, o un clic. Dentro RTAD quella voce dice anche dove sei. Con Alt e le frecce dice il menu. «Pronuncia i tasti di spostamento» è spento. «Pronuncia le lettere mentre scrivi» è spento. I simboli si dicono lo stesso. Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre subito dopo i video.
 
 Il lettore, dopo Alt+Tab, a volte tace un attimo. Non si blocca e non dice «non risponde». Resta così.
 
-Poi, una alla volta: 1.9.6 OneCore; 1.9.7 export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB. I cookie del browser restano per dopo. Un contenuto protetto resta non scaricabile.
+Poi `1.9.7`: descrizione del video. Ogni volta si sceglie. Predefinita, il riassunto breve di oggi. Se si chiede la dettagliata, in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Poi 1.9.8: finestre nostre al posto di Salva e Sfoglia. Poi 1.9.9: export multipli. Più avanti: confronto del parlato, confronto del testo di un’immagine, riga sulla figura di un EPUB. I cookie del browser restano per dopo. Un contenuto protetto resta non scaricabile.
 
-La 1.9.2 resta com’è. «trascriv iamo» resta con lo spazio.
+«trascriv iamo» resta con lo spazio.
 
 **Log SA:** `%AppData%\Roaming\RTAD_Standalone\rtad_debug.log`
 
@@ -51,4 +47,4 @@ La 1.9.2 resta com’è. «trascriv iamo» resta con lo spazio.
 - Versione pubblicata: non toccare; fix → versione successiva
 
 ## Come ripartire (prompt tipico)
-«RTAD. Ultima pubblicata 1.9.4 il 3/11/2026: GitHub v1.9.4 / app-v1.9.4, commit 6bd5814. Guide sul web: 18d09e2 e ca7f0ee. DataStore #12743 accettato. Non hotfixare la 1.9.4. «trascriv iamo» resta con lo spazio. In corso 1.9.5, nei sorgenti, non ancora pubblicata. La ricerca, se incontra un DVD video (VIDEO_TS), lo dice e non copia il film. La conversazione di Gemini usa il nome del file salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nella Standalone Salva video o Salva immagine a volte non legge subito il nome: Tab e poi Shift+Tab, la voce si riattiva. Menu Aiuto: «Apri le guide», stesso indirizzo del collegamento sul desktop. Non è una voce dello store. Alt+Tab che a volte tace resta così. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa: da vedente non lo ritiene indispensabile. Poi 1.9.6 OneCore; 1.9.7 export multipli. I cookie del browser restano per dopo. I contenuti protetti restano non scaricabili.»
+«RTAD. Ultima pubblicata 1.9.5 il 4/11/2026: GitHub v1.9.5 / app-v1.9.5, commit 6c4e9c6. DataStore #12756 via #12757 accettato. Non hotfixare la 1.9.5. «trascriv iamo» resta con lo spazio. Prossima da pubblicare 1.9.6, nei sorgenti dal 5/11/2026, non ancora su GitHub: OneCore, la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI. Menu Voce, Scegli voce. L’Add-on resta sulla voce di NVDA. Non iniziare la 1.9.7 prima della pubblicazione. Anche Solo la voce di questo programma. Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre in 1.9.8. Alt+Tab che a volte tace resta così. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa: da vedente non lo ritiene indispensabile. Poi 1.9.7: descrizione del video. Ogni volta si sceglie. Predefinita, il riassunto breve. Se si chiede la dettagliata, in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Dopo, 1.9.8 export multipli. I cookie del browser restano per dopo. I contenuti protetti restano non scaricabili.»

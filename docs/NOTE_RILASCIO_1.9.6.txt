@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.9.6
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.6
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Nella Standalone, menu Voce, «Solo la voce di questo programma»: Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso. Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante, la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo. Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende. Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute. Finestre nostre, al loro posto, dopo i video. L'Add-on resta sulla voce di NVDA.
+- Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic, oppure Ctrl+Shift+V, apre l'elenco. Ci sono le voci di Windows (OneCore) e quelle già registrate come SAPI. Invio sul pulsante OK, o un clic, imposta la voce. Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga. Velocità e tono del menu valgono anche per le voci di Windows. L'Add-on resta sulla voce di NVDA.
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- In the Standalone, Voice menu, «Solo la voce di questo programma»: Ctrl+Shift+S, or Enter on the item, or a click, turns the mode on or off. Tab and Shift are spoken by the voice in use. Inside RTAD this voice also says where you are: the field, the button, the list row with the arrows, the combo box, the menu item, and the symbol you type. With Alt and the arrows it says the menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» is off. Enter on the item, or a click, turns it on: then it also says Tab, Shift Tab, Shift, Control, Control A, Alt, the arrows, Home, End, Page up, Page down, Insert, Delete, Backspace, Esc, Enter, the keys F1 to F12, and the numeric keypad. Caps Lock and Num Lock say on or off. If you leave with Alt+Tab, or with a click outside the window, or a command opens another window, the voice says: Non sei nel programma? Hold Alt and press Tab: it repeats on every window. When Tab lands on the program, it says where you were. It also repeats on every click outside, until you come back. Print Screen, Scroll Lock and Pause are spoken if they reach the program. Print Screen often stays with Windows. With the arrows on a menu, together with the name it says the shortcut written beside it. Enter on the item, or a click, runs that command. F8, or the Voice menu, Dove sei: Enter on the item, or a click. It says the foreground window and the control: button, text field, list. «Pronuncia le lettere mentre scrivi» is off. Enter on the item, or a click, turns it on. Symbols are spoken anyway: period, comma, question mark. If NVDA is on, turn the synthesizer off with NVDA+S, otherwise you hear two voices. If you turn it off with Ctrl+Shift+S, or Enter on the item, or a click, Space, F4 and the results are spoken by NVDA. F7, or Enter on the item, or a click, pauses RTAD voice: NVDA says those phrases. F7 again, or Enter on the item, or a click, turns it back on. The program's questions, such as Yes and No and the copies on the PC, are spoken by this voice: the text, the buttons, and which one you are on. If the window is already open, Ctrl+Shift+S turns the voice on and reads the question. Enter on the button, or a click, answers. Tab moves to the other. Esc closes and is spoken. In the applications-key menu, together with the name it says the place, for example 1 of 15. Esc, when leaving a menu, is spoken. Save and Browse are Windows windows: with NVDA off they stay silent. Our own windows, in their place, after the videos. The Add-on stays on the NVDA voice.
+- In the Standalone, Voice menu, «Scegli voce»: Enter on the item, or a click, or Ctrl+Shift+V, opens the list. The Windows voices (OneCore) are there, together with the voices already registered as SAPI. Enter on the OK button, or a click, sets the voice. A double click on the row does the same. A single click only selects the row. Rate and pitch from the menu also apply to the Windows voices. The Add-on stays on the NVDA voice.
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.6.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.6
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.6
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.6.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.6.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Nella Standalone, menu Voce, «Solo la voce di questo programma»: Ctrl+Shift+S, oppure Invio sulla voce, o un clic. Tab e Shift li dice la voce in uso. Dentro RTAD questa voce dice anche dove sei. Con Alt e le frecce dice il menu. Pronuncia i tasti di spostamento è spento: Tab, Shift Tab, Shift, Control, Insert, Canc, F1-F12 e il tastierino. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Pronuncia le lettere mentre scrivi è spento. I simboli si dicono lo stesso. Le domande, come Sì e No e le copie sul PC, le dice questa voce. Se la finestra è già aperta, Ctrl+Shift+S la legge. Invio sul pulsante, o un clic, risponde. Nel menu del tasto applicazioni dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video. Sulle voci di menu dice la scorciatoia accanto al nome. F8 dice la finestra e il controllo. Con Ctrl+Shift+S spento, oppure Invio sulla voce, o un clic, e con F7, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. L’Add-on resta sulla voce di NVDA.
+
+Summary EN:
+In the Standalone, Voice menu, «Solo la voce di questo programma»: Ctrl+Shift+S, or Enter on the item, or a click. Tab and Shift are spoken by the voice in use. Inside RTAD this voice also says where you are. With Alt and the arrows it says the menu. Pronuncia i tasti di spostamento is off: Tab, Shift, Control, Insert, Delete, F1-F12 and the numeric keypad. Caps Lock and Num Lock say on or off. If you leave with Alt+Tab, or with a click outside the window, or a command opens another window, the voice says: Non sei nel programma? Hold Alt and press Tab: it repeats on every window. When Tab lands on the program, it says where you were. It also repeats on every click outside, until you come back. Pronuncia le lettere mentre scrivi is off. Symbols are spoken anyway. Questions, such as Yes and No and the copies on the PC, are spoken by this voice. If the window is already open, Ctrl+Shift+S reads it. Enter on the button, or a click, answers. In the applications-key menu it says the place, for example 1 of 15. Esc, when leaving a menu, is spoken. Save and Browse, with NVDA off, stay silent. Our own windows after the videos. On menu items it says the shortcut beside the name. F8 says the window and the control. With Ctrl+Shift+S off, or Enter on the item, or a click, and with F7, or Enter on the item, or a click, Space, F4 and the results are spoken by NVDA. The Add-on stays on the NVDA voice.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.6/ricerca_testuale_accesso_digitale-1.9.6.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.6
+
+Description:
+Nella Standalone, menu Voce, Solo la voce di questo programma: dentro RTAD quella voce dice anche dove sei. Le domande, come Sì e No e le copie sul PC, le dice questa voce. Se la finestra è già aperta, Ctrl+Shift+S la legge. Invio sul pulsante, o un clic, risponde. Nel menu del tasto applicazioni dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia, con NVDA spento, restano mute. Le voci di Windows (OneCore) stanno insieme a quelle SAPI. L’Add-on resta sulla voce di NVDA.

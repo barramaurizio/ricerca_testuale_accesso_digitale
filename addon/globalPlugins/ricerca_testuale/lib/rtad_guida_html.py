@@ -134,7 +134,21 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li>La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:
+    <li>Nella Standalone, menu Voce, «Solo la voce di questo programma»:
+      Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.
+      Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
+      la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.
+      Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende.
+      Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute.
+      Finestre nostre, al loro posto, dopo i video.
+      L'Add-on resta sulla voce di NVDA.</li>
+    <li>Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic,
+      oppure Ctrl+Shift+V, apre l'elenco. Ci sono le voci di Windows (OneCore)
+      e quelle già registrate come SAPI. Invio sul pulsante OK, o un clic,
+      imposta la voce. Doppio clic sulla riga fa la stessa cosa.
+      Un clic solo seleziona la riga. Velocità e tono del menu valgono
+      anche per le voci di Windows. L'Add-on resta sulla voce di NVDA.</li>
+    <li>Resta dalla 1.9.5: La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:
       «La ricerca ha incontrato un DVD video (VIDEO_TS).
       RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»
       I file dati nelle altre cartelle restano.</li>
@@ -1008,7 +1022,18 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
   <li><kbd>Alt</kbd>+<kbd>F</kbd> — Apri la fonte selezionata</li>
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> / <kbd>L</kbd> — salva / carica profilo</li>
   <li><kbd>F4</kbd> / Spazio — anteprima vocale del risultato</li>
-  <li><kbd>F7</kbd> — Mute</li>
+  <li><kbd>F7</kbd> — Nella Standalone, oppure Invio sulla voce, o un clic: mette in pausa la voce di RTAD. Spazio, F4 e gli esiti li dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende. Nell'Add-on silenzia gli annunci di RTAD: la voce resta quella di NVDA.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> — Scegli voce, solo Standalone.
+    Ci sono le voci di Windows (OneCore) e quelle SAPI.
+    Invio sul pulsante OK, o un clic, imposta la voce.
+    Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga.
+    Velocità e tono del menu valgono anche per le voci di Windows.</li>
+  <li>Menu Voce, «Solo la voce di questo programma»: Invio sulla voce, o un clic.
+    Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
+    la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.
+    Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende.
+    Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute.
+    Finestre nostre, al loro posto, dopo i video. Solo Standalone.</li>
   <li><kbd>F1</kbd> — Guida ai Comandi; Aiuto → Guida completa HTML</li>
   <li>Nella guida HTML: <kbd>Ctrl</kbd>+<kbd>F</kbd> oppure, con NVDA,
     <kbd>NVDA</kbd>+<kbd>Ctrl</kbd>+<kbd>F</kbd></li>
@@ -1020,7 +1045,14 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
 
 <h2 id="addon">14. Differenze con l’Add-on NVDA</h2>
 <ul>
-  <li>Voce e velocità seguono NVDA; c’è comunque il Mute (F7) per gli annunci RTAD.</li>
+  <li>Voce e velocità seguono NVDA. Il Mute (F7) riguarda gli annunci RTAD.
+    «Solo la voce di questo programma» è solo nella Standalone:
+    Invio sulla voce del menu, o un clic.
+    Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video.
+    Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic,
+    oppure Ctrl+Shift+V. Ci sono le voci di Windows (OneCore) e quelle SAPI.
+    Invio sul pulsante OK, o un clic, imposta la voce.
+    Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga.</li>
   <li>Niente menù contestuale nel registro di Esplora file.</li>
   <li>Scorciatoie tipiche NVDA (es. NVDA+Shift+G su figura/file, dove previsto).</li>
   <li>Installazione e aggiornamento tramite Gestore componenti aggiuntivi / DataStore.</li>

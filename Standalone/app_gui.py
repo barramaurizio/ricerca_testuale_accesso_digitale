@@ -105,7 +105,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.5"
+APP_VERSION = "1.9.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -583,15 +583,47 @@ _speech_thread_started = False
 _speech_thread_lock = threading.Lock()
 _nvda_client = None
 
-# Impostazioni voce Standalone (SAPI). Rate/Pitch tipici SAPI: -10 … +10.
+# Impostazioni voce Standalone. Rate/Pitch tipici SAPI: -10 … +10.
+# Le voci di Windows (OneCore) usano lo stesso SpVoice, lette dalla loro categoria.
 SAPI_RATE_MIN, SAPI_RATE_MAX = -10, 10
 SAPI_PITCH_MIN, SAPI_PITCH_MAX = -10, 10
+SAPI_VOICES_CATEGORY = r"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices"
+ONECORE_VOICE_CATEGORIES = (
+    r"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech_OneCore\Voices",
+    r"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Speech_OneCore\Voices",
+)
 _speech_rate = 0
 _speech_pitch = 0
-_speech_voice_id = ""  # token Id SAPI; vuoto = voce predefinita
-# True = annunci RTAD via SAPI (velocità/voce regolabili); False = NVDA se presente, poi SAPI
+_speech_voice_id = ""  # token Id; vuoto = voce SAPI predefinita
+# True = annunci RTAD con la voce del programma (SAPI o OneCore); False = NVDA se presente
 _speech_use_sapi = True
+# True = dentro RTAD la voce del programma dice anche focus, elenchi, menu e caratteri
+_speech_own_ui = False
+# True = oltre al punto in cui sei, dice freccia, Tab, Maiusc Tab e Alt. Spento di proposito.
+_speech_say_keys = False
+# True = mentre scrivi dice anche lettere, numeri e spazio. I simboli si dicono comunque.
+_speech_say_chars = False
+_pending_key_name = ""
+_pending_key_at = 0.0
+_tab_noted_at = 0.0
+_key_note_gen = 0
+_ignore_tab_until = 0.0
+_menu_nav = False
+_menu_nav_index = 0
+_last_menu_where = ""
+_where_control = None
+_where_spoken_at = 0.0
+_alt_chord = False
+_pending_menu_title = ""
+_pending_menu_token = 0
 _speech_settings_loaded = False
+_applied_voice_id = None
+_speak_gen = 0
+_ui_last_phrase = ""
+_ui_last_phrase_at = 0.0
+_ui_focus_at = 0.0
+_ui_text_memory = {}
+_ui_caret = {}
 
 # Evita di leggere in RAM file enormi (blocco UI / «Non risponde» su dischi esterni).
 # Non si applica alle caselle di posta: quelle si scansionano in streaming (vedi sotto).
@@ -617,24 +649,64 @@ _ZIP_LOCAL_MAGIC = b"PK\x03\x04"
 _ZIP_EMPTY_MAGIC = b"PK\x05\x06"
 
 
+def _nvda_client_candidates():
+    """Il client di NVDA sta accanto al programma. Senza di lui le frasi restano a SAPI."""
+    names = (
+        "nvdaControllerClient64.dll",
+        "nvdaControllerClient32.dll",
+        "nvdaControllerClient.dll",
+    )
+    dirs = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        dirs.append(meipass)
+    try:
+        dirs.append(os.path.dirname(os.path.abspath(__file__)))
+    except Exception:
+        pass
+    try:
+        dirs.append(os.path.dirname(os.path.abspath(sys.executable)))
+    except Exception:
+        pass
+    for env_name in ("ProgramFiles", "ProgramFiles(x86)"):
+        base = os.environ.get(env_name)
+        if base:
+            dirs.append(os.path.join(base, "NVDA"))
+    seen = set()
+    for folder in dirs:
+        if not folder or folder in seen:
+            continue
+        seen.add(folder)
+        for name in names:
+            yield os.path.join(folder, name)
+    for name in names:
+        yield name
+
+
 def _get_nvda_client():
     global _nvda_client
-    if _nvda_client is False:
-        return None
-    if _nvda_client is not None:
+    if _nvda_client not in (None, False):
         return _nvda_client
-    for dll_name in ("nvdaControllerClient64.dll", "nvdaControllerClient32.dll", "nvdaControllerClient.dll"):
+    loaded = None
+    for path in _nvda_client_candidates():
         try:
-            client = ctypes.windll.LoadLibrary(dll_name)
-            if client.nvdaController_testIfRunning() == 0:
-                client.nvdaController_speakText.argtypes = [ctypes.c_wchar_p]
-                client.nvdaController_speakText.restype = ctypes.c_long
-                _nvda_client = client
-                return client
+            loaded = ctypes.WinDLL(path)
+            break
         except Exception:
-            pass
-    _nvda_client = False
-    return None
+            continue
+    if loaded is None:
+        _nvda_client = False
+        return None
+    try:
+        if loaded.nvdaController_testIfRunning() != 0:
+            return None
+        loaded.nvdaController_speakText.argtypes = [ctypes.c_wchar_p]
+        loaded.nvdaController_speakText.restype = ctypes.c_long
+        loaded.nvdaController_cancelSpeech.restype = ctypes.c_long
+    except Exception:
+        return None
+    _nvda_client = loaded
+    return loaded
 
 
 def get_sapi_voice():
@@ -655,7 +727,8 @@ def get_sapi_voice():
 def load_speech_settings():
     """Carica velocità/tono/voce/motore da settings.json (una volta + su richiesta)."""
     global _speech_rate, _speech_pitch, _speech_voice_id, _speech_use_sapi
-    global _speech_active, _speech_settings_loaded
+    global _speech_active, _speech_settings_loaded, _applied_voice_id
+    global _speech_own_ui, _speech_say_keys, _speech_say_chars
     data = _load_settings_dict()
     try:
         rate = int(data.get("speech_rate", 0))
@@ -674,7 +747,13 @@ def load_speech_settings():
         _speech_use_sapi = True
     if "speech_active" in data:
         _speech_active = bool(data.get("speech_active"))
+    _speech_own_ui = bool(data.get("speech_own_ui", False))
+    _speech_say_keys = bool(data.get("speech_say_keys", False))
+    _speech_say_chars = bool(data.get("speech_say_chars", False))
+    if _speech_own_ui:
+        _speech_use_sapi = True
     _speech_settings_loaded = True
+    _applied_voice_id = None
     apply_sapi_voice_settings(get_sapi_voice())
 
 
@@ -685,35 +764,142 @@ def save_speech_settings():
     data["speech_voice_id"] = str(_speech_voice_id or "")
     data["speech_use_sapi"] = bool(_speech_use_sapi)
     data["speech_active"] = bool(_speech_active)
+    data["speech_own_ui"] = bool(_speech_own_ui)
+    data["speech_say_keys"] = bool(_speech_say_keys)
+    data["speech_say_chars"] = bool(_speech_say_chars)
     _save_settings_dict(data)
 
 
+def _ensure_com():
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()
+    except Exception:
+        pass
+
+
+def _token_id(tok):
+    try:
+        return str(tok.Id or "")
+    except Exception:
+        return ""
+
+
+def _token_name(tok):
+    try:
+        return str(tok.GetDescription() or "").strip()
+    except Exception:
+        return ""
+
+
+def _iter_category_tokens(category_id):
+    """Token di una categoria SAPI. Vuoto se la categoria non c'è."""
+    _ensure_com()
+    import win32com.client
+    cat = win32com.client.Dispatch("SAPI.SpObjectTokenCategory")
+    cat.SetId(category_id, False)
+    tokens = cat.EnumerateTokens()
+    for i in range(int(tokens.Count)):
+        yield tokens.Item(i)
+
+
 def list_sapi_voices():
-    """Elenco voci SAPI: [{id, name}, …]."""
+    """Voci SAPI già registrate, poi voci di Windows (OneCore).
+
+    Ogni voce: {id, name, kind} con kind «sapi» oppure «onecore».
+    """
+    _ensure_com()
     v = get_sapi_voice()
     if not v:
         return []
     out = []
+    seen = set()
+
+    def add(tok, kind):
+        vid = _token_id(tok)
+        name = _token_name(tok)
+        if not vid or not name or vid in seen:
+            return
+        seen.add(vid)
+        out.append({"id": vid, "name": name, "kind": kind})
+
     try:
         tokens = v.GetVoices()
         for i in range(int(tokens.Count)):
-            tok = tokens.Item(i)
-            try:
-                out.append({"id": str(tok.Id), "name": str(tok.GetDescription())})
-            except Exception:
-                continue
+            add(tokens.Item(i), "sapi")
     except Exception as e:
         logging.debug(f"Elenco voci SAPI fallito: {e}")
+    for category in ONECORE_VOICE_CATEGORIES:
+        try:
+            for tok in _iter_category_tokens(category):
+                add(tok, "onecore")
+        except Exception as e:
+            logging.debug(f"Elenco voci di Windows ({category}) fallito: {e}")
     return out
 
 
+def voice_choice_label(voice):
+    """Nome in elenco: distingue SAPI e voce di Windows."""
+    name = str(voice.get("name") or "").strip()
+    if voice.get("kind") == "onecore":
+        return f"{name}, voce di Windows"
+    return f"{name}, SAPI"
+
+
+def _find_voice_token(voice, voice_id):
+    wanted = str(voice_id or "")
+    if not wanted or voice is None:
+        return None
+    try:
+        tokens = voice.GetVoices()
+        for i in range(int(tokens.Count)):
+            tok = tokens.Item(i)
+            if _token_id(tok) == wanted:
+                return tok
+    except Exception as e:
+        logging.debug(f"Ricerca voce SAPI fallita: {e}")
+    for category in ONECORE_VOICE_CATEGORIES:
+        try:
+            for tok in _iter_category_tokens(category):
+                if _token_id(tok) == wanted:
+                    return tok
+        except Exception as e:
+            logging.debug(f"Ricerca voce di Windows fallita: {e}")
+    return None
+
+
+def _sapi_default_token(voice):
+    """Token della voce SAPI predefinita di Windows."""
+    default_id = ""
+    try:
+        import win32com.client
+        cat = win32com.client.Dispatch("SAPI.SpObjectTokenCategory")
+        cat.SetId(SAPI_VOICES_CATEGORY, False)
+        default_id = str(getattr(cat, "Default", "") or "")
+    except Exception:
+        default_id = ""
+    try:
+        tokens = voice.GetVoices()
+        count = int(tokens.Count)
+    except Exception:
+        return None
+    if default_id:
+        for i in range(count):
+            tok = tokens.Item(i)
+            if _token_id(tok) == default_id:
+                return tok
+    if count:
+        return tokens.Item(0)
+    return None
+
+
 def _clear_invalid_sapi_voice_id(reason):
-    """Id voce salvato non più utilizzabile: torna alla voce predefinita e persiste."""
+    """Id voce salvato non più utilizzabile: torna alla voce SAPI predefinita."""
     global _speech_voice_id
     if not _speech_voice_id:
         return
     logging.info(
-        f"Voce SAPI salvata non valida ({reason}); ripristino voce predefinita."
+        f"Voce salvata non valida ({reason}); ripristino voce SAPI predefinita."
     )
     _speech_voice_id = ""
     try:
@@ -723,7 +909,8 @@ def _clear_invalid_sapi_voice_id(reason):
 
 
 def apply_sapi_voice_settings(voice=None):
-    """Applica rate e token voce all'oggetto SpVoice (pitch via markup in Speak)."""
+    """Applica rate e token (SAPI o OneCore) all'oggetto SpVoice. Il tono è nel markup."""
+    global _applied_voice_id
     v = voice if voice is not None else get_sapi_voice()
     if not v:
         return False
@@ -731,27 +918,34 @@ def apply_sapi_voice_settings(voice=None):
         v.Rate = int(_speech_rate)
     except Exception:
         pass
-    if _speech_voice_id:
-        matched = False
-        try:
-            tokens = v.GetVoices()
-            wanted = str(_speech_voice_id)
-            for i in range(int(tokens.Count)):
-                tok = tokens.Item(i)
-                if str(tok.Id) == wanted:
-                    v.Voice = tok
-                    matched = True
-                    break
-            if not matched:
-                _clear_invalid_sapi_voice_id("token assente dall'elenco SAPI")
-        except Exception as e:
-            logging.debug(f"Impostazione voce SAPI fallita: {e}")
-            _clear_invalid_sapi_voice_id(str(e))
+    wanted = str(_speech_voice_id or "")
+    if _applied_voice_id is not None and wanted == _applied_voice_id:
+        return True
+    try:
+        if wanted:
+            tok = _find_voice_token(v, wanted)
+            if tok is None:
+                _clear_invalid_sapi_voice_id(
+                    "token assente da SAPI e dalle voci di Windows"
+                )
+                tok = _sapi_default_token(v)
+                wanted = ""
+            if tok is not None:
+                v.Voice = tok
+        else:
+            tok = _sapi_default_token(v)
+            if tok is not None:
+                v.Voice = tok
+        _applied_voice_id = wanted
+    except Exception as e:
+        logging.debug(f"Impostazione voce fallita: {e}")
+        _clear_invalid_sapi_voice_id(str(e))
+        _applied_voice_id = ""
     return True
 
 
 def _sapi_speak_text(text):
-    """Parla con SAPI applicando rate/voce/pitch."""
+    """Parla con SAPI applicando rate/voce/pitch. La voce resta quella scelta."""
     v = get_sapi_voice()
     if not v:
         return False
@@ -759,7 +953,6 @@ def _sapi_speak_text(text):
     payload = str(text)
     pitch = int(_speech_pitch)
     if pitch != 0:
-        # Markup SAPI: pitch absmiddle -10…+10
         safe = (
             payload.replace("&", "&amp;")
             .replace("<", "&lt;")
@@ -784,6 +977,7 @@ def _speech_loop():
     """Un solo worker: evita Speak/NVDA concorrenti che bloccano la UI."""
     import queue as _q
     global _speech_queue
+    _ensure_com()
     while True:
         try:
             item = _speech_queue.get()
@@ -807,12 +1001,27 @@ def _speech_loop():
                     except Exception:
                         pass
             elif kind == "speak":
-                text = payload
+                force_sapi = False
+                if isinstance(payload, tuple):
+                    if len(payload) >= 3:
+                        text, gen, force_sapi = payload[0], payload[1], bool(payload[2])
+                    else:
+                        text, gen = payload[0], payload[1]
+                else:
+                    text, gen = payload, None
+                if gen is not None and gen != _speak_gen:
+                    continue
                 spoken = False
-                prefer_sapi = bool(_speech_use_sapi)
+                # La voce di RTAD dice tutto solo se è accesa e F7 non è in pausa.
+                # L'avviso di F7 passa comunque da RTAD. Poi le frasi le dice NVDA.
+                prefer_sapi = bool(force_sapi) or bool(
+                    _speech_use_sapi and _speech_own_ui and _speech_active
+                )
                 if prefer_sapi:
                     spoken = _sapi_speak_text(text)
-                if not spoken:
+                    if not spoken:
+                        spoken = _sapi_speak_text(text)
+                else:
                     client = _get_nvda_client()
                     if client is not None:
                         try:
@@ -821,8 +1030,8 @@ def _speech_loop():
                                 spoken = True
                         except Exception:
                             pass
-                if not spoken and not prefer_sapi:
-                    spoken = _sapi_speak_text(text)
+                    if not spoken:
+                        spoken = _sapi_speak_text(text)
         except Exception:
             pass
         finally:
@@ -862,35 +1071,512 @@ def stop_accessible_speech():
         pass
 
 
-def speak_accessible(text, force=False):
-    global _speech_active
+def _drain_speak_queue():
+    """Toglie gli annunci in attesa. Uno stop resta."""
+    if _speech_queue is None:
+        return
+    kept_stop = False
+    try:
+        while True:
+            item = _speech_queue.get_nowait()
+            try:
+                _speech_queue.task_done()
+            except Exception:
+                pass
+            if item and item[0] == "stop":
+                kept_stop = True
+    except Exception:
+        pass
+    if kept_stop:
+        try:
+            _speech_queue.put_nowait(("stop", None))
+        except Exception:
+            pass
+
+
+def speak_accessible(text, force=False, replace=False, sapi=False):
+    global _speech_active, _speak_gen
     if not _speech_settings_loaded:
         try:
             load_speech_settings()
         except Exception:
             pass
-    if not _speech_active and not force:
-        return
     if not text:
         return
     try:
         _ensure_speech_thread()
-        # Se la coda è piena, scarta i vecchi annunci automatici (tieni l'ultimo)
+        gen = None
+        if replace:
+            _speak_gen += 1
+            gen = _speak_gen
+            _drain_speak_queue()
+        payload = (str(text), gen, bool(sapi))
         try:
-            _speech_queue.put_nowait(("speak", str(text)))
+            _speech_queue.put_nowait(("speak", payload))
         except Exception:
             try:
-                while not _speech_queue.empty():
-                    try:
-                        _speech_queue.get_nowait()
-                        _speech_queue.task_done()
-                    except Exception:
-                        break
-                _speech_queue.put_nowait(("speak", str(text)))
+                _drain_speak_queue()
+                _speech_queue.put_nowait(("speak", payload))
             except Exception:
                 pass
     except Exception:
         pass
+
+
+_outside_at = 0.0
+_outside_hwnd = 0
+_fg_hook = None
+_fg_callback = None
+
+_SWITCHER_CLASSES = {
+    "MultitaskingViewFrame",
+    "XamlExplorerHostIslandWindow",
+    "ForegroundStaging",
+    "TaskSwitcherWnd",
+    "TaskSwitcherOverlayWnd",
+}
+
+
+def announce_left_program():
+    """Un comando ha aperto un'altra finestra. Il controllo arriva dopo."""
+    if not _speech_own_ui or not _speech_active:
+        return
+    wx.CallLater(700, _say_left_program)
+
+
+def on_main_frame_activate(active):
+    """Alt+Tab o un clic fuori: avvisa. Al rientro dimentica il Tab di Alt+Tab."""
+    global _outside_hwnd, _ignore_tab_until
+    _clear_key_memory()
+    if active:
+        _outside_hwnd = 0
+        _ignore_tab_until = time.monotonic() + 0.45
+        return
+    if not _speech_own_ui or not _speech_active:
+        return
+    wx.CallLater(220, _say_left_program)
+
+
+def _window_pid(hwnd):
+    pid = ctypes.c_ulong()
+    ctypes.windll.user32.GetWindowThreadProcessId(int(hwnd), ctypes.byref(pid))
+    return int(pid.value)
+
+
+def _foreground_hwnd():
+    try:
+        return int(ctypes.windll.user32.GetForegroundWindow() or 0)
+    except Exception:
+        return 0
+
+
+def _window_class(hwnd):
+    try:
+        buf = ctypes.create_unicode_buffer(256)
+        ctypes.windll.user32.GetClassNameW(int(hwnd), buf, 256)
+        return buf.value or ""
+    except Exception:
+        return ""
+
+
+def _foreground_is_other_process():
+    hwnd = _foreground_hwnd()
+    if not hwnd:
+        return False
+    try:
+        return _window_pid(hwnd) != os.getpid()
+    except Exception:
+        return False
+
+
+def _announce_outside(hwnd=0):
+    """Ogni finestra diversa, finché non si torna in RTAD."""
+    global _outside_at, _outside_hwnd
+    if not _speech_own_ui or not _speech_active:
+        return
+    hwnd = int(hwnd or 0) or _foreground_hwnd()
+    if not hwnd or _window_class(hwnd) in _SWITCHER_CLASSES:
+        return
+    try:
+        if _window_pid(hwnd) == os.getpid():
+            _outside_hwnd = 0
+            return
+    except Exception:
+        return
+    if hwnd == _outside_hwnd:
+        return
+    if time.monotonic() - _switcher_outside_at < 1.2:
+        _outside_hwnd = hwnd
+        return
+    _outside_hwnd = hwnd
+    _outside_at = time.monotonic()
+    phrase = "Non sei nel programma?"
+    try:
+        app = wx.GetApp()
+        win = app.GetTopWindow() if app else None
+        field = getattr(win, "txt_status_progress", None)
+        if field is not None:
+            field.SetValue(phrase)
+    except Exception:
+        pass
+    speak_accessible(phrase, force=True, replace=True)
+
+
+def _say_left_program():
+    _announce_outside()
+
+
+def _on_system_foreground(hwnd):
+    if wx.GetApp() is None:
+        return
+    try:
+        wx.CallAfter(_announce_outside, int(hwnd or 0))
+    except Exception:
+        pass
+
+
+_switcher_index = None
+_switcher_hwnds = []
+_switcher_tick = 0.0
+_switcher_speak_gen = 0
+_switcher_outside_at = 0.0
+_switcher_tabs = 0
+_switcher_alt_up = 0
+_kb_hook = None
+_kb_callback = None
+
+
+def _switcher_next_index(index, count, shift, first):
+    """Primo Tab: la finestra dopo quella in primo piano. Poi scorre, anche all'indietro."""
+    if count <= 0:
+        return None
+    if first or index is None:
+        if count == 1:
+            return 0
+        return count - 1 if shift else 1
+    return (index - 1) % count if shift else (index + 1) % count
+
+
+def _switcher_closed():
+    global _switcher_index, _switcher_hwnds
+    _switcher_index = None
+    _switcher_hwnds = []
+
+
+def _window_title(hwnd):
+    try:
+        user32 = ctypes.windll.user32
+        length = int(user32.GetWindowTextLengthW(int(hwnd)) or 0)
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(int(hwnd), buf, length + 1)
+        return buf.value or ""
+    except Exception:
+        return ""
+
+
+def _window_is_rtad(hwnd):
+    try:
+        if _window_pid(hwnd) == os.getpid():
+            return True
+    except Exception:
+        pass
+    text = _window_title(hwnd).casefold()
+    if "ricerca testuale" in text:
+        return True
+    try:
+        app = wx.GetApp()
+        win = app.GetTopWindow() if app else None
+        title = (win.GetTitle() or "").casefold() if win is not None else ""
+    except Exception:
+        title = ""
+    if not title or not text:
+        return False
+    return title in text or text in title
+
+
+def _alt_tab_windows():
+    """Stesso ordine di Alt+Tab: la finestra in primo piano è la prima."""
+    user32 = ctypes.windll.user32
+    dwmapi = ctypes.WinDLL("dwmapi")
+    found = []
+    skip = set(_SWITCHER_CLASSES) | {
+        "Shell_TrayWnd",
+        "Shell_SecondaryTrayWnd",
+        "Progman",
+        "WorkerW",
+        "NotifyIconOverflowWindow",
+        "Windows.UI.Core.CoreWindow",
+        "TopLevelWindowForOverflowXamlIsland",
+    }
+
+    class RECT(ctypes.Structure):
+        _fields_ = [
+            ("left", ctypes.c_long),
+            ("top", ctypes.c_long),
+            ("right", ctypes.c_long),
+            ("bottom", ctypes.c_long),
+        ]
+
+    class TITLEBARINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", ctypes.c_uint),
+            ("rcTitleBar", RECT),
+            ("rgstate", ctypes.c_uint * 6),
+        ]
+
+    def _ok(hwnd):
+        hwnd = int(hwnd)
+        if not user32.IsWindowVisible(hwnd):
+            return False
+        if _window_class(hwnd) in skip:
+            return False
+        root = int(user32.GetAncestor(hwnd, 3) or hwnd)
+        walk = 0
+        try_h = int(user32.GetLastActivePopup(root) or 0)
+        while try_h and try_h != walk:
+            if user32.IsWindowVisible(try_h):
+                break
+            walk = try_h
+            try_h = int(user32.GetLastActivePopup(walk) or 0)
+        if try_h != hwnd:
+            return False
+        info = TITLEBARINFO()
+        info.cbSize = ctypes.sizeof(info)
+        if user32.GetTitleBarInfo(hwnd, ctypes.byref(info)):
+            if int(info.rgstate[0]) & 0x8000:
+                return False
+        ex = int(user32.GetWindowLongPtrW(hwnd, -20) or 0) & 0xFFFFFFFF
+        if ex & 0x80:
+            return False
+        cloaked = ctypes.c_int(0)
+        if dwmapi.DwmGetWindowAttribute(hwnd, 14, ctypes.byref(cloaked), 4) == 0:
+            if cloaked.value:
+                return False
+        return True
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def _enum(hwnd, _lp):
+        try:
+            if _ok(hwnd):
+                found.append(int(hwnd))
+        except Exception:
+            pass
+        return True
+
+    try:
+        user32.EnumWindows(_enum, 0)
+    except Exception:
+        return []
+    fg = _foreground_hwnd()
+    if fg in found and found[0] != fg:
+        at = found.index(fg)
+        found = found[at:] + found[:at]
+    return found
+
+
+def _speak_switcher_choice(ours, gen):
+    if gen != _switcher_speak_gen:
+        return
+    if not _speech_own_ui or not _speech_active:
+        return
+    if ours:
+        speak_where_am_i(_status_field_for_where(), trust_focus=True, repeat=True)
+        return
+    phrase = "Non sei nel programma?"
+    try:
+        app = wx.GetApp()
+        win = app.GetTopWindow() if app else None
+        field = getattr(win, "txt_status_progress", None)
+        if field is not None:
+            field.SetValue(phrase)
+    except Exception:
+        pass
+    speak_accessible(phrase, force=True, replace=True)
+
+
+def _advance_switcher():
+    """Ogni Tab, con Alt tenuto: la frase, oppure dove eri se l'elenco è su RTAD."""
+    global _switcher_index, _switcher_hwnds, _switcher_tick, _switcher_speak_gen, _switcher_outside_at
+    now = time.monotonic()
+    if now - _switcher_tick < 0.02:
+        return
+    _switcher_tick = now
+    if wx.GetApp() is None:
+        return
+    shift = bool(ctypes.windll.user32.GetAsyncKeyState(0x10) & 0x8000)
+    first = _switcher_index is None
+    if first:
+        _switcher_hwnds = _alt_tab_windows()
+    count = len(_switcher_hwnds)
+    index = _switcher_next_index(_switcher_index, count, shift, first)
+    if index is None:
+        return
+    _switcher_index = index
+    ours = _window_is_rtad(_switcher_hwnds[index])
+    if not ours:
+        _switcher_outside_at = time.monotonic()
+    _switcher_speak_gen += 1
+    gen = _switcher_speak_gen
+    try:
+        wx.CallAfter(_speak_switcher_choice, ours, gen)
+    except Exception:
+        pass
+
+
+def _poll_switcher_flag():
+    """Legge il segno lasciato dal tasto. Il gancio non tocca la finestra."""
+    global _switcher_tabs, _switcher_alt_up
+    tabs = _switcher_tabs
+    ups = _switcher_alt_up
+    _switcher_tabs = 0
+    _switcher_alt_up = 0
+    for _ in range(tabs):
+        _advance_switcher()
+    if ups:
+        _switcher_closed()
+
+
+def _install_switcher_hook():
+    """Alt tenuto premuto: segna il Tab e lascia passare il tasto."""
+    global _kb_hook, _kb_callback
+    if _kb_hook:
+        return
+    global _kb_user32
+    _kb_user32 = ctypes.WinDLL("user32", use_last_error=True)
+    _kb_user32.SetWindowsHookExW.argtypes = [
+        ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint
+    ]
+    _kb_user32.SetWindowsHookExW.restype = ctypes.c_void_p
+    _kb_user32.CallNextHookEx.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.c_size_t, ctypes.c_void_p
+    ]
+    _kb_user32.CallNextHookEx.restype = ctypes.c_ssize_t
+
+    class KBDLLHOOKSTRUCT(ctypes.Structure):
+        _fields_ = [
+            ("vkCode", ctypes.c_uint),
+            ("scanCode", ctypes.c_uint),
+            ("flags", ctypes.c_uint),
+            ("time", ctypes.c_uint),
+            ("dwExtraInfo", ctypes.c_size_t),
+        ]
+
+    HookProc = ctypes.WINFUNCTYPE(
+        ctypes.c_ssize_t, ctypes.c_int, ctypes.c_size_t, ctypes.c_void_p
+    )
+
+    def _proc(nCode, wParam, lParam):
+        global _switcher_tabs, _switcher_alt_up
+        try:
+            if nCode == 0 and lParam:
+                kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+                vk = int(kb.vkCode)
+                if wParam in (0x0100, 0x0104) and vk == 0x09 and (int(kb.flags) & 0x20):
+                    _switcher_tabs += 1
+                elif wParam in (0x0101, 0x0105) and vk in (0x12, 0xA4, 0xA5):
+                    _switcher_alt_up += 1
+        except Exception:
+            pass
+        try:
+            return _kb_user32.CallNextHookEx(_kb_hook, nCode, wParam, lParam)
+        except Exception:
+            return 0
+
+    _kb_callback = HookProc(_proc)
+    try:
+        _kb_hook = _kb_user32.SetWindowsHookExW(13, _kb_callback, None, 0)
+        if not _kb_hook:
+            logging.debug("Elenco Alt+Tab non seguito: %s", ctypes.get_last_error())
+            _kb_hook = None
+    except Exception:
+        logging.debug("Elenco Alt+Tab non seguito", exc_info=True)
+        _kb_hook = None
+
+
+def _install_foreground_hook():
+    """Alt+Tab sulle finestre successive: RTAD non riceve più l'attivazione."""
+    global _fg_hook, _fg_callback
+    if _fg_hook:
+        return
+    WinEventProc = ctypes.WINFUNCTYPE(
+        None,
+        ctypes.c_void_p,
+        ctypes.c_uint,
+        ctypes.c_void_p,
+        ctypes.c_long,
+        ctypes.c_long,
+        ctypes.c_uint,
+        ctypes.c_uint,
+    )
+
+    def _proc(hook, event, hwnd, id_obj, id_child, thread, time_ms):
+        _on_system_foreground(hwnd)
+
+    _fg_callback = WinEventProc(_proc)
+    user32 = ctypes.windll.user32
+    try:
+        user32.SetWinEventHook.argtypes = [
+            ctypes.c_uint,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            WinEventProc,
+            ctypes.c_uint,
+            ctypes.c_uint,
+            ctypes.c_uint,
+        ]
+        user32.SetWinEventHook.restype = ctypes.c_void_p
+        _fg_hook = user32.SetWinEventHook(
+            0x0003,
+            0x0003,
+            None,
+            _fg_callback,
+            0,
+            0,
+            0,
+        )
+    except Exception:
+        logging.debug("Controllo finestre non avviato", exc_info=True)
+        _fg_hook = None
+
+
+def _install_outside_hooks():
+    real_start = getattr(os, "startfile", None)
+    if real_start is not None:
+        def startfile(path, *args, **kwargs):
+            announce_left_program()
+            return real_start(path, *args, **kwargs)
+        os.startfile = startfile
+
+    real_open = webbrowser.open
+    def webopen(url, *args, **kwargs):
+        announce_left_program()
+        return real_open(url, *args, **kwargs)
+    webbrowser.open = webopen
+
+    try:
+        shell32 = ctypes.windll.shell32
+        real_exec = shell32.ShellExecuteW
+        def shellexec(*args, **kwargs):
+            announce_left_program()
+            return real_exec(*args, **kwargs)
+        shell32.ShellExecuteW = shellexec
+    except Exception:
+        pass
+
+    real_popen = subprocess.Popen
+    outside_names = ("notepad", "explorer", "code", "notepad++")
+    def popen(args, *a, **k):
+        blob = args if isinstance(args, str) else " ".join(str(x) for x in args)
+        low = blob.lower()
+        if any(name in low for name in outside_names):
+            announce_left_program()
+        return real_popen(args, *a, **k)
+    subprocess.Popen = popen
+    _install_foreground_hook()
+    _install_switcher_hook()
+
+
+_install_outside_hooks()
 
 
 def set_speech_rate(delta=0, absolute=None):
@@ -918,8 +1604,9 @@ def set_speech_pitch(delta=0, absolute=None):
 
 
 def set_speech_voice_id(voice_id):
-    global _speech_voice_id
+    global _speech_voice_id, _applied_voice_id
     _speech_voice_id = str(voice_id or "")
+    _applied_voice_id = None
     apply_sapi_voice_settings()
     save_speech_settings()
 
@@ -928,6 +1615,1972 @@ def set_speech_use_sapi(enabled):
     global _speech_use_sapi
     _speech_use_sapi = bool(enabled)
     save_speech_settings()
+
+
+def set_speech_own_ui(enabled):
+    """Dentro RTAD parla solo la voce del programma, anche su focus e elenchi."""
+    global _speech_own_ui, _speech_use_sapi, _speech_active
+    _speech_own_ui = bool(enabled)
+    if _speech_own_ui:
+        _speech_use_sapi = True
+        _speech_active = True
+    save_speech_settings()
+
+
+def set_speech_say_keys(enabled):
+    """Se acceso, dice anche il nome del tasto di spostamento."""
+    global _speech_say_keys
+    _speech_say_keys = bool(enabled)
+    save_speech_settings()
+
+
+def set_speech_say_chars(enabled):
+    """Se acceso, mentre scrivi dice anche lettere, numeri e spazio."""
+    global _speech_say_chars
+    _speech_say_chars = bool(enabled)
+    save_speech_settings()
+
+
+def own_voice_status_message():
+    """La frase di conferma. Dice se i tasti di spostamento sono accesi o spenti."""
+    if _speech_say_keys:
+        keys = (
+            "«Pronuncia i tasti di spostamento» è acceso: dice anche "
+            "Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, "
+            "Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, "
+            "Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. "
+            "Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. "
+            "Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. "
+        )
+    else:
+        keys = (
+            "«Pronuncia i tasti di spostamento» è spento. "
+            "Invio sulla voce, o un clic, lo accende: allora dice anche "
+            "Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, "
+            "Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, "
+            "Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. "
+            "Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. "
+            "Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. "
+        )
+    if _speech_say_chars:
+        letters = (
+            "«Pronuncia le lettere mentre scrivi» è acceso: "
+            "dice lettere, numeri e spazio. "
+        )
+    else:
+        letters = (
+            "«Pronuncia le lettere mentre scrivi» è spento. "
+            "Invio sulla voce, o un clic, lo accende. "
+            "I simboli si dicono lo stesso: punto, virgola, punto interrogativo. "
+        )
+    keys = keys + letters
+    return (
+        "Solo la voce di questo programma. "
+        "Dentro RTAD questa voce dice anche dove sei: "
+        "la casella, il pulsante, la riga dell'elenco con le frecce, "
+        "la casella combinata, la voce di menu, e il simbolo che scrivi. "
+        "Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, "
+        "Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. "
+        + keys
+        + "Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, "
+        "altrimenti senti due voci. "
+        "Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute. "
+        "Finestre nostre, al loro posto, dopo i video. "
+        "L'Add-on resta sulla voce di NVDA."
+    )
+MSG_SAY_KEYS_ON = (
+    "Pronuncia i tasti di spostamento, acceso. "
+    "Dice Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, "
+    "Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, "
+    "Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. "
+    "Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. "
+    "Vale con Solo la voce di questo programma."
+)
+MSG_SAY_KEYS_OFF = (
+    "Pronuncia i tasti di spostamento, spento. "
+    "I menu e il punto in cui sei si dicono lo stesso."
+)
+MSG_SAY_CHARS_ON = (
+    "Pronuncia le lettere mentre scrivi, acceso. "
+    "Dice lettere, numeri e spazio. "
+    "I simboli si dicevano già: punto, virgola, punto interrogativo."
+)
+MSG_SAY_CHARS_OFF = (
+    "Pronuncia le lettere mentre scrivi, spento. "
+    "I simboli si dicono lo stesso: punto, virgola, punto interrogativo."
+)
+MSG_OWN_VOICE_OFF = (
+    "Solo la voce di questo programma, spento. "
+    "NVDA legge la finestra. "
+    "Anche Spazio, F4 e gli esiti li dice NVDA. "
+    "Se avevi spento il sintetizzatore con NVDA+S, riaccendilo."
+)
+MSG_F7_PAUSE = (
+    "Voce di RTAD spenta. "
+    "Spazio, F4 e gli esiti li dice NVDA. "
+    "Se avevi spento il sintetizzatore con NVDA+S, riaccendilo. "
+    "F7 di nuovo, oppure Invio sulla voce, o un clic, riaccende la voce di RTAD."
+)
+MSG_F7_RTAD = (
+    "Voce di RTAD accesa. "
+    "Dice lei dove sei, Spazio, F4 e gli esiti."
+)
+MSG_F7_STILL_NVDA = (
+    "F7 acceso. La voce propria è spenta: "
+    "Spazio, F4 e gli esiti li dice NVDA. "
+    "Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende la voce di RTAD."
+)
+
+
+def _clean_speech_label(text):
+    text = str(text or "").replace("&", "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text.rstrip(":")
+
+
+def _nearby_caption(win):
+    """Etichetta StaticText subito prima del controllo, se c'è."""
+    try:
+        parent = win.GetParent()
+        if parent is None:
+            return ""
+        kids = list(parent.GetChildren())
+        i = kids.index(win)
+    except Exception:
+        return ""
+    if i <= 0:
+        return ""
+    prev = kids[i - 1]
+    if isinstance(prev, wx.StaticText):
+        name, shortcuts = _label_name_and_shortcuts(
+            prev.GetLabel(), access_key=False
+        )
+        if shortcuts:
+            name = f"{name} {shortcuts}".strip()
+        return name
+    return ""
+
+
+_GENERIC_WIDGET_NAMES = {
+    "panel", "widget", "text", "textctrl", "listbox", "listctrl",
+    "button", "checkbox", "choice", "combobox", "static", "frame",
+    "dialog", "window", "statictext", "gauge",
+}
+
+
+def _explicit_name(win):
+    try:
+        name = _clean_speech_label(win.GetName())
+    except Exception:
+        return ""
+    if name and name.casefold() not in _GENERIC_WIDGET_NAMES:
+        return name
+    return ""
+
+
+def _widget_caption(win):
+    named = _explicit_name(win)
+    if named:
+        return named
+    nearby = _nearby_caption(win)
+    if nearby:
+        return nearby
+    try:
+        own = _clean_speech_label(win.GetLabel())
+    except Exception:
+        own = ""
+    if own and own.casefold() not in _GENERIC_WIDGET_NAMES:
+        return own
+    return ""
+
+
+def _control_role(win):
+    if isinstance(win, wx.Button):
+        return "Pulsante"
+    if isinstance(win, wx.TextCtrl):
+        return "Campo di testo"
+    if isinstance(win, wx.CheckBox):
+        return "Casella di controllo"
+    if isinstance(win, wx.RadioButton):
+        return "Opzione"
+    if isinstance(win, (wx.ListBox, wx.ListCtrl)):
+        return "Elenco"
+    if isinstance(win, (wx.Choice, wx.ComboBox)):
+        return "Casella combinata"
+    if isinstance(win, wx.StaticText):
+        return "Testo"
+    if isinstance(win, wx.ToggleButton):
+        return "Pulsante"
+    return ""
+
+
+def _where_control_phrase(win):
+    detail = describe_focused_widget(win)
+    role = _control_role(win)
+    if role and detail and not detail.startswith(role):
+        return f"{role}. {detail}"
+    return detail or role or "Nessun controllo selezionato."
+
+
+def _is_where_control(win):
+    try:
+        if win is None or not win:
+            return False
+    except Exception:
+        return False
+    return isinstance(win, (
+        wx.Button, wx.TextCtrl, wx.CheckBox, wx.RadioButton,
+        wx.ListBox, wx.ListCtrl, wx.Choice, wx.ComboBox,
+        wx.ToggleButton,
+    ))
+
+
+def _remember_where_control(win):
+    """L'ultimo campo o pulsante, prima che il menu prenda il posto."""
+    global _where_control
+    if _is_where_control(win):
+        _where_control = win
+
+
+def where_am_i_phrase(trust_focus=False):
+    """Finestra in primo piano e controllo, come il riferimento di NVDA."""
+    if not trust_focus and _foreground_is_other_process():
+        return "Non sei nel programma?"
+    focus = None
+    try:
+        focus = wx.Window.FindFocus()
+    except Exception:
+        focus = None
+    if _menu_nav or not _is_where_control(focus):
+        if _is_where_control(_where_control):
+            focus = _where_control
+    title = ""
+    if focus is not None:
+        try:
+            top = focus.GetTopLevelParent()
+            title = _clean_speech_label(top.GetTitle()) if top is not None else ""
+        except Exception:
+            title = ""
+    body = _where_control_phrase(focus)
+    if title and body:
+        return f"{title}. {body}"
+    return title or body
+
+
+def speak_where_am_i(status_field=None, trust_focus=False, repeat=False):
+    global _where_hotkey_at, _where_spoken_at
+    now = time.monotonic()
+    if not repeat and now - _where_hotkey_at < 0.4:
+        return
+    _where_hotkey_at = now
+    _where_spoken_at = now
+    _mute_key_echo()
+    try:
+        phrase = where_am_i_phrase(trust_focus=trust_focus)
+    except Exception:
+        logging.debug("Dove sei non calcolato", exc_info=True)
+        phrase = ""
+    if not phrase:
+        phrase = "Non sei nel programma?"
+    if status_field is not None:
+        try:
+            status_field.SetValue(phrase)
+        except Exception:
+            pass
+    speak_accessible(phrase, force=True, replace=True)
+
+
+def _status_field_for_where():
+    try:
+        focus = wx.Window.FindFocus()
+        top = focus.GetTopLevelParent() if focus is not None else None
+        field = getattr(top, "txt_status_progress", None)
+        if field is not None:
+            return field
+    except Exception:
+        pass
+    try:
+        app = wx.GetApp()
+        top = app.GetTopWindow() if app else None
+        return getattr(top, "txt_status_progress", None)
+    except Exception:
+        return None
+
+
+_where_hotkey_at = 0.0
+
+
+def _os_key_down(vk):
+    try:
+        return bool(ctypes.windll.user32.GetKeyState(int(vk)) & 0x8000)
+    except Exception:
+        return False
+
+
+def _async_key_down(vk):
+    try:
+        return bool(ctypes.windll.user32.GetAsyncKeyState(int(vk)) & 0x8000)
+    except Exception:
+        return False
+
+
+_MODIFIER_KEY_CODES = (
+    wx.WXK_SHIFT,
+    wx.WXK_CONTROL,
+    wx.WXK_RAW_CONTROL,
+    wx.WXK_ALT,
+    wx.WXK_MENU,
+)
+
+
+def _listbox_row(win):
+    try:
+        sel = win.GetSelection()
+        if sel == wx.NOT_FOUND:
+            return ""
+        return str(win.GetString(sel) or "")
+    except Exception:
+        return ""
+
+
+def describe_focused_widget(win):
+    """Frase per il controllo che ha il focus. Vuota se non va detta."""
+    if win is None:
+        return ""
+    try:
+        if not win:
+            return ""
+    except Exception:
+        return ""
+    try:
+        if isinstance(win, wx.Panel) and not isinstance(
+            win, (wx.Button, wx.ListBox, wx.TextCtrl, wx.CheckBox)
+        ):
+            if win.GetChildren():
+                return ""
+    except Exception:
+        pass
+    caption = _widget_caption(win)
+    try:
+        if isinstance(win, wx.Button):
+            name, shortcuts = _label_name_and_shortcuts(
+                win.GetLabel(), access_key=True
+            )
+            phrase = name or caption or "Pulsante"
+            if shortcuts:
+                phrase = f"{phrase} {shortcuts}"
+            return phrase
+        if isinstance(win, wx.CheckBox):
+            lab, shortcuts = _label_name_and_shortcuts(
+                win.GetLabel(), access_key=True
+            )
+            lab = lab or caption or "Casella"
+            if shortcuts:
+                lab = f"{lab} {shortcuts}"
+            state = "selezionata" if win.GetValue() else "non selezionata"
+            return f"{lab}. Casella {state}."
+        if isinstance(win, wx.RadioButton):
+            lab, shortcuts = _label_name_and_shortcuts(
+                win.GetLabel(), access_key=True
+            )
+            lab = lab or caption or "Opzione"
+            if shortcuts:
+                lab = f"{lab} {shortcuts}"
+            state = "selezionata" if win.GetValue() else "non selezionata"
+            return f"{lab}. Opzione {state}."
+        if isinstance(win, wx.ToggleButton):
+            lab, shortcuts = _label_name_and_shortcuts(
+                win.GetLabel(), access_key=True
+            )
+            lab = lab or caption or "Pulsante"
+            if shortcuts:
+                lab = f"{lab} {shortcuts}"
+            state = "premuto" if win.GetValue() else "non premuto"
+            return f"{lab}. {state}."
+        if isinstance(win, wx.ListBox):
+            title = caption or "Elenco"
+            row = _listbox_row(win)
+            if row:
+                return f"{title}. {row}"
+            try:
+                empty = win.GetCount() == 0
+            except Exception:
+                empty = False
+            if empty:
+                return f"{title}. Elenco vuoto."
+            return title
+        if isinstance(win, wx.ListCtrl):
+            title = caption or "Elenco"
+            try:
+                sel = win.GetFirstSelected()
+            except Exception:
+                sel = -1
+            if sel != -1:
+                return f"{title}. {win.GetItemText(sel)}"
+            return title
+        if isinstance(win, wx.TextCtrl):
+            title = caption or "Casella di testo"
+            try:
+                value = win.GetValue() or ""
+            except Exception:
+                value = ""
+            if not value:
+                return f"{title}. Vuota."
+            if len(value) > 160:
+                value = value[:157] + "…"
+            return f"{title}. {value}"
+        if isinstance(win, (wx.Choice, wx.ComboBox)):
+            title = caption or "Scelta"
+            try:
+                cur = win.GetStringSelection() or ""
+            except Exception:
+                cur = ""
+            if cur:
+                return f"{title}. {cur}"
+            return title
+        if isinstance(win, wx.StaticText):
+            name, shortcuts = _label_name_and_shortcuts(
+                win.GetLabel(), access_key=True
+            )
+            if shortcuts:
+                return f"{name} {shortcuts}".strip()
+            return name
+    except Exception:
+        return caption
+    return caption
+
+
+_CTRL_LETTER_NAMES = None
+_mod_shift = False
+_mod_ctrl = False
+_mod_alt = False
+
+
+def _raw_vk(event):
+    for attr in ("RawKeyCode", "GetRawKeyCode"):
+        try:
+            value = getattr(event, attr)
+            value = value() if callable(value) else value
+            return int(value or 0)
+        except Exception:
+            continue
+    return 0
+
+
+def _control_letter(key):
+    global _CTRL_LETTER_NAMES
+    if _CTRL_LETTER_NAMES is None:
+        names = {}
+        for ch in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            code = getattr(wx, "WXK_CONTROL_" + ch, None)
+            if code is not None:
+                names[int(code)] = ch
+        _CTRL_LETTER_NAMES = names
+    return _CTRL_LETTER_NAMES.get(int(key), "")
+
+
+def _base_key_name(key, vk=0):
+    """Nome del tasto, senza i modificatori. Le lettere da sole restano vuote."""
+    if vk in range(0x60, 0x6A):
+        return "Tastierino " + str(vk - 0x60)
+    numpad_digits = {
+        wx.WXK_NUMPAD0: "0", wx.WXK_NUMPAD1: "1", wx.WXK_NUMPAD2: "2",
+        wx.WXK_NUMPAD3: "3", wx.WXK_NUMPAD4: "4", wx.WXK_NUMPAD5: "5",
+        wx.WXK_NUMPAD6: "6", wx.WXK_NUMPAD7: "7", wx.WXK_NUMPAD8: "8",
+        wx.WXK_NUMPAD9: "9",
+    }
+    if key in numpad_digits:
+        return "Tastierino " + numpad_digits[key]
+    numpad = {
+        wx.WXK_NUMPAD_UP: "Tastierino freccia su",
+        wx.WXK_NUMPAD_DOWN: "Tastierino freccia giù",
+        wx.WXK_NUMPAD_LEFT: "Tastierino freccia sinistra",
+        wx.WXK_NUMPAD_RIGHT: "Tastierino freccia destra",
+        wx.WXK_NUMPAD_HOME: "Tastierino Inizio",
+        wx.WXK_NUMPAD_END: "Tastierino Fine",
+        wx.WXK_NUMPAD_PAGEUP: "Tastierino Pagina su",
+        wx.WXK_NUMPAD_PAGEDOWN: "Tastierino Pagina giù",
+        wx.WXK_NUMPAD_INSERT: "Tastierino Insert",
+        wx.WXK_NUMPAD_DELETE: "Tastierino Canc",
+        wx.WXK_NUMPAD_ENTER: "Tastierino Invio",
+        wx.WXK_NUMPAD_DECIMAL: "Tastierino virgola",
+        wx.WXK_NUMPAD_ADD: "Tastierino più",
+        wx.WXK_NUMPAD_SUBTRACT: "Tastierino meno",
+        wx.WXK_NUMPAD_MULTIPLY: "Tastierino per",
+        wx.WXK_NUMPAD_DIVIDE: "Tastierino diviso",
+        wx.WXK_NUMPAD_BEGIN: "Tastierino centro",
+        wx.WXK_ADD: "Tastierino più",
+        wx.WXK_SUBTRACT: "Tastierino meno",
+        wx.WXK_MULTIPLY: "Tastierino per",
+        wx.WXK_DIVIDE: "Tastierino diviso",
+        wx.WXK_DECIMAL: "Tastierino virgola",
+    }
+    if key in numpad:
+        return numpad[key]
+    if vk == 0x6A:
+        return "Tastierino per"
+    if vk == 0x6B:
+        return "Tastierino più"
+    if vk == 0x6D:
+        return "Tastierino meno"
+    if vk == 0x6E:
+        return "Tastierino virgola"
+    if vk == 0x6F:
+        return "Tastierino diviso"
+    arrows = {
+        wx.WXK_UP: "Freccia su",
+        wx.WXK_DOWN: "Freccia giù",
+        wx.WXK_LEFT: "Freccia sinistra",
+        wx.WXK_RIGHT: "Freccia destra",
+        wx.WXK_HOME: "Inizio",
+        wx.WXK_END: "Fine",
+        wx.WXK_PAGEUP: "Pagina su",
+        wx.WXK_PAGEDOWN: "Pagina giù",
+        wx.WXK_ESCAPE: "Esc",
+        wx.WXK_RETURN: "Invio",
+        wx.WXK_TAB: "Tab",
+        wx.WXK_INSERT: "Insert",
+        wx.WXK_DELETE: "Canc",
+        wx.WXK_BACK: "Backspace",
+        wx.WXK_CAPITAL: "Blocco maiuscole",
+        wx.WXK_NUMLOCK: "Blocco numerico",
+        wx.WXK_SCROLL: "Blocco scorrimento",
+        wx.WXK_PAUSE: "Pausa",
+        wx.WXK_SNAPSHOT: "Stampa schermo",
+        wx.WXK_PRINT: "Stampa schermo",
+        wx.WXK_WINDOWS_MENU: "Tasto applicazioni",
+        wx.WXK_WINDOWS_LEFT: "Tasto Windows",
+        wx.WXK_WINDOWS_RIGHT: "Tasto Windows",
+    }
+    if key in arrows:
+        return arrows[key]
+    if wx.WXK_F1 <= key <= wx.WXK_F12:
+        return "F" + str(key - wx.WXK_F1 + 1)
+    if vk == 0x2C:
+        return "Stampa schermo"
+    if vk == 0x91:
+        return "Blocco scorrimento"
+    if vk == 0x13:
+        return "Pausa"
+    if vk == 0x2D:
+        return "Insert"
+    if vk == 0x2E:
+        return "Canc"
+    return ""
+
+
+def _event_flag(event, name):
+    try:
+        return bool(getattr(event, name)())
+    except Exception:
+        return False
+
+
+def _speech_key_name(event, key):
+    """Nome da dire. Le lettere da sole restano all'altra scelta."""
+    vk = _raw_vk(event)
+    if key in (wx.WXK_SHIFT,):
+        return "Shift"
+    if key in (wx.WXK_CONTROL, wx.WXK_RAW_CONTROL):
+        return "Control"
+    if key in (wx.WXK_ALT, wx.WXK_MENU):
+        return "Alt"
+    base = _base_key_name(key, vk)
+    ctrl = _mod_ctrl or _event_flag(event, "ControlDown")
+    alt = _mod_alt or _event_flag(event, "AltDown")
+    # 1 = Control A. 8, 9 e 13 sono Backspace, Tab e Invio, non le lettere.
+    if not base and 1 <= int(key) <= 26 and int(key) not in (8, 9, 10, 13, 27):
+        base = chr(64 + int(key))
+        ctrl = True
+    if not base and ctrl and 1 <= int(key) <= 26:
+        base = chr(64 + int(key))
+    if not base and (ctrl or alt) and 65 <= int(key) <= 90:
+        base = chr(int(key))
+    if not base and (ctrl or alt) and 97 <= int(key) <= 122:
+        base = chr(int(key)).upper()
+    if not base:
+        return ""
+    shift = _mod_shift or _event_flag(event, "ShiftDown")
+    if key in (wx.WXK_ALT, wx.WXK_MENU):
+        alt = False
+    parts = []
+    if ctrl:
+        parts.append("Control")
+    if alt:
+        parts.append("Alt")
+    if shift and base != "Tab":
+        parts.append("Shift")
+    if shift and base == "Tab":
+        return " ".join(parts + ["Shift Tab"]).strip()
+    parts.append(base)
+    return " ".join(parts)
+
+
+def _movement_key_name(event, key):
+    return _speech_key_name(event, key)
+
+
+def _tab_key_name(shift_down):
+    return "Shift Tab" if shift_down else "Tab"
+
+
+def _note_movement_key(name):
+    global _pending_key_name, _pending_key_at
+    if not name or not _speech_say_keys:
+        return
+    _pending_key_name = name
+    _pending_key_at = time.monotonic()
+
+
+def _take_key_prefix():
+    global _pending_key_name
+    if not _speech_say_keys or not _pending_key_name:
+        return ""
+    if (time.monotonic() - _pending_key_at) > 0.7:
+        _pending_key_name = ""
+        return ""
+    name = _pending_key_name
+    _pending_key_name = ""
+    return name
+
+
+def _cancel_pending_key_speech():
+    global _pending_key_name, _pending_key_at, _key_note_gen
+    _pending_key_name = ""
+    _pending_key_at = 0.0
+    _key_note_gen += 1
+
+
+_key_echo_mute_until = 0.0
+
+
+def _mute_key_echo(seconds=0.8):
+    """Shift e Control non coprono la frase appena detta."""
+    global _key_echo_mute_until
+    _key_echo_mute_until = time.monotonic() + seconds
+    _cancel_pending_key_speech()
+
+
+def _key_echo_muted():
+    return time.monotonic() < _key_echo_mute_until
+
+
+def _clear_key_memory():
+    """Il Tab di Alt+Tab non resta attaccato al tasto successivo."""
+    global _tab_noted_at
+    global _mod_shift, _mod_ctrl, _mod_alt, _alt_chord, _menu_nav
+    _cancel_pending_key_speech()
+    _tab_noted_at = 0.0
+    _mod_shift = False
+    _mod_ctrl = False
+    _mod_alt = False
+    _alt_chord = False
+    _menu_nav = False
+
+
+def _note_named_key(name):
+    global _key_note_gen
+    if _key_echo_muted():
+        return
+    if not name or not _speech_say_keys:
+        return
+    if time.monotonic() < _ignore_tab_until and "Tab" in name:
+        return
+    if (
+        _pending_key_name == name
+        and (time.monotonic() - _pending_key_at) < 0.2
+    ):
+        return
+    _note_movement_key(name)
+    gen = _key_note_gen
+    wx.CallLater(250, _flush_movement_key, name, gen)
+
+
+def _flush_movement_key(name, gen=None):
+    """Se nessun annuncio ha già detto il tasto, lo dice da solo."""
+    global _pending_key_name
+    if _key_echo_muted():
+        return
+    if gen is not None and gen != _key_note_gen:
+        return
+    if _pending_key_name != name:
+        return
+    _pending_key_name = ""
+    _speak_ui(name)
+
+
+_esc_spoken_at = 0.0
+
+
+def _speak_esc_once():
+    """Una volta sola. Il menu si chiude dopo, quindi si dice a evento finito."""
+    global _esc_spoken_at
+    if not _speech_own_ui or not _speech_active:
+        return
+    now = time.monotonic()
+    if now - _esc_spoken_at < 0.45:
+        return
+    _esc_spoken_at = now
+    speak_accessible("Esc", replace=False)
+
+
+def _speak_ui(text):
+    """Annuncio di navigazione: l'ultimo resta, un doppione vicino no."""
+    global _ui_last_phrase, _ui_last_phrase_at
+    if not _speech_own_ui or not _speech_active:
+        return
+    phrase = _clean_speech_label(text)
+    if not phrase:
+        return
+    prefix = _take_key_prefix()
+    if prefix and not phrase.startswith(prefix):
+        phrase = f"{prefix}, {phrase}"
+    now = time.monotonic()
+    if phrase == _ui_last_phrase and (now - _ui_last_phrase_at) < 0.35:
+        return
+    _ui_last_phrase = phrase
+    _ui_last_phrase_at = now
+    speak_accessible(phrase, replace=True)
+
+
+def _remember_text(win):
+    try:
+        _ui_text_memory[id(win)] = win.GetValue() or ""
+        _ui_caret[id(win)] = int(win.GetInsertionPoint())
+    except Exception:
+        pass
+
+
+def _speak_focus_widget(win):
+    global _ui_focus_at
+    if not _speech_own_ui:
+        return
+    if time.monotonic() - _where_spoken_at < 0.6:
+        return
+    try:
+        if win is None or not win.IsShownOnScreen():
+            return
+    except Exception:
+        return
+    _ui_focus_at = time.monotonic()
+    phrase = describe_focused_widget(win)
+    if isinstance(win, wx.TextCtrl):
+        _remember_text(win)
+    _speak_ui(phrase)
+
+
+def _speak_list_row(win):
+    if not _speech_own_ui:
+        return
+    try:
+        if wx.Window.FindFocus() is not win:
+            return
+    except Exception:
+        return
+    if (time.monotonic() - _ui_focus_at) < 0.2:
+        return
+    if isinstance(win, wx.ListBox):
+        row = _listbox_row(win)
+    elif isinstance(win, wx.ListCtrl):
+        try:
+            sel = win.GetFirstSelected()
+            row = win.GetItemText(sel) if sel != -1 else ""
+        except Exception:
+            row = ""
+    else:
+        return
+    _speak_ui(row)
+
+
+def _text_change_phrase(old, new):
+    if new == old:
+        return ""
+    if new.startswith(old):
+        added, removed = new[len(old):], ""
+    elif old.startswith(new):
+        added, removed = "", old[len(new):]
+    else:
+        i = 0
+        limit = min(len(old), len(new))
+        while i < limit and old[i] == new[i]:
+            i += 1
+        j = 0
+        while (
+            j < (len(old) - i)
+            and j < (len(new) - i)
+            and old[-1 - j] == new[-1 - j]
+        ):
+            j += 1
+        old_end = len(old) - j if j else len(old)
+        new_end = len(new) - j if j else len(new)
+        removed = old[i:old_end]
+        added = new[i:new_end]
+    if added and not removed and len(added) == 1:
+        if _is_plain_typing_char(added) and not _speech_say_chars:
+            return ""
+        return _char_phrase(added)
+    if removed and not added and len(removed) == 1:
+        if _is_plain_typing_char(removed) and not _speech_say_chars:
+            return ""
+        return "cancella " + _char_phrase(removed)
+    if added and not removed and len(added) <= 40:
+        if not _speech_say_chars:
+            return "Testo incollato."
+        return added
+    if removed and not added:
+        return "Testo cancellato."
+    return "Testo incollato."
+
+
+_SYMBOL_NAMES = {
+    ".": "punto",
+    ",": "virgola",
+    ";": "punto e virgola",
+    ":": "due punti",
+    "?": "punto interrogativo",
+    "!": "punto esclamativo",
+    "-": "trattino",
+    "_": "trattino basso",
+    "'": "apostrofo",
+    '"': "virgolette",
+    "(": "parentesi aperta",
+    ")": "parentesi chiusa",
+    "[": "parentesi quadra aperta",
+    "]": "parentesi quadra chiusa",
+    "/": "barra",
+    "\\": "barra inversa",
+    "@": "chiocciola",
+    "#": "cancelletto",
+    "*": "asterisco",
+    "+": "più",
+    "=": "uguale",
+    "%": "percento",
+    "&": "e commerciale",
+    "€": "euro",
+}
+
+
+def _is_plain_typing_char(ch):
+    """Lettere, numeri e spazio: si dicono solo se la scelta è accesa."""
+    if not ch or len(ch) != 1:
+        return False
+    if ch.isspace():
+        return True
+    return ch.isalnum()
+
+
+def _char_phrase(ch):
+    if ch == " ":
+        return "spazio"
+    if ch == "\n":
+        return "a capo"
+    if ch == "\t":
+        return "tab"
+    return _SYMBOL_NAMES.get(ch, ch)
+
+
+def _speak_text_change(win):
+    if not _speech_own_ui or not isinstance(win, wx.TextCtrl):
+        return
+    try:
+        if wx.Window.FindFocus() is not win:
+            return
+        new = win.GetValue() or ""
+    except Exception:
+        return
+    old = _ui_text_memory.get(id(win), "")
+    _ui_text_memory[id(win)] = new
+    _speak_ui(_text_change_phrase(old, new))
+
+
+def _line_at_caret(win):
+    try:
+        value = win.GetValue() or ""
+        pos = int(win.GetInsertionPoint())
+    except Exception:
+        return ""
+    start = value.rfind("\n", 0, pos) + 1
+    end = value.find("\n", pos)
+    if end < 0:
+        end = len(value)
+    line = value[start:end].strip()
+    if len(line) > 180:
+        line = line[:177] + "…"
+    return line or "Riga vuota."
+
+
+def _char_at_move(value, pos, key, prev):
+    if prev is not None and pos == prev:
+        if key == wx.WXK_LEFT or pos <= 0:
+            return "inizio"
+        return "fine"
+    if key == wx.WXK_LEFT:
+        if 0 <= pos < len(value):
+            return _char_phrase(value[pos])
+        return "inizio"
+    if key == wx.WXK_RIGHT:
+        if pos > 0:
+            return _char_phrase(value[pos - 1])
+        return "inizio"
+    return ""
+
+
+def _speak_caret_move(win, key):
+    if not _speech_own_ui or not isinstance(win, wx.TextCtrl):
+        return
+    try:
+        if wx.Window.FindFocus() is not win:
+            return
+        value = win.GetValue() or ""
+        pos = int(win.GetInsertionPoint())
+    except Exception:
+        return
+    prev = _ui_caret.get(id(win))
+    _ui_caret[id(win)] = pos
+    if key in (
+        wx.WXK_UP, wx.WXK_DOWN, wx.WXK_PAGEUP, wx.WXK_PAGEDOWN,
+        wx.WXK_HOME, wx.WXK_END,
+    ):
+        _speak_ui(_line_at_caret(win))
+        return
+    if key in (wx.WXK_LEFT, wx.WXK_RIGHT):
+        _speak_ui(_char_at_move(value, pos, key, prev))
+
+
+def _choice_phrase(win):
+    caption = _widget_caption(win) or "Scelta"
+    try:
+        cur = win.GetStringSelection() or ""
+    except Exception:
+        cur = ""
+    if cur:
+        return f"{caption}. {cur}"
+    return caption
+
+
+def _same_menu(a, b):
+    if a is None or b is None:
+        return False
+    if a is b:
+        return True
+    try:
+        return int(a.GetHMenu()) == int(b.GetHMenu()) and int(a.GetHMenu())
+    except Exception:
+        return False
+
+
+def _menu_from_event(event):
+    getter = getattr(event, "GetMenu", None)
+    if not getter:
+        return None
+    try:
+        return getter()
+    except Exception:
+        return None
+
+
+def _menu_bar_title(menu):
+    """«Menu File» solo se il menu è sulla barra. I menu a comparsa restano sulla voce."""
+    if menu is None:
+        return ""
+    try:
+        tops = wx.GetTopLevelWindows()
+    except Exception:
+        return ""
+    for top in tops:
+        try:
+            bar = top.GetMenuBar()
+        except Exception:
+            bar = None
+        if not bar:
+            continue
+        try:
+            count = bar.GetMenuCount()
+        except Exception:
+            continue
+        for i in range(count):
+            try:
+                other = bar.GetMenu(i)
+            except Exception:
+                continue
+            if not _same_menu(other, menu):
+                continue
+            try:
+                label = bar.GetMenuLabel(i) or ""
+            except Exception:
+                label = ""
+            name, shortcuts = _label_name_and_shortcuts(label, access_key=True)
+            if shortcuts:
+                name = f"{name} {shortcuts}"
+            if name:
+                return f"Menu {name}"
+    return ""
+
+
+def _main_menu_bar():
+    try:
+        tops = wx.GetTopLevelWindows()
+    except Exception:
+        return None
+    for top in tops:
+        try:
+            bar = top.GetMenuBar()
+        except Exception:
+            bar = None
+        try:
+            if bar and bar.GetMenuCount():
+                return bar
+        except Exception:
+            continue
+    return None
+
+
+def _note_menu_title(title):
+    """Tiene il nome del menu per unirlo alla prima voce, così non viene coperto."""
+    global _pending_menu_title, _pending_menu_token
+    title = _clean_speech_label(title or "")
+    if not title:
+        return
+    if not title.lower().startswith("menu "):
+        title = "Menu " + title
+    _pending_menu_token += 1
+    token = _pending_menu_token
+    _pending_menu_title = title
+    wx.CallLater(180, _flush_menu_title, title, token)
+
+
+def _flush_menu_title(title, token):
+    global _pending_menu_title
+    if token != _pending_menu_token or _pending_menu_title != title:
+        return
+    _pending_menu_title = ""
+    _speak_ui(title)
+
+
+def _take_menu_title():
+    global _pending_menu_title, _pending_menu_token
+    if not _pending_menu_title:
+        return ""
+    title = _pending_menu_title
+    _pending_menu_title = ""
+    _pending_menu_token += 1
+    return title
+
+
+def _announce_menu_index(index):
+    global _menu_nav, _menu_nav_index
+    bar = _main_menu_bar()
+    if bar is None:
+        return
+    try:
+        count = bar.GetMenuCount()
+        label = bar.GetMenuLabel(index % count) or ""
+    except Exception:
+        return
+    if count <= 0:
+        return
+    _menu_nav = True
+    _menu_nav_index = index % count
+    name, shortcuts = _label_name_and_shortcuts(label, access_key=True)
+    if shortcuts:
+        name = f"{name} {shortcuts}"
+    if name:
+        _note_menu_title(name)
+
+
+def _index_of_bar_menu(menu):
+    if menu is None:
+        return None
+    bar = _main_menu_bar()
+    if bar is None:
+        return None
+    try:
+        count = bar.GetMenuCount()
+    except Exception:
+        return None
+    for i in range(count):
+        try:
+            if _same_menu(bar.GetMenu(i), menu):
+                return i
+        except Exception:
+            continue
+    return None
+
+
+def _speakable_shortcut(text):
+    """Ctrl+Shift+S diventa Control Shift S. Niente punto dopo Tab."""
+    raw = str(text or "").strip()
+    tail = ""
+    if raw.endswith("++"):
+        raw = raw[:-2].rstrip("+").rstrip()
+        tail = "più"
+    elif raw.endswith("+-"):
+        raw = raw[:-2].rstrip("+").rstrip()
+        tail = "meno"
+    words = []
+    for part in raw.split("+"):
+        part = part.strip()
+        if not part:
+            continue
+        low = part.casefold()
+        if low == "ctrl":
+            words.append("Control")
+        elif low in ("shift", "maiusc"):
+            words.append("Shift")
+        elif low == "alt":
+            words.append("Alt")
+        elif low in ("invio", "enter", "return"):
+            words.append("Invio")
+        elif low in ("esc", "escape"):
+            words.append("Esc")
+        elif low in ("del", "delete", "canc"):
+            words.append("Canc")
+        else:
+            words.append(part)
+    if tail:
+        words.append(tail)
+    spoken = " ".join(words).strip()
+    return spoken
+
+
+# (&Q) è Alt+Q. (Alt+P), (Ctrl+F), (Alt+&B) e F8 fra parentesi sono scorciatoie.
+# (Gemini) o (più lento) restano nel nome.
+_SHORTCUT_PAREN = re.compile(
+    r"""\s*\(
+        (?:
+            &([A-Za-z0-9])
+          |
+            (
+              (?:(?:Ctrl|Alt|Shift|Maiusc)\+)+
+              &?
+              [A-Za-z0-9+]+
+            )
+          |
+            (F\d{1,2})
+        )
+        \)""",
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def _strip_mnemonic(text):
+    """Toglie & dalla lettera sottolineata. && resta una e commerciale."""
+    out = []
+    letter = ""
+    i = 0
+    while i < len(text):
+        if text[i] == "&" and i + 1 < len(text):
+            nxt = text[i + 1]
+            if nxt == "&":
+                out.append("&")
+                i += 2
+                continue
+            if nxt.isalnum() and not letter:
+                letter = nxt
+            i += 1
+            continue
+        out.append(text[i])
+        i += 1
+    return "".join(out), letter
+
+
+def _label_name_and_shortcuts(raw, access_key=False):
+    """Nome detto, e le scorciatoie: Alt T, Alt Q, Control E. Senza (Q) da solo."""
+    text = str(raw or "").replace("\r", "").replace("\n", " ")
+    accel = ""
+    if "\t" in text:
+        text, accel = text.split("\t", 1)
+    shortcuts = []
+
+    def add(spoken):
+        spoken = (spoken or "").strip()
+        if not spoken:
+            return
+        if spoken.casefold() in {item.casefold() for item in shortcuts}:
+            return
+        shortcuts.append(spoken)
+
+    def repl(match):
+        if match.group(1):
+            add(f"Alt {match.group(1).upper()}")
+        else:
+            inner = (match.group(2) or match.group(3) or "").replace("&", "")
+            add(_speakable_shortcut(inner))
+        return ""
+
+    text = _SHORTCUT_PAREN.sub(repl, text)
+    text, letter = _strip_mnemonic(text)
+    text = re.sub(r"\s+", " ", text).strip().rstrip(":").strip()
+    text = re.sub(r"\s+…", "…", text)
+    text = re.sub(r"\s+\.\.\.", "...", text)
+    if access_key and letter and letter.isalnum():
+        add(f"Alt {letter.upper()}")
+    if accel.strip():
+        add(_speakable_shortcut(accel))
+    return text, " ".join(shortcuts)
+
+
+def _menu_item_shortcut(item):
+    try:
+        full = item.GetItemLabel() or ""
+    except Exception:
+        full = ""
+    if "\t" in full:
+        return _speakable_shortcut(full.split("\t", 1)[1])
+    try:
+        accel = item.GetAccel()
+    except Exception:
+        accel = None
+    if accel is None:
+        return ""
+    try:
+        return _speakable_shortcut(accel.ToString())
+    except Exception:
+        return ""
+
+
+def _menu_highlight_phrase(event):
+    menu = _menu_from_event(event)
+    try:
+        item_id = int(event.GetId())
+    except Exception:
+        item_id = -1
+    if item_id in (0, -1, wx.ID_NONE, wx.ID_SEPARATOR):
+        return _menu_bar_title(menu)
+    item = None
+    if menu is not None:
+        try:
+            item = menu.FindItemById(item_id)
+        except Exception:
+            item = None
+    if item is None:
+        try:
+            tops = wx.GetTopLevelWindows()
+        except Exception:
+            tops = []
+        for top in tops:
+            try:
+                bar = top.GetMenuBar()
+            except Exception:
+                bar = None
+            if not bar:
+                continue
+            try:
+                item = bar.FindItemById(item_id)
+            except Exception:
+                item = None
+            if item:
+                break
+    if item is None:
+        return _menu_bar_title(menu)
+    try:
+        if item.IsSeparator():
+            return ""
+    except Exception:
+        pass
+    try:
+        raw = item.GetItemLabel()
+    except Exception:
+        raw = ""
+    if not raw:
+        try:
+            raw = item.GetLabel()
+        except Exception:
+            raw = ""
+    label, shortcut = _label_name_and_shortcuts(raw, access_key=False)
+    if not label:
+        return ""
+    try:
+        if item.IsCheckable():
+            label += ". Attivo." if item.IsChecked() else ". Non attivo."
+    except Exception:
+        pass
+    if shortcut:
+        label = f"{label} {shortcut}"
+    pos = _popup_menu_position(menu, item_id)
+    if pos:
+        label = f"{label}, {pos}"
+    global _last_menu_where
+    _last_menu_where = label
+    return label
+
+
+def _popup_menu_position(menu, item_id):
+    """«1 di 21» nel menu del tasto applicazioni. I menu della barra restano com'erano."""
+    if menu is None or _index_of_bar_menu(menu) is not None:
+        return ""
+    try:
+        items = list(menu.GetMenuItems())
+    except Exception:
+        return ""
+    total = 0
+    found = 0
+    for it in items:
+        try:
+            if it.IsSeparator():
+                continue
+        except Exception:
+            continue
+        total += 1
+        try:
+            if int(it.GetId()) == int(item_id):
+                found = total
+        except Exception:
+            pass
+    if not found or total < 1:
+        return ""
+    return f"{found} di {total}"
+
+
+_OWN_VOICE_EVENT_TYPES = None
+
+
+def _own_voice_event_types():
+    global _OWN_VOICE_EVENT_TYPES
+    if _OWN_VOICE_EVENT_TYPES is None:
+        _OWN_VOICE_EVENT_TYPES = {
+            wx.wxEVT_SET_FOCUS,
+            wx.wxEVT_COMMAND_LISTBOX_SELECTED,
+            wx.wxEVT_COMMAND_LIST_ITEM_SELECTED,
+            wx.wxEVT_COMMAND_TEXT_UPDATED,
+            wx.wxEVT_COMMAND_CHECKBOX_CLICKED,
+            wx.wxEVT_COMMAND_RADIOBUTTON_SELECTED,
+            wx.wxEVT_COMMAND_CHOICE_SELECTED,
+            wx.wxEVT_COMMAND_COMBOBOX_SELECTED,
+            wx.wxEVT_MENU_HIGHLIGHT,
+            wx.wxEVT_MENU_OPEN,
+            wx.wxEVT_MENU_CLOSE,
+            wx.wxEVT_KEY_DOWN,
+            wx.wxEVT_KEY_UP,
+            wx.wxEVT_CHAR_HOOK,
+            wx.wxEVT_NAVIGATION_KEY,
+            wx.wxEVT_SHOW,
+        }
+    return _OWN_VOICE_EVENT_TYPES
+
+
+_NAV_KEYS = {
+    wx.WXK_LEFT,
+    wx.WXK_RIGHT,
+    wx.WXK_UP,
+    wx.WXK_DOWN,
+    wx.WXK_HOME,
+    wx.WXK_END,
+    wx.WXK_PAGEUP,
+    wx.WXK_PAGEDOWN,
+}
+
+
+def _remember_modifiers(key, down):
+    global _mod_shift, _mod_ctrl, _mod_alt
+    if key == wx.WXK_SHIFT:
+        _mod_shift = down
+    elif key in (wx.WXK_CONTROL, wx.WXK_RAW_CONTROL):
+        _mod_ctrl = down
+    elif key in (wx.WXK_ALT, wx.WXK_MENU):
+        _mod_alt = down
+
+
+def _modifier_in_chord(event, key):
+    """Shift o Control da soli non si dicono se l'altro tasto è già premuto."""
+    ctrl = _mod_ctrl or _event_flag(event, "ControlDown") or _async_key_down(0x11)
+    shift = _mod_shift or _event_flag(event, "ShiftDown") or _async_key_down(0x10)
+    alt = _mod_alt or _event_flag(event, "AltDown") or _async_key_down(0x12)
+    if key == wx.WXK_SHIFT:
+        return ctrl or alt
+    if key in (wx.WXK_CONTROL, wx.WXK_RAW_CONTROL):
+        return shift or alt
+    return False
+
+
+def _note_tab_from_hook(event):
+    global _tab_noted_at, _alt_chord
+    try:
+        key = event.GetKeyCode()
+        alt = bool(event.AltDown())
+    except Exception:
+        return
+    if key == wx.WXK_ESCAPE:
+        return
+    if key == wx.WXK_TAB and (alt or time.monotonic() < _ignore_tab_until):
+        _clear_key_memory()
+        return
+    if key == wx.WXK_F8 and not alt:
+        try:
+            if not event.ControlDown():
+                return
+        except Exception:
+            return
+    _remember_modifiers(key, True)
+    if alt and key not in (wx.WXK_ALT, wx.WXK_MENU):
+        _alt_chord = True
+    name = _speech_key_name(event, key)
+    if name and key in _MODIFIER_KEY_CODES and _modifier_in_chord(event, key):
+        _cancel_pending_key_speech()
+        return
+    if not name:
+        return
+    if "Tab" in name:
+        _tab_noted_at = time.monotonic()
+    _note_named_key(name)
+
+
+def _note_tab_from_navigation(event):
+    global _tab_noted_at
+    try:
+        if not event.IsFromTab():
+            return
+    except Exception:
+        return
+    if time.monotonic() < _ignore_tab_until or _mod_alt:
+        _clear_key_memory()
+        return
+    if time.monotonic() - _tab_noted_at < 0.2:
+        return
+    try:
+        backward = not bool(event.GetDirection())
+    except Exception:
+        backward = False
+    _tab_noted_at = time.monotonic()
+    _note_named_key("Shift Tab" if (backward or _mod_shift) else "Tab")
+
+
+def _maybe_menu_arrow(win, key):
+    """Freccia orizzontale: se il cursore non si è mosso, è il menu della barra."""
+    if not _menu_nav:
+        return
+    caret = None
+    if isinstance(win, wx.TextCtrl):
+        try:
+            caret = int(win.GetInsertionPoint())
+        except Exception:
+            caret = None
+
+    def later(win=win, key=key, caret=caret):
+        global _menu_nav
+        if not _menu_nav:
+            return
+        if isinstance(win, wx.TextCtrl) and caret is not None:
+            try:
+                if int(win.GetInsertionPoint()) != caret:
+                    _menu_nav = False
+                    _speak_caret_move(win, key)
+                    return
+            except Exception:
+                pass
+        delta = -1 if key in (wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT) else 1
+        _announce_menu_index(_menu_nav_index + delta)
+
+    wx.CallLater(40, later)
+
+
+def _lock_phrase(kind):
+    import ctypes
+    if kind == "caps":
+        on = bool(ctypes.windll.user32.GetKeyState(0x14) & 1)
+        return (
+            "Blocca maiuscole attivato."
+            if on else
+            "Blocca maiuscole disattivato."
+        )
+    on = bool(ctypes.windll.user32.GetKeyState(0x90) & 1)
+    return "Num Lock attivato." if on else "Num Lock disattivato."
+
+
+def _speak_lock_state(kind):
+    _speak_ui(_lock_phrase(kind))
+
+
+def _on_own_voice_key(event, et, win):
+    global _alt_chord, _menu_nav, _tab_noted_at
+    try:
+        key = event.GetKeyCode()
+        alt = bool(event.AltDown())
+        ctrl = bool(event.ControlDown())
+    except Exception:
+        return
+    vk = _raw_vk(event)
+    if key == wx.WXK_TAB and (alt or time.monotonic() < _ignore_tab_until):
+        if et == wx.wxEVT_KEY_DOWN:
+            _clear_key_memory()
+        return
+    if key == wx.WXK_CAPITAL or vk == 0x14 or key == wx.WXK_NUMLOCK or vk == 0x90:
+        if et == wx.wxEVT_KEY_UP:
+            kind = "caps" if (key == wx.WXK_CAPITAL or vk == 0x14) else "num"
+            wx.CallAfter(_speak_lock_state, kind)
+        return
+    if et == wx.wxEVT_KEY_UP:
+        if key in (wx.WXK_ALT, wx.WXK_MENU):
+            if not _alt_chord and not ctrl:
+                _announce_menu_index(0)
+            _alt_chord = False
+        _remember_modifiers(key, False)
+        return
+    if key == wx.WXK_F8 and not alt and not ctrl:
+        speak_where_am_i(_status_field_for_where(), trust_focus=True)
+        return
+    _remember_modifiers(key, True)
+    if key in (wx.WXK_ALT, wx.WXK_MENU):
+        _alt_chord = False
+    if key == wx.WXK_F10 and not alt and not ctrl:
+        _announce_menu_index(0)
+    if alt and key not in (wx.WXK_ALT, wx.WXK_MENU):
+        _alt_chord = True
+    if key == wx.WXK_ESCAPE:
+        _menu_nav = False
+        if et == wx.wxEVT_KEY_DOWN:
+            _cancel_pending_key_speech()
+            wx.CallAfter(_speak_esc_once)
+        return
+    name = _speech_key_name(event, key)
+    if name and key in _MODIFIER_KEY_CODES and _modifier_in_chord(event, key):
+        _cancel_pending_key_speech()
+        name = ""
+    if name and "Tab" in name and (time.monotonic() - _tab_noted_at) < 0.2:
+        name = ""
+    if name and "Tab" in name:
+        _tab_noted_at = time.monotonic()
+    if name:
+        _note_named_key(name)
+    if alt or ctrl:
+        return
+    if _menu_nav and key in (
+        wx.WXK_LEFT, wx.WXK_RIGHT, wx.WXK_NUMPAD_LEFT, wx.WXK_NUMPAD_RIGHT,
+    ):
+        _maybe_menu_arrow(win, key)
+        return
+    if _menu_nav and key in _NAV_KEYS:
+        return
+    if key not in _NAV_KEYS or not isinstance(win, wx.TextCtrl):
+        return
+    wx.CallAfter(_speak_caret_move, win, key)
+
+
+_spoken_dialogs = set()
+_DIALOG_KEYS = (
+    "Invio sul pulsante, o un clic. Tab passa da uno all'altro. Esc chiude."
+)
+
+
+def _dialog_bits(dlg):
+    texts = []
+    buttons = []
+
+    def walk(widget):
+        try:
+            children = widget.GetChildren()
+        except Exception:
+            return
+        for child in children:
+            if isinstance(child, wx.StaticText):
+                try:
+                    label = " ".join((child.GetLabel() or "").split())
+                except Exception:
+                    label = ""
+                if label:
+                    texts.append(label)
+            elif isinstance(child, wx.Button):
+                try:
+                    raw = child.GetLabel() or ""
+                except Exception:
+                    raw = ""
+                name, _shortcuts = _label_name_and_shortcuts(raw, access_key=True)
+                if name:
+                    buttons.append(name)
+            else:
+                walk(child)
+
+    walk(dlg)
+    return texts, buttons
+
+
+def _dialog_phrase(dlg):
+    try:
+        title = " ".join((dlg.GetTitle() or "").split())
+    except Exception:
+        title = ""
+    texts, buttons = _dialog_bits(dlg)
+    bits = []
+    if title:
+        bits.append(title)
+    for text in texts:
+        if text and text not in bits and text != title:
+            bits.append(text)
+    if buttons:
+        bits.append("Pulsanti: " + ", ".join(buttons) + ".")
+    phrase = ""
+    for bit in bits:
+        bit = (bit or "").strip()
+        if not bit:
+            continue
+        if not phrase:
+            phrase = bit
+        elif phrase[-1] in ".!?":
+            phrase = f"{phrase} {bit}"
+        else:
+            phrase = f"{phrase}. {bit}"
+    return phrase
+
+
+def _announce_dialog_once(dlg):
+    key = id(dlg)
+    if key in _spoken_dialogs:
+        return
+    try:
+        if not dlg or not dlg.IsShown():
+            return
+    except Exception:
+        return
+    phrase = _dialog_phrase(dlg)
+    if not phrase:
+        return
+    try:
+        focus = wx.Window.FindFocus()
+        if isinstance(focus, wx.Button):
+            top = focus.GetTopLevelParent()
+            if top is dlg:
+                name, _shortcuts = _label_name_and_shortcuts(
+                    focus.GetLabel(), access_key=True
+                )
+                if name:
+                    phrase = f"{phrase} Ora sei su {name}."
+    except Exception:
+        pass
+    _spoken_dialogs.add(key)
+    speak_accessible(phrase, force=True, replace=True)
+
+
+def _speak_shell_picker(kind):
+    """Salva e Sfoglia restano finestre di Windows: si dice almeno che cosa sono."""
+    if not _speech_own_ui or not _speech_active:
+        return
+    speak_accessible(
+        f"{kind}. Finestra di Windows. Invio conferma, o un clic. Esc annulla.",
+        force=True,
+        replace=True,
+    )
+
+
+class RTADMessageDialog(wx.Dialog):
+    """Domanda con pulsanti nostri, così la voce di RTAD dice Sì, No e il testo."""
+
+    def __init__(self, parent, message, caption=wx.MessageBoxCaptionStr,
+                 style=wx.OK, pos=wx.DefaultPosition):
+        super().__init__(
+            parent, title=str(caption or ""),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._message = str(message or "")
+        self._style = int(style or 0)
+        self._yes_label = "&Sì"
+        self._no_label = "&No"
+        self._btn_yes = None
+        self._btn_no = None
+        self._build()
+
+    def SetYesNoLabels(self, yes, no):
+        self._yes_label = str(yes or self._yes_label)
+        self._no_label = str(no or self._no_label)
+        if self._btn_yes is not None:
+            self._btn_yes.SetLabel(self._yes_label)
+        if self._btn_no is not None:
+            self._btn_no.SetLabel(self._no_label)
+        try:
+            self.Layout()
+            self.Fit()
+        except Exception:
+            pass
+
+    def _build(self):
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        text = wx.StaticText(self, label=self._message)
+        text.Wrap(520)
+        vbox.Add(text, 0, wx.ALL | wx.EXPAND, 12)
+        hint = wx.StaticText(self, label=_DIALOG_KEYS)
+        vbox.Add(hint, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        buttons = []
+        style = self._style
+        if style & wx.YES:
+            self._btn_yes = wx.Button(self, wx.ID_YES, self._yes_label)
+            buttons.append(self._btn_yes)
+        if style & wx.NO:
+            self._btn_no = wx.Button(self, wx.ID_NO, self._no_label)
+            buttons.append(self._btn_no)
+        if (style & wx.OK) and not (style & wx.YES):
+            buttons.append(wx.Button(self, wx.ID_OK, "&OK"))
+        if style & wx.CANCEL:
+            buttons.append(wx.Button(self, wx.ID_CANCEL, "&Annulla"))
+        if not buttons:
+            buttons.append(wx.Button(self, wx.ID_OK, "&OK"))
+        for button in buttons:
+            row.Add(button, 0, wx.ALL, 5)
+            button.Bind(wx.EVT_BUTTON, self._on_button)
+        vbox.Add(row, 0, wx.ALIGN_CENTER | wx.BOTTOM, 10)
+        self.SetSizerAndFit(vbox)
+        default = buttons[0]
+        if (style & wx.NO_DEFAULT) and self._btn_no is not None:
+            default = self._btn_no
+        elif style & wx.CANCEL_DEFAULT:
+            for button in buttons:
+                if button.GetId() == wx.ID_CANCEL:
+                    default = button
+                    break
+        default.SetDefault()
+        self._esc_id = wx.ID_CANCEL
+        if any(b.GetId() == wx.ID_CANCEL for b in buttons):
+            self._esc_id = wx.ID_CANCEL
+        elif self._btn_no is not None:
+            self._esc_id = wx.ID_NO
+        elif any(b.GetId() == wx.ID_OK for b in buttons) and len(buttons) == 1:
+            self._esc_id = wx.ID_CANCEL
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_esc)
+        try:
+            self.CentreOnParent()
+        except Exception:
+            pass
+
+    def _on_button(self, event):
+        self.EndModal(event.GetId())
+
+    def _on_esc(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.EndModal(self._esc_id)
+            return
+        event.Skip()
+
+
+def _rtad_message_box(message, caption=wx.MessageBoxCaptionStr,
+                      style=wx.OK | wx.CENTRE, parent=None, x=-1, y=-1):
+    dlg = wx.MessageDialog(parent, str(message or ""), caption, style)
+    try:
+        return dlg.ShowModal()
+    finally:
+        dlg.Destroy()
+
+
+class RTADFileDialog(wx.FileDialog):
+    def ShowModal(self):
+        _speak_shell_picker("Scegli il file")
+        return super().ShowModal()
+
+
+class RTADDirDialog(wx.DirDialog):
+    def ShowModal(self):
+        _speak_shell_picker("Scegli la cartella")
+        return super().ShowModal()
+
+
+wx.MessageDialog = RTADMessageDialog
+wx.MessageBox = _rtad_message_box
+wx.FileDialog = RTADFileDialog
+wx.DirDialog = RTADDirDialog
+
+
+def _filter_own_voice(event):
+    global _menu_nav, _menu_nav_index, _last_menu_where
+    if not _speech_own_ui or not _speech_active:
+        return
+    try:
+        et = event.GetEventType()
+    except Exception:
+        return
+    if et not in _own_voice_event_types():
+        return
+    try:
+        win = event.GetEventObject()
+    except Exception:
+        win = None
+    if et == wx.wxEVT_SHOW:
+        try:
+            shown = bool(event.IsShown())
+        except Exception:
+            shown = True
+        if not shown:
+            _spoken_dialogs.discard(id(win))
+            return
+        if isinstance(win, wx.Dialog):
+            wx.CallLater(80, _announce_dialog_once, win)
+        return
+    if et == wx.wxEVT_SET_FOCUS:
+        if isinstance(win, (
+            wx.TextCtrl, wx.Button, wx.Choice, wx.ComboBox,
+            wx.ListBox, wx.ListCtrl, wx.CheckBox, wx.RadioButton,
+            wx.ToggleButton,
+        )):
+            _menu_nav = False
+            _last_menu_where = ""
+            _remember_where_control(win)
+        _speak_focus_widget(win)
+        return
+    if et in (
+        wx.wxEVT_COMMAND_LISTBOX_SELECTED,
+        wx.wxEVT_COMMAND_LIST_ITEM_SELECTED,
+    ):
+        _speak_list_row(win)
+        return
+    if et == wx.wxEVT_COMMAND_TEXT_UPDATED:
+        _speak_text_change(win)
+        return
+    if et in (
+        wx.wxEVT_COMMAND_CHECKBOX_CLICKED,
+        wx.wxEVT_COMMAND_RADIOBUTTON_SELECTED,
+    ):
+        _speak_ui(describe_focused_widget(win))
+        return
+    if et in (
+        wx.wxEVT_COMMAND_CHOICE_SELECTED,
+        wx.wxEVT_COMMAND_COMBOBOX_SELECTED,
+    ):
+        _speak_ui(_choice_phrase(win))
+        return
+    if et == wx.wxEVT_MENU_HIGHLIGHT:
+        phrase = _menu_highlight_phrase(event)
+        title = _take_menu_title()
+        if title and phrase and not phrase.startswith(title):
+            phrase = f"{title}. {phrase}"
+        elif title and not phrase:
+            phrase = title
+        _speak_ui(phrase)
+        return
+    if et == wx.wxEVT_MENU_CLOSE:
+        try:
+            if ctypes.windll.user32.GetAsyncKeyState(0x1B) & 0x8000:
+                wx.CallAfter(_speak_esc_once)
+        except Exception:
+            pass
+        return
+    if et == wx.wxEVT_MENU_OPEN:
+        menu = _menu_from_event(event)
+        titled = _menu_bar_title(menu)
+        idx = _index_of_bar_menu(menu)
+        if idx is not None:
+            _menu_nav = True
+            _menu_nav_index = idx
+        if titled:
+            _note_menu_title(titled)
+        return
+    if et == wx.wxEVT_NAVIGATION_KEY:
+        _note_tab_from_navigation(event)
+        return
+    if et == wx.wxEVT_CHAR_HOOK:
+        _note_tab_from_hook(event)
+        return
+    if et in (wx.wxEVT_KEY_DOWN, wx.wxEVT_KEY_UP):
+        _on_own_voice_key(event, et, win)
+
+
+_main_window = None
+_toggle_at = {}
+
+
+def _toggle_ok(name):
+    """Il primo scatto vale. Il secondo, arrivato subito dopo, no."""
+    now = time.monotonic()
+    if now - _toggle_at.get(name, 0.0) < 0.4:
+        return False
+    _toggle_at[name] = now
+    return True
+
+
+def _announce_paused_voice(win):
+    """All'avvio, se F7 ha lasciato la voce in pausa, lo dice."""
+    if _speech_active or _speech_own_ui:
+        return
+    try:
+        win.txt_status_progress.SetValue(MSG_F7_PAUSE)
+    except Exception:
+        pass
+    speak_accessible(MSG_F7_PAUSE, force=True, sapi=True)
+
+
+def _shown_dialog():
+    """La finestra di domanda già aperta, se c'è."""
+    try:
+        windows = wx.GetTopLevelWindows()
+    except Exception:
+        return None
+    for win in windows:
+        try:
+            if isinstance(win, wx.Dialog) and win.IsShown():
+                return win
+        except Exception:
+            continue
+    return None
+
+
+def _own_voice_from_anywhere():
+    """Ctrl+Shift+S anche se una domanda è già aperta."""
+    win = _main_window
+    if win is None:
+        return
+    dlg = _shown_dialog()
+    if dlg is None:
+        win.on_toggle_own_ui(None)
+        return
+    if not _toggle_ok("own"):
+        try:
+            if win.item_own_ui:
+                win.item_own_ui.Check(bool(_speech_own_ui))
+        except Exception:
+            pass
+        return
+    enabled = not _speech_own_ui
+    try:
+        if win.item_own_ui:
+            win.item_own_ui.Check(enabled)
+    except Exception:
+        pass
+    set_speech_own_ui(enabled)
+    if not enabled:
+        try:
+            win.txt_status_progress.SetValue(MSG_OWN_VOICE_OFF)
+        except Exception:
+            pass
+        speak_accessible(MSG_OWN_VOICE_OFF, force=True, sapi=True)
+        return
+    _spoken_dialogs.discard(id(dlg))
+    phrase = _dialog_phrase(dlg)
+    try:
+        focus = wx.Window.FindFocus()
+        if isinstance(focus, wx.Button) and focus.GetTopLevelParent() is dlg:
+            name, _shortcuts = _label_name_and_shortcuts(
+                focus.GetLabel(), access_key=True
+            )
+            if name:
+                phrase = f"{phrase} Ora sei su {name}."
+    except Exception:
+        pass
+    full = "Solo la voce di questo programma, accesa."
+    if phrase:
+        full = f"{full} {phrase}"
+    try:
+        win.txt_status_progress.SetValue(full)
+    except Exception:
+        pass
+    speak_accessible(full, force=True, replace=True, sapi=True)
+
+
+class RTADApp(wx.App):
+    def FilterEvent(self, event):
+        try:
+            if event.GetEventType() == wx.wxEVT_KEY_DOWN:
+                key = event.GetKeyCode()
+                ctrl = bool(event.ControlDown())
+                alt = bool(event.AltDown())
+                shift = bool(event.ShiftDown())
+                if key == wx.WXK_CONTROL and not alt and not shift:
+                    stop_accessible_speech()
+                if ctrl and shift and not alt and key in (ord("S"), ord("s")):
+                    wx.CallAfter(_own_voice_from_anywhere)
+                    return 1
+        except Exception:
+            pass
+        try:
+            _filter_own_voice(event)
+        except Exception:
+            logging.debug("Voce interfaccia non detta", exc_info=True)
+        return -1
 
 
 def speech_rate_label(rate=None):
@@ -9586,7 +12239,21 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:\n"
+            "• Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
+            "  Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.\n"
+            "  Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,\n"
+            "  la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.\n"
+            "  Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende.\n"
+            "  Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute.\n"
+            "  Finestre nostre, al loro posto, dopo i video.\n"
+            "  L'Add-on resta sulla voce di NVDA.\n"
+            "• Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic,\n"
+            "  oppure Ctrl+Shift+V, apre l'elenco. Ci sono le voci di Windows (OneCore)\n"
+            "  e quelle già registrate come SAPI. Invio sul pulsante OK, o un clic,\n"
+            "  imposta la voce. Doppio clic sulla riga fa la stessa cosa.\n"
+            "  Un clic solo seleziona la riga. Velocità e tono del menu valgono\n"
+            "  anche per le voci di Windows. L'Add-on resta sulla voce di NVDA.\n"
+            "• Resta dalla 1.9.5: La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:\n"
             "  «La ricerca ha incontrato un DVD video (VIDEO_TS).\n"
             "  RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»\n"
             "  I file dati nelle altre cartelle restano.\n"
@@ -9864,10 +12531,11 @@ class ShortcutsFrame(wx.Frame):
             "  - Nel lettore, Ctrl + B: aggiunge un punto di lettura, quanti ne vuoi. Ctrl + Shift + B: ultimo. Invio sull'elenco: scegli. Non è Ctrl + D.\n"            "  - Ctrl + Shift + P: Salva profilo di ricerca attuale\n"            "  - Ctrl + Shift + L: Carica un profilo di ricerca\n"
             "  - INVIO : Avvia ricerca, apri file alla riga esatta o apri articolo nel Browser\n"
             "  - SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
-            "  - F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
+            "  - F7, oppure Invio sulla voce, o un clic: mette in pausa la voce di RTAD. Spazio, F4 e gli esiti li dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, riaccende la voce di RTAD.\n"
             "  - Ctrl + + / Ctrl + - : velocità sintesi più rapida / più lenta\n"
-            "  - Ctrl + Shift + V : scegli voce SAPI\n"
-            "  - Menu Voce : tono, prova voce, motore SAPI/NVDA\n"
+            "  - Ctrl + Shift + V : scegli la voce. Voci SAPI e voci di Windows (OneCore). Invio sul pulsante OK, o un clic. Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga.\n"
+            "  - Menu Voce, Solo la voce di questo programma: Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne. Tab e Shift li dice la voce in uso. Se esci con Alt+Tab, o con un clic fuori dalla finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Dentro RTAD questa voce dice anche dove sei. Con Alt e le frecce dice Menu File, Menu Strumenti, Menu Aiuto. Pronuncia le lettere mentre scrivi è spento: Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso. Pronuncia i tasti di spostamento è spento: Invio sulla voce, o un clic, lo accende. Se NVDA è acceso, spegni il sintetizzatore con NVDA+S. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende. Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco.\n"
+            "  - Menu Voce : tono, prova voce, SAPI o voce di Windows, oppure NVDA\n"
             "  - Casella OCR : Spazio per attivare/disattivare testo in immagini/PDF scansionati\n"
             "  - CONTROL : Zittisce all'istante la lettura in corso\n"
             "  - Pulsante Feed Thunderbird : rileva le cartelle Feeds di Thunderbird\n"
@@ -9936,12 +12604,18 @@ class ShortcutsFrame(wx.Frame):
 
 class MainWindow(wx.Frame):
     def __init__(self):
+        global _main_window
         super(MainWindow, self).__init__(
             None,
             title=f"{APP_TITLE} v{APP_VERSION} - Maurizio Barra",
             size=(880, 800),
             style=wx.DEFAULT_FRAME_STYLE,
         )
+        _main_window = self
+        self._switcher_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, lambda _evt: _poll_switcher_flag(), self._switcher_timer)
+        self._switcher_timer.Start(40)
+        wx.CallLater(800, _announce_paused_voice, self)
 
         self._stop_search = False
         self.current_percent = 0
@@ -9963,6 +12637,7 @@ class MainWindow(wx.Frame):
             pass
 
         self._init_menu_bar()
+        self.Bind(wx.EVT_ACTIVATE, self._on_own_voice_activate)
 
         panel = wx.Panel(self)
         self._main_panel = panel
@@ -10402,10 +13077,10 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_manage_search_profiles, item_manage_profiles)
         self.update_profiles_menu()
 
-        # Menu Voce (Standalone: SAPI velocità/voce; mute condiviso come concetto)
+        # Menu Voce (Standalone: SAPI e voci di Windows; mute come nell'Add-on)
         voice_menu = wx.Menu()
         item_toggle_speech = voice_menu.Append(
-            wx.ID_ANY, "Attiva / Disattiva sintesi (Mute)\tF7"
+            wx.ID_ANY, "Voce di RTAD o NVDA\tF7"
         )
         voice_menu.AppendSeparator()
         item_rate_up = voice_menu.Append(wx.ID_ANY, "Velocità &più rapida\tCtrl++")
@@ -10417,14 +13092,33 @@ class MainWindow(wx.Frame):
         item_pitch_reset = voice_menu.Append(wx.ID_ANY, "Tono n&ormale")
         voice_menu.AppendSeparator()
         item_choose_voice = voice_menu.Append(
-            wx.ID_ANY, "Scegli &voce SAPI...\tCtrl+Shift+V"
+            wx.ID_ANY, "Scegli &voce...\tCtrl+Shift+V"
         )
         item_test_voice = voice_menu.Append(wx.ID_ANY, "Prova vo&ce")
         voice_menu.AppendSeparator()
         self.item_engine_sapi = voice_menu.AppendCheckItem(
-            wx.ID_ANY, "Annunci RTAD con &SAPI (velocità/voce regolabili)"
+            wx.ID_ANY,
+            "Annunci RTAD con la &voce del programma (SAPI o OneCore)",
         )
         self.item_engine_sapi.Check(bool(_speech_use_sapi))
+        self.item_own_ui = voice_menu.AppendCheckItem(
+            wx.ID_ANY,
+            "Solo la &voce di questo programma\tCtrl+Shift+S",
+        )
+        self.item_own_ui.Check(bool(_speech_own_ui))
+        self.item_say_keys = voice_menu.AppendCheckItem(
+            wx.ID_ANY,
+            "Pronuncia i &tasti di spostamento",
+        )
+        self.item_say_keys.Check(bool(_speech_say_keys))
+        self.item_say_chars = voice_menu.AppendCheckItem(
+            wx.ID_ANY,
+            "Pronuncia le &lettere mentre scrivi",
+        )
+        self.item_say_chars.Check(bool(_speech_say_chars))
+        item_where = voice_menu.Append(
+            wx.ID_ANY, "Dove &sei\tF8"
+        )
         menubar.Append(voice_menu, "&Voce")
 
         self.Bind(wx.EVT_MENU, self.on_toggle_speech, item_toggle_speech)
@@ -10437,6 +13131,10 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_choose_sapi_voice, item_choose_voice)
         self.Bind(wx.EVT_MENU, self.on_test_sapi_voice, item_test_voice)
         self.Bind(wx.EVT_MENU, self.on_toggle_speech_engine, self.item_engine_sapi)
+        self.Bind(wx.EVT_MENU, self.on_toggle_own_ui, self.item_own_ui)
+        self.Bind(wx.EVT_MENU, self.on_toggle_say_keys, self.item_say_keys)
+        self.Bind(wx.EVT_MENU, self.on_toggle_say_chars, self.item_say_chars)
+        self.Bind(wx.EVT_MENU, self.on_where_am_i, item_where)
 
         # Menu Strumenti
         tools_menu = wx.Menu()
@@ -11916,11 +14614,17 @@ class MainWindow(wx.Frame):
         elif key == wx.WXK_F7:
             self.on_toggle_speech()
             return
+        elif key == wx.WXK_F8 and not ctrl and not alt:
+            self.on_where_am_i(None)
+            return
         elif ctrl and key in (ord("="), ord("+"), wx.WXK_NUMPAD_ADD):
             self.on_speech_rate(+1)
             return
         elif ctrl and key in (ord("-"), wx.WXK_NUMPAD_SUBTRACT):
             self.on_speech_rate(-1)
+            return
+        elif ctrl and event.ShiftDown() and key in (ord("S"), ord("s")):
+            self.on_toggle_own_ui(None)
             return
         elif ctrl and event.ShiftDown() and key in (ord("V"), ord("v")):
             self.on_choose_sapi_voice()
@@ -11929,6 +14633,18 @@ class MainWindow(wx.Frame):
             event.Skip()
             return
         elif key == wx.WXK_ESCAPE:
+            # Una finestra di dialogo aperta: Esc la chiude lei.
+            try:
+                focus = wx.Window.FindFocus()
+                top = focus.GetTopLevelParent() if focus is not None else None
+            except Exception:
+                top = None
+            if top is not None and top is not self:
+                event.Skip()
+                return
+            # Qui Esc resta sulla finestra principale: la frase sotto basta.
+            global _esc_spoken_at
+            _esc_spoken_at = time.monotonic()
             # Durante la ricerca: annulla. A riposo: chiude solo se abilitato in Strumenti.
             if not self.btn_search.IsEnabled():
                 self.on_cancel_search(None)
@@ -11974,16 +14690,25 @@ class MainWindow(wx.Frame):
 
     def on_toggle_speech(self, evt=None):
         global _speech_active
+        if not _toggle_ok("f7"):
+            return
         stop_accessible_speech()
         _speech_active = not _speech_active
         try:
             save_speech_settings()
         except Exception:
             pass
-        if _speech_active:
-            speak_accessible("Sintesi vocale attivata", force=True)
+        if not _speech_active:
+            msg = MSG_F7_PAUSE
+        elif _speech_own_ui:
+            msg = MSG_F7_RTAD
         else:
-            speak_accessible("Sintesi vocale disattivata", force=True)
+            msg = MSG_F7_STILL_NVDA
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True, sapi=True)
 
     def on_speech_rate(self, delta, reset=False):
         if reset:
@@ -12016,17 +14741,111 @@ class MainWindow(wx.Frame):
         except Exception:
             enabled = not _speech_use_sapi
         set_speech_use_sapi(enabled)
-        if enabled:
-            speak_accessible(
-                "Annunci RTAD con SAPI: velocità e voce regolabili da questo menu.",
-                force=True,
+        if not enabled and _speech_own_ui:
+            set_speech_own_ui(False)
+            try:
+                if self.item_own_ui:
+                    self.item_own_ui.Check(False)
+            except Exception:
+                pass
+            msg = MSG_OWN_VOICE_OFF
+        elif enabled:
+            msg = (
+                "Annunci RTAD con la voce di questo programma: "
+                "SAPI o voce di Windows. "
+                "Velocità e voce si regolano da questo menu."
             )
         else:
-            speak_accessible(
-                "Annunci: NVDA se attivo, altrimenti SAPI. "
-                "La velocità del menu Voce vale solo per SAPI.",
-                force=True,
+            msg = (
+                "Annunci: NVDA se attivo, altrimenti la voce di questo programma. "
+                "La velocità del menu Voce vale per SAPI e per la voce di Windows."
             )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True)
+
+    def on_toggle_own_ui(self, evt=None):
+        if not _toggle_ok("own"):
+            try:
+                if self.item_own_ui:
+                    self.item_own_ui.Check(bool(_speech_own_ui))
+            except Exception:
+                pass
+            return
+        if evt is None:
+            enabled = not _speech_own_ui
+            try:
+                if self.item_own_ui:
+                    self.item_own_ui.Check(enabled)
+            except Exception:
+                pass
+        else:
+            enabled = True
+            try:
+                if self.item_own_ui:
+                    enabled = bool(self.item_own_ui.IsChecked())
+            except Exception:
+                enabled = not _speech_own_ui
+        set_speech_own_ui(enabled)
+        if enabled:
+            try:
+                if self.item_engine_sapi:
+                    self.item_engine_sapi.Check(True)
+            except Exception:
+                pass
+            msg = own_voice_status_message()
+        else:
+            msg = MSG_OWN_VOICE_OFF
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True, sapi=True)
+
+    def on_where_am_i(self, evt=None):
+        speak_where_am_i(
+            getattr(self, "txt_status_progress", None),
+            trust_focus=True,
+        )
+
+    def _on_own_voice_activate(self, event):
+        try:
+            on_main_frame_activate(bool(event.GetActive()))
+        except Exception:
+            logging.debug("Attivazione finestra non detta", exc_info=True)
+        event.Skip()
+
+    def on_toggle_say_keys(self, evt=None):
+        enabled = True
+        try:
+            if self.item_say_keys:
+                enabled = bool(self.item_say_keys.IsChecked())
+        except Exception:
+            enabled = not _speech_say_keys
+        set_speech_say_keys(enabled)
+        msg = MSG_SAY_KEYS_ON if enabled else MSG_SAY_KEYS_OFF
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True)
+
+    def on_toggle_say_chars(self, evt=None):
+        enabled = True
+        try:
+            if self.item_say_chars:
+                enabled = bool(self.item_say_chars.IsChecked())
+        except Exception:
+            enabled = not _speech_say_chars
+        set_speech_say_chars(enabled)
+        msg = MSG_SAY_CHARS_ON if enabled else MSG_SAY_CHARS_OFF
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True)
 
     def on_test_sapi_voice(self, evt=None):
         set_speech_use_sapi(True)
@@ -12044,23 +14863,36 @@ class MainWindow(wx.Frame):
     def on_choose_sapi_voice(self, evt=None):
         voices = list_sapi_voices()
         if not voices:
-            speak_accessible("Nessuna voce SAPI disponibile su questo computer.", force=True)
+            msg = "Nessuna voce disponibile su questo computer."
+            try:
+                self.txt_status_progress.SetValue(msg)
+            except Exception:
+                pass
+            speak_accessible(msg, force=True)
+            wx.MessageBox(msg, "Voce", wx.OK | wx.ICON_INFORMATION)
             return
-        # Prima voce = predefinita Windows (svuota speech_voice_id)
-        names = ["Voce predefinita di Windows"] + [v["name"] for v in voices]
+        # Prima riga = voce SAPI predefinita (svuota speech_voice_id)
+        names = ["Voce SAPI predefinita"] + [voice_choice_label(v) for v in voices]
         sel = 0
         if _speech_voice_id:
             for i, v in enumerate(voices):
                 if v["id"] == _speech_voice_id:
                     sel = i + 1
                     break
-        dlg = wx.SingleChoiceDialog(
-            self,
-            "Scegli la voce SAPI per gli annunci RTAD "
-            "(OneCore compare qui se installata come token SAPI):",
-            "Voce SAPI",
-            names,
+        prompt = (
+            "Scegli la voce per gli annunci di RTAD. "
+            "La prima riga è la voce SAPI predefinita. "
+            "Poi ci sono le voci SAPI e le voci di Windows (OneCore). "
+            "Invio sul pulsante OK, o un clic, imposta la voce. "
+            "Doppio clic sulla riga fa la stessa cosa. "
+            "Un clic solo seleziona la riga."
         )
+        try:
+            self.txt_status_progress.SetValue(prompt)
+        except Exception:
+            pass
+        speak_accessible(prompt, force=True)
+        dlg = wx.SingleChoiceDialog(self, prompt, "Voce", names)
         try:
             dlg.SetSelection(sel)
         except Exception:
@@ -12075,7 +14907,7 @@ class MainWindow(wx.Frame):
                         self.item_engine_sapi.Check(True)
                 except Exception:
                     pass
-                speak_accessible("Voce predefinita di Windows impostata.", force=True)
+                msg = "Voce SAPI predefinita impostata."
             elif 1 <= idx <= len(voices):
                 chosen = voices[idx - 1]
                 set_speech_voice_id(chosen["id"])
@@ -12085,7 +14917,15 @@ class MainWindow(wx.Frame):
                         self.item_engine_sapi.Check(True)
                 except Exception:
                     pass
-                speak_accessible(f"Voce impostata: {chosen['name']}.", force=True)
+                msg = f"Voce impostata: {voice_choice_label(chosen)}."
+            else:
+                msg = ""
+            if msg:
+                try:
+                    self.txt_status_progress.SetValue(msg)
+                except Exception:
+                    pass
+                speak_accessible(msg, force=True)
         dlg.Destroy()
 
     def on_close(self, event):
@@ -12598,10 +15438,11 @@ class MainWindow(wx.Frame):
                 "Nel lettore, Ctrl + B: aggiunge un punto di lettura, quanti ne vuoi. Ctrl + Shift + B: ultimo. Invio sull'elenco: scegli. Non è Ctrl + D.\n"
                 "INVIO : Avvia ricerca o apri file alla riga esatta\n"
                 "SPAZIO / F4 : Anteprima vocale immediata del risultato\n"
-                "F7 : Attiva / Disattiva sintesi vocale (Mute)\n"
+                "F7, oppure Invio sulla voce, o un clic: mette in pausa la voce di RTAD. Spazio, F4 e gli esiti li dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, riaccende la voce di RTAD.\n"
                 "Ctrl + + / Ctrl + - : velocità sintesi\n"
-                "Ctrl + Shift + V : scegli voce SAPI\n"
-                "Menu Voce : tono, prova voce, motore SAPI/NVDA\n"
+                "Ctrl + Shift + V : scegli la voce. Voci SAPI e voci di Windows (OneCore). Invio sul pulsante OK, o un clic. Doppio clic sulla riga fa la stessa cosa. Un clic solo seleziona la riga.\n"
+                "Menu Voce, Solo la voce di questo programma: Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne. Tab e Shift li dice la voce in uso. Se esci con Alt+Tab, o con un clic fuori dalla finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Dentro RTAD questa voce dice anche dove sei. Con Alt e le frecce dice Menu File, Menu Strumenti, Menu Aiuto. Pronuncia le lettere mentre scrivi è spento: Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso. Pronuncia i tasti di spostamento è spento: Invio sulla voce, o un clic, lo accende. Se NVDA è acceso, spegni il sintetizzatore con NVDA+S. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende. Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco.\n"
+                "Menu Voce : tono, prova voce, SAPI o voce di Windows, oppure NVDA\n"
                 "CONTROL : Zittisce all'istante la lettura in corso\n"
                 "Tasto APPLICAZIONI : Menu contestuale completo\n"
                 "F1 : Apri la Guida HTML nel Browser\n"
@@ -12838,6 +15679,10 @@ class MainWindow(wx.Frame):
                     lbl = wx.StaticText(dlg, label=msg)
                     lbl.Wrap(480)
                     vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 12)
+                    vbox.Add(
+                        wx.StaticText(dlg, label=_DIALOG_KEYS),
+                        0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12,
+                    )
                     h = wx.BoxSizer(wx.HORIZONTAL)
                     btn_yes = wx.Button(dlg, wx.ID_YES, label="&Sì, apri")
                     btn_no = wx.Button(dlg, wx.ID_NO, label="&No, non ora")
@@ -17749,7 +20594,7 @@ def main():
             logging.warning("Impossibile inoltrare comando all'istanza aperta.")
         return
 
-    app = wx.App(False)
+    app = RTADApp(False)
     frame = MainWindow()
     frame.Show()
     frame.Raise()

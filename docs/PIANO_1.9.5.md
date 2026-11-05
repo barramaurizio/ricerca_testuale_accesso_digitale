@@ -1,6 +1,6 @@
 # Piano RTAD 1.9.5
 
-**In corso.** Il numero nel programma è `1.9.5`. Non ancora pubblicata.  
+**Pubblicata** il 4/11/2026. GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`. DataStore #12756 via #12757 accettato. Non si rifà.  
 La 1.9.4 resta pubblicata (3/11/2026, GitHub `v1.9.4` / `app-v1.9.4`, commit `6bd5814`; guide sul web `18d09e2` e `ca7f0ee`; DataStore #12743 accettato). Non si rifà.
 
 Vale per l’Installer e per l’Add-on. A schermo e a voce. Invio e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
@@ -44,6 +44,7 @@ I cookie del browser, solo se l’utente lo chiede. Non aprono i flussi protetti
 ## Dopo, una versione alla volta
 
 1. **`1.9.6` — OneCore.** La voce di Windows nella Standalone.
-2. **`1.9.7` — export multipli.** Più di un formato nello stesso passaggio.
+2. **`1.9.7` — descrizione del video.** Ogni volta si sceglie. Predefinita, il riassunto breve. Se si chiede la dettagliata, in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente.
+3. **`1.9.8` — export multipli.** Più di un formato nello stesso passaggio.
 
 Papà ha rimesso la chiave Gemini e la usa. Cloud Vision per l’OCR non lo usa: da vedente non lo ritiene indispensabile.

@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.5"
+APP_VERSION = "1.9.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -9919,7 +9919,21 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:\n"
+            "• Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
+            "  Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.\n"
+            "  Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,\n"
+            "  la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.\n"
+            "  Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende.\n"
+            "  Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute.\n"
+            "  Finestre nostre, al loro posto, dopo i video.\n"
+            "  L'Add-on resta sulla voce di NVDA.\n"
+            "• Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic,\n"
+            "  oppure Ctrl+Shift+V, apre l'elenco. Ci sono le voci di Windows (OneCore)\n"
+            "  e quelle già registrate come SAPI. Invio sul pulsante OK, o un clic,\n"
+            "  imposta la voce. Doppio clic sulla riga fa la stessa cosa.\n"
+            "  Un clic solo seleziona la riga. Velocità e tono del menu valgono\n"
+            "  anche per le voci di Windows. L'Add-on resta sulla voce di NVDA.\n"
+            "• Resta dalla 1.9.5: La ricerca, se incontra un DVD video (VIDEO_TS), lo dice a schermo e a voce:\n"
             "  «La ricerca ha incontrato un DVD video (VIDEO_TS).\n"
             "  RTAD cerca i file dati sul disco (mp3, pdf, foto), non copia il film.»\n"
             "  I file dati nelle altre cartelle restano.\n"
@@ -11903,16 +11917,21 @@ class SearchFrame(wx.Frame):
 
     def on_nvda_voice_help(self, evt=None):
         msg = (
-            "Nell'Add-on la velocità e la voce sono quelle di NVDA.\n\n"
-            "Apri le impostazioni NVDA (NVDA+N → Preferenze → Impostazioni → "
-            "Voce) per regolare voce, velocità e tono.\n\n"
-            "Il menu Voce di RTAD controlla solo il Mute (F7) degli annunci "
-            "dell'Add-on. Nello Standalone trovi invece SAPI regolabile."
+            "Nell'Add-on la velocità e la voce sono quelle di NVDA. "
+            "Apri le impostazioni NVDA, NVDA+N, Preferenze, Impostazioni, Voce, "
+            "per regolare voce, velocità e tono. "
+            "Il menu Voce di RTAD controlla solo il Mute, F7, degli annunci dell'Add-on. "
+            "Invio sul pulsante OK, o un clic, chiude questo avviso. "
+            "Nella Standalone, menu Voce, Scegli voce: ci sono le voci di Windows (OneCore) "
+            "e quelle SAPI. Invio sul pulsante OK, o un clic, imposta la voce. "
+            "Nella Standalone, menu Voce, Solo la voce di questo programma: "
+            "Invio sulla voce, o un clic. Dentro RTAD quella voce dice anche dove sei. "
+            "Con Alt dice Menu File, Menu Strumenti, Menu Aiuto. "
+            "Pronuncia i tasti di spostamento è spento: Invio sulla voce, o un clic, lo accende. Pronuncia le lettere mentre scrivi è spento: Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso. "
+            "Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video. "
+            "L'Add-on resta sulla voce di NVDA."
         )
-        rtad_speak(
-            "Velocità e voce: usa le impostazioni NVDA. F7 muta solo gli annunci RTAD.",
-            force=True,
-        )
+        rtad_speak(msg, force=True)
         wx.MessageBox(msg, "Voce e NVDA", wx.OK | wx.ICON_INFORMATION)
 
     def on_show_info(self, event):

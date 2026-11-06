@@ -105,7 +105,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.6"
+APP_VERSION = "1.9.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -8890,6 +8890,24 @@ class MediaSectionsDialog(wx.Dialog):
         self.chk_describe = wx.CheckBox(self, label="&Riassunto accessibile (Gemini)")
         self.chk_describe.SetValue(bool(preset.get("include_describe", True)))
         vbox.Add(self.chk_describe, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.radio_brief = wx.RadioButton(
+            self, label="Riassunto &breve", style=wx.RB_GROUP
+        )
+        self.radio_detail = wx.RadioButton(self, label="Descrizione &dettagliata")
+        detail_on = bool(preset.get("describe_detail", False)) and bool(
+            preset.get("include_describe", True)
+        )
+        self.radio_brief.SetValue(not detail_on)
+        self.radio_detail.SetValue(detail_on)
+        vbox.Add(self.radio_brief, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
+        vbox.Add(self.radio_detail, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
+        self.chk_desc_ts = wx.CheckBox(
+            self, label="Timestamp nel &racconto ([MM:SS])"
+        )
+        self.chk_desc_ts.SetValue(
+            bool(preset.get("describe_timestamps", False)) and detail_on
+        )
+        vbox.Add(self.chk_desc_ts, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
         self.chk_transcript = wx.CheckBox(
             self, label="&Trascrizione parlato (Gemini, opt-in)"
         )
@@ -8963,18 +8981,39 @@ class MediaSectionsDialog(wx.Dialog):
                 self.chk_whisper.SetValue(False)
             self.choice_lang.Enable(en and self.chk_translate.GetValue())
 
+        def _sync_desc(_evt=None):
+            en = self.chk_describe.GetValue()
+            self.radio_brief.Enable(en)
+            self.radio_detail.Enable(en)
+            detailed = bool(en and self.radio_detail.GetValue())
+            self.chk_desc_ts.Enable(detailed)
+            if not detailed:
+                self.chk_desc_ts.SetValue(False)
+
         def _sync_translate(_evt=None):
             en = self.chk_transcript.GetValue() and self.chk_translate.GetValue()
             self.choice_lang.Enable(en)
 
         self.chk_transcript.Bind(wx.EVT_CHECKBOX, _sync_ts)
         self.chk_translate.Bind(wx.EVT_CHECKBOX, _sync_translate)
+        self.chk_describe.Bind(wx.EVT_CHECKBOX, _sync_desc)
+        self.radio_brief.Bind(wx.EVT_RADIOBUTTON, _sync_desc)
+        self.radio_detail.Bind(wx.EVT_RADIOBUTTON, _sync_desc)
         _sync_ts()
+        _sync_desc()
 
         whisper_hint = (
             "Whisper, sul mio PC, è spento. Si accende insieme alla trascrizione: "
             "al primo uso scarica il modello e lavora anche senza chiave Gemini. "
             "Un file fino a 20 minuti. In una cartella, fino a 5 file."
+        )
+        desc_hint = (
+            " Il riassunto breve è già scelto. Freccia giù, o un clic, "
+            "passa alla descrizione dettagliata: in cima resta il riassunto "
+            "e sotto il racconto scena per scena, una sola richiesta. "
+            "I timestamp del racconto sono spenti. Spazio sulla casella, o un clic, "
+            "li accende. Se accesi, avanzano con le scene, sullo stesso orologio del video. "
+            "Solo ciò che si vede o si sente."
         )
         if self.batch_mode:
             hint_txt = (
@@ -8983,6 +9022,7 @@ class MediaSectionsDialog(wx.Dialog):
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica. "
                 + whisper_hint
+                + desc_hint
             )
         else:
             hint_txt = (
@@ -8990,6 +9030,7 @@ class MediaSectionsDialog(wx.Dialog):
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica. "
                 + whisper_hint
+                + desc_hint
             )
         hint = wx.StaticText(self, label=hint_txt)
         vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
@@ -9112,6 +9153,14 @@ class MediaSectionsDialog(wx.Dialog):
         return {
             "include_tech": self.chk_tech.GetValue(),
             "include_describe": self.chk_describe.GetValue(),
+            "describe_detail": bool(
+                self.chk_describe.GetValue() and self.radio_detail.GetValue()
+            ),
+            "describe_timestamps": bool(
+                self.chk_describe.GetValue()
+                and self.radio_detail.GetValue()
+                and self.chk_desc_ts.GetValue()
+            ),
             "include_transcript": want_tr,
             "transcript_engine": (
                 "whisper" if want_tr and self.chk_whisper.GetValue() else "gemini"
@@ -12239,7 +12288,20 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
+            "• In «Tutto sull'audio/video», il riassunto breve è già scelto.\n"
+            "  Freccia giù, o un clic, passa alla descrizione dettagliata:\n"
+            "  in cima resta il riassunto e sotto il racconto scena per scena,\n"
+            "  una sola richiesta a Gemini. I timestamp del racconto sono spenti.\n"
+            "  Spazio sulla casella, o un clic, li accende. Se accesi, avanzano\n"
+            "  con le scene, sullo stesso orologio del video.\n"
+            "  Solo ciò che si vede o si sente. A schermo e a voce.\n"
+            "• Su una pagina che tiene video e audio separati, per esempio RaiPlay,\n"
+            "  si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,\n"
+            "  restava solo l'audio e la finestra del risultato non si apriva.\n"
+            "  Un contenuto protetto resta non scaricabile.\n"
+            "• Il file scaricato da un indirizzo resta in vista nell'elenco.\n"
+            "  Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».\n"
+            "• Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
             "  Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.\n"
             "  Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,\n"
             "  la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.\n"
@@ -17131,6 +17193,39 @@ class MainWindow(wx.Frame):
                 msg = "Nessun risultato trovato."
             self.lst_results.Append(msg)
             self.lst_results.SetSelection(0)
+        self._reveal_results_list()
+
+    def _reveal_results_list(self):
+        """Riporta la riga in vista: NVDA non deve dire «fuori schermo»."""
+        lst = getattr(self, "lst_results", None)
+        if lst is None:
+            return
+        try:
+            count = lst.GetCount()
+        except Exception:
+            return
+        if count <= 0:
+            return
+        sel = lst.GetSelection()
+        if sel in (wx.NOT_FOUND, -1):
+            sel = 0
+        try:
+            lst.SetFirstItem(sel)
+        except Exception:
+            pass
+        try:
+            hwnd = lst.GetHandle()
+        except Exception:
+            hwnd = 0
+        if not hwnd:
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            user32.SendMessageW(hwnd, 0x0114, 6, 0)  # WM_HSCROLL, SB_LEFT
+            user32.SendMessageW(hwnd, 0x0197, int(sel), 0)  # LB_SETTOPINDEX
+        except Exception:
+            pass
 
     def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
@@ -17921,6 +18016,8 @@ class MainWindow(wx.Frame):
         self._last_media_sections = {
             "include_tech": bool(sel.get("include_tech", True)),
             "include_describe": bool(sel.get("include_describe", True)),
+            "describe_detail": bool(sel.get("describe_detail", False)),
+            "describe_timestamps": bool(sel.get("describe_timestamps", False)),
             "include_transcript": bool(sel.get("include_transcript", False)),
             "transcript_engine": sel.get("transcript_engine") or "gemini",
             "include_timestamps": bool(sel.get("include_timestamps", False)),
@@ -18093,8 +18190,10 @@ class MainWindow(wx.Frame):
         if isinstance(sections, dict):
             self._last_media_sections = {
                 "include_tech": bool(sections.get("include_tech", True)),
-                "include_describe": bool(sections.get("include_describe", True)),
-                "include_transcript": bool(sections.get("include_transcript", False)),
+            "include_describe": bool(sections.get("include_describe", True)),
+            "describe_detail": bool(sections.get("describe_detail", False)),
+            "describe_timestamps": bool(sections.get("describe_timestamps", False)),
+            "include_transcript": bool(sections.get("include_transcript", False)),
                 "transcript_engine": sections.get("transcript_engine") or "gemini",
                 "include_timestamps": bool(sections.get("include_timestamps", False)),
                 "translate_transcript": bool(sections.get("translate_transcript", False)),
@@ -18147,6 +18246,10 @@ class MainWindow(wx.Frame):
                         include_transcript=sec.get("include_transcript", False),
                         include_timestamps=sec.get("include_timestamps", False),
                         transcript_engine=sec.get("transcript_engine") or "gemini",
+                        describe_detail=bool(sec.get("describe_detail", False)),
+                        describe_timestamps=bool(
+                            sec.get("describe_timestamps", False)
+                        ),
                         should_abort=_abort,
                         on_progress=self._media_progress_cb,
                     )
@@ -18181,11 +18284,20 @@ class MainWindow(wx.Frame):
                     self._media_progress_cb(100, "Analisi audio/video completata.")
                 else:
                     title = "Riassunto audio/video"
+                    sec = sections or {}
                     desc = rtad_media.describe_media_gemini(
-                        file_path, on_progress=self._media_progress_cb
+                        file_path,
+                        on_progress=self._media_progress_cb,
+                        detail=bool(sec.get("describe_detail", False)),
+                        include_timestamps=bool(sec.get("describe_timestamps", False)),
                     )
-                    if desc.get("ok") and (desc.get("text") or "").strip():
-                        body = (desc.get("text") or "").strip()
+                    if desc.get("ok") and (
+                        (desc.get("text") or "").strip()
+                        or (desc.get("detail_text") or "").strip()
+                    ):
+                        body = rtad_media.format_describe_blocks(desc)
+                        if sec.get("describe_detail"):
+                            title = "Descrizione dettagliata audio/video"
                     else:
                         body = desc.get("error") or "Riassunto non disponibile."
                     self._media_progress_cb(100, "Analisi audio/video completata.")
@@ -18546,6 +18658,8 @@ class MainWindow(wx.Frame):
                     include_transcript=sel.get("include_transcript", False),
                     include_timestamps=sel.get("include_timestamps", False),
                     transcript_engine=sel.get("transcript_engine") or "gemini",
+                    describe_detail=bool(sel.get("describe_detail", False)),
+                    describe_timestamps=bool(sel.get("describe_timestamps", False)),
                     save_txt=sel.get("save_txt", True),
                     recursive=sel.get("recursive", False),
                     should_abort=lambda: bool(getattr(self, "_media_abort", False)),

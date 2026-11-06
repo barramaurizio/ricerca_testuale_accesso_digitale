@@ -1,6 +1,6 @@
 # Piano RTAD 1.9.6
 
-**Scritta nei sorgenti** il 5/11/2026. Non ancora pubblicata.  
+**Pubblicata** il 5/11/2026. GitHub `v1.9.6` / `app-v1.9.6`.  
 La 1.9.5 resta pubblicata (4/11/2026, GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`; DataStore #12756 via #12757 accettato). Non si rifà.
 
 Vale per l’Installer e per l’Add-on nei testi. La voce di Windows è solo nella Standalone. A schermo e a voce. Invio e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.

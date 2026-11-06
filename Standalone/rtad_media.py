@@ -205,6 +205,63 @@ Regole:
 - Lunghezza utile: circa 8-20 frasi.
 """
 
+_DETAIL_MARK = "---RACCONTO---"
+
+_DESCRIBE_DETAIL_VIDEO = """\
+Sei un assistente per persone non vedenti o ipovedenti.
+Guarda e ascolta questo VIDEO. Una sola risposta, in italiano, in due parti.
+
+Scrivi prima il RIASSUNTO.
+Poi, da sola sulla riga, esattamente:
+---RACCONTO---
+Poi il RACCONTO scena per scena.
+
+RIASSUNTO (prima della riga):
+- Circa 8-20 frasi complete, in italiano chiaro.
+- Tipo di contenuto, cosa si vede e cosa si sente, tono, lingue e voci.
+- Musica: genere e atmosfera, senza inventare i testi.
+- Parlato: di cosa si parla, senza inventare nomi o fatti.
+- Non inventare. Se non è chiaro, dillo.
+- Niente markdown. Niente timestamp in questa parte.
+
+RACCONTO (dopo la riga ---RACCONTO---):
+- Solo ciò che si vede o si sente. Non inventare dialoghi, nomi, luoghi o scritte.
+- Una scena per paragrafo. Nuovo paragrafo quando cambiano luogo, inquadratura, azione o suono.
+- Niente markdown.
+"""
+
+_DESCRIBE_DETAIL_VIDEO_TS = """\
+- Ogni scena inizia con [MM:SS], oppure [H:MM:SS] se il video supera un'ora.
+- Il tempo è l'inizio di quella scena, sullo stesso orologio del video.
+- I tempi avanzano con le scene. Vietato mettere tutte le scene a [00:00].
+- Niente timestamp nel riassunto.
+"""
+
+_DESCRIBE_DETAIL_VIDEO_NOTS = """\
+- Senza orari e senza timestamp.
+"""
+
+_DESCRIBE_DETAIL_AUDIO = """\
+Sei un assistente per persone non vedenti o ipovedenti.
+Ascolta questo file AUDIO: non è un video. Una sola risposta, in italiano, in due parti.
+
+Scrivi prima il RIASSUNTO.
+Poi, da sola sulla riga, esattamente:
+---RACCONTO---
+Poi il RACCONTO per tratti, solo di ciò che si sente.
+
+RIASSUNTO (prima della riga):
+- Circa 8-20 frasi complete.
+- NON parlare di immagini, schermo o grafiche: è solo audio.
+- Tipo, genere, voci, lingua, argomenti udibili. Non inventare testi.
+- Niente markdown. Niente timestamp in questa parte.
+
+RACCONTO (dopo la riga ---RACCONTO---):
+- Solo ciò che si sente. Non inventare.
+- Un tratto per paragrafo, quando cambiano voce, musica o argomento.
+- Niente markdown. Niente immagini.
+"""
+
 _TRANSCRIBE_PROMPT = """\
 Trascrivi in italiano (o nella lingua originale se non è italiano) il contenuto
 parlato o cantato di questo file audio/video.
@@ -1975,16 +2032,47 @@ def _check_ai_limits(path: str) -> str:
     return ""
 
 
+def _split_detail_text(text: str) -> tuple:
+    """(riassunto, racconto) sulla riga ---RACCONTO---."""
+    raw = (text or "").strip()
+    mark = _DETAIL_MARK
+    if mark not in raw:
+        return raw, ""
+    head, _, tail = raw.partition(mark)
+    return head.strip(), tail.strip()
+
+
+def format_describe_blocks(desc: dict) -> str:
+    """Riassunto e, se c'è, il racconto sotto."""
+    if not desc or not desc.get("ok"):
+        return (desc or {}).get("error") or "Riassunto non disponibile."
+    summary = (desc.get("text") or "").strip()
+    story = (desc.get("detail_text") or "").strip()
+    parts = []
+    if summary:
+        parts.append(summary)
+    if story:
+        parts.append("=== Descrizione dettagliata ===\n\n" + story)
+    return "\n\n".join(parts).strip() or "Riassunto non disponibile."
+
+
 def describe_media_gemini(
     path: str,
     should_abort=None,
     use_cache: bool = True,
     on_progress=None,
+    detail: bool = False,
+    include_timestamps: bool = False,
 ) -> dict:
-    """Riassunto accessibile via Gemini. Dict: ok, text, error, source."""
+    """Riassunto accessibile via Gemini. Dict: ok, text, detail_text, error, source.
+
+    detail=True: una sola richiesta. In cima il riassunto, sotto il racconto.
+    I timestamp del racconto restano spenti se include_timestamps è False.
+    """
     result = {
         "ok": False,
         "text": "",
+        "detail_text": "",
         "error": "",
         "source": "",
         "path": path or "",
@@ -2021,8 +2109,13 @@ def describe_media_gemini(
             comp_tag = f"{os.path.getsize(companion)}_{int(os.path.getmtime(companion))}"
         except Exception:
             comp_tag = "1"
+    detail_on = bool(detail)
+    ts_on = bool(detail_on and include_timestamps)
     cache_key = _cache_key(
-        path, size, mtime, f"gemini_media_desc_v4_{kind}_{src_id}_{comp_tag}"
+        path,
+        size,
+        mtime,
+        f"gemini_media_desc_v5_{kind}_{src_id}_{comp_tag}_{int(detail_on)}_{int(ts_on)}",
     )
     if use_cache:
         cached = _cache_get(cache_key)
@@ -2031,17 +2124,30 @@ def describe_media_gemini(
             out = dict(cached)
             out["source"] = (out.get("source") or "gemini") + "+cache"
             out["text"] = _glossary_finish_text(out.get("text") or "")
+            out["detail_text"] = _glossary_finish_text(out.get("detail_text") or "")
             return out
 
-    prompt = (
-        _DESCRIBE_PROMPT_AUDIO if kind == "audio" else _DESCRIBE_PROMPT_VIDEO
-    )
-    _emit_progress(on_progress, 35, "Riassunto accessibile…")
+    if detail_on:
+        if kind == "audio":
+            prompt = _DESCRIBE_DETAIL_AUDIO
+        else:
+            prompt = _DESCRIBE_DETAIL_VIDEO
+        prompt += (
+            _DESCRIBE_DETAIL_VIDEO_TS if ts_on else _DESCRIBE_DETAIL_VIDEO_NOTS
+        )
+        _emit_progress(on_progress, 35, "Riassunto e descrizione dettagliata…")
+        token_cap = 16384
+    else:
+        prompt = (
+            _DESCRIBE_PROMPT_AUDIO if kind == "audio" else _DESCRIBE_PROMPT_VIDEO
+        )
+        _emit_progress(on_progress, 35, "Riassunto accessibile…")
+        token_cap = 4096
     text, diag = _gemini_generate_media(
         path,
         prompt,
         should_abort=should_abort,
-        max_output_tokens=4096,
+        max_output_tokens=token_cap,
         on_progress=on_progress,
         progress_base=38,
     )
@@ -2052,13 +2158,16 @@ def describe_media_gemini(
         )
         _stats["failures"] = int(_stats.get("failures", 0) or 0) + 1
         return result
+    summary, story = _split_detail_text(text) if detail_on else (text, "")
     result["ok"] = True
-    result["text"] = _glossary_finish_text(text)
+    result["text"] = _glossary_finish_text(summary)
+    result["detail_text"] = _glossary_finish_text(story) if story else ""
     result["source"] = diag or "gemini"
     if use_cache:
         _cache_put(cache_key, {
             "ok": True,
-            "text": text,  # grezzo: glossario applicato in lettura
+            "text": summary,  # grezzo: glossario applicato in lettura
+            "detail_text": story,
             "error": "",
             "source": result["source"],
             "path": path,
@@ -2400,6 +2509,8 @@ def format_full_media_report(
     include_transcript: bool = False,
     include_timestamps: bool = False,
     transcript_engine: str = "gemini",
+    describe_detail: bool = False,
+    describe_timestamps: bool = False,
     should_abort=None,
     on_progress=None,
 ) -> str:
@@ -2435,14 +2546,26 @@ def format_full_media_report(
             should_abort=should_abort,
             use_cache=True,
             on_progress=on_progress,
+            detail=bool(describe_detail),
+            include_timestamps=bool(describe_timestamps),
         )
-        if desc.get("ok") and (desc.get("text") or "").strip():
+        if desc.get("ok") and (
+            (desc.get("text") or "").strip() or (desc.get("detail_text") or "").strip()
+        ):
             parts.extend([
                 "=== Riassunto accessibile ===",
                 "",
                 (desc.get("text") or "").strip(),
                 "",
             ])
+            story = (desc.get("detail_text") or "").strip()
+            if story:
+                heading = (
+                    "=== Descrizione dettagliata (con timestamp) ==="
+                    if describe_timestamps
+                    else "=== Descrizione dettagliata ==="
+                )
+                parts.extend([heading, "", story, ""])
         else:
             parts.extend([
                 "=== Riassunto accessibile ===",
@@ -2903,6 +3026,8 @@ def batch_analyze_folder(
     include_transcript: bool = False,
     include_timestamps: bool = False,
     transcript_engine: str = "gemini",
+    describe_detail: bool = False,
+    describe_timestamps: bool = False,
     save_txt: bool = True,
     recursive: bool = False,
     should_abort=None,
@@ -2943,6 +3068,8 @@ def batch_analyze_folder(
                 include_transcript=include_transcript,
                 include_timestamps=include_timestamps,
                 transcript_engine=engine,
+                describe_detail=describe_detail,
+                describe_timestamps=describe_timestamps,
                 should_abort=should_abort,
             )
             if translate_transcript and include_transcript and body:
@@ -3042,6 +3169,7 @@ _PAGE_MEDIA_HOSTS = (
     "dailymotion.com", "dai.ly",
     "twitch.tv", "clips.twitch.tv",
     "reddit.com", "v.redd.it",
+    "raiplay.it",
 )
 
 
@@ -3061,6 +3189,251 @@ def is_page_media_url(url: str) -> bool:
     if host.startswith("www."):
         host = host[4:]
     return any(host == h or host.endswith("." + h) for h in _PAGE_MEDIA_HOSTS)
+
+
+_MANIFEST_IN_PAGE_RE = re.compile(
+    r"https?://[^\s\"'<>]+?\.(?:m3u8|mpd)(?:\?[^\s\"'<>]*)?",
+    re.I,
+)
+_SKIP_DISCOVERY_HOSTS = (
+    "doubleclick.net",
+    "googletagmanager.com",
+    "google-analytics.com",
+    "youtube.com",
+    "youtu.be",
+    "facebook.com",
+    "twitter.com",
+    "x.com",
+)
+
+
+def _discovery_host_skipped(url: str) -> bool:
+    host = (urllib.parse.urlparse(url or "").netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return any(host == h or host.endswith("." + h) for h in _SKIP_DISCOVERY_HOSTS)
+
+
+def _http_peek(url: str, limit: int = 2048, timeout: int = 20, referer: str = ""):
+    """(codice, content-type, primi byte). Codice 0 se la rete non risponde."""
+    headers = {"User-Agent": _WEB_UA, "Accept": "*/*"}
+    if referer:
+        headers["Referer"] = referer
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            ctype = resp.headers.get("Content-Type", "") or ""
+            return int(resp.status or 200), ctype, resp.read(limit)
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read(limit)
+        except Exception:
+            body = b""
+        return int(e.code or 0), "", body
+    except Exception:
+        return 0, "", b""
+
+
+def _bytes_look_like_manifest(data: bytes, ctype: str) -> bool:
+    head = (data or b"").lstrip()[:80].lower()
+    ctype_l = (ctype or "").lower()
+    if head.startswith(b"#extm3u"):
+        return True
+    if b"<mpd" in head or b"urn:mpeg:dash" in head:
+        return True
+    if "mpegurl" in ctype_l or "dash+xml" in ctype_l:
+        return True
+    if b"ftyp" in (data or b"")[:32]:
+        return True
+    return False
+
+
+def _manifest_is_public(url: str, referer: str) -> bool:
+    code, ctype, data = _http_peek(url, referer=referer)
+    return code == 200 and _bytes_look_like_manifest(data, ctype)
+
+
+def _source_drm_enabled(source: dict) -> bool:
+    drm = source.get("drm") if isinstance(source, dict) else None
+    if not isinstance(drm, dict):
+        return False
+    for block in drm.values():
+        if isinstance(block, dict) and block.get("enabled"):
+            return True
+    return False
+
+
+def _access_denied_message() -> str:
+    return (
+        "La playlist di questo video risponde Accesso negato. "
+        "La protezione DRM è spenta, e il sito non consegna il file. "
+        "Video Download Helper lo vede nel browser, dopo che il lettore "
+        "ha già il permesso. Quando il sito consegna video e audio separati, "
+        "come su RaiPlay, RTAD li unisce con ffmpeg. A schermo e a voce."
+    )
+
+
+def _first_public_manifest(text: str, page_url: str):
+    seen = set()
+    for match in _MANIFEST_IN_PAGE_RE.findall(text or ""):
+        media = match.rstrip(".,);")
+        if media in seen or _discovery_host_skipped(media):
+            continue
+        seen.add(media)
+        if len(seen) > 3:
+            break
+        if _manifest_is_public(media, page_url):
+            return media
+    return ""
+
+
+def _discover_diva_media(page_url: str, text: str) -> dict:
+    """Lettore DIVA: la scheda pubblica indica la playlist. DRM acceso: stop.
+
+    Se la playlist risponde 200, la prende yt-dlp e ffmpeg unisce le tracce.
+    Se risponde Accesso negato, si dice il motivo e non si chiede un permesso.
+    """
+    videoid = ""
+    id_match = re.search(
+        r"data-videoid\s*=\s*[\"']([0-9a-fA-F-]{36})[\"']",
+        text or "",
+        re.I,
+    )
+    if id_match:
+        videoid = id_match.group(1)
+    config_url = ""
+    config_match = re.search(
+        r"configurationfileurl\s*=\s*[\"']?(https?://[^\s\"'<>]+)",
+        text or "",
+        re.I,
+    )
+    if config_match:
+        config_url = config_match.group(1)
+    if not config_url:
+        lib_match = re.search(
+            r"data-successlibrary\s*=\s*[\"']([^\"']+)[\"']",
+            text or "",
+            re.I,
+        )
+        if not lib_match:
+            return {}
+        lib_url = urllib.parse.urljoin(page_url, lib_match.group(1))
+        code, _ctype, body = _http_peek(lib_url, limit=200000, timeout=25)
+        if code != 200 or not body:
+            return {}
+        lib_text = body.decode("utf-8", "replace")
+        if not videoid:
+            id2 = re.search(
+                r"videoid\s*=\s*[\"']?([0-9a-fA-F-]{36})",
+                lib_text,
+                re.I,
+            )
+            if id2:
+                videoid = id2.group(1)
+        config_match = re.search(
+            r"configurationfileurl\s*=\s*[\"']?(https?://[^\s\"'<>]+)",
+            lib_text,
+            re.I,
+        )
+        if config_match:
+            config_url = config_match.group(1)
+        direct = _first_public_manifest(lib_text, page_url)
+        if direct:
+            return {"media_url": direct}
+    if not config_url or not videoid:
+        return {}
+    code, _ctype, body = _http_peek(config_url, limit=400000, timeout=25)
+    if code != 200 or not body:
+        return {}
+    try:
+        settings = json.loads(body.decode("utf-8", "replace"))
+    except Exception:
+        return {}
+    video_data = settings.get("videoData") if isinstance(settings, dict) else None
+    if not isinstance(video_data, dict):
+        return {}
+    path = str(video_data.get("videoDataPath") or "")
+    if "{v.id}" not in path:
+        return {}
+    data_url = path.replace("{v.id}", videoid)
+    prefer_name = ""
+    prefer_type = "HLS"
+    priority = video_data.get("videoPlatformsPriority") or {}
+    default_list = priority.get("default") if isinstance(priority, dict) else None
+    if isinstance(default_list, list) and default_list:
+        first = default_list[0] if isinstance(default_list[0], dict) else {}
+        prefer_name = str(first.get("sourceName") or "")
+        prefer_type = str(first.get("type") or "HLS")
+    code, _ctype, body = _http_peek(data_url, limit=400000, timeout=25)
+    if code != 200 or not body:
+        return {}
+    try:
+        meta = json.loads(body.decode("utf-8", "replace"))
+    except Exception:
+        return {}
+    sources = meta.get("sources") if isinstance(meta, dict) else None
+    if not isinstance(sources, list):
+        return {}
+    ranked = []
+    drm_only = True
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        if _source_drm_enabled(source):
+            continue
+        drm_only = False
+        uri = str(source.get("uri") or "").strip()
+        if not uri.startswith("http"):
+            continue
+        fmt = str(source.get("format") or "")
+        name = str(source.get("name") or "")
+        rank = 2
+        if prefer_name and name == prefer_name and fmt.upper() == prefer_type.upper():
+            rank = 0
+        elif fmt.upper() in ("HLS", "MP4", "DASH"):
+            rank = 1
+        ranked.append((rank, uri))
+    if drm_only and sources:
+        return {
+            "error": (
+                "Contenuto protetto (DRM). Resta non scaricabile. "
+                "A schermo e a voce."
+            )
+        }
+    ranked.sort(key=lambda item: item[0])
+    saw_denied = False
+    seen_uri = set()
+    ordered = []
+    for rank, uri in ranked:
+        if uri in seen_uri:
+            continue
+        seen_uri.add(uri)
+        ordered.append((rank, uri))
+    for _rank, uri in ordered[:4]:
+        peek_code, ctype, data = _http_peek(uri, referer=page_url)
+        if peek_code == 200 and _bytes_look_like_manifest(data, ctype):
+            return {"media_url": uri}
+        if peek_code in (401, 403):
+            saw_denied = True
+    if saw_denied:
+        return {"error": _access_denied_message()}
+    return {}
+
+
+def _discover_page_media(page_url: str, html_bytes: bytes) -> dict:
+    """Playlist pubblica nella pagina, oppure il lettore DIVA.
+
+    Dict con media_url, oppure error, oppure vuoto se non c'è nulla da seguire.
+    """
+    text = (html_bytes or b"").decode("utf-8", "replace")
+    direct = _first_public_manifest(text, page_url)
+    if direct:
+        return {"media_url": direct}
+    if "data-videoid" in text.lower() or "configurationfileurl" in text.lower():
+        return _discover_diva_media(page_url, text)
+    if "data-successlibrary" in text.lower():
+        return _discover_diva_media(page_url, text)
+    return {}
 
 
 def _sniff_media_ext(data: bytes, ctype: str, url: str) -> str:
@@ -3175,9 +3548,101 @@ def ytdlp_install_hint() -> str:
     )
 
 
+def _ffmpeg_exe() -> str:
+    """Percorso di ffmpeg.exe: PATH, poi i posti in cui lo mette la guida."""
+    found = shutil.which("ffmpeg") or ""
+    if found and os.path.isfile(found):
+        return found
+    fixed = [r"C:\ffmpeg\bin\ffmpeg.exe"]
+    local = os.environ.get("LOCALAPPDATA") or ""
+    if local:
+        root = os.path.join(local, "Microsoft", "WinGet", "Packages")
+        if os.path.isdir(root):
+            try:
+                for name in os.listdir(root):
+                    if "ffmpeg" not in name.lower():
+                        continue
+                    base = os.path.join(root, name)
+                    for dirpath, _dirs, files in os.walk(base):
+                        if "ffmpeg.exe" in files:
+                            return os.path.join(dirpath, "ffmpeg.exe")
+            except Exception:
+                pass
+    for path in fixed:
+        if os.path.isfile(path):
+            return path
+    return ""
+
+
 def _ffmpeg_available() -> bool:
-    """True se ffmpeg è nel PATH (serve a yt-dlp per il merge)."""
-    return bool(shutil.which("ffmpeg"))
+    """True se ffmpeg è nel PATH o in una cartella nota."""
+    return bool(_ffmpeg_exe())
+
+
+def _ffmpeg_merge_hint() -> str:
+    """Frase per l'utente: installa ffmpeg, oppure è già presente."""
+    if _ffmpeg_exe():
+        return (
+            " ffmpeg è installato, ma video e audio non sono arrivati insieme. "
+            "Riprova, oppure aggiorna yt-dlp."
+        )
+    return (
+        " Serve ffmpeg nel PATH (winget install Gyan.FFmpeg) per unire le tracce, "
+        "poi chiudi e riapri RTAD o NVDA."
+    )
+
+
+def _ytdlp_run_env() -> dict:
+    """PATH con la cartella di ffmpeg, così yt-dlp lo trova anche da NVDA."""
+    env = os.environ.copy()
+    ff = _ffmpeg_exe()
+    if ff:
+        bin_dir = os.path.dirname(ff)
+        env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
+    return env
+
+
+def _merge_video_audio(video_path: str, audio_path: str) -> str:
+    """Unisce le due tracce in un mp4. Vuoto se ffmpeg non ce la fa."""
+    ff = _ffmpeg_exe()
+    if not ff or not video_path or not audio_path:
+        return ""
+    if not (os.path.isfile(video_path) and os.path.isfile(audio_path)):
+        return ""
+    out = os.path.splitext(video_path)[0] + "_mux.mp4"
+    cmd = [
+        ff, "-y",
+        "-i", video_path,
+        "-i", audio_path,
+        "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-c", "copy",
+        "-movflags", "+faststart",
+        out,
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except Exception:
+        proc = None
+    if (
+        proc is None
+        or proc.returncode != 0
+        or not os.path.isfile(out)
+        or os.path.getsize(out) <= 0
+    ):
+        try:
+            if os.path.isfile(out):
+                os.remove(out)
+        except Exception:
+            pass
+        return ""
+    return out
 
 
 def check_ytdlp_status(outdated_after_days: int = 90) -> dict:
@@ -3287,6 +3752,9 @@ def _ytdlp_format_prefer_under_limit() -> str:
     Su YouTube il 4K è quasi sempre WebM. Qui si tiene l'MP4, il più alto
     che il sito offre in quel formato. Senza video si prende l'audio.
     Mai un video muto come prima scelta.
+
+    Su RaiPlay l'audio è mp4/mp4a, non m4a: ba[ext=m4a] da solo lasciava
+    solo la traccia audio. L'italiano viene prima dell'audiodescrizione.
     """
     lim = int(MAX_MEDIA_BYTES)
     vlim = max(int(lim * 0.85), lim - 2 * 1024 * 1024)
@@ -3294,12 +3762,52 @@ def _ytdlp_format_prefer_under_limit() -> str:
         f"bv*[ext=mp4][filesize<={vlim}]+ba[ext=m4a]/"
         f"bv*[ext=mp4][filesize_approx<={vlim}]+ba[ext=m4a]/"
         f"bv*[ext=mp4]+ba[ext=m4a]/"
+        f"bv*[ext=mp4][filesize<={vlim}]+ba[language^=it]/"
+        f"bv*[ext=mp4][filesize_approx<={vlim}]+ba[language^=it]/"
+        f"bv*[ext=mp4]+ba[language^=it]/"
+        f"bv*[ext=mp4][filesize<={vlim}]+ba[language!^=des]/"
+        f"bv*[ext=mp4][filesize_approx<={vlim}]+ba[language!^=des]/"
+        f"bv*[ext=mp4]+ba[language!^=des]/"
+        f"bv*[ext=mp4]+ba/"
         f"b[ext=mp4][filesize<={lim}]/"
         f"b[ext=mp4]/"
-        f"bestaudio[ext=m4a][filesize<={lim}]/"
+        f"bv*[filesize_approx<={vlim}]+ba[language^=it]/"
+        f"bv*+ba[language^=it]/"
+        f"bv*+ba/"
+        f"b[filesize<={lim}]/"
+        f"b/"
+        f"bestaudio[language^=it]/"
         f"bestaudio[ext=m4a]/"
         f"bestaudio"
     )
+
+
+def _mp4_track_sniff(path: str) -> str:
+    """'audio' | 'video' | 'muxed' | '' anche se il moov non si legge.
+
+    Un mp4 di solo audio, senza moov parsato, finiva classificato come video
+    muto e il download veniva rifiutato.
+    """
+    blobs = []
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            blobs.append(handle.read(1024 * 1024))
+            if size > 1024 * 1024:
+                handle.seek(max(0, size - 1024 * 1024))
+                blobs.append(handle.read(1024 * 1024))
+    except Exception:
+        return ""
+    data = b"".join(blobs)
+    has_v = b"vide" in data
+    has_a = b"soun" in data or b"mp4a" in data
+    if has_v and has_a:
+        return "muxed"
+    if has_a and not has_v:
+        return "audio"
+    if has_v:
+        return "video"
+    return ""
 
 
 def _media_role_hint(path: str) -> str:
@@ -3311,6 +3819,14 @@ def _media_role_hint(path: str) -> str:
         tech = _mp4_tech(path)
         ha = bool(tech.get("has_audio"))
         hv = bool(tech.get("has_video") or tech.get("frame_width"))
+        if not ha and not hv:
+            sniff = _mp4_track_sniff(path)
+            if sniff == "muxed":
+                ha, hv = True, True
+            elif sniff == "audio":
+                ha = True
+            elif sniff == "video":
+                hv = True
         if ha and hv:
             return "muxed"
         if ha and not hv:
@@ -3406,9 +3922,9 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
                 out["audio_path"] = max(audios, key=lambda p: os.path.getsize(p))
                 return out
             out["error"] = (
-                "Scaricato solo video senza audio. Su molti Shorts YouTube "
-                "serve ffmpeg nel PATH (winget install Gyan.FFmpeg) per "
-                "unire le tracce, altrimenti la trascrizione sarebbe inventata."
+                "Scaricato solo video senza audio."
+                + _ffmpeg_merge_hint()
+                + " Senza la traccia audio la trascrizione sarebbe inventata."
             )
             return out
         out["ok"] = True
@@ -3452,9 +3968,8 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
         out["path"] = max(audios, key=lambda p: os.path.getsize(p))
         return out
     out["error"] = (
-        "Download incompleto: video e audio separati. "
-        "Installa ffmpeg nel PATH (winget install Gyan.FFmpeg) "
-        "oppure usa un file locale già completo."
+        "Download incompleto: video e audio separati."
+        + _ffmpeg_merge_hint()
     )
     return out
 
@@ -3512,6 +4027,11 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
         "--force-overwrites",
         "--extractor-args",
         "youtube:lang=it",
+    ]
+    ff = _ffmpeg_exe()
+    if ff:
+        cmd.extend(["--ffmpeg-location", ff])
+    cmd.extend([
         "--merge-output-format",
         "mp4",
         "-f",
@@ -3525,13 +4045,14 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
         meta_txt,
         "--",
         url,
-    ]
+    ])
     try:
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=_ytdlp_run_env(),
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except FileNotFoundError:
@@ -3577,12 +4098,17 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
                     "Prova un video pubblico o un link diretto al file."
                 )
             elif "drm" in low:
-                tip = " Contenuto protetto (DRM) o non scaricabile."
-            elif "ffmpeg" in low:
+                tip = " Contenuto protetto (DRM). Resta non scaricabile."
+            elif "unsupported url" in low:
                 tip = (
-                    " Serve ffmpeg nel PATH per unire video e audio "
-                    "(winget install Gyan.FFmpeg)."
+                    " Questo sito non è fra quelli che yt-dlp conosce "
+                    "e la pagina non consegna un file. "
+                    "Quando il sito consegna video e audio separati, "
+                    "RTAD li unisce con ffmpeg. "
+                    "Un contenuto che il sito rifiuta resta non scaricabile."
                 )
+            elif "ffmpeg" in low:
+                tip = _ffmpeg_merge_hint()
             else:
                 tip = (
                     f" Limite attuale download/analisi: max "
@@ -3603,6 +4129,11 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
         return out
     src = picked["path"]
     audio_src = (picked.get("audio_path") or "").strip()
+    if audio_src:
+        merged = _merge_video_audio(src, audio_src)
+        if merged:
+            src = merged
+            audio_src = ""
     got_id = (out.get("source_id") or "").strip()
     if expect_id and got_id and expect_id != got_id:
         out["error"] = (
@@ -3702,7 +4233,7 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
     direct = is_likely_direct_media_url(u)
     if is_stream_manifest_url(u) or (is_page_media_url(u) and not direct):
         return _materialize_via_ytdlp(
-            u, timeout=max(timeout, 180), on_progress=on_progress
+            u, timeout=max(timeout, 900), on_progress=on_progress
         )
 
     _emit_progress(on_progress, 5, "Download file diretto…")
@@ -3722,14 +4253,14 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
     except urllib.error.HTTPError as e:
         if not direct or (e.code in (403, 404) and is_page_media_url(u)):
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 180), on_progress=on_progress
+                u, timeout=max(timeout, 900), on_progress=on_progress
             )
         out["error"] = f"HTTP {e.code}: download media non riuscito."
         return out
     except Exception as e:
         if not direct:
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 180), on_progress=on_progress
+                u, timeout=max(timeout, 900), on_progress=on_progress
             )
         out["error"] = f"Download non riuscito: {e}"
         return out
@@ -3752,15 +4283,26 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
     )
     looks_json = "application/json" in ctype_l and data.lstrip()[:1] in (b"{", b"[")
     if looks_html or looks_json:
+        found = _discover_page_media(u, data) if looks_html else {}
+        media_url = (found.get("media_url") or "").strip()
+        if media_url:
+            return _materialize_via_ytdlp(
+                media_url,
+                timeout=max(timeout, 900),
+                on_progress=on_progress,
+            )
+        if found.get("error"):
+            out["error"] = found["error"]
+            return out
         return _materialize_via_ytdlp(
-            u, timeout=max(timeout, 180), on_progress=on_progress
+            u, timeout=max(timeout, 900), on_progress=on_progress
         )
 
     ext = _sniff_media_ext(data, ctype, final_url)
     if not ext:
         if not direct:
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 180), on_progress=on_progress
+                u, timeout=max(timeout, 900), on_progress=on_progress
             )
         out["error"] = "Formato audio/video non riconosciuto dall'URL."
         return out

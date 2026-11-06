@@ -14,9 +14,26 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.6
+Novità recenti (in parole semplici) — versione 1.9.7
 ----------------------------------------------------
-• Nella Standalone, menu Voce, «Solo la voce di questo programma»:
+• In «Tutto sull'audio/video», il riassunto breve è già scelto.
+  Freccia giù, o un clic, passa alla descrizione dettagliata:
+  in cima resta il riassunto e sotto il racconto scena per scena,
+  una sola richiesta a Gemini. I timestamp del racconto sono spenti.
+  Spazio sulla casella, o un clic, li accende. Se accesi, avanzano
+  con le scene, sullo stesso orologio del video.
+  Solo ciò che si vede o si sente. A schermo e a voce.
+• Su una pagina che tiene video e audio separati, per esempio RaiPlay,
+  si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,
+  restava solo l'audio e la finestra del risultato non si apriva.
+  Un contenuto protetto resta non scaricabile.
+• Il file scaricato da un indirizzo resta in vista nell'elenco.
+  Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».
+• Nella prossima versione è previsto il login del browser,
+  e si attua con il consenso di chi usa RTAD.
+  Un flusso con protezione DRM resta non scaricabile.
+  Le finestre nostre arrivano nella versione dopo.
+• Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:
   Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.
   Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
   la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.
@@ -89,6 +106,9 @@ Novità recenti (in parole semplici) — versione 1.9.6
   non si scrive. Ogni pagina passa da yt-dlp,
   anche una playlist .m3u8 o .mpd.
   Un contenuto protetto resta non scaricabile.
+  Nella prossima versione è previsto il login del browser,
+  e si attua con il consenso di chi usa RTAD.
+  Un flusso con protezione DRM resta non scaricabile.
 • Resta dalla 1.9.2: Leggi documento su un EPUB apre un capitolo nel lettore
   dentro RTAD. A schermo e a voce:
   «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
@@ -422,6 +442,12 @@ Puoi limitare la ricerca a:
   (Whisper)» oppure con Gemini, oppure «Trascrivi e cerca»
   o analizza la cartella
   (non ascolta da solo tutti i video del disco a ogni ricerca).
+  Nel riassunto, il breve è già scelto. Freccia giù, o un clic,
+  passa alla descrizione dettagliata: in cima resta il riassunto
+  e sotto il racconto scena per scena, una sola richiesta.
+  I timestamp del racconto sono spenti. Spazio sulla casella, o un clic,
+  li accende. Se accesi, avanzano con le scene, sullo stesso orologio del video.
+  Solo ciò che si vede o si sente.
   Un file già sul disco, come un m4a, può chiedere FFmpeg:
   paragrafo 12. Un indirizzo Internet, come YouTube,
   chiede yt-dlp: paragrafo 13.

@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.6"
+APP_VERSION = "1.9.7"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -6577,6 +6577,24 @@ class MediaSectionsDialog(wx.Dialog):
         self.chk_describe = wx.CheckBox(self, label="&Riassunto accessibile (Gemini)")
         self.chk_describe.SetValue(bool(preset.get("include_describe", True)))
         vbox.Add(self.chk_describe, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.radio_brief = wx.RadioButton(
+            self, label="Riassunto &breve", style=wx.RB_GROUP
+        )
+        self.radio_detail = wx.RadioButton(self, label="Descrizione &dettagliata")
+        detail_on = bool(preset.get("describe_detail", False)) and bool(
+            preset.get("include_describe", True)
+        )
+        self.radio_brief.SetValue(not detail_on)
+        self.radio_detail.SetValue(detail_on)
+        vbox.Add(self.radio_brief, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
+        vbox.Add(self.radio_detail, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
+        self.chk_desc_ts = wx.CheckBox(
+            self, label="Timestamp nel &racconto ([MM:SS])"
+        )
+        self.chk_desc_ts.SetValue(
+            bool(preset.get("describe_timestamps", False)) and detail_on
+        )
+        vbox.Add(self.chk_desc_ts, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
         self.chk_transcript = wx.CheckBox(
             self, label="&Trascrizione parlato (Gemini, opt-in)"
         )
@@ -6650,18 +6668,39 @@ class MediaSectionsDialog(wx.Dialog):
                 self.chk_whisper.SetValue(False)
             self.choice_lang.Enable(en and self.chk_translate.GetValue())
 
+        def _sync_desc(_evt=None):
+            en = self.chk_describe.GetValue()
+            self.radio_brief.Enable(en)
+            self.radio_detail.Enable(en)
+            detailed = bool(en and self.radio_detail.GetValue())
+            self.chk_desc_ts.Enable(detailed)
+            if not detailed:
+                self.chk_desc_ts.SetValue(False)
+
         def _sync_translate(_evt=None):
             en = self.chk_transcript.GetValue() and self.chk_translate.GetValue()
             self.choice_lang.Enable(en)
 
         self.chk_transcript.Bind(wx.EVT_CHECKBOX, _sync_ts)
         self.chk_translate.Bind(wx.EVT_CHECKBOX, _sync_translate)
+        self.chk_describe.Bind(wx.EVT_CHECKBOX, _sync_desc)
+        self.radio_brief.Bind(wx.EVT_RADIOBUTTON, _sync_desc)
+        self.radio_detail.Bind(wx.EVT_RADIOBUTTON, _sync_desc)
         _sync_ts()
+        _sync_desc()
 
         whisper_hint = (
             "Whisper, sul mio PC, è spento. Si accende insieme alla trascrizione: "
             "al primo uso scarica il modello e lavora anche senza chiave Gemini. "
             "Un file fino a 20 minuti. In una cartella, fino a 5 file."
+        )
+        desc_hint = (
+            " Il riassunto breve è già scelto. Freccia giù, o un clic, "
+            "passa alla descrizione dettagliata: in cima resta il riassunto "
+            "e sotto il racconto scena per scena, una sola richiesta. "
+            "I timestamp del racconto sono spenti. Spazio sulla casella, o un clic, "
+            "li accende. Se accesi, avanzano con le scene, sullo stesso orologio del video. "
+            "Solo ciò che si vede o si sente."
         )
         if self.batch_mode:
             hint_txt = (
@@ -6670,6 +6709,7 @@ class MediaSectionsDialog(wx.Dialog):
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica. "
                 + whisper_hint
+                + desc_hint
             )
         else:
             hint_txt = (
@@ -6677,6 +6717,7 @@ class MediaSectionsDialog(wx.Dialog):
                 "Trascrizione e traduzione sono spente: si accendono solo se servono. "
                 "File oltre i limiti: resta la scheda tecnica. "
                 + whisper_hint
+                + desc_hint
             )
         hint = wx.StaticText(self, label=hint_txt)
         vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 10)
@@ -6799,6 +6840,14 @@ class MediaSectionsDialog(wx.Dialog):
         return {
             "include_tech": self.chk_tech.GetValue(),
             "include_describe": self.chk_describe.GetValue(),
+            "describe_detail": bool(
+                self.chk_describe.GetValue() and self.radio_detail.GetValue()
+            ),
+            "describe_timestamps": bool(
+                self.chk_describe.GetValue()
+                and self.radio_detail.GetValue()
+                and self.chk_desc_ts.GetValue()
+            ),
             "include_transcript": want_tr,
             "transcript_engine": (
                 "whisper" if want_tr and self.chk_whisper.GetValue() else "gemini"
@@ -9919,7 +9968,20 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
+            "• In «Tutto sull'audio/video», il riassunto breve è già scelto.\n"
+            "  Freccia giù, o un clic, passa alla descrizione dettagliata:\n"
+            "  in cima resta il riassunto e sotto il racconto scena per scena,\n"
+            "  una sola richiesta a Gemini. I timestamp del racconto sono spenti.\n"
+            "  Spazio sulla casella, o un clic, li accende. Se accesi, avanzano\n"
+            "  con le scene, sullo stesso orologio del video.\n"
+            "  Solo ciò che si vede o si sente. A schermo e a voce.\n"
+            "• Su una pagina che tiene video e audio separati, per esempio RaiPlay,\n"
+            "  si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,\n"
+            "  restava solo l'audio e la finestra del risultato non si apriva.\n"
+            "  Un contenuto protetto resta non scaricabile.\n"
+            "• Il file scaricato da un indirizzo resta in vista nell'elenco.\n"
+            "  Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».\n"
+            "• Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
             "  Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.\n"
             "  Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,\n"
             "  la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.\n"
@@ -14212,6 +14274,49 @@ class SearchFrame(wx.Frame):
                 msg = "Nessun risultato trovato."
             self.lst_results.Append(msg)
             self.lst_results.SetSelection(0)
+        self._reveal_results_list()
+
+    def _reveal_results_list(self):
+        """Riporta la riga in vista: NVDA non deve dire «fuori schermo»."""
+        lst = getattr(self, "lst_results", None)
+        if lst is None:
+            return
+        try:
+            count = lst.GetCount()
+        except Exception:
+            return
+        if count <= 0:
+            return
+        sel = lst.GetSelection()
+        if sel in (wx.NOT_FOUND, -1):
+            sel = 0
+        try:
+            lst.SetFirstItem(sel)
+        except Exception:
+            pass
+        try:
+            hwnd = lst.GetHandle()
+        except Exception:
+            hwnd = 0
+        if not hwnd:
+            return
+        try:
+            rect = ctypes.wintypes.RECT()
+            get_rect = ctypes.WinDLL("user32", use_last_error=True).GetClientRect
+            get_rect.argtypes = [
+                ctypes.c_void_p,
+                ctypes.POINTER(ctypes.wintypes.RECT),
+            ]
+            get_rect.restype = ctypes.c_int
+            width = 0
+            if get_rect(hwnd, ctypes.byref(rect)):
+                width = max(0, int(rect.right) - int(rect.left))
+            if width:
+                _rtad_send_message(hwnd, 0x0194, width, 0)  # LB_SETHORIZONTALEXTENT
+            _rtad_send_message(hwnd, 0x0114, 6, 0)  # WM_HSCROLL, SB_LEFT
+            _rtad_send_message(hwnd, 0x0197, int(sel), 0)  # LB_SETTOPINDEX
+        except Exception:
+            pass
 
     def update_progress(self, percent, current, total, matches, announce=False):
         self.gauge.SetValue(percent)
@@ -15611,6 +15716,8 @@ class SearchFrame(wx.Frame):
         self._last_media_sections = {
             "include_tech": bool(sel.get("include_tech", True)),
             "include_describe": bool(sel.get("include_describe", True)),
+            "describe_detail": bool(sel.get("describe_detail", False)),
+            "describe_timestamps": bool(sel.get("describe_timestamps", False)),
             "include_transcript": bool(sel.get("include_transcript", False)),
             "transcript_engine": sel.get("transcript_engine") or "gemini",
             "include_timestamps": bool(sel.get("include_timestamps", False)),
@@ -15873,6 +15980,11 @@ class SearchFrame(wx.Frame):
                 lst.SetFocus()
             except Exception:
                 pass
+        self._reveal_results_list()
+        try:
+            self._nvda_drop_list_cache(lst)
+        except Exception:
+            pass
         return shown
 
     def _clear_pending_url_row(self):
@@ -16088,8 +16200,10 @@ class SearchFrame(wx.Frame):
         if isinstance(sections, dict):
             self._last_media_sections = {
                 "include_tech": bool(sections.get("include_tech", True)),
-                "include_describe": bool(sections.get("include_describe", True)),
-                "include_transcript": bool(sections.get("include_transcript", False)),
+            "include_describe": bool(sections.get("include_describe", True)),
+            "describe_detail": bool(sections.get("describe_detail", False)),
+            "describe_timestamps": bool(sections.get("describe_timestamps", False)),
+            "include_transcript": bool(sections.get("include_transcript", False)),
                 "transcript_engine": sections.get("transcript_engine") or "gemini",
                 "include_timestamps": bool(sections.get("include_timestamps", False)),
                 "translate_transcript": bool(sections.get("translate_transcript", False)),
@@ -16152,6 +16266,10 @@ class SearchFrame(wx.Frame):
                         include_transcript=sec.get("include_transcript", False),
                         include_timestamps=sec.get("include_timestamps", False),
                         transcript_engine=sec.get("transcript_engine") or "gemini",
+                        describe_detail=bool(sec.get("describe_detail", False)),
+                        describe_timestamps=bool(
+                            sec.get("describe_timestamps", False)
+                        ),
                         should_abort=_abort,
                         on_progress=self._media_progress_cb,
                     )
@@ -16186,11 +16304,20 @@ class SearchFrame(wx.Frame):
                     self._media_progress_cb(100, "Analisi audio/video completata.")
                 else:
                     title = "Riassunto audio/video"
+                    sec = sections or {}
                     desc = rtad_media.describe_media_gemini(
-                        file_path, on_progress=self._media_progress_cb
+                        file_path,
+                        on_progress=self._media_progress_cb,
+                        detail=bool(sec.get("describe_detail", False)),
+                        include_timestamps=bool(sec.get("describe_timestamps", False)),
                     )
-                    if desc.get("ok") and (desc.get("text") or "").strip():
-                        body = (desc.get("text") or "").strip()
+                    if desc.get("ok") and (
+                        (desc.get("text") or "").strip()
+                        or (desc.get("detail_text") or "").strip()
+                    ):
+                        body = rtad_media.format_describe_blocks(desc)
+                        if sec.get("describe_detail"):
+                            title = "Descrizione dettagliata audio/video"
                     else:
                         body = desc.get("error") or "Riassunto non disponibile."
                     self._media_progress_cb(100, "Analisi audio/video completata.")
@@ -16485,6 +16612,8 @@ class SearchFrame(wx.Frame):
                     include_transcript=sel.get("include_transcript", False),
                     include_timestamps=sel.get("include_timestamps", False),
                     transcript_engine=sel.get("transcript_engine") or "gemini",
+                    describe_detail=bool(sel.get("describe_detail", False)),
+                    describe_timestamps=bool(sel.get("describe_timestamps", False)),
                     save_txt=sel.get("save_txt", True),
                     recursive=sel.get("recursive", False),
                     should_abort=lambda: bool(getattr(self, "_media_abort", False)),
@@ -17353,11 +17482,194 @@ class SearchFrame(wx.Frame):
             _announce("Impossibile aprire la cartella contenitore.")
 
 
+try:
+    import controlTypes
+    from NVDAObjects.IAccessible import IAccessible as _RTADIacc
+except Exception:
+    controlTypes = None
+    _RTADIacc = object
+
+
+def _rtad_send_message(hwnd, msg, wparam, lparam):
+    send = ctypes.WinDLL("user32", use_last_error=True).SendMessageW
+    send.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    send.restype = ctypes.c_ssize_t
+    return send(hwnd, msg, wparam, lparam)
+
+
+def _rtad_list_item_vertically_visible(obj) -> bool:
+    """True se la riga cade nel rettangolo verticale dell'elenco."""
+    try:
+        hwnd = int(obj.windowHandle)
+        child = int(getattr(obj, "IAccessibleChildID", 0) or 0)
+    except Exception:
+        return False
+    if hwnd <= 0 or child <= 0:
+        return False
+    rect = ctypes.wintypes.RECT()
+    item = ctypes.wintypes.RECT()
+    get_rect = ctypes.WinDLL("user32", use_last_error=True).GetClientRect
+    get_rect.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.RECT)]
+    get_rect.restype = ctypes.c_int
+    if not get_rect(hwnd, ctypes.byref(rect)):
+        return False
+    got = _rtad_send_message(hwnd, 0x0198, child - 1, ctypes.byref(item))
+    if int(got) < 0:
+        return False
+    return item.bottom > rect.top and item.top < rect.bottom
+
+
+class RTADResultsListItem(_RTADIacc):
+    """Nell'Add-on NVDA è nello stesso processo.
+
+    Una riga più larga dello schermo veniva detta invisibile e fuori schermo
+    anche se era evidenziata. Il testo della riga resta intero.
+    """
+
+    def _get_states(self):
+        states = set(super().states)
+        if controlTypes is None:
+            return states
+        if (
+            controlTypes.State.FOCUSED in states
+            or controlTypes.State.SELECTED in states
+        ):
+            states.discard(controlTypes.State.OFFSCREEN)
+            states.discard(controlTypes.State.INVISIBLE)
+        return states
+
+    def _get_location(self):
+        try:
+            loc = super().location
+        except Exception:
+            loc = None
+        clipped = _rtad_clip_location_to_list(self, loc)
+        return loc if clipped is None else clipped
+
+
+def _rtad_results_list_hwnds():
+    found = set()
+    try:
+        windows = list(wx.GetTopLevelWindows())
+    except Exception:
+        return found
+    for window in windows:
+        try:
+            if not isinstance(window, SearchFrame):
+                continue
+            lst = getattr(window, "lst_results", None)
+            if lst is None:
+                continue
+            found.add(int(lst.GetHandle()))
+        except Exception:
+            continue
+    return found
+
+
+def _rtad_user32():
+    lib = ctypes.WinDLL("user32", use_last_error=True)
+    lib.GetParent.argtypes = [ctypes.c_void_p]
+    lib.GetParent.restype = ctypes.c_void_p
+    lib.GetClassNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int]
+    lib.GetClassNameW.restype = ctypes.c_int
+    lib.GetWindowTextW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int]
+    lib.GetWindowTextW.restype = ctypes.c_int
+    lib.IsWindowVisible.argtypes = [ctypes.c_void_p]
+    lib.IsWindowVisible.restype = ctypes.c_int
+    lib.GetClientRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.RECT)]
+    lib.GetClientRect.restype = ctypes.c_int
+    lib.ClientToScreen.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.POINT)]
+    lib.ClientToScreen.restype = ctypes.c_int
+    return lib
+
+
+def _rtad_hwnd_is_results_list(hwnd) -> bool:
+    if not hwnd:
+        return False
+    if hwnd in _rtad_results_list_hwnds():
+        return True
+    try:
+        lib = _rtad_user32()
+        cls_buf = ctypes.create_unicode_buffer(64)
+        if lib.GetClassNameW(hwnd, cls_buf, 64) <= 0:
+            return False
+        if cls_buf.value != "ListBox":
+            return False
+        cur = hwnd
+        title = ctypes.create_unicode_buffer(256)
+        for _step in range(10):
+            if lib.GetWindowTextW(cur, title, 256) > 0 and APP_TITLE in title.value:
+                return True
+            parent = lib.GetParent(cur)
+            if not parent:
+                break
+            cur = int(parent)
+    except Exception:
+        return False
+    return False
+
+
+def _rtad_clip_location_to_list(obj, loc):
+    """Il rettangolo della riga resta dentro l'elenco, così non esce dallo schermo."""
+    try:
+        hwnd = int(obj.windowHandle or 0)
+    except Exception:
+        return None
+    if not _rtad_hwnd_is_results_list(hwnd):
+        return None
+    try:
+        import locationHelper
+        lib = _rtad_user32()
+        rect = ctypes.wintypes.RECT()
+        if not lib.GetClientRect(hwnd, ctypes.byref(rect)):
+            return None
+        origin = ctypes.wintypes.POINT(0, 0)
+        if not lib.ClientToScreen(hwnd, ctypes.byref(origin)):
+            return None
+        width = max(1, int(rect.right) - int(rect.left))
+        client_h = max(1, int(rect.bottom) - int(rect.top))
+        top = int(origin.y)
+        item_h = 24
+        if loc is not None and getattr(loc, "height", 0):
+            item_h = max(1, int(loc.height))
+            item_top = int(loc.top)
+            if origin.y <= item_top < origin.y + client_h:
+                top = item_top
+        if item_h > client_h:
+            item_h = client_h
+        return locationHelper.RectLTWH(int(origin.x), top, width, item_h)
+    except Exception:
+        return None
+
+
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def __init__(self):
         super(GlobalPlugin, self).__init__()
         self._image_info_frames = []
+
+    def chooseNVDAObjectOverlayClasses(self, obj, clsList):
+        """La riga evidenziata dell'elenco non si dice fuori schermo."""
+        if controlTypes is None or _RTADIacc is object:
+            return
+        try:
+            role = obj.role
+        except Exception:
+            return
+        if role != controlTypes.Role.LISTITEM:
+            return
+        try:
+            hwnd = int(obj.windowHandle or 0)
+        except Exception:
+            return
+        if not _rtad_hwnd_is_results_list(hwnd):
+            return
+        clsList.insert(0, RTADResultsListItem)
 
     @scriptHandler.script(
         description="Apri la finestra principale di Ricerca Testuale",

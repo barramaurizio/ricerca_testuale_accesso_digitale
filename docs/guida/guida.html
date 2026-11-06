@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guida completa — Ricerca Testuale Accesso Digitale v1.9.6</title>
+<title>Guida completa — Ricerca Testuale Accesso Digitale v1.9.7</title>
 <style>
   body {
     font-family: "Segoe UI", Tahoma, sans-serif;
@@ -66,7 +66,7 @@
 <body>
 
 <h1>Ricerca Testuale Accesso Digitale</h1>
-<p><strong>Guida completa</strong> (versione 1.9.6) — Maurizio Barra (Accesso Digitale)</p>
+<p><strong>Guida completa</strong> (versione 1.9.7) — Maurizio Barra (Accesso Digitale)</p>
 <p>Puoi <strong>cercare in questa pagina</strong> in due modi tipici:</p>
 <ul>
   <li><kbd>Ctrl</kbd>+<kbd>F</kbd> — ricerca del browser (comoda soprattutto
@@ -113,9 +113,26 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 </nav>
 
 <div class="box" id="novita">
-  <h2 style="margin-top:0;">1. Novità di questa versione (1.9.6)</h2>
+  <h2 style="margin-top:0;">1. Novità di questa versione (1.9.7)</h2>
   <ul>
-    <li>Nella Standalone, menu Voce, «Solo la voce di questo programma»:
+    <li>In «Tutto sull'audio/video», il riassunto breve è già scelto.
+      Freccia giù, o un clic, passa alla descrizione dettagliata:
+      in cima resta il riassunto e sotto il racconto scena per scena,
+      una sola richiesta a Gemini. I timestamp del racconto sono spenti.
+      Spazio sulla casella, o un clic, li accende. Se accesi, avanzano
+      con le scene, sullo stesso orologio del video.
+      Solo ciò che si vede o si sente. A schermo e a voce.</li>
+    <li>Su una pagina che tiene video e audio separati, per esempio RaiPlay,
+      si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,
+      restava solo l'audio e la finestra del risultato non si apriva.
+      Un contenuto protetto resta non scaricabile.</li>
+    <li>Il file scaricato da un indirizzo resta in vista nell'elenco.
+      Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».</li>
+    <li>Nella prossima versione è previsto il login del browser,
+      e si attua con il consenso di chi usa RTAD.
+      Un flusso con protezione DRM resta non scaricabile.
+      Le finestre nostre arrivano nella versione dopo.</li>
+    <li>Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:
       Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.
       Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
       la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.
@@ -187,7 +204,10 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       Su YouTube, X e le altre pagine l'indirizzo temporaneo
       non si scrive. Ogni pagina passa da yt-dlp,
       anche una playlist .m3u8 o .mpd.
-      Un contenuto protetto resta non scaricabile.</li>
+      Un contenuto protetto resta non scaricabile.
+      Nella prossima versione è previsto il login del browser,
+      e si attua con il consenso di chi usa RTAD.
+      Un flusso con protezione DRM resta non scaricabile.</li>
     <li><strong>Resta dalla 1.9.2 — Leggi documento</strong> su un EPUB apre un capitolo
       nel lettore dentro RTAD. A schermo e a voce:
       «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
@@ -684,8 +704,19 @@ Le parti uguali non si rileggono.</p>
 <h2 id="media">9. Audio e video</h2>
 <ul>
   <li>Hub analisi da Strumenti / pulsante dedicato / menù Esplora file.</li>
-  <li><strong>Tutto sull’audio/video</strong>: scheda tecnica, riassunto, trascrizione
-    (opt-in, con Gemini). «Sul mio PC (Whisper)» è un’altra casella, spenta:
+  <li><strong>Tutto sull’audio/video</strong>: scheda tecnica, riassunto, trascrizione.
+    Il riassunto breve è già scelto. Freccia giù, o un clic, passa alla
+    descrizione dettagliata: in cima resta il riassunto e sotto il racconto
+    scena per scena, una sola richiesta. I timestamp del racconto sono spenti.
+    Spazio sulla casella, o un clic, li accende. Se accesi, avanzano con le scene,
+    sullo stesso orologio del video. Solo ciò che si vede o si sente.
+    Su una pagina che tiene video e audio separati, per esempio RaiPlay,
+    si scaricano entrambi e ffmpeg li unisce. Un contenuto protetto resta
+    non scaricabile.
+    Nella prossima versione è previsto il login del browser,
+    e si attua con il consenso di chi usa RTAD.
+    Un flusso con protezione DRM resta non scaricabile.
+    La trascrizione è opt-in, con Gemini. «Sul mio PC (Whisper)» è un’altra casella, spenta:
     al primo uso scarica il modello e trascrive senza chiave Gemini,
     un file fino a 20 minuti, in una cartella fino a 5 file.
     La casella «Traduci la trascrizione» è spenta:
@@ -1053,7 +1084,7 @@ Il risultato tipico: si aprono due finestre o si aggiorna «la copia sbagliata»
 </ul>
 
 <footer>
-  <p><strong>Ricerca Testuale Accesso Digitale</strong> v1.9.6 — Maurizio Barra (Accesso Digitale)</p>
+  <p><strong>Ricerca Testuale Accesso Digitale</strong> v1.9.7 — Maurizio Barra (Accesso Digitale)</p>
   <p>Documento generato dal programma. Per cercare: <kbd>Ctrl</kbd>+<kbd>F</kbd>
   (browser) oppure, con NVDA, <kbd>NVDA</kbd>+<kbd>Ctrl</kbd>+<kbd>F</kbd>.</p>
   <p class="top"><a href="#indice">↑ Torna all’indice</a></p>

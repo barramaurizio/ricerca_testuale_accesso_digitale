@@ -11,7 +11,7 @@ Stato: piano di lavoro (niente date di calendario: solo ordine e criteri)
 |------|---------|--------|
 | **Patch / minore** | `1.5.1`, `1.5.2`, … | Fix, lucidature, una feature snella, allineamento Standalone ↔ Add-on |
 | **Minor “corposa”** | `1.6.0` | Più arricchimenti insieme, o un modulo nuovo che cambia in modo sensibile l’uso |
-| **Major** | `2.0.0` | Solo se cambia architettura o esperienza in modo radicale (non ora) |
+| **Major** | `2.0.0` | Si apre con tagliare e unire un video, e lo stesso per le immagini. Dopo login, finestre ed export. |
 
 **Come alla 1.4.x → 1.5.0:** si resta su `1.5.x` finché gli arricchimenti sono utili ma non “salto di prodotto”. Il numero `1.6` segnala un pacchetto sostanzioso (come i feed nella 1.5).
 
@@ -198,10 +198,12 @@ Contenuto previsto `1.6.0`:
 39. ~~**`1.9.3`:** la stessa finestra per il corpo HTML di un’e-mail, l’articolo di un feed e una fonte della chat. Se l’immagine viene da Internet, l’indirizzo diretto sta in scheda e in descrizione, e si può salvare il file. L’audio o il video già scaricato per l’analisi si può salvare. Ogni pagina passa da yt-dlp, anche `.m3u8` e `.mpd`.~~ **pubblicata** il 2/11/2026. Piano: `docs/PIANO_1.9.3.md`. GitHub `v1.9.3` / `app-v1.9.3`, commit `08832c4`. DataStore #12733 via #12734 accettato.
 40. ~~**`1.9.4`:** in Word, il link interno salta al titolo. In ODT arrivano titoli e link. Salva immagine, audio o video propone il nome della pagina il più lungo che Windows accetta; se lo cambi, anche solo qualche carattere, Salva testo propone lo stesso nome. Le due guide del programma, HTML del menu e pratica, su GitHub Pages.~~ **pubblicata** il 3/11/2026. Piano: `docs/PIANO_1.9.4.md`. GitHub `v1.9.4` / `app-v1.9.4`, commit `6bd5814`. DataStore #12743 accettato.
 41. ~~**`1.9.5`:** VIDEO_TS, avviso su un DVD commerciale incontrato con la ricerca. Niente copia del film. La conversazione di Gemini usa il nome del file già salvato. Salva Immagine sull’elenco ricorda l’ultima cartella. Nella Standalone, Salva video o Salva immagine a volte non legge subito il nome: Tab e poi Shift+Tab, la voce si riattiva. La frase è nelle guide. Menu Aiuto: «Apri le guide», stesso indirizzo delle guide sul web. Non è una voce dello store NVDA.~~ **pubblicata** il 4/11/2026. Piano: `docs/PIANO_1.9.5.md`. GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`. DataStore #12756 via #12757 accettato.
-42. **`1.9.6`:** OneCore, la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI. Menu Voce, «Scegli voce». E «Solo la voce di questo programma»: dentro RTAD quella voce dice anche dove sei. Con Alt e le frecce dice il menu. «Pronuncia i tasti di spostamento» è spento. «Pronuncia le lettere mentre scrivi» è spento. I simboli si dicono lo stesso. Salva e Sfoglia, con NVDA spento, restano mute. L’Add-on resta sulla voce di NVDA. **Scritta nei sorgenti** il 5/11/2026, non ancora pubblicata. Piano: `docs/PIANO_1.9.6.md`.
-43. **`1.9.7`:** descrizione del video. Ogni volta si sceglie. Predefinita, il riassunto breve di oggi. Se si chiede la dettagliata, in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Standalone e Add-on.
-44. **`1.9.8`:** finestre nostre al posto di Salva e Sfoglia di Windows, così con NVDA spento non restano mute.
-45. **`1.9.9`:** export multipli, più di un formato nello stesso passaggio.
+42. ~~**`1.9.6`:** OneCore, la voce di Windows nella Standalone, oltre alle voci già registrate come SAPI. Menu Voce, «Scegli voce». E «Solo la voce di questo programma». L’Add-on resta sulla voce di NVDA.~~ **pubblicata** il 5/11/2026. GitHub `v1.9.6` / `app-v1.9.6`. Piano: `docs/PIANO_1.9.6.md`.
+43. **`1.9.7`:** descrizione del video. Il riassunto breve è già scelto. Freccia giù, o un clic, passa alla dettagliata: in cima il riassunto, sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Su RaiPlay video e audio si uniscono. Standalone e Add-on. **Scritta nei sorgenti** il 6/11/2026, non ancora pubblicata. Piano: `docs/PIANO_1.9.7.md`.
+44. **`1.9.8`:** login del browser, con il consenso di chi usa RTAD. I cookie restano sul suo PC. Un flusso con protezione DRM resta non scaricabile. Standalone e Add-on. Piano: `docs/PIANO_1.9.8.md`. Non iniziata: prima si pubblica la 1.9.7.
+45. **`1.9.9`:** finestre nostre al posto di Salva e Sfoglia di Windows, così con NVDA spento non restano mute.
+46. **`1.9.10`:** export multipli, più di un formato nello stesso passaggio.
+47. **`2.0`:** primo punto, tagliare e unire un video, e lo stesso per le immagini. A schermo e a voce. Standalone e Add-on. Piano: `docs/PIANO_2.0.md`. Non iniziata: prima 1.9.8, 1.9.9 e 1.9.10.
 Più avanti: confronto del parlato, confronto del testo di un’immagine.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA

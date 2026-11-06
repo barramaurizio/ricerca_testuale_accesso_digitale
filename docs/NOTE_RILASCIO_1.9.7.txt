@@ -1,0 +1,91 @@
+🌟 Novità della Versione 1.9.7
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.7
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- In «Tutto sull'audio/video», il riassunto breve è già scelto. Freccia giù, o un clic, passa alla descrizione dettagliata: in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti. Spazio sulla casella, o un clic, li accende. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. A schermo e a voce.
+- Su una pagina che tiene video e audio separati, per esempio RaiPlay, si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso, restava solo l'audio e la finestra del risultato non si apriva. Un contenuto protetto resta non scaricabile.
+- Il file scaricato da un indirizzo resta in vista nell'elenco. Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- In «Tutto sull'audio/video», the short summary is already selected. Down arrow, or a click, switches to the detailed description: the summary stays on top and the scene-by-scene account is below, one request to Gemini. The account's timestamps are off. Space on the checkbox, or a click, turns them on. When on, they advance with the scenes, on the same clock as the video. Only what is seen or heard. On screen and by voice.
+- On a page that keeps video and audio apart, for example RaiPlay, both are downloaded and ffmpeg joins them. Before, in that case, only the audio remained and the result window did not open. Protected content stays not downloadable.
+- The file downloaded from an address stays in view in the list. Insert+Tab says that row, without «invisibile» and without «fuori schermo».
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.7.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.7
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.7
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.7.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.7.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Descrizione dettagliata del video: riassunto in cima e racconto scena per scena, una sola richiesta. Timestamp del racconto a scelta. RaiPlay: video e audio insieme.
+
+Summary EN:
+Detailed video description: summary on top and a scene-by-scene account, one request. Account timestamps optional. RaiPlay: video and audio together.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.7/ricerca_testuale_accesso_digitale-1.9.7.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.7
+
+Description:
+Descrizione dettagliata del video, una sola richiesta a Gemini. Su RaiPlay video e audio si uniscono. La riga scaricata da un indirizzo resta in vista nell'elenco.

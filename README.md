@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.7
+
+- In «Tutto sull'audio/video», il riassunto breve è già scelto. Freccia giù, o un clic, passa alla descrizione dettagliata: in cima resta il riassunto e sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti. Spazio sulla casella, o un clic, li accende. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. A schermo e a voce.
+- Su una pagina che tiene video e audio separati, per esempio RaiPlay, si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso, restava solo l'audio e la finestra del risultato non si apriva. Un contenuto protetto resta non scaricabile.
+- Il file scaricato da un indirizzo resta in vista nell'elenco. Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».
 
 ### 🌟 Novità della Versione 1.9.6
 
@@ -336,6 +342,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.7
+
+- In «Tutto sull'audio/video», the short summary is already selected. Down arrow, or a click, switches to the detailed description: the summary stays on top and the scene-by-scene account is below, one request to Gemini. The account's timestamps are off. Space on the checkbox, or a click, turns them on. When on, they advance with the scenes, on the same clock as the video. Only what is seen or heard. On screen and by voice.
+- On a page that keeps video and audio apart, for example RaiPlay, both are downloaded and ffmpeg joins them. Before, in that case, only the audio remained and the result window did not open. Protected content stays not downloadable.
+- The file downloaded from an address stays in view in the list. Insert+Tab says that row, without «invisibile» and without «fuori schermo».
 
 ### 🌟 What's New in Version 1.9.6
 

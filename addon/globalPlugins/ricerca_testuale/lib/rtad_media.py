@@ -1114,6 +1114,13 @@ def get_media_tech_info(path: str, source_path: str = "") -> dict:
         # Solo .m4a è audio per estensione; ffprobe sotto conferma le piste.
         if ext == ".m4a":
             info["kind"] = "audio"
+        elif (
+            info.get("has_audio")
+            and not info.get("has_video")
+            and not info.get("frame_width")
+            and not info.get("frame_size_raw")
+        ):
+            info["kind"] = "audio"
     elif ext in (".webm", ".mkv", ".opus"):
         webm = _webm_tech(path)
         if webm.get("duration_sec") and not info.get("duration_sec"):
@@ -1261,6 +1268,17 @@ def get_media_tech_info(path: str, source_path: str = "") -> dict:
     if info.get("video_codec") or int(info.get("frame_width") or 0) > 0:
         info["has_video"] = True
     if info.get("kind") == "audio":
+        info["has_audio"] = True
+    try:
+        side = read_media_source_meta(path)
+    except Exception:
+        side = {}
+    if (
+        (side.get("content_kind") or "") == "audio"
+        and not info.get("has_video")
+        and not int(info.get("frame_width") or 0)
+    ):
+        info["kind"] = "audio"
         info["has_audio"] = True
 
     info["duration_label"] = _format_duration(info.get("duration_sec") or 0)
@@ -1429,13 +1447,18 @@ def format_media_tech_sheet(info: dict) -> str:
             f"URL sorgente: {src_meta.get('webpage_url') or src_meta.get('url')}."
         )
     file_url = (src_meta.get("url") or "").strip()
+    page_url = (src_meta.get("webpage_url") or file_url).strip()
     if (src_meta.get("via") or "").strip() == "http" and is_likely_direct_media_url(
         file_url
     ):
         lines.append(f"Indirizzo file: {file_url}.")
-    # Scarichi yt-dlp sotto tetto dimensione: spesso solo traccia audio (m4a/webm)
+    # Solo quando da un video è rimasta l'audio per il tetto. RaiPlay Sound è già audio.
     fname = (info.get("file_name") or "").lower()
-    if kind == "audio" and fname.startswith("rtad_media_"):
+    if (
+        kind == "audio"
+        and fname.startswith("rtad_media_")
+        and not is_raiplay_sound_url(page_url)
+    ):
         lines.append(
             "Nota: dal link è stata presa solo la traccia audio (video troppo "
             f"pesante per il tetto attuale di {_format_size(MAX_MEDIA_AI_BYTES)})."
@@ -3170,7 +3193,485 @@ _PAGE_MEDIA_HOSTS = (
     "twitch.tv", "clips.twitch.tv",
     "reddit.com", "v.redd.it",
     "raiplay.it",
+    "raiplaysound.it",
 )
+
+
+# Servizi il cui flusso è protetto. I cookie non li aprono.
+_DRM_SERVICE_HOSTS = (
+    "netflix.com",
+    "dazn.com",
+    "primevideo.com",
+    "disneyplus.com",
+    "hbomax.com",
+    "max.com",
+    "paramountplus.com",
+    "tv.apple.com",
+    "nowtv.it",
+    "nowtv.com",
+    "skygo.sky.it",
+)
+
+# id yt-dlp, etichetta, processo Windows. Si legge solo un browser già aperto.
+_BROWSER_PROCS = (
+    ("chrome", "Google Chrome", "chrome.exe"),
+    ("edge", "Microsoft Edge", "msedge.exe"),
+    ("firefox", "Firefox", "firefox.exe"),
+    ("brave", "Brave", "brave.exe"),
+    ("opera", "Opera", "opera.exe"),
+    ("vivaldi", "Vivaldi", "vivaldi.exe"),
+)
+_BROWSER_IDS = {item[0] for item in _BROWSER_PROCS}
+
+BROWSER_LOGIN_NONE = (
+    "Nessun browser aperto su questo PC. Apri il browser, entra nel sito, "
+    "poi torna qui. Invio o un clic su «Annulla» chiude questa finestra."
+)
+BROWSER_LOGIN_PICK = (
+    "Frecce o un clic scelgono il browser. Tab arriva su «Autorizza». "
+    "Invio o un clic legge i suoi cookie, solo per questo download. "
+    "I cookie restano sul tuo PC. "
+    "Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, "
+    "anche a programma chiuso. "
+    "Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. "
+    "Un flusso con protezione DRM resta non scaricabile."
+)
+DRM_CLOSED_MESSAGE = (
+    "Contenuto protetto (DRM). Resta non scaricabile. "
+    "Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay "
+    "restano chiusi. A schermo e a voce."
+)
+CONSENT_REFUSED_MESSAGE = (
+    "Consenso non dato. I cookie non si leggono. Il download non parte."
+)
+
+
+def browser_label(browser: str) -> str:
+    bid = _safe_browser_id(browser)
+    for item_id, label, _exe in _BROWSER_PROCS:
+        if item_id == bid:
+            return label
+    return "il browser"
+
+
+def browser_locks_cookie_file(browser: str) -> bool:
+    """Edge e gli altri Chromium bloccano il file finché il programma è acceso.
+
+    Firefox no: yt-dlp lo legge anche con la finestra aperta.
+    """
+    return _safe_browser_id(browser) in {
+        "chrome",
+        "edge",
+        "brave",
+        "opera",
+        "vivaldi",
+    }
+
+
+def browser_process_running(browser: str) -> bool:
+    bid = _safe_browser_id(browser)
+    for item_id, _label, exe in _BROWSER_PROCS:
+        if item_id == bid:
+            return exe.lower() in _running_process_names()
+    return False
+
+
+def browser_login_consent(label: str, browser_id: str = "") -> str:
+    """Stessa frase a schermo e a voce."""
+    name = (label or "browser").strip() or "browser"
+    if browser_locks_cookie_file(browser_id):
+        return (
+            f"Invio o un clic su «Autorizza» prova a leggere i cookie di {name}, "
+            "solo per questo download. I cookie restano sul tuo PC. "
+            f"Su Windows la chiave di {name} spesso non si decifra, "
+            "anche a programma chiuso. "
+            "Firefox, se è aperto e sei entrato nel sito, si legge "
+            "con la finestra aperta. "
+            "Un flusso con protezione DRM resta non scaricabile."
+        )
+    return (
+        f"Invio o un clic su «Autorizza» legge i cookie di {name}, "
+        "già aperto su questo PC, solo per questo download. "
+        "I cookie restano sul tuo PC. "
+        "Un flusso con protezione DRM resta non scaricabile."
+    )
+
+
+def browser_close_sentence(browser: str) -> str:
+    """Edge è ancora acceso: stessa frase a schermo e a voce."""
+    name = browser_label(browser)
+    return (
+        f"{name} è ancora in esecuzione. "
+        "Esci dal programma e lascialo chiuso, anche dal vassoio. "
+        "I cookie restano sul tuo PC. "
+        "Poi Invio o un clic su «Scarica». "
+        "Invio o un clic su «Annulla» non legge i cookie."
+    )
+
+
+def browser_login_sentence(browsers) -> str:
+    rows = list(browsers or [])
+    if not rows:
+        return BROWSER_LOGIN_NONE
+    if len(rows) == 1:
+        return browser_login_consent(
+            str(rows[0].get("label") or ""),
+            str(rows[0].get("id") or ""),
+        )
+    return BROWSER_LOGIN_PICK
+
+
+def list_sentence_for_download(name: str, content_kind: str) -> str:
+    """Frase dell'elenco. Per l'audio di Rai, anche se il file si chiama .mp4."""
+    shown = (name or "file").strip() or "file"
+    if (content_kind or "").strip() == "audio":
+        return (
+            f"È l'audio: {shown}. Il file è in elenco, nel formato consegnato. "
+            "Da qui puoi fare altre operazioni."
+        )
+    return (
+        f"Il file è in elenco: {shown}. "
+        "Da qui puoi fare altre operazioni."
+    )
+
+
+def _url_host(url: str) -> str:
+    host = (urllib.parse.urlparse(url or "").netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    if "@" in host:
+        host = host.split("@", 1)[-1]
+    if ":" in host:
+        host = host.split(":", 1)[0]
+    return host
+
+
+def _host_is(url: str, names) -> bool:
+    host = _url_host(url)
+    return any(host == name or host.endswith("." + name) for name in names)
+
+
+def is_raiplay_sound_url(url: str) -> bool:
+    """Pagina audio RaiPlay Sound, per esempio il GR1."""
+    return _host_is(url, ("raiplaysound.it",))
+
+
+def url_is_drm_service(url: str) -> bool:
+    """Netflix, Sky, DAZN, Prime e gli altri flussi protetti: non si scaricano."""
+    return _host_is(url, _DRM_SERVICE_HOSTS)
+
+
+def error_is_drm(text: str) -> bool:
+    """Vero se il sito tiene il flusso protetto. «DRM spenta» non conta."""
+    low = (text or "").lower()
+    if "protezione drm è spenta" in low or "protezione drm e' spenta" in low:
+        return False
+    if any(mark in low for mark in ("widevine", "playready", "fairplay")):
+        return True
+    if "contenuto protetto (drm)" in low:
+        return True
+    if re.search(r"\bdrm\b", low):
+        return True
+    return False
+
+
+def error_needs_browser_login(text: str) -> bool:
+    """Il sito chiede l'accesso, e non è un flusso DRM."""
+    if error_is_drm(text):
+        return False
+    low = (text or "").lower()
+    markers = (
+        "sign in",
+        "login",
+        "log in",
+        "private video",
+        "confirm your age",
+        "age-restricted",
+        "age restricted",
+        "registered users",
+        "members-only",
+        "authentication",
+        "http error 401",
+        "accesso negato",
+        "login del browser",
+    )
+    return any(mark in low for mark in markers)
+
+
+def error_is_http_forbidden(text: str) -> bool:
+    """La playlist risponde Accesso negato anche dopo il login."""
+    low = (text or "").lower()
+    return (
+        "http error 403" in low
+        or "http error 401" in low
+        or "403: forbidden" in low
+        or "access denied" in low
+    )
+
+
+def playlist_refused_message(browser: str = "") -> str:
+    """Il login c'è, la playlist no. Stessa frase a schermo e a voce."""
+    label = browser_label(browser) if browser else "il browser"
+    return (
+        f"Il login di {label} non ha aperto questo video. "
+        "La playlist risponde Accesso negato, anche con i cookie. "
+        "Restano sul tuo PC. Il limite di dimensione non c'entra. "
+        "Il sito non consegna il file. "
+        "Un flusso con protezione DRM resta non scaricabile."
+    )
+
+
+def error_is_dpapi_cookie_failure(text: str) -> bool:
+    """Windows non consegna a yt-dlp la chiave dei cookie di Edge o Chrome."""
+    return "dpapi" in (text or "").lower()
+
+
+def error_is_cookie_read_failure(text: str) -> bool:
+    """Il file dei cookie non si copia. Il caso DPAPI è un altro messaggio."""
+    low = (text or "").lower()
+    if error_is_dpapi_cookie_failure(low):
+        return False
+    if "cookie" not in low:
+        return False
+    return any(
+        mark in low
+        for mark in (
+            "could not copy",
+            "database is locked",
+            "cookie database",
+        )
+    )
+
+
+def cookie_unread_message(browser: str = "", still_open=None) -> str:
+    """yt-dlp non ha copiato il file dei cookie. Non stampa i valori."""
+    label = browser_label(browser)
+    if still_open is None:
+        still_open = (
+            browser_locks_cookie_file(browser) and browser_process_running(browser)
+        )
+    if browser_locks_cookie_file(browser) and still_open:
+        return (
+            f"I cookie di {label} non si sono letti. "
+            f"{label} tiene il file aperto finché il programma è in esecuzione, "
+            "anche se la finestra è stata chiusa e riaperta. "
+            "Restano sul tuo PC. Esci da quel browser e lascialo chiuso, "
+            "anche dal vassoio. Poi Spazio sulla casella, o un clic, "
+            "e di nuovo Invio o un clic su Autorizza."
+        )
+    if browser_locks_cookie_file(browser):
+        return (
+            f"I cookie di {label} non si sono letti, anche a browser chiuso. "
+            "Restano sul tuo PC. Questo browser protegge il file in un modo "
+            "che yt-dlp non apre. Firefox, se è aperto e sei entrato nel sito, "
+            "si legge anche con la finestra aperta. "
+            "Spazio sulla casella, o un clic, e Invio o un clic su Autorizza."
+        )
+    return (
+        f"I cookie di {label} non si sono letti. Restano sul tuo PC. "
+        "Spazio sulla casella, o un clic, "
+        "e di nuovo Invio o un clic su Autorizza."
+    )
+
+
+def dpapi_cookie_message(browser: str = "") -> str:
+    """La chiave del browser non si decifra. Stessa frase a schermo e a voce."""
+    label = browser_label(browser)
+    return (
+        f"I cookie di {label} non si decifrano. Restano sul tuo PC. "
+        "Windows non consegna a yt-dlp la chiave di questo browser, "
+        "anche a programma chiuso. Chiuderlo dal Task Manager non basta. "
+        "Firefox, se è aperto e sei entrato nel sito, si legge anche "
+        "con la finestra aperta. Spazio sulla casella, o un clic, "
+        "e Invio o un clic su Autorizza."
+    )
+
+
+def page_download_target(page_url: str, found: dict, browser: str = "") -> tuple:
+    """(indirizzo da scaricare, referer della pagina).
+
+    Se la playlist ha risposto Accesso negato e il login è già autorizzato,
+    si ritenta quella playlist. La pagina HTML, da sola, yt-dlp non la conosce.
+    """
+    found = found if isinstance(found, dict) else {}
+    page = (page_url or "").strip()
+    media = (found.get("media_url") or "").strip()
+    if found.get("needs_browser_login") and _safe_browser_id(browser) and media:
+        return media, page
+    if media and not found.get("needs_browser_login"):
+        return media, ""
+    return page, ""
+
+
+def _safe_browser_id(browser: str) -> str:
+    bid = (browser or "").strip().lower()
+    if bid in _BROWSER_IDS:
+        return bid
+    return ""
+
+
+def _running_process_names() -> set:
+    names = set()
+    try:
+        proc = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except Exception:
+        return names
+    for line in (proc.stdout or "").splitlines():
+        part = line.split(",")[0].strip().strip('"').lower()
+        if part:
+            names.add(part)
+    return names
+
+
+def open_browsers() -> list:
+    """Browser già aperti su questo PC. Non legge i cookie."""
+    running = _running_process_names()
+    found = []
+    for bid, label, exe in _BROWSER_PROCS:
+        if exe.lower() in running:
+            found.append({"id": bid, "label": label})
+    return found
+
+
+def ask_browser_login(parent, speak) -> str:
+    """Finestra di consenso. Ritorna l'id yt-dlp, oppure vuoto.
+
+    I cookie restano nel browser. RTAD non ne fa una copia sua.
+    """
+    import wx
+
+    browsers = open_browsers()
+    sentence = browser_login_sentence(browsers)
+    dlg = wx.Dialog(
+        parent,
+        title="Login del browser",
+        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+    )
+    panel = wx.Panel(dlg)
+    vbox = wx.BoxSizer(wx.VERTICAL)
+    lbl = wx.StaticText(panel, label=sentence)
+    lbl.Wrap(560)
+    vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 12)
+    lst = None
+    if len(browsers) > 1:
+        lst = wx.ListBox(panel, choices=[row["label"] for row in browsers])
+        lst.SetSelection(0)
+        vbox.Add(lst, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+    buttons = wx.BoxSizer(wx.HORIZONTAL)
+    btn_ok = None
+    if browsers:
+        btn_ok = wx.Button(panel, wx.ID_OK, "&Autorizza")
+        btn_ok.SetDefault()
+        buttons.Add(btn_ok, 0, wx.RIGHT, 8)
+    btn_cancel = wx.Button(panel, wx.ID_CANCEL, "&Annulla")
+    if not browsers:
+        btn_cancel.SetDefault()
+    buttons.Add(btn_cancel, 0)
+    vbox.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
+    panel.SetSizer(vbox)
+    outer = wx.BoxSizer(wx.VERTICAL)
+    outer.Add(panel, 1, wx.EXPAND)
+    dlg.SetSizerAndFit(outer)
+    dlg.SetInitialSize((640, 300 if len(browsers) > 1 else 240))
+    try:
+        dlg.CentreOnParent()
+    except Exception:
+        pass
+    try:
+        speak(sentence)
+    except Exception:
+        pass
+    if btn_ok is not None:
+        btn_ok.SetFocus()
+    else:
+        btn_cancel.SetFocus()
+    try:
+        if dlg.ShowModal() != wx.ID_OK or not browsers:
+            return ""
+        if len(browsers) == 1:
+            return browsers[0]["id"]
+        sel = lst.GetSelection() if lst is not None else 0
+        if sel is None or sel < 0:
+            sel = 0
+        return browsers[sel]["id"]
+    finally:
+        dlg.Destroy()
+
+
+def wait_browser_closed_for_cookies(parent, speak, browser: str) -> bool:
+    """Per Edge e gli altri Chromium, il download parte solo a programma chiuso.
+
+    Firefox torna subito vero. «Scarica» ricontrolla i processi.
+    """
+    if not browser_locks_cookie_file(browser):
+        return True
+    if not browser_process_running(browser):
+        return True
+    import wx
+
+    sentence = browser_close_sentence(browser)
+    dlg = wx.Dialog(
+        parent,
+        title="Chiudi il browser",
+        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+    )
+    panel = wx.Panel(dlg)
+    vbox = wx.BoxSizer(wx.VERTICAL)
+    lbl = wx.StaticText(panel, label=sentence)
+    lbl.Wrap(560)
+    vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 12)
+    buttons = wx.BoxSizer(wx.HORIZONTAL)
+    btn_ok = wx.Button(panel, label="&Scarica")
+    btn_ok.SetDefault()
+    btn_cancel = wx.Button(panel, wx.ID_CANCEL, "&Annulla")
+    buttons.Add(btn_ok, 0, wx.RIGHT, 8)
+    buttons.Add(btn_cancel, 0)
+    vbox.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
+    panel.SetSizer(vbox)
+    outer = wx.BoxSizer(wx.VERTICAL)
+    outer.Add(panel, 1, wx.EXPAND)
+    dlg.SetSizerAndFit(outer)
+    dlg.SetInitialSize((640, 280))
+    try:
+        dlg.CentreOnParent()
+    except Exception:
+        pass
+    btn_ok.SetFocus()
+    wx.CallAfter(speak, sentence)
+
+    def _try_download(_event):
+        if browser_process_running(browser):
+            try:
+                speak(sentence)
+            except Exception:
+                pass
+            return
+        dlg.EndModal(wx.ID_OK)
+
+    btn_ok.Bind(wx.EVT_BUTTON, _try_download)
+    try:
+        return dlg.ShowModal() == wx.ID_OK
+    finally:
+        dlg.Destroy()
+
+
+def prepare_browser_cookies(parent, speak) -> tuple:
+    """(id del browser, messaggio se non si parte).
+
+    Per Edge, Chrome, Brave, Opera e Vivaldi attende che il programma sia chiuso.
+    """
+    chosen = ask_browser_login(parent, speak)
+    if not chosen:
+        return "", CONSENT_REFUSED_MESSAGE
+    if not wait_browser_closed_for_cookies(parent, speak, chosen):
+        return "", browser_close_sentence(chosen)
+    return chosen, ""
 
 
 def is_likely_direct_media_url(url: str) -> bool:
@@ -3267,9 +3768,10 @@ def _access_denied_message() -> str:
     return (
         "La playlist di questo video risponde Accesso negato. "
         "La protezione DRM è spenta, e il sito non consegna il file. "
-        "Video Download Helper lo vede nel browser, dopo che il lettore "
-        "ha già il permesso. Quando il sito consegna video e audio separati, "
-        "come su RaiPlay, RTAD li unisce con ffmpeg. A schermo e a voce."
+        "Serve il login del browser: i cookie restano sul tuo PC. "
+        "Se il sito consegna video e audio separati, ffmpeg li unisce. "
+        "Un flusso con protezione DRM resta non scaricabile. "
+        "A schermo e a voce."
     )
 
 
@@ -3291,7 +3793,7 @@ def _discover_diva_media(page_url: str, text: str) -> dict:
     """Lettore DIVA: la scheda pubblica indica la playlist. DRM acceso: stop.
 
     Se la playlist risponde 200, la prende yt-dlp e ffmpeg unisce le tracce.
-    Se risponde Accesso negato, si dice il motivo e non si chiede un permesso.
+    Se risponde Accesso negato e il DRM è spento, serve il login del browser.
     """
     videoid = ""
     id_match = re.search(
@@ -3402,6 +3904,7 @@ def _discover_diva_media(page_url: str, text: str) -> dict:
         }
     ranked.sort(key=lambda item: item[0])
     saw_denied = False
+    denied_uri = ""
     seen_uri = set()
     ordered = []
     for rank, uri in ranked:
@@ -3415,8 +3918,14 @@ def _discover_diva_media(page_url: str, text: str) -> dict:
             return {"media_url": uri}
         if peek_code in (401, 403):
             saw_denied = True
+            if not denied_uri:
+                denied_uri = uri
     if saw_denied:
-        return {"error": _access_denied_message()}
+        return {
+            "needs_browser_login": True,
+            "media_url": denied_uri,
+            "error": _access_denied_message(),
+        }
     return {}
 
 
@@ -3833,6 +4342,7 @@ def _media_role_hint(path: str) -> str:
             return "audio"
         if hv:
             return "video"
+        return ""
     if ext in (".webm", ".mkv"):
         tech = _webm_tech(path)
         if tech.get("audio_codec") and not tech.get("frame_width"):
@@ -3845,6 +4355,58 @@ def _media_role_hint(path: str) -> str:
     if ext in VIDEO_EXTS:
         return "video"
     return ""
+
+
+def file_is_audio_only(path: str) -> bool:
+    """True se nel file c'è l'audio e non una traccia video.
+
+    RaiPlay Sound consegna spesso un .mp4 che dentro ha solo l'audio.
+    """
+    if not path or not os.path.isfile(path):
+        return False
+    role = _media_role_hint(path)
+    if role == "audio":
+        return True
+    if role == "muxed":
+        return False
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".mp4", ".m4v", ".mov", ".3gp"):
+        tech = _mp4_tech(path)
+        if (
+            tech.get("has_audio")
+            and not tech.get("has_video")
+            and not int(tech.get("frame_width") or 0)
+        ):
+            return True
+        if _mp4_track_sniff(path) == "audio":
+            return True
+    probe = _ffprobe_tech(path)
+    if (
+        probe.get("has_audio")
+        and not probe.get("has_video")
+        and not int(probe.get("frame_width") or 0)
+    ):
+        return True
+    return False
+
+
+def _accept_as_audio(path: str, page_url: str = "") -> bool:
+    """Tiene il file audio anche se il nome finisce in .mp4."""
+    if file_is_audio_only(path):
+        return True
+    if not is_raiplay_sound_url(page_url):
+        return False
+    role = _media_role_hint(path)
+    if role == "muxed":
+        return False
+    if role == "video":
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".mp4", ".m4v", ".mov", ".3gp"):
+            tech = _mp4_tech(path)
+            if tech.get("has_video") or int(tech.get("frame_width") or 0):
+                return False
+        return True
+    return True
 
 
 def _youtube_id_from_url(url: str) -> str:
@@ -3874,12 +4436,19 @@ def _youtube_id_from_url(url: str) -> str:
 _YTDLP_FRAG_RE = re.compile(r"\.f\d+\.", re.IGNORECASE)
 
 
-def _pick_ytdlp_outputs(tmpdir: str) -> dict:
+def _pick_ytdlp_outputs(tmpdir: str, page_url: str = "") -> dict:
     """Sceglie muxato, oppure coppia video+audio (senza ffmpeg).
 
-    Returns: {ok, path, audio_path, error}
+    Un .mp4 di solo audio, come RaiPlay Sound, resta il file audio.
+    Returns: {ok, path, audio_path, content_kind, error}
     """
-    out = {"ok": False, "path": "", "audio_path": "", "error": ""}
+    out = {
+        "ok": False,
+        "path": "",
+        "audio_path": "",
+        "content_kind": "",
+        "error": "",
+    }
     media = []
     partials = False
     try:
@@ -3913,13 +4482,24 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
     if complete:
         best = max(complete, key=lambda p: os.path.getsize(p))
         role = _media_role_hint(best)
+        if _accept_as_audio(best, page_url):
+            out["ok"] = True
+            out["path"] = best
+            out["content_kind"] = "audio"
+            return out
         if role == "video" and not media_companion_audio_path(best):
             # Un solo «completo» ma muto: cerca audio tra i frammenti
             audios = [p for p in media if _media_role_hint(p) == "audio"]
             if audios:
+                if is_raiplay_sound_url(page_url):
+                    out["ok"] = True
+                    out["path"] = max(audios, key=lambda p: os.path.getsize(p))
+                    out["content_kind"] = "audio"
+                    return out
                 out["ok"] = True
                 out["path"] = best
                 out["audio_path"] = max(audios, key=lambda p: os.path.getsize(p))
+                out["content_kind"] = "video"
                 return out
             out["error"] = (
                 "Scaricato solo video senza audio."
@@ -3929,6 +4509,7 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
             return out
         out["ok"] = True
         out["path"] = best
+        out["content_kind"] = "audio" if role == "audio" else "video"
         return out
 
     # 2) Frammenti .fXXX.: abbina video + audio (niente merge)
@@ -3944,8 +4525,20 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
         elif role == "video":
             videos.append(p)
     if muxed_frags:
+        best = max(muxed_frags, key=lambda p: os.path.getsize(p))
+        if _accept_as_audio(best, page_url):
+            out["ok"] = True
+            out["path"] = best
+            out["content_kind"] = "audio"
+            return out
         out["ok"] = True
-        out["path"] = max(muxed_frags, key=lambda p: os.path.getsize(p))
+        out["path"] = best
+        out["content_kind"] = "video"
+        return out
+    if is_raiplay_sound_url(page_url) and audios:
+        out["ok"] = True
+        out["path"] = max(audios, key=lambda p: os.path.getsize(p))
+        out["content_kind"] = "audio"
         return out
     if videos and audios:
         v = max(videos, key=lambda p: os.path.getsize(p))
@@ -3962,10 +4555,12 @@ def _pick_ytdlp_outputs(tmpdir: str) -> dict:
         out["ok"] = True
         out["path"] = v
         out["audio_path"] = a
+        out["content_kind"] = "video"
         return out
     if audios and not videos:
         out["ok"] = True
         out["path"] = max(audios, key=lambda p: os.path.getsize(p))
+        out["content_kind"] = "audio"
         return out
     out["error"] = (
         "Download incompleto: video e audio separati."
@@ -3999,27 +4594,15 @@ def read_media_source_meta(media_path: str) -> dict:
         return {}
 
 
-def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> dict:
-    """Se yt-dlp è nel PATH, scarica il media migliore entro MAX_MEDIA_BYTES."""
-    out = {
-        "ok": False,
-        "path": "",
-        "error": "",
-        "url": url,
-        "via": "yt-dlp",
-        "source_id": "",
-        "source_title": "",
-        "source_webpage": "",
-    }
-    _emit_progress(on_progress, 5, "Download da pagina (yt-dlp)…")
-    try:
-        tmpdir = tempfile.mkdtemp(prefix="rtad_media_dl_")
-    except Exception as e:
-        out["error"] = f"Cartella temporanea: {e}"
-        return out
-    out_tmpl = os.path.join(tmpdir, "rtad_media_%(id)s.%(ext)s")
-    meta_txt = os.path.join(tmpdir, "rtad_meta.txt")
-    expect_id = _youtube_id_from_url(url)
+def _ytdlp_argv(
+    url: str, out_tmpl: str, meta_txt: str, browser: str = "", referer: str = ""
+) -> list:
+    """Argomenti di yt-dlp. I cookie, se il consenso c'è, li legge il browser.
+
+    RTAD non scrive un file di cookie. Su RaiPlay Sound non si rimuxa:
+    resta il formato consegnato, anche se il nome finisce in .mp4.
+    """
+    sound = is_raiplay_sound_url(url)
     cmd = [
         "yt-dlp",
         "--no-playlist",
@@ -4031,11 +4614,18 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
     ff = _ffmpeg_exe()
     if ff:
         cmd.extend(["--ffmpeg-location", ff])
+    bid = _safe_browser_id(browser)
+    if bid:
+        cmd.extend(["--cookies-from-browser", bid])
+    ref = (referer or "").strip()
+    if ref.startswith("http://") or ref.startswith("https://"):
+        cmd.extend(["--referer", ref])
+    if not sound:
+        cmd.extend(["--merge-output-format", "mp4"])
+    fmt = "bestaudio/best" if sound else _ytdlp_format_prefer_under_limit()
     cmd.extend([
-        "--merge-output-format",
-        "mp4",
         "-f",
-        _ytdlp_format_prefer_under_limit(),
+        fmt,
         "--max-filesize",
         str(MAX_MEDIA_BYTES),
         "-o",
@@ -4046,6 +4636,42 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
         "--",
         url,
     ])
+    return cmd
+
+
+def _materialize_via_ytdlp(
+    url: str,
+    timeout: int = 180,
+    on_progress=None,
+    browser: str = "",
+    referer: str = "",
+) -> dict:
+    """Se yt-dlp è nel PATH, scarica il media migliore entro MAX_MEDIA_BYTES."""
+    out = {
+        "ok": False,
+        "path": "",
+        "error": "",
+        "url": url,
+        "via": "yt-dlp",
+        "source_id": "",
+        "source_title": "",
+        "source_webpage": "",
+        "needs_browser_login": False,
+    }
+    if url_is_drm_service(url):
+        out["error"] = DRM_CLOSED_MESSAGE
+        return out
+    browser = _safe_browser_id(browser)
+    _emit_progress(on_progress, 5, "Download da pagina (yt-dlp)…")
+    try:
+        tmpdir = tempfile.mkdtemp(prefix="rtad_media_dl_")
+    except Exception as e:
+        out["error"] = f"Cartella temporanea: {e}"
+        return out
+    out_tmpl = os.path.join(tmpdir, "rtad_media_%(id)s.%(ext)s")
+    meta_txt = os.path.join(tmpdir, "rtad_meta.txt")
+    expect_id = _youtube_id_from_url(url)
+    cmd = _ytdlp_argv(url, out_tmpl, meta_txt, browser, referer=referer)
     try:
         proc = subprocess.run(
             cmd,
@@ -4082,7 +4708,7 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
     except Exception:
         pass
     # Anche se il merge ffmpeg fallisce, spesso restano video+audio usabili.
-    picked = _pick_ytdlp_outputs(tmpdir)
+    picked = _pick_ytdlp_outputs(tmpdir, page_url=url)
     if not picked.get("ok"):
         if proc.returncode != 0:
             if "max-filesize" in low or "larger than max-filesize" in low:
@@ -4092,13 +4718,30 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
                     "Prova un video più corto oppure scaricalo a mano "
                     "e aprilo come file locale (scheda tecnica resta disponibile)."
                 )
-            elif "sign in" in low or "login" in low or "private" in low:
+            elif error_is_drm(err):
+                tip = " " + DRM_CLOSED_MESSAGE
+                out["needs_browser_login"] = False
+            elif error_is_dpapi_cookie_failure(err):
+                out["error"] = dpapi_cookie_message(browser)
+                return out
+            elif browser and error_is_http_forbidden(err):
+                out["error"] = playlist_refused_message(browser)
+                return out
+            elif error_is_cookie_read_failure(err):
+                out["error"] = cookie_unread_message(browser)
+                return out
+            elif error_needs_browser_login(err) and not browser:
+                out["needs_browser_login"] = True
                 tip = (
-                    " Il video potrebbe richiedere accesso (account / privato). "
-                    "Prova un video pubblico o un link diretto al file."
+                    " Serve il login del browser. I cookie restano sul tuo PC. "
+                    "Un flusso con protezione DRM resta non scaricabile."
                 )
-            elif "drm" in low:
-                tip = " Contenuto protetto (DRM). Resta non scaricabile."
+            elif error_needs_browser_login(err):
+                tip = (
+                    " Il login del browser non è bastato. "
+                    "I cookie restano sul tuo PC. "
+                    "Un flusso con protezione DRM resta non scaricabile."
+                )
             elif "unsupported url" in low:
                 tip = (
                     " Questo sito non è fra quelli che yt-dlp conosce "
@@ -4207,6 +4850,11 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
             "via": "yt-dlp",
             "audio_path": saved_audio_path,
             "ffmpeg": _ffmpeg_available(),
+            "content_kind": (
+                "audio"
+                if _accept_as_audio(saved["path"], url)
+                else ((picked.get("content_kind") or "").strip() or "video")
+            ),
         },
     )
     _emit_progress(on_progress, 28, "Download completato.")
@@ -4214,26 +4862,42 @@ def _materialize_via_ytdlp(url: str, timeout: int = 180, on_progress=None) -> di
 
 
 
-def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) -> dict:
+def materialize_media_from_url(
+    url: str, timeout: int = 90, on_progress=None, browser: str = ""
+) -> dict:
     """Scarica audio/video da URL http(s) su file temp. Dict: ok, path, error, url.
 
     - Link diretti (.mp4, .mp3, …): download HTTP.
-    - Pagine (YouTube, …): prova yt-dlp se installato; altrimenti messaggio chiaro.
-    Limiti = stessi di Gemini inline (dimensione).
+    - Pagine (YouTube, RaiPlay Sound, …): yt-dlp, se installato.
+    - browser: id già autorizzato. I cookie restano sul PC di chi usa RTAD.
+    Un flusso DRM non si scarica, nemmeno con i cookie.
     """
-    out = {"ok": False, "path": "", "error": "", "url": (url or "").strip()}
+    out = {
+        "ok": False,
+        "path": "",
+        "error": "",
+        "url": (url or "").strip(),
+        "needs_browser_login": False,
+    }
     u = out["url"]
+    browser = _safe_browser_id(browser)
     if not u:
         out["error"] = "URL vuoto."
         return out
     if not (u.lower().startswith("http://") or u.lower().startswith("https://")):
         out["error"] = "Serve un URL http o https."
         return out
+    if url_is_drm_service(u):
+        out["error"] = DRM_CLOSED_MESSAGE
+        return out
 
     direct = is_likely_direct_media_url(u)
     if is_stream_manifest_url(u) or (is_page_media_url(u) and not direct):
         return _materialize_via_ytdlp(
-            u, timeout=max(timeout, 900), on_progress=on_progress
+            u,
+            timeout=max(timeout, 900),
+            on_progress=on_progress,
+            browser=browser,
         )
 
     _emit_progress(on_progress, 5, "Download file diretto…")
@@ -4251,16 +4915,26 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
             data = resp.read(MAX_MEDIA_BYTES + 1)
             final_url = resp.geturl() or u
     except urllib.error.HTTPError as e:
+        if e.code in (401, 403) and not direct and not browser:
+            out["needs_browser_login"] = True
+            out["error"] = _access_denied_message()
+            return out
         if not direct or (e.code in (403, 404) and is_page_media_url(u)):
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 900), on_progress=on_progress
+                u,
+                timeout=max(timeout, 900),
+                on_progress=on_progress,
+                browser=browser,
             )
         out["error"] = f"HTTP {e.code}: download media non riuscito."
         return out
     except Exception as e:
         if not direct:
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 900), on_progress=on_progress
+                u,
+                timeout=max(timeout, 900),
+                on_progress=on_progress,
+                browser=browser,
             )
         out["error"] = f"Download non riuscito: {e}"
         return out
@@ -4284,25 +4958,34 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
     looks_json = "application/json" in ctype_l and data.lstrip()[:1] in (b"{", b"[")
     if looks_html or looks_json:
         found = _discover_page_media(u, data) if looks_html else {}
-        media_url = (found.get("media_url") or "").strip()
-        if media_url:
-            return _materialize_via_ytdlp(
-                media_url,
-                timeout=max(timeout, 900),
-                on_progress=on_progress,
-            )
-        if found.get("error"):
+        if found.get("needs_browser_login") and not browser:
+            out["needs_browser_login"] = True
+            out["error"] = found.get("error") or _access_denied_message()
+            return out
+        if found.get("error") and error_is_drm(found.get("error") or ""):
+            out["error"] = DRM_CLOSED_MESSAGE
+            return out
+        target, referer = page_download_target(u, found, browser)
+        if found.get("error") and not browser and target == u:
             out["error"] = found["error"]
+            out["needs_browser_login"] = bool(found.get("needs_browser_login"))
             return out
         return _materialize_via_ytdlp(
-            u, timeout=max(timeout, 900), on_progress=on_progress
+            target,
+            timeout=max(timeout, 900),
+            on_progress=on_progress,
+            browser=browser,
+            referer=referer,
         )
 
     ext = _sniff_media_ext(data, ctype, final_url)
     if not ext:
         if not direct:
             return _materialize_via_ytdlp(
-                u, timeout=max(timeout, 900), on_progress=on_progress
+                u,
+                timeout=max(timeout, 900),
+                on_progress=on_progress,
+                browser=browser,
             )
         out["error"] = "Formato audio/video non riconosciuto dall'URL."
         return out
@@ -4323,6 +5006,15 @@ def materialize_media_from_url(url: str, timeout: int = 90, on_progress=None) ->
             "title": direct_name,
             "webpage_url": final_url,
             "via": "http",
+            "content_kind": (
+                "audio"
+                if (
+                    is_raiplay_sound_url(u)
+                    or is_raiplay_sound_url(final_url)
+                    or file_is_audio_only(saved["path"])
+                )
+                else ""
+            ),
         },
     )
     _emit_progress(on_progress, 28, "Download completato.")

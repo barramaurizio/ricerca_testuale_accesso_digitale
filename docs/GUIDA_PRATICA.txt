@@ -14,25 +14,22 @@ Le funzioni principali sono le stesse. Cambiano solo qualche scorciatoia
 e il modo in cui si apre la finestra.
 
 
-Novità recenti (in parole semplici) — versione 1.9.7
+Novità recenti (in parole semplici) — versione 1.9.8
 ----------------------------------------------------
-• In «Tutto sull'audio/video», il riassunto breve è già scelto.
+• In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.
+• Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.
+• Resta dalla 1.9.7: In «Tutto sull'audio/video», il riassunto breve è già scelto.
   Freccia giù, o un clic, passa alla descrizione dettagliata:
   in cima resta il riassunto e sotto il racconto scena per scena,
   una sola richiesta a Gemini. I timestamp del racconto sono spenti.
   Spazio sulla casella, o un clic, li accende. Se accesi, avanzano
   con le scene, sullo stesso orologio del video.
   Solo ciò che si vede o si sente. A schermo e a voce.
-• Su una pagina che tiene video e audio separati, per esempio RaiPlay,
-  si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,
-  restava solo l'audio e la finestra del risultato non si apriva.
-  Un contenuto protetto resta non scaricabile.
-• Il file scaricato da un indirizzo resta in vista nell'elenco.
+  Su una pagina che tiene video e audio separati, per esempio RaiPlay,
+  si scaricano entrambi e ffmpeg li unisce.
+  Il file scaricato da un indirizzo resta in vista nell'elenco.
   Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».
-• Nella prossima versione è previsto il login del browser,
-  e si attua con il consenso di chi usa RTAD.
-  Un flusso con protezione DRM resta non scaricabile.
-  Le finestre nostre arrivano nella versione dopo.
+• Nella prossima versione arrivano le finestre nostre al posto di Salva e Sfoglia.
 • Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:
   Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.
   Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
@@ -106,9 +103,7 @@ Novità recenti (in parole semplici) — versione 1.9.7
   non si scrive. Ogni pagina passa da yt-dlp,
   anche una playlist .m3u8 o .mpd.
   Un contenuto protetto resta non scaricabile.
-  Nella prossima versione è previsto il login del browser,
-  e si attua con il consenso di chi usa RTAD.
-  Un flusso con protezione DRM resta non scaricabile.
+  Il login del browser, con il consenso, è in questa versione.
 • Resta dalla 1.9.2: Leggi documento su un EPUB apre un capitolo nel lettore
   dentro RTAD. A schermo e a voce:
   «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»

@@ -134,23 +134,20 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
 <div class="box" id="novita">
   <h2 style="margin-top:0;">1. Novità di questa versione ({app_version})</h2>
   <ul>
-    <li>In «Tutto sull'audio/video», il riassunto breve è già scelto.
+    <li>In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.</li>
+    <li>Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.</li>
+    <li>Resta dalla 1.9.7: In «Tutto sull'audio/video», il riassunto breve è già scelto.
       Freccia giù, o un clic, passa alla descrizione dettagliata:
       in cima resta il riassunto e sotto il racconto scena per scena,
       una sola richiesta a Gemini. I timestamp del racconto sono spenti.
       Spazio sulla casella, o un clic, li accende. Se accesi, avanzano
       con le scene, sullo stesso orologio del video.
-      Solo ciò che si vede o si sente. A schermo e a voce.</li>
-    <li>Su una pagina che tiene video e audio separati, per esempio RaiPlay,
-      si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,
-      restava solo l'audio e la finestra del risultato non si apriva.
-      Un contenuto protetto resta non scaricabile.</li>
-    <li>Il file scaricato da un indirizzo resta in vista nell'elenco.
+      Solo ciò che si vede o si sente. A schermo e a voce.
+      Su una pagina che tiene video e audio separati, per esempio RaiPlay,
+      si scaricano entrambi e ffmpeg li unisce.
+      Il file scaricato da un indirizzo resta in vista nell'elenco.
       Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».</li>
-    <li>Nella prossima versione è previsto il login del browser,
-      e si attua con il consenso di chi usa RTAD.
-      Un flusso con protezione DRM resta non scaricabile.
-      Le finestre nostre arrivano nella versione dopo.</li>
+    <li>Nella prossima versione arrivano le finestre nostre al posto di Salva e Sfoglia.</li>
     <li>Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:
       Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.
       Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,
@@ -224,9 +221,7 @@ Usa anche l’indice qui sotto per saltare alle sezioni.</p>
       non si scrive. Ogni pagina passa da yt-dlp,
       anche una playlist .m3u8 o .mpd.
       Un contenuto protetto resta non scaricabile.
-      Nella prossima versione è previsto il login del browser,
-      e si attua con il consenso di chi usa RTAD.
-      Un flusso con protezione DRM resta non scaricabile.</li>
+      Il login del browser, con il consenso, è in questa versione.</li>
     <li><strong>Resta dalla 1.9.2 — Leggi documento</strong> su un EPUB apre un capitolo
       nel lettore dentro RTAD. A schermo e a voce:
       «Capitolo: titolo. N intestazioni, M link. Passo 1 di 1.»
@@ -730,11 +725,14 @@ Le parti uguali non si rileggono.</p>
     Spazio sulla casella, o un clic, li accende. Se accesi, avanzano con le scene,
     sullo stesso orologio del video. Solo ciò che si vede o si sente.
     Su una pagina che tiene video e audio separati, per esempio RaiPlay,
-    si scaricano entrambi e ffmpeg li unisce. Un contenuto protetto resta
+    si scaricano entrambi e ffmpeg li unisce.     Un contenuto protetto resta
     non scaricabile.
-    Nella prossima versione è previsto il login del browser,
-    e si attua con il consenso di chi usa RTAD.
-    Un flusso con protezione DRM resta non scaricabile.
+    Spazio sulla casella «Usa il login del browser», o un clic, la accende.
+    Invio o un clic su «Autorizza» legge i cookie del browser già aperto
+    su questo PC, solo per questo download. I cookie restano sul tuo PC.
+    Una pagina audio di RaiPlay Sound, come il GR1, porta al file
+    e lo mette in elenco. Anche se il nome finisce in .mp4 e dentro
+    c'è solo l'audio, a schermo e a voce si dice che è l'audio.
     La trascrizione è opt-in, con Gemini. «Sul mio PC (Whisper)» è un’altra casella, spenta:
     al primo uso scarica il modello e trascrive senza chiave Gemini,
     un file fino a 20 minuti, in una cartella fino a 5 file.

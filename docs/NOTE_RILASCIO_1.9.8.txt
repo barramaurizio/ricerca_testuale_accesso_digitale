@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.9.8
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.
+- Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.
+- Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- In «Tutto sull'audio/video», Space on the box «Usa il login del browser», or a click, turns it on. At the start, Enter or a click on «Autorizza» reads the cookies, only for this download. The cookies stay on your PC. On Windows the key of Edge, Chrome, Brave, Opera and Vivaldi often does not decrypt, even when the program is closed. Firefox, if it is open and you have entered the site, can be read with the window open. If the site delivers video and audio apart, ffmpeg joins them. A DRM-protected stream stays not downloadable: Netflix, Sky, DAZN, Prime and the others with Widevine, PlayReady or FairPlay stay closed.
+- A RaiPlay Sound audio page, such as the GR1, leads to the file and puts it in the list. The file stays in the format delivered by Rai, even if the name ends in .mp4 and inside there is only the audio. On screen and by voice it says that it is the audio.
+- Last NVDA version tested: 2026.3. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.8.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.8
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.8.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.8.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Login del browser, con il consenso: i cookie restano sul PC. RaiPlay Sound mette l'audio in elenco, anche se il file si chiama .mp4.
+
+Summary EN:
+Browser login, with consent: the cookies stay on the PC. RaiPlay Sound puts the audio in the list, even if the file is named .mp4.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.8/ricerca_testuale_accesso_digitale-1.9.8.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.8
+
+Description:
+Login del browser con il consenso, solo per quel download. I cookie restano sul PC. Un flusso DRM resta non scaricabile. RaiPlay Sound: l'audio va in elenco, nel formato di Rai, e si dice che è l'audio.

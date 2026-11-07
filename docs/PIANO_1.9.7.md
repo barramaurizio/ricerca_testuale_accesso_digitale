@@ -1,6 +1,6 @@
 # Piano RTAD 1.9.7
 
-**Scritta nei sorgenti** il 6/11/2026. Non ancora pubblicata.  
+**Pubblicata** il 6/11/2026. GitHub `v1.9.7` / `app-v1.9.7`, commit `163464f`. È online. Non si rifà.  
 La 1.9.6 è già pubblicata (5/11/2026, GitHub `v1.9.6` / `app-v1.9.6`): OneCore resta, non si rifà.  
 La 1.9.5 resta pubblicata (4/11/2026, GitHub `v1.9.5` / `app-v1.9.5`, commit `6c4e9c6`; DataStore #12756 via #12757 accettato). Non si rifà.
 

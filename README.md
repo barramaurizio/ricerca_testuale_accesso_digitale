@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v1.9.8)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,11 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 1.9.8
+
+- In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.
+- Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.
 
 ### 🌟 Novità della Versione 1.9.7
 
@@ -342,6 +347,11 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 1.9.8
+
+- In «Tutto sull'audio/video», Space on the box «Usa il login del browser», or a click, turns it on. At the start, Enter or a click on «Autorizza» reads the cookies, only for this download. The cookies stay on your PC. On Windows the key of Edge, Chrome, Brave, Opera and Vivaldi often does not decrypt, even when the program is closed. Firefox, if it is open and you have entered the site, can be read with the window open. If the site delivers video and audio apart, ffmpeg joins them. A DRM-protected stream stays not downloadable: Netflix, Sky, DAZN, Prime and the others with Widevine, PlayReady or FairPlay stay closed.
+- A RaiPlay Sound audio page, such as the GR1, leads to the file and puts it in the list. The file stays in the format delivered by Rai, even if the name ends in .mp4 and inside there is only the audio. On screen and by voice it says that it is the audio.
 
 ### 🌟 What's New in Version 1.9.7
 

@@ -105,7 +105,7 @@ except ImportError:
     rtad_attach_dialog = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.7"
+APP_VERSION = "1.9.8"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -8811,6 +8811,7 @@ class MediaSectionsDialog(wx.Dialog):
         preset_sections=None,
         batch_mode=False,
         media_count=None,
+        notice="",
     ):
         super().__init__(
             parent,
@@ -8845,10 +8846,16 @@ class MediaSectionsDialog(wx.Dialog):
                 intro += f"\nFile: {context_label}"
         lbl = wx.StaticText(self, label=intro)
         vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 10)
+        notice = (notice or "").strip()
+        if notice:
+            lbl_notice = wx.StaticText(self, label=notice)
+            lbl_notice.Wrap(560)
+            vbox.Add(lbl_notice, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         self.txt_url = None
         self.txt_file = None
         self.lbl_ytdlp = None
+        self.chk_browser_login = None
         if self.show_source:
             vbox.Add(
                 wx.StaticText(self, label="URL audio/video (opzionale):"),
@@ -8858,6 +8865,16 @@ class MediaSectionsDialog(wx.Dialog):
             )
             self.txt_url = wx.TextCtrl(self, value=(initial_url or "").strip())
             vbox.Add(self.txt_url, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+            self.chk_browser_login = wx.CheckBox(
+                self,
+                label=(
+                    "Usa il login del browser per questo download. "
+                    "Spazio sulla casella, o un clic, la accende. "
+                    "I cookie restano sul tuo PC."
+                ),
+            )
+            self.chk_browser_login.SetValue(bool(preset.get("use_browser_login")))
+            vbox.Add(self.chk_browser_login, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
             vbox.Add(
                 wx.StaticText(self, label="Oppure file locale:"),
                 0,
@@ -9170,6 +9187,10 @@ class MediaSectionsDialog(wx.Dialog):
             "translate_lang": _media_translate_lang(self),
             "url": url,
             "file_path": path,
+            "use_browser_login": bool(
+                self.chk_browser_login is not None
+                and self.chk_browser_login.GetValue()
+            ),
             "save_txt": bool(self.chk_save and self.chk_save.GetValue()),
             "recursive": bool(
                 self.chk_recursive and self.chk_recursive.GetValue()
@@ -12288,18 +12309,18 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• In «Tutto sull'audio/video», il riassunto breve è già scelto.\n"
+            "• In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.\n"
+            "• Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.\n"
+            "• Resta dalla 1.9.7: In «Tutto sull'audio/video», il riassunto breve è già scelto.\n"
             "  Freccia giù, o un clic, passa alla descrizione dettagliata:\n"
             "  in cima resta il riassunto e sotto il racconto scena per scena,\n"
             "  una sola richiesta a Gemini. I timestamp del racconto sono spenti.\n"
             "  Spazio sulla casella, o un clic, li accende. Se accesi, avanzano\n"
             "  con le scene, sullo stesso orologio del video.\n"
             "  Solo ciò che si vede o si sente. A schermo e a voce.\n"
-            "• Su una pagina che tiene video e audio separati, per esempio RaiPlay,\n"
-            "  si scaricano entrambi e ffmpeg li unisce. Prima, in quel caso,\n"
-            "  restava solo l'audio e la finestra del risultato non si apriva.\n"
-            "  Un contenuto protetto resta non scaricabile.\n"
-            "• Il file scaricato da un indirizzo resta in vista nell'elenco.\n"
+            "  Su una pagina che tiene video e audio separati, per esempio RaiPlay,\n"
+            "  si scaricano entrambi e ffmpeg li unisce.\n"
+            "  Il file scaricato da un indirizzo resta in vista nell'elenco.\n"
             "  Insert+Tab dice quella riga, senza «invisibile» e senza «fuori schermo».\n"
             "• Resta dalla 1.9.6: Nella Standalone, menu Voce, «Solo la voce di questo programma»:\n"
             "  Ctrl+Shift+S, oppure Invio sulla voce, o un clic, accende o spegne la modalità. Tab e Shift li dice la voce in uso.\n"
@@ -17951,6 +17972,7 @@ class MainWindow(wx.Frame):
         preset_sections=None,
         *,
         clear_source=False,
+        notice="",
     ):
         """Hub unificato: filtro Audio/Video, Strumenti, scorciatoia URL."""
         if getattr(self, "_media_hub_open", False):
@@ -17972,7 +17994,77 @@ class MainWindow(wx.Frame):
             initial_url=initial_url,
             show_source=True,
             preset_sections=presets,
+            notice=notice,
         )
+
+    def _begin_url_media_download(self, url, sections, browser=""):
+        """Scarica l'indirizzo. Il login si chiede solo col consenso."""
+        if rtad_media is None:
+            speak_accessible("Modulo media non disponibile.")
+            return
+        sections = sections if isinstance(sections, dict) else {}
+        def _back_to_hub(message, keep_login=False):
+            self._set_media_progress(0, message)
+            logging.warning("RTAD download da pagina: %s", message)
+            preset = dict(self._last_media_sections or {})
+            if keep_login and browser:
+                preset["use_browser_login"] = True
+            self.open_media_hub_dialog(
+                initial_url=url, preset_sections=preset, notice=message
+            )
+
+        if rtad_media.url_is_drm_service(url):
+            _back_to_hub(rtad_media.DRM_CLOSED_MESSAGE)
+            return
+        if getattr(self, "_media_analysis_busy", False):
+            _back_to_hub(
+                "Analisi già in corso. Attendi il risultato, "
+                "poi potrai avviarne un'altra."
+            )
+            return
+        speak_accessible("Download audio/video in corso…")
+        self._set_media_progress(3, "Download audio/video…")
+
+        def _work(browser=browser):
+            res = rtad_media.materialize_media_from_url(
+                url, on_progress=self._media_progress_cb, browser=browser
+            )
+            if not res.get("ok") or not res.get("path"):
+                if res.get("needs_browser_login") and not browser:
+                    def _ask():
+                        chosen, blocked = rtad_media.prepare_browser_cookies(
+                            self, speak_accessible
+                        )
+                        if not chosen:
+                            err = (
+                                blocked
+                                or res.get("error")
+                                or rtad_media.CONSENT_REFUSED_MESSAGE
+                            )
+                            _back_to_hub(err)
+                            return
+                        self._begin_url_media_download(
+                            url, sections, browser=chosen
+                        )
+
+                    wx.CallAfter(_ask)
+                    return
+                err = res.get("error") or "Download media non riuscito."
+
+                def _fail(err=err, keep=bool(browser)):
+                    _back_to_hub(err, keep_login=keep)
+
+                wx.CallAfter(_fail)
+                return
+
+            def _open_downloaded(path=res["path"], sections=sections):
+                self.show_media_analysis(
+                    path, mode="all", sections=sections, delete_after=True
+                )
+
+            wx.CallAfter(_open_downloaded)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def show_media_all_dialog(
         self,
@@ -17981,11 +18073,13 @@ class MainWindow(wx.Frame):
         initial_url="",
         show_source=True,
         preset_sections=None,
+        notice="",
     ):
         """Dialogo hub «Tutto sull'audio/video» → analisi dopo Avvia."""
         if getattr(self, "_media_hub_open", False):
             return
         self._media_hub_open = True
+        spoken = (notice or "").strip()
         dlg = MediaSectionsDialog(
             self,
             title="Tutto sull'audio/video",
@@ -17994,7 +18088,10 @@ class MainWindow(wx.Frame):
             initial_path=file_path or "",
             initial_url=initial_url or "",
             preset_sections=preset_sections,
+            notice=spoken,
         )
+        if spoken:
+            wx.CallAfter(speak_accessible, spoken)
         try:
             if dlg.ShowModal() != wx.ID_OK:
                 if delete_after and file_path and rtad_media is not None:
@@ -18027,46 +18124,36 @@ class MainWindow(wx.Frame):
         url = (sel.get("url") or "").strip()
         path = (sel.get("file_path") or file_path or "").strip()
         if url:
-            if rtad_media is None:
-                speak_accessible("Modulo media non disponibile.")
-                return
-            if getattr(self, "_media_analysis_busy", False):
-                speak_accessible(
-                    "Analisi già in corso. Attendi il risultato, "
-                    "poi potrai avviarne un'altra."
-                )
-                self.open_media_hub_dialog(
-                    initial_url=url, preset_sections=self._last_media_sections
-                )
-                return
-            speak_accessible("Download audio/video in corso…")
-            self._set_media_progress(3, "Download audio/video…")
-
-            def _work():
-                res = rtad_media.materialize_media_from_url(
-                    url, on_progress=self._media_progress_cb
-                )
-                if not res.get("ok") or not res.get("path"):
-                    err = res.get("error") or "Download media non riuscito."
-
-                    def _fail():
-                        self._set_media_progress(0, err)
-                        speak_accessible(err)
-                        self.open_media_hub_dialog(
-                            initial_url=url,
-                            preset_sections=self._last_media_sections,
-                        )
-
-                    wx.CallAfter(_fail)
-                    return
-                def _open_downloaded(path=res["path"], sections=sel):
-                    self.show_media_analysis(
-                        path, mode="all", sections=sections, delete_after=True
+            browser = ""
+            if sel.get("use_browser_login"):
+                if rtad_media is not None and rtad_media.url_is_drm_service(url):
+                    msg = rtad_media.DRM_CLOSED_MESSAGE
+                    self._set_media_progress(0, msg)
+                    speak_accessible(msg)
+                    self.open_media_hub_dialog(
+                        initial_url=url,
+                        preset_sections=self._last_media_sections,
                     )
-
-                wx.CallAfter(_open_downloaded)
-
-            threading.Thread(target=_work, daemon=True).start()
+                    return
+                browser, blocked = (
+                    rtad_media.prepare_browser_cookies(self, speak_accessible)
+                    if rtad_media is not None
+                    else ("", "Consenso non dato. I cookie non si leggono.")
+                )
+                if not browser:
+                    msg = blocked or (
+                        rtad_media.CONSENT_REFUSED_MESSAGE
+                        if rtad_media is not None
+                        else "Consenso non dato. I cookie non si leggono."
+                    )
+                    self._set_media_progress(0, msg)
+                    speak_accessible(msg)
+                    self.open_media_hub_dialog(
+                        initial_url=url,
+                        preset_sections=self._last_media_sections,
+                    )
+                    return
+            self._begin_url_media_download(url, sel, browser=browser)
             return
 
         if not path or not os.path.isfile(path):
@@ -19421,8 +19508,26 @@ class MainWindow(wx.Frame):
             size_s = f"{sz} byte"
         date_lbl = format_file_date_label(mtime)
         date_suffix = f" {date_lbl}" if date_lbl else ""
+        kind = str(meta.get("content_kind") or "").strip()
+        if (
+            not kind
+            and rtad_media is not None
+            and hasattr(rtad_media, "file_is_audio_only")
+        ):
+            try:
+                if rtad_media.file_is_audio_only(file_path) or (
+                    rtad_media.is_raiplay_sound_url(url)
+                ):
+                    kind = "audio"
+            except Exception:
+                kind = ""
         prefix = f"[{(ext or '.file').lstrip('.').upper() or 'FILE'}]"
-        snippet = f"File scaricato da URL · {size_s}"
+        if kind == "audio":
+            snippet = f"È l'audio. File scaricato da URL · {size_s}"
+            location = f"È l'audio. Scaricato da URL{date_suffix}"
+        else:
+            snippet = f"File scaricato da URL · {size_s}"
+            location = f"Scaricato da URL{date_suffix}"
         if url:
             snippet = f"{snippet} · {url}"
         item = {
@@ -19432,7 +19537,7 @@ class MainWindow(wx.Frame):
             "mtime": mtime,
             "line_number": None,
             "paragraph_index": None,
-            "location_info": f"Scaricato da URL{date_suffix}",
+            "location_info": location,
             "snippet": snippet,
             "media_path": file_path,
         }
@@ -19442,10 +19547,18 @@ class MainWindow(wx.Frame):
         self.update_list_display()
         if self.lst_results.GetCount() > 0:
             self.lst_results.SetSelection(0)
-        msg = (
-            f"Il file è in elenco: {name}. "
-            "Da qui puoi fare altre operazioni."
-        )
+        if rtad_media is not None and hasattr(rtad_media, "list_sentence_for_download"):
+            msg = rtad_media.list_sentence_for_download(name, kind)
+        elif kind == "audio":
+            msg = (
+                f"È l'audio: {name}. Il file è in elenco, nel formato consegnato. "
+                "Da qui puoi fare altre operazioni."
+            )
+        else:
+            msg = (
+                f"Il file è in elenco: {name}. "
+                "Da qui puoi fare altre operazioni."
+            )
         try:
             self.txt_status_progress.SetValue(msg)
         except Exception:

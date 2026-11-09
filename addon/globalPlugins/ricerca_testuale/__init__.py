@@ -12180,14 +12180,64 @@ class SearchFrame(wx.Frame):
         except Exception:
             return False
 
-    def _wake_search_frame(self):
-        """Al ritorno il focus torna su un campo. Sfoglia e Salva non si toccano."""
+    def _cancel_search_wake(self):
+        timers = getattr(self, "_search_wake_timers", None) or []
+        self._search_wake_timers = []
+        for timer in timers:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+
+    def _arm_search_wake(self, delays, force=False):
+        self._cancel_search_wake()
+        timers = []
+        for delay in delays:
+            try:
+                timers.append(wx.CallLater(delay, self._wake_search_frame, False, force))
+            except Exception:
+                pass
+        self._search_wake_timers = timers
+
+    def _search_window_is_iconic(self):
+        try:
+            if self.IsIconized():
+                return True
+        except Exception:
+            pass
+        try:
+            hwnd = int(self.GetHandle() or 0)
+            if hwnd and ctypes.windll.user32.IsIconic(hwnd):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _kick_search_focus(self, target):
+        """Secondo passaggio, dopo il ripristino: il primo SetFocus a volte non basta."""
+        try:
+            if self.IsBeingDeleted() or self._search_window_is_iconic() or not self.IsShown():
+                return
+            if not self._search_frame_is_foreground():
+                return
+            for window in list(wx.GetTopLevelWindows()):
+                if window is self:
+                    continue
+                if isinstance(window, wx.Dialog) and window.IsShown():
+                    return
+            if target is None or not target or target.GetTopLevelParent() is not self:
+                target = self.txt_query
+            if target is not None:
+                target.SetFocus()
+        except Exception:
+            pass
+
+    def _wake_search_frame(self, restore=False, force=False):
+        """Al ritorno il focus torna su un campo. Iconizzata, non si rialza."""
         try:
             if self.IsBeingDeleted():
                 return
         except Exception:
-            return
-        if not self._search_frame_is_foreground():
             return
         try:
             for window in list(wx.GetTopLevelWindows()):
@@ -12197,20 +12247,18 @@ class SearchFrame(wx.Frame):
                     return
         except Exception:
             return
+        if restore:
+            self._search_wake_hold = False
+        iconic = self._search_window_is_iconic()
+        held = bool(getattr(self, "_search_wake_hold", False))
+        if (iconic or held) and not restore:
+            return
+        if not restore and not self._search_frame_is_foreground():
+            return
         try:
             hwnd = int(self.GetHandle() or 0)
         except Exception:
             hwnd = 0
-        iconic = False
-        try:
-            iconic = bool(self.IsIconized())
-        except Exception:
-            iconic = False
-        if hwnd and not iconic:
-            try:
-                iconic = bool(ctypes.windll.user32.IsIconic(hwnd))
-            except Exception:
-                pass
         focus_real = False
         try:
             focus = wx.Window.FindFocus()
@@ -12229,29 +12277,32 @@ class SearchFrame(wx.Frame):
                 tiny = width < 240 or height < 180
         except Exception:
             tiny = False
-        if focus_real and not iconic and not tiny:
+        if focus_real and not iconic and not tiny and not force and not restore:
             return
-        if iconic and hwnd:
+        if iconic and hwnd and restore:
             try:
                 ctypes.windll.user32.ShowWindow(hwnd, 9)
             except Exception:
                 pass
         try:
-            if iconic:
+            if iconic and restore:
                 self.Iconize(False)
-            if not self.IsShown():
+            if restore and not self.IsShown():
                 self.Show()
-            self.Raise()
-            if not self.IsMaximized():
-                width, height = self.GetSize()
-                if width < 240 or height < 180:
-                    self.SetSize((860, 780))
-                    self.Centre()
-                elif width > 240 and height > 180:
-                    self.SetSize((width, height + 1))
-                    self.SetSize((width, height))
-            self.SendSizeEvent()
-            self.Layout()
+            if restore:
+                iconic = self._search_window_is_iconic()
+            if not iconic:
+                self.Raise()
+                if not self.IsMaximized():
+                    width, height = self.GetSize()
+                    if width < 240 or height < 180:
+                        self.SetSize((860, 780))
+                        self.Centre()
+                    elif force or restore:
+                        self.SetSize((width, height + 1))
+                        self.SetSize((width, height))
+                self.SendSizeEvent()
+                self.Layout()
         except Exception:
             pass
         target = getattr(self, "_last_focus_ctrl", None)
@@ -12261,8 +12312,10 @@ class SearchFrame(wx.Frame):
         except Exception:
             target = getattr(self, "txt_query", None)
         try:
-            if target is not None:
+            if target is not None and not iconic:
                 target.SetFocus()
+                if force or restore:
+                    wx.CallLater(220, self._kick_search_focus, target)
         except Exception:
             pass
 
@@ -12272,9 +12325,13 @@ class SearchFrame(wx.Frame):
         except Exception:
             active = False
         if active:
-            wx.CallLater(80, self._wake_search_frame)
-            wx.CallLater(350, self._wake_search_frame)
+            if not self._search_window_is_iconic() and not getattr(self, "_search_wake_hold", False):
+                left = getattr(self, "_search_left_at", 0) or 0
+                away = bool(left) and (time.monotonic() - left) >= 20
+                self._arm_search_wake((80, 350), force=away)
         else:
+            self._search_left_at = time.monotonic()
+            self._cancel_search_wake()
             self._remember_search_focus()
         event.Skip()
 
@@ -12284,9 +12341,13 @@ class SearchFrame(wx.Frame):
         except Exception:
             iconized = False
         if iconized:
+            self._search_wake_hold = True
+            self._search_left_at = time.monotonic()
+            self._cancel_search_wake()
             self._remember_search_focus()
         else:
-            wx.CallLater(120, self._wake_search_frame)
+            self._search_wake_hold = False
+            self._arm_search_wake((120, 400), force=True)
         event.Skip()
 
     def copy_status_to_clipboard(self):
@@ -18181,7 +18242,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 except Exception:
                     continue
             if live is not None:
-                live._wake_search_frame()
+                live._wake_search_frame(restore=True, force=True)
                 return
             frame = SearchFrame()
             frame.Show()

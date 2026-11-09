@@ -1,0 +1,89 @@
+🌟 Novità della Versione 1.9.10
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v1.9.10
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v1.9.10
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»
+- Nell'Add-on, se la finestra di ricerca è ridotta a icona, Alt+Tab la riapre e il focus torna sul campo.
+- Ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- Ctrl+E, or Enter on the Export results button, or a click, opens the window. Space on a box, or a click, chooses the format: text, web page, table. You can turn on more than one. Enter on the Export button, or a click, writes every chosen file, with the same name, in the folder. Enter on the Browse folder button, or a click, changes the folder. In the Standalone, with the RTAD voice on, Save and Browse are RTAD windows. With the RTAD voice off, they are the Windows windows, as in the Add-on: NVDA reads them. The suggested folder is the one the files came from. The next search does not read those result files again: the list keeps the documents. If those files are already there, a question has three buttons. Enter on Yes to all, or a click, replaces them. Enter on No to all, or a click, returns to the window. On screen and by voice: «Niente è stato scritto. I file già presenti restano.» Enter on Choose one by one, or a click, asks for each file: Enter on Yes, or a click, replaces it; Enter on No, or a click, leaves it. Esc cancels. With the RTAD voice, the list says the place, for example «1 di 65». On a button it says the word Pulsante. With the RTAD voice, Ctrl+E says «Esporta risultati, finestra di dialogo». The table opens in Excel with letters and symbols in place. Esc cancels. On screen and by voice: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»
+- In the Add-on, if the search window is minimized, Alt+Tab opens it again and the focus returns to the field.
+- Last NVDA version tested: 2026.3.1. The Add-on’s chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-1.9.10.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v1.9.10
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v1.9.10
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra). I due exe li compila Maurizio.
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v1.9.10.exe
+RicercaTestualeAccessoDigitale_Portable_v1.9.10.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Ctrl+E scrive insieme testo, pagina web e tabella. Nell'Add-on, se la ricerca è ridotta a icona, Alt+Tab la riapre sul campo. NVDA testata: 2026.3.1.
+
+Summary EN:
+Ctrl+E writes text, web page and table together. In the Add-on, if search is minimized, Alt+Tab opens it on the field. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v1.9.10/ricerca_testuale_accesso_digitale-1.9.10.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v1.9.10
+
+Description:
+Ctrl+E scrive più formati nello stesso passaggio. Nell'Add-on la ricerca ridotta a icona si riapre con Alt+Tab. NVDA testata: 2026.3.1.

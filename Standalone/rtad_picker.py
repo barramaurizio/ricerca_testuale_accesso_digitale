@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Salva e Sfoglia di RTAD, al posto delle finestre di Windows.
+"""Salva e Sfoglia di RTAD, quando è accesa la sua voce.
+
+Con la voce di RTAD spenta si aprono le finestre di Windows, come nell'Add-on.
 
 Stesse chiamate di wx.FileDialog e wx.DirDialog. A schermo e a voce.
 L'elenco Unità scorre solo i dischi. Invio o doppio clic apre il disco.
@@ -19,6 +21,9 @@ _MAX_ROWS = 4000
 _speaker = None
 _before_status = None
 _speak_nav = None
+_use_rtad_windows = None
+_windows_file = None
+_windows_dir = None
 
 
 def set_speaker(fn):
@@ -41,15 +46,52 @@ def set_speak_nav(fn):
     _speak_nav = fn
 
 
-def install(speaker=None, before_status=None, speak_nav=None):
+def set_use_rtad_windows(fn):
+    """Vero: finestre di RTAD. Falso: finestre di Windows, come nell'Add-on."""
+    global _use_rtad_windows
+    _use_rtad_windows = fn
+
+
+def _want_rtad_window():
+    if _use_rtad_windows is None:
+        return True
+    try:
+        return bool(_use_rtad_windows())
+    except Exception:
+        return True
+
+
+class _FileDialogChooser:
+    """Con la voce di RTAD accesa, la sua finestra. Spenta, quella di Windows."""
+
+    def __new__(cls, *args, **kwargs):
+        if _want_rtad_window():
+            return RTADFileDialog(*args, **kwargs)
+        return _windows_file(*args, **kwargs)
+
+
+class _DirDialogChooser:
+    def __new__(cls, *args, **kwargs):
+        if _want_rtad_window():
+            return RTADDirDialog(*args, **kwargs)
+        return _windows_dir(*args, **kwargs)
+
+
+def install(speaker=None, before_status=None, speak_nav=None, use_rtad_windows=None):
+    global _windows_file, _windows_dir
     if speaker is not None:
         set_speaker(speaker)
     if before_status is not None:
         set_before_status(before_status)
     if speak_nav is not None:
         set_speak_nav(speak_nav)
-    wx.FileDialog = RTADFileDialog
-    wx.DirDialog = RTADDirDialog
+    if use_rtad_windows is not None:
+        set_use_rtad_windows(use_rtad_windows)
+    if _windows_file is None:
+        _windows_file = wx.FileDialog
+        _windows_dir = wx.DirDialog
+    wx.FileDialog = _FileDialogChooser
+    wx.DirDialog = _DirDialogChooser
 
 
 def say(text):

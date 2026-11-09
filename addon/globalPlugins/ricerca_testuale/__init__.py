@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.9"
+APP_VERSION = "1.9.10"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -655,10 +655,42 @@ def find_thunderbird_feeds_dirs():
     return unique
 
 
+def is_rtad_results_export(path):
+    """Copia scritta da Esporta o dal salvataggio automatico. Non è un documento."""
+    if not path or os.path.isdir(path):
+        return False
+    name = os.path.basename(path).lower()
+    if name.startswith("rtad_risultati_") and name.endswith(".txt"):
+        kind = "txt"
+    elif name.startswith("risultati_") and name.endswith(".txt"):
+        kind = "txt"
+    elif name.startswith("risultati_") and name.endswith(".html"):
+        kind = "html"
+    elif name.startswith("risultati_") and name.endswith(".csv"):
+        kind = "csv"
+    else:
+        return False
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(400)
+    except Exception:
+        return False
+    if raw.startswith(b"\xef\xbb\xbf"):
+        raw = raw[3:]
+    head = raw.decode("utf-8", errors="ignore")
+    if kind == "txt":
+        return "Risultati Ricerca" in head and head.lstrip().startswith("===")
+    if kind == "html":
+        return "Risultati Ricerca -" in head
+    return head.lstrip().startswith("Numero;Nome File;Percorso;")
+
+
 def is_rtad_noise_file(path):
     """File/cartelle di rumore: log interni, cache editor, WinSxS (riempiono i risultati)."""
     if not path:
         return False
+    if is_rtad_results_export(path):
+        return True
     name = os.path.basename(path).lower()
     if name == "rtad_debug.log" or name == "rtad_activity.log":
         return True
@@ -4334,6 +4366,399 @@ def save_last_export_dir(path):
     data = _load_settings_dict()
     data["last_export_dir"] = d
     _save_settings_dict(data)
+
+
+_EXPORT_FORMATS = (
+    ("txt", "Testo, .txt", "testo"),
+    ("html", "Pagina web, .html", "pagina web"),
+    ("csv", "Tabella, .csv", "tabella"),
+)
+
+_EXPORT_HINT = (
+    "Spazio sulla casella, o un clic, sceglie il formato. "
+    "Puoi accenderne più di una. "
+    "Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. "
+    "Invio sul pulsante Esporta, o un clic, scrive i file. "
+    "Esc annulla."
+)
+
+
+def load_export_formats():
+    data = _load_settings_dict()
+    raw = data.get("export_formats")
+    if not isinstance(raw, list):
+        return ["txt"]
+    kept = [key for key, _label, _said in _EXPORT_FORMATS if key in raw]
+    return kept or ["txt"]
+
+
+def save_export_formats(keys):
+    kept = [key for key, _label, _said in _EXPORT_FORMATS if key in keys]
+    if not kept:
+        return
+    data = _load_settings_dict()
+    data["export_formats"] = kept
+    _save_settings_dict(data)
+
+
+def _export_kind_phrase(keys):
+    said = [name for key, _label, name in _EXPORT_FORMATS if key in keys]
+    if not said:
+        return "nessuno"
+    if len(said) == 1:
+        return said[0]
+    if len(said) == 2:
+        return f"{said[0]} e {said[1]}"
+    return ", ".join(said[:-1]) + " e " + said[-1]
+
+
+def _export_folder_name(folder):
+    try:
+        return os.path.basename(os.path.normpath(folder)) or folder
+    except Exception:
+        return folder
+
+
+def _export_done_sentence(keys, folder):
+    phrase = _export_kind_phrase(keys)
+    name = _export_folder_name(folder)
+    if len(keys) == 1:
+        head = f"Esportato 1 file: {phrase}."
+    else:
+        head = f"Esportati {len(keys)} file: {phrase}."
+    return f"{head} Cartella: {name}."
+
+
+def _export_default_stem(query):
+    """Stesso nome per la stessa ricerca: la volta dopo chiede se sostituire."""
+    qstem = _safe_filename_stem(query or "ricerca", fallback="ricerca", max_len=40)
+    return f"Risultati_{qstem}"
+
+
+def _export_origin_dir(frame):
+    """La cartella da cui sono stati presi i file. Si può cambiare in Sfoglia."""
+    raw = ""
+    try:
+        raw = (frame.txt_path.GetValue() or "").strip()
+    except Exception:
+        raw = ""
+    parts = [p.strip().strip('"') for p in raw.split(";") if p.strip()]
+    dirs = []
+    for part in parts:
+        low = part.lower()
+        if low.startswith(("http://", "https://")):
+            continue
+        if os.path.isdir(part):
+            dirs.append(os.path.abspath(part))
+        elif os.path.isfile(part):
+            dirs.append(os.path.dirname(os.path.abspath(part)))
+    chosen = ""
+    if len(dirs) == 1:
+        chosen = dirs[0]
+    elif dirs:
+        try:
+            chosen = os.path.commonpath(dirs)
+        except Exception:
+            chosen = ""
+        if not chosen or not os.path.isdir(chosen):
+            chosen = dirs[0]
+    if not chosen:
+        found = []
+        for item in getattr(frame, "current_matches", None) or []:
+            fp = str(item.get("file_path") or "")
+            if os.path.isfile(fp):
+                found.append(os.path.dirname(os.path.abspath(fp)))
+            elif os.path.isdir(fp):
+                found.append(os.path.abspath(fp))
+        if found:
+            try:
+                chosen = os.path.commonpath(found)
+            except Exception:
+                chosen = found[0]
+            if not chosen or not os.path.isdir(chosen):
+                chosen = found[0]
+    if chosen and os.path.isdir(chosen):
+        return chosen
+    return load_last_export_dir() or get_dynamic_desktop_path()
+
+
+class _ExportReplaceDialog(wx.Dialog):
+    """Sì a tutti, No a tutti, oppure un file alla volta."""
+
+    def __init__(self, parent, names):
+        super().__init__(
+            parent,
+            title="File già presenti",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.choice = ""
+        text = (
+            "Ci sono già questi file: " + ", ".join(names) + ". "
+            "Invio sul pulsante Sì a tutti, o un clic, li sostituisce. "
+            "Invio sul pulsante No a tutti, o un clic, torna alla finestra. "
+            "Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file. "
+            "Esc annulla."
+        )
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(self, label=text)
+        label.Wrap(560)
+        vbox.Add(label, 0, wx.ALL | wx.EXPAND, 12)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        btn_all = wx.Button(self, label="Sì a tutti")
+        btn_none = wx.Button(self, label="No a tutti")
+        btn_each = wx.Button(self, label="Scegli uno per uno")
+        btn_all.Bind(wx.EVT_BUTTON, lambda e: self._end("all"))
+        btn_none.Bind(wx.EVT_BUTTON, lambda e: self._end("none"))
+        btn_each.Bind(wx.EVT_BUTTON, lambda e: self._end("each"))
+        for button in (btn_all, btn_none, btn_each):
+            row.Add(button, 0, wx.ALL, 5)
+        btn_none.SetDefault()
+        vbox.Add(row, 0, wx.ALIGN_CENTER | wx.BOTTOM, 10)
+        self.SetSizerAndFit(vbox)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_esc)
+        try:
+            self.CentreOnParent()
+        except Exception:
+            pass
+
+    def _end(self, choice):
+        self.choice = choice
+        self.EndModal(wx.ID_OK)
+
+    def _on_esc(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.choice = ""
+            self.EndModal(wx.ID_CANCEL)
+            return
+        event.Skip()
+
+
+class _ExportOneDialog(wx.Dialog):
+    """Un file già presente: Sì lo sostituisce, No lo lascia, Esc annulla tutto."""
+
+    def __init__(self, parent, name, index, total):
+        super().__init__(
+            parent,
+            title="File già presente",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.answer = ""
+        text = (
+            f"File {index} di {total}: {name} c'è già. "
+            "Invio sul pulsante Sì, o un clic, lo sostituisce. "
+            "Invio sul pulsante No, o un clic, lo lascia. "
+            "Esc annulla e torna alla finestra."
+        )
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(self, label=text)
+        label.Wrap(520)
+        vbox.Add(label, 0, wx.ALL | wx.EXPAND, 12)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        btn_yes = wx.Button(self, wx.ID_YES, "Sì")
+        btn_no = wx.Button(self, wx.ID_NO, "No")
+        btn_yes.Bind(wx.EVT_BUTTON, lambda e: self._end("yes"))
+        btn_no.Bind(wx.EVT_BUTTON, lambda e: self._end("no"))
+        row.Add(btn_yes, 0, wx.ALL, 5)
+        row.Add(btn_no, 0, wx.ALL, 5)
+        btn_no.SetDefault()
+        vbox.Add(row, 0, wx.ALIGN_CENTER | wx.BOTTOM, 10)
+        self.SetSizerAndFit(vbox)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_esc)
+        try:
+            self.CentreOnParent()
+        except Exception:
+            pass
+
+    def _end(self, answer):
+        self.answer = answer
+        self.EndModal(wx.ID_OK)
+
+    def _on_esc(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            self.answer = ""
+            self.EndModal(wx.ID_CANCEL)
+            return
+        event.Skip()
+
+
+class ExportResultsDialog(wx.Dialog):
+    """Più formati nello stesso passaggio. Le caselle restano per la volta dopo."""
+
+    def __init__(self, parent, default_dir, default_stem, selected, say):
+        super().__init__(
+            parent,
+            title="Esporta risultati",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._say = say
+        self._checks = {}
+        self._result = None
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        hint = wx.StaticText(panel, label=_EXPORT_HINT)
+        hint.Wrap(560)
+        vbox.Add(hint, 0, wx.ALL | wx.EXPAND, 8)
+        for key, label, _said in _EXPORT_FORMATS:
+            box = wx.CheckBox(panel, label=label)
+            box.SetName(label)
+            box.SetValue(key in selected)
+            box.Bind(wx.EVT_CHECKBOX, self._on_check)
+            self._checks[key] = box
+            vbox.Add(box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        vbox.Add(
+            wx.StaticText(panel, label="Nome dei file, senza estensione:"),
+            0, wx.LEFT | wx.RIGHT, 8,
+        )
+        self.txt_stem = wx.TextCtrl(panel, value=default_stem)
+        self.txt_stem.SetName("Nome dei file")
+        vbox.Add(self.txt_stem, 0, wx.EXPAND | wx.ALL, 8)
+        vbox.Add(wx.StaticText(panel, label="Cartella:"), 0, wx.LEFT | wx.RIGHT, 8)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        self.txt_dir = wx.TextCtrl(panel, value=default_dir or "")
+        self.txt_dir.SetName("Cartella")
+        row.Add(self.txt_dir, 1, wx.EXPAND | wx.RIGHT, 6)
+        btn_dir = wx.Button(panel, label="Sfoglia cartella...")
+        btn_dir.Bind(wx.EVT_BUTTON, self._on_browse)
+        row.Add(btn_dir, 0)
+        vbox.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self.lbl_status = wx.StaticText(panel, label="")
+        self.lbl_status.SetName("Formati scelti")
+        vbox.Add(self.lbl_status, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self.btn_ok = wx.Button(panel, wx.ID_OK, label="Esporta")
+        self.btn_ok.Bind(wx.EVT_BUTTON, self._on_ok)
+        btn_cancel = wx.Button(panel, wx.ID_CANCEL, label="Annulla")
+        buttons.Add(self.btn_ok, 0, wx.RIGHT, 8)
+        buttons.Add(btn_cancel, 0)
+        vbox.Add(buttons, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+        panel.SetSizer(vbox)
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(outer)
+        self.SetSize((640, 480))
+        self.CentreOnParent()
+        self._refresh_status(speak=False)
+        wx.CallAfter(self._open_voice)
+
+    def _open_voice(self):
+        try:
+            self._checks["txt"].SetFocus()
+        except Exception:
+            pass
+        try:
+            self._say(_EXPORT_HINT)
+        except Exception:
+            pass
+
+    def _selected(self):
+        return [key for key, _label, _said in _EXPORT_FORMATS if self._checks[key].GetValue()]
+
+    def _say_kept(self):
+        self._say_status(
+            "Niente è stato scritto. I file già presenti restano."
+        )
+
+    def _say_status(self, text):
+        self.lbl_status.SetLabel(text)
+        try:
+            self.lbl_status.Wrap(560)
+        except Exception:
+            pass
+        try:
+            self._say(text)
+        except Exception:
+            pass
+
+    def _refresh_status(self, speak):
+        keys = self._selected()
+        if keys:
+            text = f"Formati scelti: {_export_kind_phrase(keys)}."
+        else:
+            text = (
+                "Formati scelti: nessuno. Accendine almeno uno. "
+                "Spazio sulla casella, o un clic."
+            )
+        if speak:
+            self._say_status(text)
+        else:
+            self.lbl_status.SetLabel(text)
+
+    def _on_check(self, event):
+        self._refresh_status(speak=True)
+        event.Skip()
+
+    def _on_browse(self, event):
+        current = (self.txt_dir.GetValue() or "").strip()
+        dlg = wx.DirDialog(self, "Scegli la cartella", defaultPath=current or "")
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                chosen = dlg.GetPath()
+                self.txt_dir.SetValue(chosen)
+                self._say_status(f"Cartella: {_export_folder_name(chosen)}.")
+        finally:
+            dlg.Destroy()
+
+    def _on_ok(self, event):
+        keys = self._selected()
+        if not keys:
+            self._refresh_status(speak=True)
+            return
+        stem = _safe_filename_stem(self.txt_stem.GetValue(), fallback="")
+        if not stem:
+            self._say_status("Scrivi il nome dei file.")
+            try:
+                self.txt_stem.SetFocus()
+            except Exception:
+                pass
+            return
+        folder = (self.txt_dir.GetValue() or "").strip()
+        if not folder or not os.path.isdir(folder):
+            self._say_status(
+                "La cartella non c'è. "
+                "Invio sul pulsante Sfoglia cartella, o un clic, ne sceglie una."
+            )
+            return
+        existing = [
+            key for key in keys
+            if os.path.exists(os.path.join(folder, stem + "." + key))
+        ]
+        if existing:
+            names = [stem + "." + key for key in existing]
+            ask = _ExportReplaceDialog(self, names)
+            try:
+                code = ask.ShowModal()
+                choice = ask.choice if code == wx.ID_OK else ""
+            finally:
+                ask.Destroy()
+            if choice == "each":
+                kept = [key for key in keys if key not in existing]
+                total = len(existing)
+                for index, key in enumerate(existing, 1):
+                    one = _ExportOneDialog(
+                        self, stem + "." + key, index, total
+                    )
+                    try:
+                        one_code = one.ShowModal()
+                        answer = one.answer if one_code == wx.ID_OK else ""
+                    finally:
+                        one.Destroy()
+                    if not answer:
+                        self._say_kept()
+                        return
+                    if answer == "yes":
+                        kept.append(key)
+                keys = kept
+                if not keys:
+                    self._say_kept()
+                    return
+            elif choice != "all":
+                self._say_kept()
+                return
+        self._result = (keys, folder, stem)
+        self.EndModal(wx.ID_OK)
+
+    def result(self):
+        return self._result
 
 
 # Toast WinRT nel Centro notifiche (Windows+N). Non tocca l'AUMID del processo NVDA.
@@ -9991,7 +10416,9 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
+            "• Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
+            "• Nell'Add-on, se la finestra di ricerca è ridotta a icona, Alt+Tab la riapre e il focus torna sul campo.\n"
+            "• Resta dalla 1.9.9, con la voce di RTAD accesa: Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
             "• Nella Standalone, Alt+P e la lettera S dicono lo stato per intero, anche con «Pronuncia i tasti di spostamento» acceso: il nome del tasto non copre la frase. Dopo una copia, la frase resta circa 2 secondi, a schermo e a voce, poi la barra torna alla riga della ricerca. S, F8 e Alt+P rileggono quella riga. Nell'Add-on la lettera S e Alt+P restano come nella 1.9.8.\n"
             "• Nella Standalone, se esci con Alt+Tab, la voce dice «Non sei nel programma?». Quando torni e rilasci Alt, già sulla finestra di ricerca, dice il controllo, per esempio Elenco. Se ti fermi sul lettore, quello resta davanti. La casella Stato riprende la riga di prima: il download, la ricerca o l'ultimo esito. Se Alt+Tab si ferma sull'Add-on aperto accanto, dice «Add-on di NVDA, versione» e il numero di quella finestra. Nell'Add-on, se la finestra di ricerca resta aperta e ferma per alcuni minuti, al ritorno con Alt+Tab il focus torna su un campo.\n"
             "• Nella Standalone, Invio su un risultato, o un doppio clic, resta nel programma quando RTAD può aprirlo. Un documento: «Apro «nome» nel lettore di Ricerca Testuale. La voce resta qui.» Se c'è un numero di riga, il cursore va lì. Un'immagine: «Apro «nome» in Tutto sull'immagine. La voce di RTAD resta in questa finestra.» Se accanto al testo c'è un video, la domanda dice Apri testo, che resta nel lettore, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda. Nell'Add-on, Invio apre il file come prima: l'editor, Word, il lettore di Windows, e NVDA segue quella finestra. Se accanto al testo c'è un video, la domanda dice Apri testo, che apre il testo come prima, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda.\n"
@@ -10153,8 +10580,7 @@ class WhatsNewFrame(wx.Frame):
             "  pagine HTML, indirizzo Internet in elenco.\n"
             "• Resta dalla 1.8.7: punti di lettura, cifre nei PDF, lettere EPUB.\n"
             "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
-            "• Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.\n"
-            "• Le chat dell'Add-on restano nel profilo NVDA.\n"
+            "• Ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -12181,6 +12607,7 @@ class SearchFrame(wx.Frame):
             return False
 
     def _cancel_search_wake(self):
+        self._search_wake_token = getattr(self, "_search_wake_token", 0) + 1
         timers = getattr(self, "_search_wake_timers", None) or []
         self._search_wake_timers = []
         for timer in timers:
@@ -12188,13 +12615,30 @@ class SearchFrame(wx.Frame):
                 timer.Stop()
             except Exception:
                 pass
+        kick = getattr(self, "_search_focus_kick", None)
+        self._search_focus_kick = None
+        if kick is not None:
+            try:
+                kick.Stop()
+            except Exception:
+                pass
+        icon_check = getattr(self, "_search_icon_check", None)
+        self._search_icon_check = None
+        if icon_check is not None:
+            try:
+                icon_check.Stop()
+            except Exception:
+                pass
 
-    def _arm_search_wake(self, delays, force=False):
+    def _arm_search_wake(self, delays, force=False, restore=False):
         self._cancel_search_wake()
+        token = self._search_wake_token
         timers = []
         for delay in delays:
             try:
-                timers.append(wx.CallLater(delay, self._wake_search_frame, False, force))
+                timers.append(
+                    wx.CallLater(delay, self._wake_search_frame, restore, force, token)
+                )
             except Exception:
                 pass
         self._search_wake_timers = timers
@@ -12213,6 +12657,32 @@ class SearchFrame(wx.Frame):
             pass
         return False
 
+    def _search_focus_target(self):
+        target = getattr(self, "_last_focus_ctrl", None)
+        try:
+            if (
+                target is None
+                or not target
+                or target.GetTopLevelParent() is not self
+                or isinstance(target, (wx.Frame, wx.Panel))
+            ):
+                target = self.txt_query
+        except Exception:
+            target = getattr(self, "txt_query", None)
+        return target
+
+    def _search_focus_is_usable(self):
+        """Vero se il cursore è su un campo, non sul riquadro della finestra."""
+        try:
+            focus = wx.Window.FindFocus()
+            return (
+                focus is not None
+                and focus.GetTopLevelParent() is self
+                and not isinstance(focus, (wx.Frame, wx.Panel))
+            )
+        except Exception:
+            return False
+
     def _kick_search_focus(self, target):
         """Secondo passaggio, dopo il ripristino: il primo SetFocus a volte non basta."""
         try:
@@ -12225,6 +12695,8 @@ class SearchFrame(wx.Frame):
                     continue
                 if isinstance(window, wx.Dialog) and window.IsShown():
                     return
+            if self._search_focus_is_usable():
+                return
             if target is None or not target or target.GetTopLevelParent() is not self:
                 target = self.txt_query
             if target is not None:
@@ -12232,12 +12704,26 @@ class SearchFrame(wx.Frame):
         except Exception:
             pass
 
-    def _wake_search_frame(self, restore=False, force=False):
-        """Al ritorno il focus torna su un campo. Iconizzata, non si rialza."""
+    def _schedule_search_focus_kick(self, target):
+        prev = getattr(self, "_search_focus_kick", None)
+        if prev is not None:
+            try:
+                prev.Stop()
+            except Exception:
+                pass
+        try:
+            self._search_focus_kick = wx.CallLater(220, self._kick_search_focus, target)
+        except Exception:
+            self._search_focus_kick = None
+
+    def _wake_search_frame(self, restore=False, force=False, token=None):
+        """Al ritorno il focus torna su un campo. Se è iconizzata, la riapre chi l'ha attivata."""
         try:
             if self.IsBeingDeleted():
                 return
         except Exception:
+            return
+        if token is not None and token != getattr(self, "_search_wake_token", None):
             return
         try:
             for window in list(wx.GetTopLevelWindows()):
@@ -12255,10 +12741,6 @@ class SearchFrame(wx.Frame):
             return
         if not restore and not self._search_frame_is_foreground():
             return
-        try:
-            hwnd = int(self.GetHandle() or 0)
-        except Exception:
-            hwnd = 0
         focus_real = False
         try:
             focus = wx.Window.FindFocus()
@@ -12279,14 +12761,17 @@ class SearchFrame(wx.Frame):
             tiny = False
         if focus_real and not iconic and not tiny and not force and not restore:
             return
-        if iconic and hwnd and restore:
-            try:
-                ctypes.windll.user32.ShowWindow(hwnd, 9)
-            except Exception:
-                pass
+        if iconic and restore:
+            self._restore_iconic_search_window()
+            iconic = self._search_window_is_iconic()
+        if (
+            restore
+            and token is not None
+            and not iconic
+            and not self._search_frame_is_foreground()
+        ):
+            return
         try:
-            if iconic and restore:
-                self.Iconize(False)
             if restore and not self.IsShown():
                 self.Show()
             if restore:
@@ -12305,33 +12790,147 @@ class SearchFrame(wx.Frame):
                 self.Layout()
         except Exception:
             pass
-        target = getattr(self, "_last_focus_ctrl", None)
+        target = self._search_focus_target()
         try:
-            if target is None or not target or target.GetTopLevelParent() is not self:
-                target = self.txt_query
-        except Exception:
-            target = getattr(self, "txt_query", None)
-        try:
-            if target is not None and not iconic:
+            if target is not None and not iconic and not self._search_focus_is_usable():
                 target.SetFocus()
                 if force or restore:
-                    wx.CallLater(220, self._kick_search_focus, target)
+                    self._schedule_search_focus_kick(target)
         except Exception:
             pass
+
+    def _restore_iconic_search_window(self):
+        """Riapre la finestra solo quando non è più dentro il messaggio di Windows.
+
+        Riduci a icona le toglie lo schermo e, se il focus resta su di lei,
+        i tasti finiscono sul riquadro vuoto. Metterla davanti mentre è ancora
+        icona la lascia lì. Il ripristino parte un attimo dopo.
+        """
+        if getattr(self, "_search_restoring", False):
+            return False
+        self._search_restoring = True
+        try:
+            try:
+                for window in list(wx.GetTopLevelWindows()):
+                    if window is self:
+                        continue
+                    if isinstance(window, wx.Dialog) and window.IsShown():
+                        return False
+            except Exception:
+                return False
+            try:
+                hwnd = int(self.GetHandle() or 0)
+            except Exception:
+                hwnd = 0
+            if not self._search_window_is_iconic():
+                return True
+            if hwnd:
+                try:
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)
+                except Exception:
+                    pass
+            try:
+                if self.IsIconized():
+                    self.Iconize(False)
+            except Exception:
+                pass
+            if hwnd and self._search_window_is_iconic():
+                try:
+                    ctypes.windll.user32.SendMessageW(hwnd, 0x0112, 0xF120, 0)
+                except Exception:
+                    pass
+            if hwnd and self._search_window_is_iconic():
+                try:
+                    ctypes.windll.user32.SwitchToThisWindow(hwnd, True)
+                except Exception:
+                    pass
+            opened = not self._search_window_is_iconic()
+            if opened:
+                self._search_wake_hold = False
+            return opened
+        finally:
+            self._search_restoring = False
+
+    def _schedule_icon_poll(self):
+        prev = getattr(self, "_search_icon_poll", None)
+        if prev is not None:
+            try:
+                prev.Stop()
+            except Exception:
+                pass
+        try:
+            self._search_icon_poll = wx.CallLater(50, self._poll_iconic_search_window)
+        except Exception:
+            self._search_icon_poll = None
+
+    def _stop_icon_poll(self):
+        prev = getattr(self, "_search_icon_poll", None)
+        self._search_icon_poll = None
+        if prev is not None:
+            try:
+                prev.Stop()
+            except Exception:
+                pass
+
+    def _icon_grace(self):
+        """Il Riduci a icona stesso manda un attimo di attivazione: non riaprire lì."""
+        icon_at = getattr(self, "_search_iconized_at", 0) or 0
+        return bool(icon_at) and (time.monotonic() - icon_at) < 0.35
+
+    def _poll_iconic_search_window(self):
+        """Alt+Tab la attiva e la lascia icona, poi toglie l'attivazione.
+
+        Il timer chiesto in quel momento veniva annullato. Qui, finché è icona,
+        se l'hai scelta la riapre anche se l'attivazione è già finita.
+        """
+        self._search_icon_poll = None
+        try:
+            if self.IsBeingDeleted() or not self._search_window_is_iconic():
+                self._search_want_restore = False
+                return
+        except Exception:
+            return
+        try:
+            if self._search_frame_is_foreground() and not getattr(self, "_search_want_restore", False):
+                self._search_want_restore = True
+                logging.info("RTAD wake: icona in primo piano")
+        except Exception:
+            pass
+        if getattr(self, "_search_want_restore", False) and not self._icon_grace():
+            opened = self._restore_iconic_search_window()
+            if not opened and not getattr(self, "_search_restore_logged", False):
+                self._search_restore_logged = True
+                logging.info("RTAD wake: ancora icona dopo il comando di ripristino")
+            if opened:
+                self._search_want_restore = False
+                self._search_wake_hold = False
+                self._wake_search_frame(restore=True, force=True)
+                return
+        self._schedule_icon_poll()
 
     def _on_search_activate(self, event):
         try:
             active = bool(event.GetActive())
         except Exception:
             active = False
-        if active:
-            if not self._search_window_is_iconic() and not getattr(self, "_search_wake_hold", False):
+        if active and not getattr(self, "_search_restoring", False):
+            if self._search_window_is_iconic():
+                if not self._icon_grace():
+                    self._search_want_restore = True
+                    logging.info("RTAD wake: scelta mentre è icona")
+                self._schedule_icon_poll()
+            elif not getattr(self, "_search_wake_hold", False):
                 left = getattr(self, "_search_left_at", 0) or 0
                 away = bool(left) and (time.monotonic() - left) >= 20
                 self._arm_search_wake((80, 350), force=away)
-        else:
+        elif not active:
             self._search_left_at = time.monotonic()
-            self._cancel_search_wake()
+            if not (
+                self._search_window_is_iconic()
+                and getattr(self, "_search_want_restore", False)
+            ):
+                self._search_want_restore = False
+                self._cancel_search_wake()
             self._remember_search_focus()
         event.Skip()
 
@@ -12340,14 +12939,23 @@ class SearchFrame(wx.Frame):
             iconized = bool(event.IsIconized())
         except Exception:
             iconized = False
-        if iconized:
-            self._search_wake_hold = True
-            self._search_left_at = time.monotonic()
-            self._cancel_search_wake()
-            self._remember_search_focus()
-        else:
-            self._search_wake_hold = False
-            self._arm_search_wake((120, 400), force=True)
+        if not getattr(self, "_search_restoring", False):
+            if iconized:
+                self._search_wake_hold = True
+                now = time.monotonic()
+                self._search_iconized_at = now
+                self._search_left_at = now
+                self._search_want_restore = False
+                self._search_restore_logged = False
+                self._cancel_search_wake()
+                self._remember_search_focus()
+                self._schedule_icon_poll()
+            else:
+                self._search_wake_hold = False
+                self._search_iconized_at = 0
+                self._search_want_restore = False
+                self._stop_icon_poll()
+                self._arm_search_wake((80, 250), force=True, restore=True)
         event.Skip()
 
     def copy_status_to_clipboard(self):
@@ -12524,6 +13132,7 @@ class SearchFrame(wx.Frame):
 
     def on_close(self, event):
         self._stop_search = True
+        self._stop_icon_poll()
         self.Destroy()
 
     def on_browse(self, event):
@@ -13029,56 +13638,82 @@ class SearchFrame(wx.Frame):
         except Exception:
             return ""
 
+    def _write_results_export_file(self, export_file, kind):
+        if kind == "csv":
+            with open(export_file, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f, delimiter=";")
+                writer.writerow(["Numero", "Nome File", "Percorso", "Informazione Posizione", "Estratto"])
+                for idx, item in enumerate(self.current_matches, 1):
+                    writer.writerow([
+                        idx,
+                        item["file_name"],
+                        item["file_path"],
+                        item.get("location_info", ""),
+                        item.get("snippet", ""),
+                    ])
+            return
+        if kind == "html":
+            with open(export_file, "w", encoding="utf-8") as f:
+                f.write("<!DOCTYPE html><html lang='it'><head><meta charset='utf-8'><title>Risultati Ricerca</title></head><body>\n")
+                f.write(f"<h1>Risultati Ricerca - {APP_TITLE}</h1>\n")
+                f.write(f"<p>Parola cercata: <strong>{self.current_query}</strong></p>\n")
+                f.write(f"<p>Totale risultati trovati: <strong>{len(self.current_matches)}</strong></p><hr>\n")
+                for idx, item in enumerate(self.current_matches, 1):
+                    f.write(f"<h2>{idx}. {item['file_name']}</h2>\n<ul>\n")
+                    f.write(f"<li><strong>Percorso Completo:</strong> {item['file_path']}</li>\n")
+                    if item.get("location_info"):
+                        f.write(f"<li><strong>Posizione:</strong> {item['location_info']}</li>\n")
+                    if item.get("snippet"):
+                        f.write(f"<li><strong>Estratto:</strong> {item['snippet']}</li>\n")
+                    f.write("</ul>\n<hr>\n")
+                f.write("</body></html>")
+            return
+        self._write_results_export_txt(export_file)
+
     def on_export_results(self, event):
         if not self.current_matches:
             rtad_speak("Nessun risultato da esportare.")
             return
-
-        wildcard_filters = "File di Testo (*.txt)|*.txt|Pagina Web HTML (*.html)|*.html|File CSV per Tabelle (*.csv)|*.csv"
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_dir = load_last_export_dir() or get_dynamic_desktop_path()
-        dlg = wx.FileDialog(self, message="Esporta Risultati", 
-                            defaultDir=default_dir,
-                            defaultFile=f"Risultati_Ricerca_{timestamp}",
-                            wildcard=wildcard_filters, 
-                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
-
-        if dlg.ShowModal() == wx.ID_OK:
-            export_file = dlg.GetPath()
-            ext = os.path.splitext(export_file)[1].lower()
-            
+        dlg = ExportResultsDialog(
+            self,
+            _export_origin_dir(self),
+            _export_default_stem(self.current_query),
+            load_export_formats(),
+            rtad_speak,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK or not dlg.result():
+                self.txt_status_progress.SetValue("Esportazione annullata.")
+                rtad_speak("Esportazione annullata.")
+                return
+            keys, folder, stem = dlg.result()
+        finally:
+            dlg.Destroy()
+        written = []
+        failed = []
+        for key in keys:
+            path = os.path.join(folder, stem + "." + key)
             try:
-                if ext == ".csv":
-                    with open(export_file, "w", newline="", encoding="utf-8") as f:
-                        writer = csv.writer(f, delimiter=';')
-                        writer.writerow(["Numero", "Nome File", "Percorso", "Informazione Posizione", "Estratto"])
-                        for idx, item in enumerate(self.current_matches, 1):
-                            writer.writerow([idx, item['file_name'], item['file_path'], item.get('location_info', ''), item.get('snippet', '')])
-                
-                elif ext == ".html":
-                    with open(export_file, "w", encoding="utf-8") as f:
-                        f.write("<!DOCTYPE html><html lang='it'><head><meta charset='utf-8'><title>Risultati Ricerca</title></head><body>\n")
-                        f.write(f"<h1>Risultati Ricerca - {APP_TITLE}</h1>\n")
-                        f.write(f"<p>Parola cercata: <strong>{self.current_query}</strong></p>\n")
-                        f.write(f"<p>Totale risultati trovati: <strong>{len(self.current_matches)}</strong></p><hr>\n")
-                        for idx, item in enumerate(self.current_matches, 1):
-                            f.write(f"<h2>{idx}. {item['file_name']}</h2>\n<ul>\n")
-                            f.write(f"<li><strong>Percorso Completo:</strong> {item['file_path']}</li>\n")
-                            if item.get("location_info"):
-                                f.write(f"<li><strong>Posizione:</strong> {item['location_info']}</li>\n")
-                            if item.get("snippet"):
-                                f.write(f"<li><strong>Estratto:</strong> {item['snippet']}</li>\n")
-                            f.write("</ul>\n<hr>\n")
-                        f.write("</body></html>")
-                
-                else: 
-                    self._write_results_export_txt(export_file)
-                
-                save_last_export_dir(export_file)
-                rtad_speak("Risultati esportati con successo nel formato scelto.")
+                self._write_results_export_file(path, key)
+                written.append(key)
             except Exception:
-                rtad_speak("Errore durante l'esportazione dei risultati.")
-        dlg.Destroy()
+                failed.append(key)
+        if written:
+            save_last_export_dir(folder)
+            save_export_formats(keys)
+        if written and not failed:
+            msg = _export_done_sentence(written, folder)
+        elif written:
+            msg = (
+                _export_done_sentence(written, folder)
+                + " Non scritto: "
+                + _export_kind_phrase(failed)
+                + "."
+            )
+        else:
+            msg = "Errore durante l'esportazione dei risultati."
+        self.txt_status_progress.SetValue(msg)
+        rtad_speak(msg)
 
     def on_print_results(self, event):
         total_matches = len(self.current_matches)
@@ -14762,6 +15397,9 @@ class SearchFrame(wx.Frame):
         if key == wx.WXK_RETURN:
             self.open_selected_file()
         elif key in [wx.WXK_SPACE, wx.WXK_F4]:
+            if event.AltDown():
+                event.Skip()
+                return
             self.speak_selected_preview()
         elif key == wx.WXK_WINDOWS_MENU:
             self.on_context_menu(None)

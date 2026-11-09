@@ -1,7 +1,7 @@
 # Piano RTAD 1.9.9
 
-**Non iniziata.** Si scrive dopo la 1.9.8.  
-Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**In corso.** La 1.9.8 è già pubblicata il 7/11/2026 (GitHub `v1.9.8` / `app-v1.9.8`, commit `771db55`, DataStore #12813 via #12814). Non si rifà.  
+**Decisione dell’8/11/2026.** Le finestre di Salva e Sfoglia, l’apertura dentro RTAD, Apri cartella, Ordinamento e lo stato dopo una copia sono della Standalone. L’Add-on resta sulle finestre di Windows e su NVDA. Nell’Add-on, di questa versione, restano i 4 secondi su Solo Audio e Video e il ritorno del focus dopo che la finestra di ricerca è rimasta ferma. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 ## Finestre nostre
 

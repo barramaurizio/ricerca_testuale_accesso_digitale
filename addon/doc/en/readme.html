@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.9.8 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v1.9.9 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,21 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.9.8</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.9.9</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
 
     <div class="update">
+        <strong>What's New in Version 1.9.9</strong>
+        <ul>
+            <li>In the Standalone, Save and Browse are RTAD windows, in place of the Windows ones. The Drives list scrolls only the drives, with Up and Down arrow or the first letter. Enter or a double click opens the drive and the focus stays on that list. Tab shows only that drive's folders: the first letter jumps to the folder, Enter or a double click opens it. Shift+Tab goes back to the drives. Files in the open folder are newest first: Home goes to the first, the first letter jumps to a file, Enter or a double click chooses it. The file type is spoken with the name first: Images combo box. Down arrow changes it. Alt+Down arrow opens the list and the arrows stay on the types. On Audio and Video only, the field where you paste the URL opens after 4 seconds: if you choose another type before that, it does not open. Enter on the filter already set to Audio and Video opens it at once. Enter on the Back button, or a click, or Alt+Left arrow, goes back. Enter on the Open, Save or Select button, or a click, confirms. Alt+P reads the status: pressed twice in a row copies it. A click on the Status label goes to the status. With the RTAD voice, RTAD says those sentences. With NVDA on and the RTAD voice off, NVDA says them. In the Add-on, Save and Browse stay the Windows windows. The 4 seconds on Audio and Video only are there too: Up or Down arrow, before that, chooses another type and the field does not open. Enter on the filter already set to Audio and Video opens it at once.</li>
+            <li>In the Standalone, Alt+P and the letter S say the whole status, also when speaking the movement keys is on: the key name does not cover the sentence. After a copy, the sentence stays about 2 seconds, on screen and by voice, then the bar returns to the search line. S, F8 and Alt+P read that line again. In the Add-on the letter S and Alt+P stay as in 1.9.8.</li>
+            <li>In the Standalone, if you leave with Alt+Tab, the voice says «Non sei nel programma?». When you come back and release Alt, already on the search window, it says the control, for example List. If you stop on the reader, that window stays in front. The Status box resumes the previous line: the download, the search, or the last result. If Alt+Tab stops on the Add-on open beside it, it says «Add-on di NVDA, versione» and the number of that window. In the Add-on, if the search window stays open and idle for a few minutes, Alt+Tab back puts the focus on a field.</li>
+            <li>In the Standalone, Enter on a result, or a double click, stays in the program when RTAD can open it. A document: «Apro «nome» nel lettore di Ricerca Testuale. La voce resta qui.» If there is a line number, the caret goes there. An image: «Apro «nome» in Tutto sull'immagine. La voce di RTAD resta in questa finestra.» If a video sits beside the text, the question says Apri testo, which stays in the reader, or Apri nel lettore di Windows, which starts the video: from there NVDA follows. Esc closes the question. In the Add-on, Enter opens the file as before: the editor, Word, the Windows player, and NVDA follows that window. If a video sits beside the text, the question says Apri testo, which opens the text as before, or Apri nel lettore di Windows, which starts the video: from there NVDA follows. Esc closes the question.</li>
+            <li>In the Standalone, Apri cartella opens the files inside RTAD: «Cartella di «nome». I file sono nell'elenco Elementi, i più recenti in cima. Freccia su e freccia giù scorrono. Invio o un doppio clic apre il file. Esc o Annulla torna ai risultati. La voce resta qui.» In the Add-on, Apri Cartella Contenitore opens Explorer, as before.</li>
+            <li>In the Standalone, Ordinamento is a menu item. Enter on the item, or a click, opens the list: Dal più recente, Dal meno recente, Alfabeticamente (A-Z). «Ordinamento dei risultati. Freccia su e freccia giù scelgono. Invio o un doppio clic applica. Esc chiude.» In the Add-on, Ordinamento Risultati stays the submenu from before: NVDA reads it.</li>
+            <li>Latest tested NVDA version: 2026.3. Add-on chats stay in the NVDA profile.</li>
+        </ul>
         <strong>What's New in Version 1.9.8</strong>
         <ul>
             <li>In «Tutto sull'audio/video», Space on the box «Usa il login del browser», or a click, turns it on. At the start, Enter or a click on «Autorizza» reads the cookies, only for this download. The cookies stay on your PC. On Windows the key of Edge, Chrome, Brave, Opera and Vivaldi often does not decrypt, even when the program is closed. Firefox, if it is open and you have entered the site, can be read with the window open. If the site delivers video and audio apart, ffmpeg joins them. A DRM-protected stream stays not downloadable: Netflix, Sky, DAZN, Prime and the others with Widevine, PlayReady or FairPlay stay closed.</li>

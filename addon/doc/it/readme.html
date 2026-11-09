@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v1.9.8 — Guida</title>
+    <title>Ricerca Testuale Accesso Digitale v1.9.9 — Guida</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,11 +15,21 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v1.9.8</h1>
+    <h1>Ricerca Testuale Accesso Digitale v1.9.9</h1>
     <p>Autore: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>Componente aggiuntivo per NVDA: ricerca testuale accessibile su file, cartelle e intere unità, con salto alla riga, lettura EML nativa, feed RSS/Atom e Feed Thunderbird.</p>
 
     <div class="update">
+        <strong>Novità Versione 1.9.9</strong>
+        <ul>
+            <li>Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.</li>
+            <li>Nella Standalone, Alt+P e la lettera S dicono lo stato per intero, anche con «Pronuncia i tasti di spostamento» acceso: il nome del tasto non copre la frase. Dopo una copia, la frase resta circa 2 secondi, a schermo e a voce, poi la barra torna alla riga della ricerca. S, F8 e Alt+P rileggono quella riga. Nell'Add-on la lettera S e Alt+P restano come nella 1.9.8.</li>
+            <li>Nella Standalone, se esci con Alt+Tab, la voce dice «Non sei nel programma?». Quando torni e rilasci Alt, già sulla finestra di ricerca, dice il controllo, per esempio Elenco. Se ti fermi sul lettore, quello resta davanti. La casella Stato riprende la riga di prima: il download, la ricerca o l'ultimo esito. Se Alt+Tab si ferma sull'Add-on aperto accanto, dice «Add-on di NVDA, versione» e il numero di quella finestra. Nell'Add-on, se la finestra di ricerca resta aperta e ferma per alcuni minuti, al ritorno con Alt+Tab il focus torna su un campo.</li>
+            <li>Nella Standalone, Invio su un risultato, o un doppio clic, resta nel programma quando RTAD può aprirlo. Un documento: «Apro «nome» nel lettore di Ricerca Testuale. La voce resta qui.» Se c'è un numero di riga, il cursore va lì. Un'immagine: «Apro «nome» in Tutto sull'immagine. La voce di RTAD resta in questa finestra.» Se accanto al testo c'è un video, la domanda dice Apri testo, che resta nel lettore, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda. Nell'Add-on, Invio apre il file come prima: l'editor, Word, il lettore di Windows, e NVDA segue quella finestra. Se accanto al testo c'è un video, la domanda dice Apri testo, che apre il testo come prima, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda.</li>
+            <li>Nella Standalone, Apri cartella apre i file in RTAD: «Cartella di «nome». I file sono nell'elenco Elementi, i più recenti in cima. Freccia su e freccia giù scorrono. Invio o un doppio clic apre il file. Esc o Annulla torna ai risultati. La voce resta qui.» Nell'Add-on, Apri Cartella Contenitore apre Esplora file, come prima.</li>
+            <li>Nella Standalone, Ordinamento è una voce del menu. Invio sulla voce, o un clic, apre l'elenco: Dal più recente, Dal meno recente, Alfabeticamente (A-Z). «Ordinamento dei risultati. Freccia su e freccia giù scelgono. Invio o un doppio clic applica. Esc chiude.» Nell'Add-on, Ordinamento Risultati resta il sottomenù di prima: lo legge NVDA.</li>
+            <li>Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.</li>
+        </ul>
         <strong>Novità Versione 1.9.8</strong>
         <ul>
             <li>In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.</li>

@@ -97,6 +97,10 @@ def main() -> int:
         LIB / "rtad_attach_dialog.py",
     )
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_picker.py",
+        LIB / "rtad_picker.py",
+    )
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_compare.py", LIB / "rtad_compare.py"
     )
     shutil.copy2(
@@ -131,6 +135,11 @@ def main() -> int:
             "rtad_attach_dialog.py",
             ROOT / "Standalone" / "rtad_attach_dialog.py",
             LIB / "rtad_attach_dialog.py",
+        ),
+        (
+            "rtad_picker.py",
+            ROOT / "Standalone" / "rtad_picker.py",
+            LIB / "rtad_picker.py",
         ),
         (
             "rtad_guida_html.py",

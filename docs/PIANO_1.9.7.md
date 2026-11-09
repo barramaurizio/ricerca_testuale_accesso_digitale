@@ -28,7 +28,7 @@ Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre in 1.9.9.
 
 ## Dopo, una versione alla volta
 
-1. **`1.9.8` — login del browser**, con il consenso di chi usa RTAD. I cookie restano sul suo PC. Un flusso con protezione DRM resta non scaricabile.
+1. **`1.9.8` — login del browser**, con il consenso di chi usa RTAD. I cookie restano sul suo PC. Un flusso con protezione DRM resta non scaricabile. Pubblicata il 7/11/2026. GitHub `v1.9.8` / `app-v1.9.8`, commit `771db55`. DataStore #12813 via #12814.
 2. **`1.9.9` — finestre nostre** al posto di Salva e Sfoglia di Windows.
 3. **`1.9.10` — export multipli.** Più di un formato nello stesso passaggio.
 4. **`2.0` — primo punto:** tagliare e unire un video, e lo stesso per le immagini.

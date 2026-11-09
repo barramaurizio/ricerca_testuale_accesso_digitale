@@ -114,7 +114,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.8"
+APP_VERSION = "1.9.9"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -6573,7 +6573,7 @@ class MediaSectionsDialog(wx.Dialog):
             h_file = wx.BoxSizer(wx.HORIZONTAL)
             self.txt_file = wx.TextCtrl(self, value=self._picked_path)
             h_file.Add(self.txt_file, 1, wx.EXPAND | wx.RIGHT, 5)
-            btn_browse = wx.Button(self, label="&Sfoglia…")
+            btn_browse = wx.Button(self, label="Pulsante &Sfoglia…")
             btn_browse.Bind(wx.EVT_BUTTON, self._on_browse)
             h_file.Add(btn_browse, 0)
             vbox.Add(h_file, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
@@ -9991,7 +9991,13 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.\n"
+            "• Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
+            "• Nella Standalone, Alt+P e la lettera S dicono lo stato per intero, anche con «Pronuncia i tasti di spostamento» acceso: il nome del tasto non copre la frase. Dopo una copia, la frase resta circa 2 secondi, a schermo e a voce, poi la barra torna alla riga della ricerca. S, F8 e Alt+P rileggono quella riga. Nell'Add-on la lettera S e Alt+P restano come nella 1.9.8.\n"
+            "• Nella Standalone, se esci con Alt+Tab, la voce dice «Non sei nel programma?». Quando torni e rilasci Alt, già sulla finestra di ricerca, dice il controllo, per esempio Elenco. Se ti fermi sul lettore, quello resta davanti. La casella Stato riprende la riga di prima: il download, la ricerca o l'ultimo esito. Se Alt+Tab si ferma sull'Add-on aperto accanto, dice «Add-on di NVDA, versione» e il numero di quella finestra. Nell'Add-on, se la finestra di ricerca resta aperta e ferma per alcuni minuti, al ritorno con Alt+Tab il focus torna su un campo.\n"
+            "• Nella Standalone, Invio su un risultato, o un doppio clic, resta nel programma quando RTAD può aprirlo. Un documento: «Apro «nome» nel lettore di Ricerca Testuale. La voce resta qui.» Se c'è un numero di riga, il cursore va lì. Un'immagine: «Apro «nome» in Tutto sull'immagine. La voce di RTAD resta in questa finestra.» Se accanto al testo c'è un video, la domanda dice Apri testo, che resta nel lettore, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda. Nell'Add-on, Invio apre il file come prima: l'editor, Word, il lettore di Windows, e NVDA segue quella finestra. Se accanto al testo c'è un video, la domanda dice Apri testo, che apre il testo come prima, oppure Apri nel lettore di Windows, che fa partire il video: da lì segue NVDA. Esc chiude la domanda.\n"
+            "• Nella Standalone, Apri cartella apre i file in RTAD: «Cartella di «nome». I file sono nell'elenco Elementi, i più recenti in cima. Freccia su e freccia giù scorrono. Invio o un doppio clic apre il file. Esc o Annulla torna ai risultati. La voce resta qui.» Nell'Add-on, Apri Cartella Contenitore apre Esplora file, come prima.\n"
+            "• Nella Standalone, Ordinamento è una voce del menu. Invio sulla voce, o un clic, apre l'elenco: Dal più recente, Dal meno recente, Alfabeticamente (A-Z). «Ordinamento dei risultati. Freccia su e freccia giù scelgono. Invio o un doppio clic applica. Esc chiude.» Nell'Add-on, Ordinamento Risultati resta il sottomenù di prima: lo legge NVDA.\n"
+            "• Resta dalla 1.9.8: In «Tutto sull'audio/video», Spazio sulla casella «Usa il login del browser», o un clic, la accende. All'avvio, Invio o un clic su «Autorizza» legge i cookie, solo per questo download. I cookie restano sul tuo PC. Su Windows la chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Firefox, se è aperto e sei entrato nel sito, si legge con la finestra aperta. Se il sito consegna video e audio separati, ffmpeg li unisce. Un flusso con protezione DRM resta non scaricabile: Netflix, Sky, DAZN, Prime e gli altri con Widevine, PlayReady o FairPlay restano chiusi.\n"
             "• Una pagina audio di RaiPlay Sound, come il GR1, porta al file e lo mette in elenco. Il file resta nel formato consegnato da Rai, anche se il nome finisce in .mp4 e dentro c'è solo l'audio. A schermo e a voce si dice che è l'audio.\n"
             "• Resta dalla 1.9.7: In «Tutto sull'audio/video», il riassunto breve è già scelto.\n"
             "  Freccia giù, o un clic, passa alla descrizione dettagliata:\n"
@@ -10009,8 +10015,7 @@ class WhatsNewFrame(wx.Frame):
             "  Dentro RTAD questa voce dice anche dove sei: la casella, il pulsante,\n"
             "  la riga dell'elenco con le frecce, la casella combinata, la voce di menu, e il simbolo che scrivi. Con Alt e le frecce dice il menu: Menu File, Menu Segnalibri, Menu Cronologia, Menu Profili, Menu Voce, Menu Strumenti, Menu Aiuto. «Pronuncia i tasti di spostamento» è spento. Invio sulla voce, o un clic, lo accende: allora dice anche Tab, Shift Tab, Shift, Control, Control A, Alt, le frecce, Inizio, Fine, Pagina su, Pagina giù, Insert, Canc, Backspace, Esc, Invio, i tasti da F1 a F12, e il tastierino numerico. Blocca maiuscole e Num Lock dicono attivato o disattivato. Se esci con Alt+Tab, o con un clic fuori dalla finestra, oppure un comando apre un'altra finestra, la voce dice: Non sei nel programma? Tieni premuto Alt e premi Tab: lo ripete a ogni finestra. Quando Tab torna sul programma, dice dove eri. Lo ripete anche a ogni clic fuori, finché non torni. Stampa schermo, Blocco scorrimento e Pausa si dicono se arrivano al programma. Stampa schermo spesso resta a Windows. Con le frecce sul menu, insieme al nome dice la scorciatoia scritta accanto. Invio sulla voce, o un clic, esegue quel comando. F8, oppure menu Voce, Dove sei: Invio sulla voce, o un clic. Dice la finestra in primo piano e il controllo: pulsante, campo di testo, elenco. «Pronuncia le lettere mentre scrivi» è spento. Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso: punto, virgola, punto interrogativo.\n"
             "  Se NVDA è acceso, spegni il sintetizzatore con NVDA+S, altrimenti senti due voci. Se la spegni con Ctrl+Shift+S, oppure Invio sulla voce, o un clic, Spazio, F4 e gli esiti li dice NVDA. F7, oppure Invio sulla voce, o un clic, mette in pausa la voce di RTAD: quelle frasi le dice NVDA. F7 di nuovo, oppure Invio sulla voce, o un clic, la riaccende.\n"
-            "  Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Salva e Sfoglia sono finestre di Windows: con NVDA spento restano mute.\n"
-            "  Finestre nostre, al loro posto, dopo i video.\n"
+            "  Le domande del programma, come Sì e No e le copie sul PC, le dice questa voce: il testo, i pulsanti, e su quale sei. Se la finestra è già aperta, Ctrl+Shift+S accende la voce e legge la domanda. Invio sul pulsante, o un clic, risponde. Tab passa all'altro. Esc chiude e viene detto. Nel menu del tasto applicazioni, insieme al nome dice il posto, per esempio 1 di 15. Esc, uscendo da un menu, viene detto. Nella Standalone, Salva e Sfoglia sono finestre di RTAD, dall'elenco Unità. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows.\n"
             "  L'Add-on resta sulla voce di NVDA.\n"
             "• Nella Standalone, menu Voce, «Scegli voce»: Invio sulla voce, o un clic,\n"
             "  oppure Ctrl+Shift+V, apre l'elenco. Ci sono le voci di Windows (OneCore)\n"
@@ -10148,7 +10153,7 @@ class WhatsNewFrame(wx.Frame):
             "  pagine HTML, indirizzo Internet in elenco.\n"
             "• Resta dalla 1.8.7: punti di lettura, cifre nei PDF, lettere EPUB.\n"
             "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
-            "• Ultima versione NVDA testata: 2026.3.\n"
+            "• Ultima versione NVDA testata: 2026.3. Le chat dell'Add-on restano nel profilo NVDA.\n"
             "• Le chat dell'Add-on restano nel profilo NVDA.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
@@ -10395,8 +10400,12 @@ class SearchFrame(wx.Frame):
             pass
 
         self._init_menu_bar()
+        self._last_focus_ctrl = None
+        self.Bind(wx.EVT_ACTIVATE, self._on_search_activate)
+        self.Bind(wx.EVT_ICONIZE, self._on_search_iconize)
 
         panel = wx.Panel(self)
+        panel.SetName("Ricerca testuale")
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         lbl_query = wx.StaticText(panel, label="Testo o frase da cercare (supporta più termini e dialetti):")
@@ -10446,7 +10455,7 @@ class SearchFrame(wx.Frame):
         self.txt_path = wx.TextCtrl(panel, value=load_last_path())
         hbox_path.Add(self.txt_path, 1, wx.EXPAND | wx.ALL, 5)
 
-        btn_browse = wx.Button(panel, label="Sfoglia...")
+        btn_browse = wx.Button(panel, label="Pulsante Sfoglia...")
         btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
         hbox_path.Add(btn_browse, 0, wx.ALL, 5)
 
@@ -10600,8 +10609,9 @@ class SearchFrame(wx.Frame):
 
         lbl_status_progress = wx.StaticText(
             panel,
-            label="&Stato avanzamento ricerca (raggiungibile con Tab e premendo S):",
+            label="&Stato avanzamento ricerca (S, oppure un clic sull'etichetta):",
         )
+        lbl_status_progress.Bind(wx.EVT_LEFT_DOWN, self.focus_status_progress)
         vbox.Add(lbl_status_progress, 0, wx.ALL, 5)
 
         self.txt_status_progress = wx.TextCtrl(
@@ -12013,7 +12023,7 @@ class SearchFrame(wx.Frame):
             "Invio sulla voce, o un clic. Dentro RTAD quella voce dice anche dove sei. "
             "Con Alt dice Menu File, Menu Strumenti, Menu Aiuto. "
             "Pronuncia i tasti di spostamento è spento: Invio sulla voce, o un clic, lo accende. Pronuncia le lettere mentre scrivi è spento: Invio sulla voce, o un clic, lo accende. I simboli si dicono lo stesso. "
-            "Salva e Sfoglia, con NVDA spento, restano mute. Finestre nostre dopo i video. "
+            "Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. Su Solo Audio e Video, il campo per incollare l'URL aspetta 4 secondi. Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito. Se la finestra di ricerca resta aperta e ferma per alcuni minuti, al ritorno con Alt+Tab il focus torna su un campo. "
             "L'Add-on resta sulla voce di NVDA."
         )
         rtad_speak(msg, force=True)
@@ -12045,15 +12055,70 @@ class SearchFrame(wx.Frame):
             initial_url=url, clear_source=True
         )
 
+    def _cancel_media_hub_delay(self):
+        timer = getattr(self, "_media_hub_delay", None)
+        if timer is None:
+            return
+        try:
+            timer.Stop()
+        except Exception:
+            pass
+        self._media_hub_delay = None
+
+    def _schedule_media_hub_from_filter(self):
+        """Su Audio e Video aspetta 4 secondi: le frecce possono cambiare tipo."""
+        self._cancel_media_hub_delay()
+        if getattr(self, "_suppress_media_hub", False) or getattr(self, "_media_hub_open", False):
+            return
+        try:
+            if self.combo_filter.GetSelection() != 2:
+                return
+        except Exception:
+            return
+        msg = (
+            "Solo Audio e Video. Il campo per incollare l'URL si apre fra 4 secondi. "
+            "Freccia su o freccia giù sceglie un altro tipo, prima. Invio lo apre subito."
+        )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg, force=True)
+        self._media_hub_delay = wx.CallLater(4000, self._open_media_hub_after_delay)
+
+    def _open_media_hub_after_delay(self):
+        self._media_hub_delay = None
+        if getattr(self, "_suppress_media_hub", False) or getattr(self, "_media_hub_open", False):
+            return
+        try:
+            if self.combo_filter.GetSelection() != 2:
+                return
+        except Exception:
+            return
+        self.open_media_hub_dialog()
+
     def on_filter_changed(self, event):
         sel = self.combo_filter.GetSelection()
         self.txt_custom_ext.Enable(sel == 4)
         if sel != 4:
             self.txt_custom_ext.SetValue("")
         self._update_media_hub_button()
-        # Index 2 = Solo Audio e Video → hub analisi (file/URL/sezioni)
+        # Index 2 = Solo Audio e Video. Il campo aspetta 4 secondi.
         if sel == 2 and not getattr(self, "_suppress_media_hub", False):
-            wx.CallAfter(self.open_media_hub_dialog)
+            self._schedule_media_hub_from_filter()
+        else:
+            pending = getattr(self, "_media_hub_delay", None) is not None
+            self._cancel_media_hub_delay()
+            if pending:
+                label = ""
+                try:
+                    label = self.combo_filter.GetStringSelection()
+                except Exception:
+                    label = ""
+                if label:
+                    speak_accessible(f"{label}.", force=True)
+        if event is not None:
+            event.Skip()
 
     def on_filter_key_down(self, event):
         """Invio/Spazio sul filtro già «Audio e Video» → riapre l'hub."""
@@ -12064,6 +12129,7 @@ class SearchFrame(wx.Frame):
                 and not getattr(self, "_suppress_media_hub", False)
                 and not getattr(self, "_media_hub_open", False)
             ):
+                self._cancel_media_hub_delay()
                 wx.CallAfter(self.open_media_hub_dialog)
                 return
         event.Skip()
@@ -12094,6 +12160,135 @@ class SearchFrame(wx.Frame):
         )
         self.txt_query.SetFocus()
 
+    def _remember_search_focus(self):
+        try:
+            focus = wx.Window.FindFocus()
+            if focus is not None and focus.GetTopLevelParent() is self:
+                if not isinstance(focus, (wx.Frame, wx.Panel)):
+                    self._last_focus_ctrl = focus
+        except Exception:
+            pass
+
+    def _search_frame_is_foreground(self):
+        """Vero solo se davanti c'è questa finestra, non Sfoglia o Salva."""
+        try:
+            hwnd = int(self.GetHandle() or 0)
+            if not hwnd:
+                return False
+            front = int(ctypes.windll.user32.GetForegroundWindow() or 0)
+            return front == hwnd
+        except Exception:
+            return False
+
+    def _wake_search_frame(self):
+        """Al ritorno il focus torna su un campo. Sfoglia e Salva non si toccano."""
+        try:
+            if self.IsBeingDeleted():
+                return
+        except Exception:
+            return
+        if not self._search_frame_is_foreground():
+            return
+        try:
+            for window in list(wx.GetTopLevelWindows()):
+                if window is self:
+                    continue
+                if isinstance(window, wx.Dialog) and window.IsShown():
+                    return
+        except Exception:
+            return
+        try:
+            hwnd = int(self.GetHandle() or 0)
+        except Exception:
+            hwnd = 0
+        iconic = False
+        try:
+            iconic = bool(self.IsIconized())
+        except Exception:
+            iconic = False
+        if hwnd and not iconic:
+            try:
+                iconic = bool(ctypes.windll.user32.IsIconic(hwnd))
+            except Exception:
+                pass
+        focus_real = False
+        try:
+            focus = wx.Window.FindFocus()
+            if (
+                focus is not None
+                and focus.GetTopLevelParent() is self
+                and not isinstance(focus, (wx.Frame, wx.Panel))
+            ):
+                focus_real = True
+        except Exception:
+            focus_real = False
+        tiny = False
+        try:
+            if not self.IsMaximized():
+                width, height = self.GetSize()
+                tiny = width < 240 or height < 180
+        except Exception:
+            tiny = False
+        if focus_real and not iconic and not tiny:
+            return
+        if iconic and hwnd:
+            try:
+                ctypes.windll.user32.ShowWindow(hwnd, 9)
+            except Exception:
+                pass
+        try:
+            if iconic:
+                self.Iconize(False)
+            if not self.IsShown():
+                self.Show()
+            self.Raise()
+            if not self.IsMaximized():
+                width, height = self.GetSize()
+                if width < 240 or height < 180:
+                    self.SetSize((860, 780))
+                    self.Centre()
+                elif width > 240 and height > 180:
+                    self.SetSize((width, height + 1))
+                    self.SetSize((width, height))
+            self.SendSizeEvent()
+            self.Layout()
+        except Exception:
+            pass
+        target = getattr(self, "_last_focus_ctrl", None)
+        try:
+            if target is None or not target or target.GetTopLevelParent() is not self:
+                target = self.txt_query
+        except Exception:
+            target = getattr(self, "txt_query", None)
+        try:
+            if target is not None:
+                target.SetFocus()
+        except Exception:
+            pass
+
+    def _on_search_activate(self, event):
+        try:
+            active = bool(event.GetActive())
+        except Exception:
+            active = False
+        if active:
+            wx.CallLater(80, self._wake_search_frame)
+            wx.CallLater(350, self._wake_search_frame)
+        else:
+            self._remember_search_focus()
+        event.Skip()
+
+    def _on_search_iconize(self, event):
+        try:
+            iconized = bool(event.IsIconized())
+        except Exception:
+            iconized = False
+        if iconized:
+            self._remember_search_focus()
+        else:
+            wx.CallLater(120, self._wake_search_frame)
+        event.Skip()
+
     def copy_status_to_clipboard(self):
         if not self.btn_search.IsEnabled():
             found = getattr(self, "live_matches_count", 0)
@@ -12103,8 +12298,9 @@ class SearchFrame(wx.Frame):
             )
         else:
             found = self.lst_results.GetCount()
+            shown = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
             msg = (
-                f"Stato: {self.txt_status_progress.GetValue()} "
+                f"Stato: {shown} "
                 f"Risultati in lista filtrata: {found}."
             )
         try:
@@ -12143,8 +12339,9 @@ class SearchFrame(wx.Frame):
             )
         else:
             found = self.lst_results.GetCount()
+            shown = self.txt_status_progress.GetValue().strip() or "Stato avanzamento non disponibile."
             msg = (
-                f"Stato: {self.txt_status_progress.GetValue()}. "
+                f"Stato: {shown}. "
                 f"Risultati in lista: {found}."
             )
         rtad_speak(msg)
@@ -14670,6 +14867,63 @@ class SearchFrame(wx.Frame):
             return
         open_gemini_chat("document", path, parent=self, hit_notice=notice)
 
+    def _linked_media_beside_text(self, file_path, item=None):
+        """Il video o l'audio accanto a un .rtad.txt, se c'è sul disco."""
+        media = ""
+        if item:
+            media = item.get("media_path") or ""
+        if media and os.path.isfile(media):
+            return media
+        if not file_path or not str(file_path).lower().endswith(".rtad.txt"):
+            return ""
+        if not os.path.isfile(file_path):
+            return ""
+        folder = os.path.dirname(file_path)
+        stem = os.path.basename(file_path)[: -len(".rtad.txt")]
+        if os.path.splitext(stem)[1].lower() in MEDIA_EXTS:
+            cand = os.path.join(folder, stem)
+            if os.path.isfile(cand):
+                return cand
+        for cand_ext in MEDIA_EXTS:
+            cand = os.path.join(folder, stem + cand_ext)
+            if os.path.isfile(cand):
+                return cand
+        return ""
+
+    def _ask_text_or_windows_player(self, media_path):
+        """Apri testo resta l'apertura di prima. L'altro pulsante avvia il video."""
+        video = os.path.basename(media_path)
+        sentence = (
+            f"C'è il video «{video}» accanto a questo testo. "
+            "Apri testo apre il testo, come prima: da lì segue NVDA. "
+            "Apri nel lettore di Windows fa partire il video: da lì segue NVDA."
+        )
+        dlg = wx.MessageDialog(
+            self, sentence, "Video collegato",
+            style=wx.YES | wx.NO | wx.CANCEL,
+        )
+        dlg.SetYesNoLabels("Apri testo", "Apri nel lettore di Windows")
+        try:
+            code = dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        if code == wx.ID_YES:
+            return "text"
+        if code == wx.ID_NO:
+            return "player"
+        return "cancel"
+
+    def _open_in_windows_player(self, media_path):
+        name = os.path.basename(media_path)
+        rtad_speak(f"Apro «{name}» nel lettore di Windows. Da lì segue NVDA.")
+        try:
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "open", media_path, None, None, 1
+            )
+        except Exception as exc:
+            logging.error(f"Lettore esterno {media_path}: {exc}")
+            rtad_speak("Impossibile aprire il lettore di Windows.")
+
     def open_selected_file(self):
         sel = self.lst_results.GetSelection()
         if sel == wx.NOT_FOUND or sel not in self.file_map:
@@ -14708,7 +14962,8 @@ class SearchFrame(wx.Frame):
                         return
                     if line_num:
                         rtad_speak(
-                            f"Apertura alla riga {line_num}: {os.path.basename(file_to_open)}"
+                            f"Apertura alla riga {line_num}: "
+                            f"{os.path.basename(file_to_open)}"
                         )
                         jump_to_line_in_editor(file_to_open, line_num)
                         return
@@ -14805,6 +15060,18 @@ class SearchFrame(wx.Frame):
                     "[EML]",
                 )
                 return
+
+            # Testo con un video accanto: due pulsanti. Il resto dell'apertura resta com'era.
+            if (file_to_open or "").lower().endswith(".rtad.txt"):
+                linked = self._linked_media_beside_text(file_to_open, item)
+                if linked:
+                    choice = self._ask_text_or_windows_player(linked)
+                    if choice == "cancel":
+                        rtad_speak("Chiuso.")
+                        return
+                    if choice == "player":
+                        self._open_in_windows_player(linked)
+                        return
 
             # Report media: con glossario attivo corregge il .rtad.txt prima di aprirlo
             gloss_note = ""
@@ -17914,9 +18181,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 except Exception:
                     continue
             if live is not None:
-                live.Show()
-                live.Raise()
-                live.txt_query.SetFocus()
+                live._wake_search_frame()
                 return
             frame = SearchFrame()
             frame.Show()

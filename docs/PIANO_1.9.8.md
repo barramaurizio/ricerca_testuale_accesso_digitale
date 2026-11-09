@@ -1,8 +1,8 @@
 # Piano RTAD 1.9.8
 
-**Scritta nei sorgenti** il 7/11/2026. Non ancora pubblicata.  
+**Pubblicata** il 7/11/2026. GitHub `v1.9.8` / `app-v1.9.8`, commit `771db55`. DataStore #12813 via #12814 accettato. È online. Non si rifà.  
 La 1.9.7 è già pubblicata il 6/11/2026 (GitHub `v1.9.7` / `app-v1.9.7`, commit `163464f`): descrizione del video. È online. Non si rifà.  
-L’ultima pubblicata è la 1.9.7. Prima, la 1.9.6 (5/11/2026, GitHub `v1.9.6` / `app-v1.9.6`).  
+Prima, la 1.9.6 (5/11/2026, GitHub `v1.9.6` / `app-v1.9.6`).  
 Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 ## Login del browser

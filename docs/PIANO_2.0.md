@@ -11,6 +11,6 @@ Il 7/11/2026 Maurizio ha detto che vuole tutte queste operazioni, a schermo e a 
 
 ## Prima, in quest’ordine
 
-1. **`1.9.8` — login del browser**, con il consenso di chi usa RTAD.
+1. **`1.9.8` — login del browser**, con il consenso di chi usa RTAD. Pubblicata il 7/11/2026. GitHub `v1.9.8` / `app-v1.9.8`, commit `771db55`. DataStore #12813 via #12814.
 2. **`1.9.9` — finestre nostre** al posto di Salva e Sfoglia di Windows. Piano: `docs/PIANO_1.9.9.md`.
 3. **`1.9.10` — export multipli.**

@@ -1,0 +1,14 @@
+---
+description: Una versione già su GitHub si scrive pubblicata, con data e tag
+alwaysApply: true
+---
+
+# RTAD — versione già pubblicata
+
+Una versione già su GitHub si scrive pubblicata. Data, tag `vX.Y.Z` e `app-vX.Y.Z`, commit corto. Se lo store l’ha accettata, anche il numero DataStore. Non riscriverla «non ancora su GitHub» o «nei sorgenti».
+
+L’ultima pubblicata si legge in cima a `docs/NOTE_CONTESTO_v1.5.md` e nella voce barrata di `docs/ROADMAP_DOPO_1.5.0.md`. Se quelle due dicono una versione più vecchia di quella che Maurizio ha appena messo online, si aggiornano prima di aprire la successiva.
+
+Non hotfixare una versione già pubblicata. Il `.nvda-addon` accettato dallo store non si sostituisce. I due exe della Standalone, sulla release GitHub, si sostituiscono.
+
+Esempio del buco: la 1.9.7 era online dal 6/11/2026 e una chat l’ha riscritta come non ancora pubblicata.

@@ -104,6 +104,15 @@ def main() -> int:
         ROOT / "Standalone" / "rtad_compare.py", LIB / "rtad_compare.py"
     )
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_clip.py", LIB / "rtad_clip.py"
+    )
+    shutil.copy2(
+        ROOT / "Standalone" / "rtad_image.py", LIB / "rtad_image.py"
+    )
+    shutil.copy2(
+        ROOT / "Standalone" / "rtad_convert.py", LIB / "rtad_convert.py"
+    )
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_html_page.py", LIB / "rtad_html_page.py"
     )
     shutil.copy2(
@@ -150,6 +159,21 @@ def main() -> int:
             "rtad_compare.py",
             ROOT / "Standalone" / "rtad_compare.py",
             LIB / "rtad_compare.py",
+        ),
+        (
+            "rtad_clip.py",
+            ROOT / "Standalone" / "rtad_clip.py",
+            LIB / "rtad_clip.py",
+        ),
+        (
+            "rtad_image.py",
+            ROOT / "Standalone" / "rtad_image.py",
+            LIB / "rtad_image.py",
+        ),
+        (
+            "rtad_convert.py",
+            ROOT / "Standalone" / "rtad_convert.py",
+            LIB / "rtad_convert.py",
         ),
         (
             "rtad_html_page.py",

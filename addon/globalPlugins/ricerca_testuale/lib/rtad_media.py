@@ -26,16 +26,16 @@ import urllib.request
 import wave
 
 MEDIA_EXTS = (
-    ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
-    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm",
+    ".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma", ".aif", ".aiff", ".mka",
+    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".mts", ".m2ts",
     ".mpg", ".mpeg", ".3gp",
 )
 
 AUDIO_EXTS = {
-    ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
+    ".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma", ".aif", ".aiff", ".mka",
 }
 VIDEO_EXTS = {
-    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm",
+    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".mts", ".m2ts",
     ".mpg", ".mpeg", ".3gp",
 }
 
@@ -141,6 +141,10 @@ _MIME_BY_EXT = {
     ".opus": "audio/ogg",
     ".wav": "audio/wav",
     ".wma": "audio/x-ms-wma",
+    ".m4b": "audio/mp4",
+    ".aif": "audio/aiff",
+    ".aiff": "audio/aiff",
+    ".mka": "audio/x-matroska",
     ".mp4": "video/mp4",
     ".m4v": "video/mp4",
     ".mkv": "video/x-matroska",
@@ -151,12 +155,17 @@ _MIME_BY_EXT = {
     ".mpg": "video/mpeg",
     ".mpeg": "video/mpeg",
     ".3gp": "video/3gpp",
+    ".flv": "video/x-flv",
+    ".mts": "video/mp2t",
+    ".m2ts": "video/mp2t",
 }
 
 _FORMAT_LABEL = {
     ".mp3": "MP3", ".m4a": "M4A", ".aac": "AAC", ".flac": "FLAC",
     ".ogg": "OGG", ".opus": "Opus", ".wav": "WAV", ".wma": "WMA",
+    ".m4b": "M4B", ".aif": "AIFF", ".aiff": "AIFF", ".mka": "MKA",
     ".mp4": "MP4", ".m4v": "M4V", ".mkv": "MKV", ".avi": "AVI",
+    ".flv": "FLV", ".mts": "MTS", ".m2ts": "M2TS",
     ".mov": "MOV", ".wmv": "WMV", ".webm": "WebM",
     ".mpg": "MPEG", ".mpeg": "MPEG", ".3gp": "3GP",
 }

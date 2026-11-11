@@ -90,6 +90,21 @@ except ImportError:
     rtad_compare = None
 
 try:
+    import rtad_clip
+except ImportError:
+    rtad_clip = None
+
+try:
+    import rtad_image
+except ImportError:
+    rtad_image = None
+
+try:
+    import rtad_convert
+except ImportError:
+    rtad_convert = None
+
+try:
     import rtad_html_page
 except ImportError:
     rtad_html_page = None
@@ -110,7 +125,7 @@ except ImportError:
     rtad_picker = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "1.9.10"
+APP_VERSION = "2.0.0"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -5313,8 +5328,8 @@ IMG_EXTS = (
     ".tif", ".tiff", ".webp", ".ico",
 )
 MEDIA_EXTS = (
-    ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
-    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm",
+    ".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma", ".aif", ".aiff", ".mka",
+    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".mts", ".m2ts",
     ".mpg", ".mpeg", ".3gp",
 )
 DOC_EXTS = (
@@ -9806,8 +9821,8 @@ class MediaSectionsDialog(wx.Dialog):
             "Scegli un file audio o video",
             wildcard=(
                 "Audio/Video|"
-                "*.mp3;*.m4a;*.aac;*.flac;*.ogg;*.opus;*.wav;*.wma;"
-                "*.mp4;*.m4v;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.mpg;*.mpeg;*.3gp|"
+                "*.mp3;*.m4a;*.m4b;*.aac;*.flac;*.ogg;*.opus;*.wav;*.wma;*.aif;*.aiff;*.mka;"
+                "*.mp4;*.m4v;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.flv;*.mts;*.m2ts;*.mpg;*.mpeg;*.3gp|"
                 "Tutti i file|*.*"
             ),
             style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
@@ -10065,7 +10080,7 @@ class ImageInfoFrame(wx.Frame):
         ext = os.path.splitext(path)[1].lower()
         if not ext:
             ext = ".png" if kind == "image" else ".mp4"
-        audio_exts = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma"}
+        audio_exts = {".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma", ".aif", ".aiff", ".mka"}
         title = ""
         companion = ""
         is_audio = ext in audio_exts
@@ -10168,6 +10183,13 @@ class ImageInfoFrame(wx.Frame):
             ".opus": "Audio Opus",
             ".wav": "Audio WAV",
             ".wma": "Audio WMA",
+            ".m4b": "Audio M4B",
+            ".aif": "Audio AIFF",
+            ".aiff": "Audio AIFF",
+            ".mka": "Audio MKA",
+            ".flv": "Video FLV",
+            ".mts": "Video MTS",
+            ".m2ts": "Video M2TS",
             ".png": "Immagine PNG",
             ".jpg": "Immagine JPEG",
             ".jpeg": "Immagine JPEG",
@@ -13040,7 +13062,7 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
+            "• Strumenti, Taglia e unisci audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Taglia e unisci. Invio sul pulsante Aggiungi, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga ascolta quel pezzo. Un clic solo seleziona la riga. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Tieni da qui a qui, o un clic, tiene quel tratto. Invio sul pulsante Togli questo tratto, o un clic, toglie quel tratto e tiene il prima e il dopo. Invio sul pulsante Ferma, o un clic, ferma l'ascolto o il lavoro. Invio sul pulsante Altro tratto, o un clic, aggiunge quel tratto senza cambiare la riga. Con un file solo, Invio sul pulsante Esegui, o un clic, taglia la riga selezionata e scrive un file nuovo. Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce l'elenco: il file intero, oppure il tratto già scelto. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Il file di partenza resta com'è. Se i file non sono uguali, a schermo e a voce: «I file non sono uguali: li converto, ci vuole più tempo.» Se manca ffmpeg: «Per questo formato serve ffmpeg». A schermo e a voce: «Creato nome, durata, nella stessa cartella.»\n• Strumenti, Taglia e unisci immagini. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Aggiungi file, o un clic, mette le immagini in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga dice quel taglio. Un clic solo seleziona la riga. I quattro numeri sono sinistra, alto, larghezza e altezza. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, scrive quei numeri e li tiene sulla riga. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri si riempiono e il taglio è sulla riga. Invio sul pulsante Tieni questo taglio, o un clic, tiene i quattro numeri sulla riga selezionata. Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga. Il file si chiama nome-taglio, poi nome-taglio-2. Con almeno due immagini, Invio sul pulsante Uno sotto l'altro, o un clic, le mette una sotto l'altra. Invio sul pulsante Uno accanto all'altro, o un clic, le mette una accanto all'altra. Si unisce l'immagine intera, oppure il taglio già scelto. Il file unito si chiama Unito, poi Unito-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. Il file di partenza resta com'è. A schermo e a voce: «Creato nome, nella stessa cartella.»\n• Strumenti, Converti audio e video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi file, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. In lettura entrano anche M4B, AIFF, MKA, FLV, MTS e M2TS. Invio o doppio clic su una riga dice quel file. Un clic solo seleziona la riga. Nell'elenco Formato, freccia su e freccia giù scelgono: MP3, M4A, WAV, FLAC, OGG, Opus, WMA, MP4 e MKV. Vale per Converti la riga e per Converti tutti. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è. Il file nuovo sta nella stessa cartella, con la nuova estensione. Se il nome c'è già, si chiama nome-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, M Rimuovi, C Converti la riga, T Converti tutti, F Ferma. Invio sul pulsante Ferma, o un clic, ferma il lavoro. A schermo e a voce: «Creato nome, durata, nella stessa cartella.» Se manca ffmpeg: «Per questo formato serve ffmpeg».\n• Resta dalla 1.9.10: Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
             "• Nell'Add-on, se la finestra di ricerca è ridotta a icona, Alt+Tab la riapre e il focus torna sul campo.\n"
             "• Resta dalla 1.9.9, con la voce di RTAD accesa: Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
             "• Nella Standalone, Alt+P e la lettera S dicono lo stato per intero, anche con «Pronuncia i tasti di spostamento» acceso: il nome del tasto non copre la frase. Dopo una copia, la frase resta circa 2 secondi, a schermo e a voce, poi la barra torna alla riga della ricerca. S, F8 e Alt+P rileggono quella riga. Nell'Add-on la lettera S e Alt+P restano come nella 1.9.8.\n"
@@ -13326,6 +13348,9 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + Q : Nuova conversazione Gemini, anche senza un file\n"
             "  - Alt + A : Allega file. Elenco per data, i più recenti in cima\n"
             "  - Strumenti, Confronta file… : da due a dodici file. Anche nel menu del risultato\n"
+            "  - Strumenti, Taglia e unisci audio/video… : Invio sulla voce, o un clic, apre la finestra. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Invio sul pulsante Esegui, o un clic, taglia la riga selezionata. Invio sul pulsante Unisci, o un clic, unisce almeno due file. Il file di partenza resta com'è.\n"
+            "  - Strumenti, Taglia e unisci immagini… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, tiene quel taglio. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri, sinistra, alto, larghezza e altezza, si riempiono. Invio sul pulsante Esegui, o un clic, scrive il taglio. Invio sul pulsante Uno sotto l'altro o Uno accanto all'altro, o un clic, unisce almeno due immagini. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. Il file di partenza resta com'è.\n"
+            "  - Strumenti, Converti audio e video… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Nell'elenco Formato, freccia su e freccia giù scelgono. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è.\n"
             "  - Nella finestra Confronta: Alt + A aggiunge, Alt + L toglie, anche prima di Invio. Canc sull'elenco toglie\n"
             "  - Nella scelta: Shift + freccia giù, Control + freccia, Control + Spazio, Alt + C cambia cartella\n"
             "  - Sotto i file già scelti: Alt + L ne toglie uno prima di Invio. Sulla finestra principale Alt + L resta la chiave Google\n"
@@ -14033,6 +14058,18 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Tutto sull'audio/video (&J)…"
         )
         self.Bind(wx.EVT_MENU, self.on_media_all_dialog, item_all_media)
+        item_clip = tools_menu.Append(
+            wx.ID_ANY, "Taglia e unisci audio/&video…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_clip_dialog, item_clip)
+        item_image = tools_menu.Append(
+            wx.ID_ANY, "Taglia e unisci &immagini…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_image_dialog, item_image)
+        item_convert = tools_menu.Append(
+            wx.ID_ANY, "Co&nverti audio e video…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_convert_dialog, item_convert)
         item_batch_media = tools_menu.Append(
             wx.ID_ANY, "Anali&zza cartella audio/video…"
         )
@@ -18789,6 +18826,9 @@ class MainWindow(wx.Frame):
         item_all = None
         item_ocr = None
         item_media_all = None
+        item_clip = None
+        item_convert = None
+        item_image_clip = None
         item_media_tech = None
         item_media_desc = None
         media_for_actions = (
@@ -18813,9 +18853,12 @@ class MainWindow(wx.Frame):
             item_alt_long = menu.Append(wx.ID_ANY, "Alt-text + descrizione")
             item_labels = menu.Append(wx.ID_ANY, "Etichette e oggetti")
             item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
+            item_image_clip = menu.Append(wx.ID_ANY, "Taglia e unisci…")
         elif is_media_result:
             menu.AppendSeparator()
             item_media_all = menu.Append(wx.ID_ANY, "Tutto sull'audio/video…")
+            item_clip = menu.Append(wx.ID_ANY, "Taglia e unisci…")
+            item_convert = menu.Append(wx.ID_ANY, "Converti…")
             item_media_desc = menu.Append(wx.ID_ANY, "Riassunto audio/video")
             item_media_tech = menu.Append(wx.ID_ANY, "Scheda tecnica audio/video")
         elif is_pdf_result:
@@ -18938,6 +18981,24 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e, p=media_for_actions: self.show_media_all_dialog(p),
                 item_media_all,
+            )
+        if item_clip is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=media_for_actions: self.on_clip_dialog(path=p),
+                item_clip,
+            )
+        if item_convert is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=media_for_actions: self.on_convert_dialog(path=p),
+                item_convert,
+            )
+        if item_image_clip is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=file_path: self.on_image_dialog(path=p),
+                item_image_clip,
             )
         if item_media_desc is not None:
             self.Bind(
@@ -19218,6 +19279,30 @@ class MainWindow(wx.Frame):
     def on_media_all_dialog(self, event=None):
         """Strumenti → hub audio/video (file e/o URL + sezioni)."""
         self.open_media_hub_dialog()
+
+    def on_clip_dialog(self, event=None, path=""):
+        """Strumenti → taglia e unisci audio o video."""
+        if rtad_clip is None:
+            speak_accessible("Modulo taglia e unisci non disponibile.")
+            return
+        paths = [path] if path else []
+        rtad_clip.open_dialog(self, speak_accessible, paths)
+
+    def on_image_dialog(self, event=None, path=""):
+        """Strumenti → taglia e unisci immagini."""
+        if rtad_image is None:
+            speak_accessible("Modulo taglia e unisci immagini non disponibile.")
+            return
+        paths = [path] if path else []
+        rtad_image.open_dialog(self, speak_accessible, paths)
+
+    def on_convert_dialog(self, event=None, path=""):
+        """Strumenti, converti audio o video."""
+        if rtad_convert is None:
+            speak_accessible("Modulo converti audio e video non disponibile.")
+            return
+        paths = [path] if path else []
+        rtad_convert.open_dialog(self, speak_accessible, paths)
 
     def on_ytdlp_tools(self, event=None):
         """Strumenti → verifica / aggiorna yt-dlp."""

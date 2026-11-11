@@ -425,7 +425,7 @@ _DIR_HINT = (
 
 _STANDARD_TYPES = (
     ("Immagini", ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp", "*.tif", "*.tiff"]),
-    ("Audio e video", ["*.mp3", "*.wav", "*.m4a", "*.flac", "*.ogg", "*.mp4", "*.mkv", "*.avi", "*.mov", "*.webm"]),
+    ("Audio e video", ["*.mp3", "*.wav", "*.m4a", "*.m4b", "*.aif", "*.aiff", "*.mka", "*.flac", "*.ogg", "*.mp4", "*.mkv", "*.avi", "*.mov", "*.webm", "*.flv", "*.mts", "*.m2ts"]),
     ("Documenti", ["*.pdf", "*.txt", "*.doc", "*.docx", "*.epub", "*.html", "*.htm", "*.rtf"]),
     ("Tutti i file", ["*.*"]),
 )

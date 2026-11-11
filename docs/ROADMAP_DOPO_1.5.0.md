@@ -11,7 +11,7 @@ Stato: piano di lavoro (niente date di calendario: solo ordine e criteri)
 |------|---------|--------|
 | **Patch / minore** | `1.5.1`, `1.5.2`, … | Fix, lucidature, una feature snella, allineamento Standalone ↔ Add-on |
 | **Minor “corposa”** | `1.6.0` | Più arricchimenti insieme, o un modulo nuovo che cambia in modo sensibile l’uso |
-| **Major** | `2.0.0` | Si apre con tagliare e unire un video, e lo stesso per le immagini. Dopo login, finestre ed export. |
+| **Major** | `2.0.0` | Si apre con la finestra «Taglia e unisci» per audio e video. Poi le immagini, poi PDF e testo. |
 
 **Come alla 1.4.x → 1.5.0:** si resta su `1.5.x` finché gli arricchimenti sono utili ma non “salto di prodotto”. Il numero `1.6` segnala un pacchetto sostanzioso (come i feed nella 1.5).
 
@@ -202,8 +202,8 @@ Contenuto previsto `1.6.0`:
 43. ~~**`1.9.7`:** descrizione del video. Il riassunto breve è già scelto. Freccia giù, o un clic, passa alla dettagliata: in cima il riassunto, sotto il racconto scena per scena, una sola richiesta a Gemini. I timestamp del racconto sono spenti e si accendono se si vuole. Se accesi, avanzano con le scene, sullo stesso orologio del video. Solo ciò che si vede o si sente. Su RaiPlay video e audio si uniscono.~~ **pubblicata** il 6/11/2026. GitHub `v1.9.7` / `app-v1.9.7`, commit `163464f`. Piano: `docs/PIANO_1.9.7.md`. Non si rifà.
 44. ~~**`1.9.8`:** login del browser, con il consenso di chi usa RTAD. I cookie restano sul suo PC. Su Windows la casella legge i cookie di Firefox, anche con la finestra aperta. La chiave di Edge, Chrome, Brave, Opera e Vivaldi spesso non si decifra, anche a programma chiuso. Un flusso con protezione DRM resta non scaricabile. RaiPlay Sound: una pagina audio, come il GR1, porta al file e lo mette in elenco; il file resta nel formato consegnato da Rai, anche se il nome finisce in `.mp4` e dentro c’è solo l’audio. A schermo e a voce si dice che è l’audio. Standalone e Add-on.~~ **pubblicata** il 7/11/2026. GitHub `v1.9.8` / `app-v1.9.8`, commit `771db55`. DataStore #12813 via #12814 accettato. Piano: `docs/PIANO_1.9.8.md`. Non si rifà.
 45. ~~**`1.9.9`:** nella Standalone, Salva e Sfoglia sono finestre di RTAD, con l’elenco Unità, i 4 secondi su Solo Audio e Video, lo stato, il ritorno con Alt+Tab, l’apertura nel programma, Apri cartella e Ordinamento. Nell’Add-on, Salva e Sfoglia restano le finestre di Windows. Ci sono i 4 secondi su Solo Audio e Video, e se la finestra di ricerca resta ferma il focus torna su un campo.~~ **pubblicata** il 9/11/2026. GitHub `v1.9.9` / `app-v1.9.9`, commit `ed01ac2`. DataStore #12858 via #12859 accettato. Piano: `docs/PIANO_1.9.9.md`. Non si rifà.
-46. **`1.9.10`:** export multipli, più di un formato nello stesso passaggio. `lastTestedNVDAVersion` = `2026.3.1`. Se la ricerca dell’Add-on è ridotta a icona e ci si torna, la finestra si riapre sul campo: oggi resta fuori schermo e NVDA dice solo il titolo e «riquadro».
-47. **`2.0`:** primo punto, tagliare e unire un video, e lo stesso per le immagini. A schermo e a voce. Standalone e Add-on. Piano: `docs/PIANO_2.0.md`. Non iniziata: prima 1.9.10.
+46. ~~**`1.9.10`:** Ctrl+E scrive insieme testo, pagina web e tabella, nella cartella da cui sono stati presi i file. La ricerca successiva non rilegge quei file di risultati. Nell’Add-on, se la ricerca è ridotta a icona, Alt+Tab la riapre sul campo. `lastTestedNVDAVersion` = `2026.3.1`.~~ **pubblicata** il 9/11/2026. GitHub `v1.9.10` / `app-v1.9.10`, commit `2f1d38c`. DataStore #12896 via #12898 accettato. Piano: `docs/PIANO_1.9.10.md`. Non si rifà.
+47. **`2.0.0`:** in corso. Finestra «Taglia e unisci» per audio e video, a schermo e a voce, Standalone e Add-on. Il file di partenza resta com'è. Piano: `docs/PIANO_2.0.md`. Poi le immagini, poi PDF e testo, poi un audio su un video e le immagini in un PDF.
 Più avanti: confronto del parlato, confronto del testo di un’immagine.
 
 ### Fase K — `1.6.4` (immagini: completezza) — PUBBLICATA

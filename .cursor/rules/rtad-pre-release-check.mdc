@@ -12,7 +12,7 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
 ## Obbligo, in quest’ordine
 
 1. `python tools/rtad_release.py check` → **OK tutte allineate**. Copre `APP_VERSION`, `manifest.ini`, `setup.iss`, `version.txt`, `compila.bat`, titolo del `README.md`.
-2. `python tools/_sync_release_docs.py` → ogni gemello **OK**. Copre `rtad_ocr.py`, `rtad_media.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`, `rtad_translate.py`, `rtad_docstruct.py`, `rtad_epub.py`, `rtad_reading_mark.py`, `rtad_chat.py`, `rtad_attach_dialog.py`. Rigenera `docs/GUIDA_PRATICA.txt` e `addon/doc/it/guida_pratica.html`.
+2. `python tools/_sync_release_docs.py` → ogni gemello **OK**. Copre `rtad_ocr.py`, `rtad_media.py`, `rtad_clip.py`, `rtad_image.py`, `rtad_convert.py`, `rtad_guida_pratica.py`, `rtad_guida_html.py`, `rtad_translate.py`, `rtad_docstruct.py`, `rtad_epub.py`, `rtad_reading_mark.py`, `rtad_chat.py`, `rtad_attach_dialog.py`. Rigenera `docs/GUIDA_PRATICA.txt` e `addon/doc/it/guida_pratica.html`.
 3. Leggi il **primo punto** di ogni novità. Deve descrivere questa versione. Se descrive la precedente, fermati e riscrivilo. Stessa sostanza in tutti i testi; l’Add-on aggiunge in coda solo «NVDA testata» e «chat nel profilo».
    - Finestra all’avvio di Portable e Installer: `WhatsNewFrame` in `Standalone/app_gui.py`, frase «Ecco le novità principali».
    - Stessa finestra dell’Add-on, alla prima apertura della versione: `WhatsNewFrame` in `addon/globalPlugins/ricerca_testuale/__init__.py`, frase «Ecco le principali novità».

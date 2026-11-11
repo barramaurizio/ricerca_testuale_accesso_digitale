@@ -1,8 +1,8 @@
 # Piano RTAD 2.0
 
-**In corso.** Versione `2.0.0`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**Pubblicata** l’11/11/2026. Versione `2.0.0`. GitHub `v2.0.0` / `app-v2.0.0`, commit `b70e333`. DataStore #12942 via #12943 accettato. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Non si rifà.
 
-L’ultima pubblicata resta la `1.9.10` (9/11/2026, GitHub `v1.9.10` / `app-v1.9.10`, commit `2f1d38c`, DataStore #12896 via #12898). Non si rifà.
+L’ultima pubblicata è la `2.0.0`. Prima: `1.9.10` (9/11/2026, GitHub `v1.9.10` / `app-v1.9.10`, commit `2f1d38c`, DataStore #12896 via #12898). Non si rifà.
 
 Il 7/11/2026 Maurizio ha chiesto di unire e di tagliare, scegliendo le parti da tenere o da togliere, su video, audio e immagini. Il 10/11/2026 ha confermato l’ordine qui sotto: prima l’orologio, poi le immagini, poi i documenti, poi il passaggio da un formato all’altro.
 

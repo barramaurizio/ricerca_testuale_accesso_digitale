@@ -1,0 +1,87 @@
+🌟 Novità della Versione 2.0.1
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.1
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.
+
+## 🇬🇧 English
+
+- Cut and join images: the preview is taller, so the photo is easier to see while you work. The written file stays full size: a 900 by 900 photo stays 900 by 900. Enter on Un quarto a destra, or a click, turns the image a quarter to the right. Enter on Un quarto a sinistra, or a click, turns it the other way. Enter on Mezzo giro, or a click, turns it upside down. The original file stays as it is. Enter on Esegui, or a click, writes the new file: it is named nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra or nome-giro-mezzo-giro. The joined file is named Unito-uno-sotto-l-altro or Unito-uno-accanto-all-altro. If that name already exists, -2 is added. From the list, Alt and the letter: B a quarter to the right, J a quarter to the left, N a half turn. In the installed Standalone, in File Explorer, right-click or the Applications key, Cerca con Accesso Digitale: on an image there is Taglia e unisci; on an audio or a video there are Taglia e unisci and Converti. Enter on the item, or a click, opens the window with that file already in the list. The Add-on does not add items in File Explorer. In the Gemini history, Enter on Rinomina, or a click, gives the conversation a new name. The content stays as it is. It works in the Standalone and in the Add-on.
+- Last NVDA version tested: 2026.3.1. The Add-on chats stay in the NVDA profile.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.1.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.1
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.1
+
+Descrizione:
+stessa della release Add-on (i bullet IT/EN sopra). I due exe li compila Maurizio.
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.1.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.1.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Taglia e unisci immagini: anteprima più alta, un quarto a destra, un quarto a sinistra o mezzo giro. Il file scritto resta a misura intera. Nella Standalone installata, in Esplora file: Taglia e unisci e Converti. Nella cronologia di Gemini, Rinomina. NVDA testata: 2026.3.1.
+
+Summary EN:
+Cut and join images: a taller preview, a quarter turn right, a quarter turn left, or a half turn. The written file stays full size. In the installed Standalone, in File Explorer: Taglia e unisci and Converti. In the Gemini history, Rinomina. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.1/ricerca_testuale_accesso_digitale-2.0.1.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.1
+
+Description:
+Anteprima più alta e giro dell'immagine, voci di Esplora file sulla Standalone installata, Rinomina nella cronologia di Gemini. Il file di partenza resta com'è.

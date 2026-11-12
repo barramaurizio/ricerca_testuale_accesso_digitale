@@ -7,7 +7,11 @@ alwaysApply: true
 
 Una versione già su GitHub si scrive pubblicata. Data, tag `vX.Y.Z` e `app-vX.Y.Z`, commit corto. Se lo store l’ha accettata, anche il numero DataStore. Non riscriverla «non ancora su GitHub» o «nei sorgenti».
 
-L’ultima pubblicata si legge in cima a `docs/NOTE_CONTESTO_v1.5.md` e nella voce barrata di `docs/ROADMAP_DOPO_1.5.0.md`. Se quelle due dicono una versione più vecchia di quella che Maurizio ha appena messo online, si aggiornano prima di aprire la successiva.
+L’ultima pubblicata si legge in cima a `docs/NOTE_CONTESTO_v1.5.md`, nella voce barrata di `docs/ROADMAP_DOPO_1.5.0.md` e nella prima riga di `docs/PIANO_` di quella versione. Se dicono una versione più vecchia di quella che Maurizio ha appena messo online, si aggiornano prima di aprire la successiva.
+
+Nel commit di rilascio, prima che Maurizio committi, quelle tre note dicono già che questa versione è quella che si pubblica. Data, tag `vX.Y.Z` e `app-vX.Y.Z`. «In corso» e «l’ultima pubblicata è la precedente» non entrano in quel commit. È il buco della 2.0.0: il commit `b70e333` diceva ancora «in corso», e la frase «è pubblicata» è partita dopo.
+
+Il commit corto e il numero DataStore si scrivono appena si conoscono. Se il rilascio non è ancora stato spinto, entrano prima del push. Se è già online, entrano con la versione successiva. Non si apre un commit solo per loro.
 
 Non hotfixare una versione già pubblicata. Il `.nvda-addon` accettato dallo store non si sostituisce. I due exe della Standalone, sulla release GitHub, si sostituiscono.
 

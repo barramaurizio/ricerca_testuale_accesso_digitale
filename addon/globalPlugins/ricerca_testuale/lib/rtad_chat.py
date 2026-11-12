@@ -554,7 +554,8 @@ def apply_saved_name(session: dict, saved_as: str) -> None:
     if not name:
         return
     session["saved_as"] = saved_as
-    session["title"] = name
+    if not session.get("title_custom"):
+        session["title"] = name
 
 
 def _file_line(path: str, display_name: str = "") -> list:
@@ -1788,6 +1789,7 @@ def _public_dict(session: dict) -> dict:
         "path": session.get("path") or "",
         "source_path": session.get("source_path") or "",
         "title": session.get("title") or "",
+        **({"title_custom": True} if session.get("title_custom") else {}),
         **({"saved_as": session.get("saved_as")} if session.get("saved_as") else {}),
         "mtime": session.get("mtime"),
         "created": session.get("created") or "",
@@ -1845,7 +1847,11 @@ def promote_url_identity(base_dir: str, json_path: str, data: dict) -> tuple:
     if ident.get("url") and data.get("source_url") != ident["url"]:
         data["source_url"] = ident["url"]
         changed = True
-    if ident.get("title") and _temp_media_name(data.get("title") or ""):
+    if (
+        ident.get("title")
+        and not data.get("title_custom")
+        and _temp_media_name(data.get("title") or "")
+    ):
         data["title"] = ident["title"]
         changed = True
     folder = chat_dir(base_dir)
@@ -1943,7 +1949,10 @@ def _session_from_public(
     if data.get("saved_as"):
         session["saved_as"] = data.get("saved_as")
     saved_title = str(data.get("title") or "").strip()
-    if saved_title and not _temp_media_name(saved_title):
+    if data.get("title_custom") and saved_title:
+        session["title"] = saved_title
+        session["title_custom"] = True
+    elif saved_title and not _temp_media_name(saved_title):
         session["title"] = saved_title
     elif _temp_media_name(session.get("title") or "") and saved_title:
         session["title"] = saved_title
@@ -2056,8 +2065,9 @@ def _saved_row(json_path: str, current: bool) -> dict:
             count = len(data.get("turns") or []) // 2
     except Exception:
         data = {}
-    if not current:
-        label = "Archivio"
+    shown = (title or "").strip() or "Conversazione"
+    role = "Conversazione attuale" if current else "Archivio"
+    label = f"{shown} — {role}"
     if updated:
         label = f"{label} — {updated}"
     if count:
@@ -2070,6 +2080,7 @@ def _saved_row(json_path: str, current: bool) -> dict:
         "updated": updated,
         "title": title,
         "count": count,
+        "label_kind": "file",
     }
 
 
@@ -2198,6 +2209,7 @@ def list_all_saved(base_dir: str) -> list:
         scambi = "scambio" if n == 1 else "scambi"
         label += f" ({n} {scambi})"
         row["label"] = label
+        row["label_kind"] = "all"
         rows.append(row)
     rows.sort(key=lambda item: item.get("updated") or "", reverse=True)
     return rows
@@ -2228,6 +2240,129 @@ def find_export(base_dir: str, chat_txt_path: str) -> str:
             best = row.get("path") or ""
             best_updated = updated
     return best
+
+
+def label_for_row(row: dict) -> str:
+    """La riga dell'elenco, dopo un cambio di nome."""
+    title = (row.get("title") or "").strip() or "Conversazione"
+    updated = row.get("updated") or ""
+    n = int(row.get("count") or 0)
+    tail = ""
+    if n:
+        word = "scambio" if n == 1 else "scambi"
+        tail = f" ({n} {word})"
+    if row.get("label_kind") == "file":
+        role = "Conversazione attuale" if row.get("current") else "Archivio"
+        label = f"{title} — {role}"
+        if updated:
+            label += f" — {updated}"
+        return label + tail
+    label = title
+    if not row.get("current"):
+        label += " — archivio"
+    if updated:
+        label += f" — {updated}"
+    return label + tail
+
+
+def clean_conversation_name(raw: str) -> str:
+    title = " ".join((raw or "").split()).strip()
+    if len(title) > 120:
+        title = title[:120].rstrip()
+    return title
+
+
+def rename_saved(json_path: str, new_title: str) -> str:
+    """Cambia solo il nome in cronologia. Il contenuto resta. Ritorna il nome, o vuoto."""
+    title = clean_conversation_name(new_title)
+    if not title or not json_path or not os.path.isfile(json_path):
+        return ""
+    try:
+        with open(json_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception as exc:
+        logging.warning(f"Chat: lettura per rinomina non riuscita: {exc}")
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    data["title"] = title
+    data["title_custom"] = True
+    try:
+        with open(json_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=1)
+    except Exception as exc:
+        logging.warning(f"Chat: rinomina non riuscita: {exc}")
+        return ""
+    return title
+
+
+def ask_conversation_name(parent, current: str):
+    """None se annulla. Stringa vuota se il nome è vuoto. Altrimenti il nome."""
+    import wx
+
+    dlg = wx.Dialog(
+        parent,
+        title="Rinomina conversazione",
+        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+    )
+    panel = wx.Panel(dlg)
+    vbox = wx.BoxSizer(wx.VERTICAL)
+    vbox.Add(
+        wx.StaticText(
+            panel,
+            label=(
+                "Nuovo nome della conversazione. Il contenuto resta com'è. "
+                "Invio sul pulsante Rinomina, o un clic, lo scrive."
+            ),
+        ),
+        0,
+        wx.ALL | wx.EXPAND,
+        8,
+    )
+    field = wx.TextCtrl(panel, value=current or "")
+    try:
+        field.SetName("Nuovo nome")
+    except Exception:
+        pass
+    vbox.Add(field, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+    row = wx.BoxSizer(wx.HORIZONTAL)
+    ok = wx.Button(panel, label="Ri&nomina")
+    cancel = wx.Button(panel, wx.ID_CANCEL, "Annulla")
+    row.Add(ok, 0, wx.ALL, 5)
+    row.Add(cancel, 0, wx.ALL, 5)
+    vbox.Add(row, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+    panel.SetSizer(vbox)
+    outer = wx.BoxSizer(wx.VERTICAL)
+    outer.Add(panel, 1, wx.EXPAND)
+    dlg.SetSizer(outer)
+    dlg.SetInitialSize((560, 230))
+    chosen = {"name": None}
+
+    def _ok(_event=None):
+        chosen["name"] = clean_conversation_name(field.GetValue())
+        dlg.EndModal(wx.ID_OK)
+
+    ok.Bind(wx.EVT_BUTTON, _ok)
+    field.SetFocus()
+    field.SelectAll()
+    try:
+        if dlg.ShowModal() != wx.ID_OK:
+            return None
+    finally:
+        dlg.Destroy()
+    return chosen["name"] if chosen["name"] is not None else ""
+
+
+def session_matches_saved(base_dir: str, session: dict, json_path: str) -> bool:
+    if not session or not json_path:
+        return False
+    try:
+        current = _current_path(base_dir, session.get("path") or "", session)
+        return os.path.normcase(os.path.abspath(current)) == os.path.normcase(
+            os.path.abspath(json_path)
+        )
+    except Exception:
+        return False
 
 
 def delete_saved(json_path: str) -> bool:

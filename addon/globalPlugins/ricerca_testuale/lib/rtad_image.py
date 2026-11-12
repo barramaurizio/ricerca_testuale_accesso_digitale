@@ -24,10 +24,11 @@ MSG_NEED_TWO = (
     "Aggiungi un'altra immagine, oppure scegli un taglio e premi Esegui."
 )
 MSG_NEED_CROP = (
-    "Nessun taglio: i campi sono ancora l'immagine intera. "
+    "Nessun taglio e nessun giro: i campi sono ancora l'immagine intera. "
     "Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, "
     "o un clic. Oppure cambia un numero e Invio sul pulsante Tieni questo taglio, "
-    "o un clic. Poi Esegui."
+    "o un clic. Oppure Invio sul pulsante Un quarto a destra, Un quarto a sinistra "
+    "o Mezzo giro, o un clic. Poi Esegui."
 )
 MSG_BAD_NUM = "Servono quattro numeri: sinistra, alto, larghezza, altezza."
 MSG_NOT_IMAGE = "non è un'immagine."
@@ -63,17 +64,27 @@ _INTRO = (
     "si riempiono e il taglio è sulla riga. "
     "Invio sul pulsante Tieni questo taglio, o un clic, tiene i quattro numeri "
     "sulla riga selezionata. "
-    "Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga. "
+    "L'anteprima è più alta, per vederci meglio. Il file scritto resta a misura intera. "
+    "Invio sul pulsante Un quarto a destra, o un clic, gira di un quarto verso destra. "
+    "Invio sul pulsante Un quarto a sinistra, o un clic, gira dall'altra parte. "
+    "Invio sul pulsante Mezzo giro, o un clic, capovolge. "
+    "Il giro toglie il taglio già scelto su quella riga. "
+    "Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga, "
+    "oppure il giro se non c'è un taglio. Il file del giro si chiama "
+    "nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o "
+    "nome-giro-mezzo-giro. Se il nome c'è già, si aggiunge -2. "
     "Con almeno due immagini, Invio sul pulsante Uno sotto l'altro, o un clic, "
     "le mette una sotto l'altra. "
     "Invio sul pulsante Uno accanto all'altro, o un clic, le mette una accanto all'altra. "
-    "Si unisce l'immagine intera, oppure il taglio già scelto. "
-    "Il file unito si chiama Unito, poi Unito-2. "
+    "Si unisce l'immagine intera, il taglio già scelto, oppure il giro già scelto su quella riga. "
+    "Il file unito si chiama Unito-uno-sotto-l-altro oppure "
+    "Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. "
     "I file creati restano nell'elenco Fatti. "
     "Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. "
     "Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: "
     "A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, "
     "I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, "
+    "B un quarto a destra, J un quarto a sinistra, N mezzo giro, "
     "T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. "
     "Il file di partenza resta com'è. Esc chiude."
 )
@@ -92,7 +103,69 @@ _ALT = {
     "E": "run",
     "V": "down_join",
     "Q": "side_join",
+    "B": "turn_right",
+    "J": "turn_left",
+    "N": "turn_half",
 }
+
+
+def preview_height(screen_h: int) -> int:
+    """Altezza minima dell'anteprima. Il file scritto resta a misura intera."""
+    try:
+        screen_h = int(screen_h)
+    except (TypeError, ValueError):
+        screen_h = 900
+    if screen_h < 1:
+        screen_h = 900
+    return max(280, min(480, screen_h - 680))
+
+
+def normalize_turns(turns) -> int:
+    try:
+        return int(turns) % 4
+    except (TypeError, ValueError):
+        return 0
+
+
+def turn_name(turns) -> str:
+    name = {1: "un quarto a destra", 2: "mezzo giro", 3: "un quarto a sinistra"}
+    return name.get(normalize_turns(turns), "")
+
+
+def turn_file_slug(turns) -> str:
+    slug = {
+        1: "un-quarto-a-destra",
+        2: "mezzo-giro",
+        3: "un-quarto-a-sinistra",
+    }
+    return slug.get(normalize_turns(turns), "")
+
+
+def join_file_slug(side_by_side: bool) -> str:
+    if side_by_side:
+        return "uno-accanto-all-altro"
+    return "uno-sotto-l-altro"
+
+
+def view_size(width: int, height: int, turns) -> tuple:
+    if normalize_turns(turns) % 2:
+        return int(height), int(width)
+    return int(width), int(height)
+
+
+def rotate_image(image, turns):
+    """Gira una copia. L'immagine di partenza non si modifica."""
+    steps = normalize_turns(turns)
+    if image is None or steps == 0:
+        return image
+    if steps == 2 and hasattr(image, "Rotate180"):
+        return image.Rotate180()
+    clockwise = steps == 1
+    if steps == 3:
+        clockwise = False
+    if hasattr(image, "Rotate90"):
+        return image.Rotate90(clockwise)
+    return image
 
 
 def _unique_output(folder: str, stem: str, ext: str) -> str:
@@ -152,14 +225,19 @@ class Shot:
         self.width = int(width)
         self.height = int(height)
         self.crop = None
+        self.turns = 0
 
     def label(self) -> str:
         name = os.path.basename(self.path)
-        text = f"{name}, immagine, {self.width} per {self.height}"
+        view_w, view_h = view_size(self.width, self.height, self.turns)
+        text = f"{name}, immagine, {view_w} per {view_h}"
+        turned = turn_name(self.turns)
+        if turned:
+            text += f", {turned}"
         if self.crop:
             left, top, width, height = self.crop
             short, _sentence = crop_kind(
-                self.width, self.height, left, top, width, height
+                view_w, view_h, left, top, width, height
             )
             text += (
                 f", {short}, sinistra {left}, alto {top}, "
@@ -173,6 +251,7 @@ class Shot:
 def clone_shot(shot: Shot) -> Shot:
     copy = Shot(shot.path, shot.width, shot.height)
     copy.crop = None if shot.crop is None else tuple(shot.crop)
+    copy.turns = normalize_turns(getattr(shot, "turns", 0))
     return copy
 
 
@@ -196,7 +275,8 @@ def check_box(left, top, width, height, image_w: int, image_h: int) -> str:
 
 
 def apply_box(shot: Shot, left, top, width, height) -> str:
-    err = check_box(left, top, width, height, shot.width, shot.height)
+    view_w, view_h = view_size(shot.width, shot.height, shot.turns)
+    err = check_box(left, top, width, height, view_w, view_h)
     if err:
         return err
     shot.crop = (int(left), int(top), int(width), int(height))
@@ -220,7 +300,8 @@ def preset_numbers(image_w: int, image_h: int, name: str):
 
 
 def preset_box(shot: Shot, name: str):
-    return preset_numbers(shot.width, shot.height, name)
+    width, height = view_size(shot.width, shot.height, shot.turns)
+    return preset_numbers(width, height, name)
 
 
 _CROP_KIND = {
@@ -276,6 +357,8 @@ def render_shot(shot: Shot):
     image, err = load_image(shot.path)
     if image is None:
         return None, err or MSG_FAIL
+    if normalize_turns(shot.turns):
+        image = rotate_image(image, shot.turns)
     if shot.crop:
         left, top, width, height = shot.crop
         err = check_box(left, top, width, height, image.GetWidth(), image.GetHeight())
@@ -315,13 +398,18 @@ def _output_ext(shots: list, reencode_png: bool) -> str:
     return ".png"
 
 
-def _output_for(shots: list, several: bool) -> str:
+def _output_for(shots: list, several: bool, side_by_side: bool = False) -> str:
     first = shots[0]
     folder = os.path.dirname(os.path.abspath(first.path)) or os.getcwd()
     if several:
-        stem = "Unito"
+        stem = "Unito-" + join_file_slug(side_by_side)
     else:
-        stem = os.path.splitext(os.path.basename(first.path))[0] + "-taglio"
+        base = os.path.splitext(os.path.basename(first.path))[0]
+        turned = normalize_turns(getattr(first, "turns", 0))
+        if first.crop or not turned:
+            stem = base + "-taglio"
+        else:
+            stem = base + "-giro-" + turn_file_slug(turned)
     ext = _output_ext(shots, False)
     return _unique_output(folder, stem, ext)
 
@@ -363,7 +451,7 @@ def build(shots: list, side_by_side: bool = False) -> tuple:
             return False, err or MSG_FAIL, ""
         images.append(image)
     out = join_images(images, side_by_side)
-    dest = _output_for(shots, True)
+    dest = _output_for(shots, True, side_by_side)
     if not _save(out, dest):
         return False, MSG_FAIL, ""
     if not os.path.isfile(dest):
@@ -376,16 +464,21 @@ def build(shots: list, side_by_side: bool = False) -> tuple:
 
 def crop_spoken(shot: Shot) -> str:
     """La parte scelta, poi i quattro numeri con il loro nome."""
+    view_w, view_h = view_size(shot.width, shot.height, shot.turns)
+    turned = turn_name(shot.turns)
     if not shot.crop:
+        if turned:
+            return f"{turned}, tutta l'immagine, {view_w} per {view_h}"
         return "tutta l'immagine"
     left, top, width, height = shot.crop
-    short, _sentence = crop_kind(shot.width, shot.height, left, top, width, height)
+    short, _sentence = crop_kind(view_w, view_h, left, top, width, height)
     numbers = (
         f"sinistra {left}, alto {top}, larghezza {width}, altezza {height}"
     )
-    if short:
-        return f"{short}, {numbers}"
-    return numbers
+    piece = f"{short}, {numbers}" if short else numbers
+    if turned:
+        return f"{turned}, {piece}"
+    return piece
 
 
 def history_label(shots: list, out_path: str, size: str, side_by_side: bool) -> str:
@@ -529,9 +622,13 @@ def _install_dialog():
             self._view_image = None
 
             vbox = wx.BoxSizer(wx.VERTICAL)
-            intro = wx.StaticText(self, label=_INTRO)
-            intro.Wrap(760)
-            vbox.Add(intro, 0, wx.ALL | wx.EXPAND, 8)
+            intro = wx.TextCtrl(
+                self,
+                value=_INTRO,
+                style=wx.TE_MULTILINE | wx.TE_READONLY,
+            )
+            intro.SetMinSize((760, 88))
+            vbox.Add(intro, 0, wx.EXPAND | wx.ALL, 8)
 
             vbox.Add(
                 wx.StaticText(
@@ -550,7 +647,22 @@ def _install_dialog():
             self.lst.Bind(wx.EVT_LISTBOX, self._on_select)
             self.lst.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._say_row())
 
+            vbox.Add(
+                wx.StaticText(
+                    self,
+                    label=(
+                        "Anteprima, più alta per vederci meglio. "
+                        "Il file scritto resta a misura intera."
+                    ),
+                ),
+                0, wx.LEFT | wx.RIGHT | wx.TOP, 8,
+            )
             self.view = CropPanel(self, self._on_mouse_rect)
+            try:
+                screen_h = wx.GetDisplaySize().height
+            except Exception:
+                screen_h = 900
+            self.view.SetMinSize((680, preview_height(screen_h)))
             vbox.Add(self.view, 1, wx.EXPAND | wx.ALL, 8)
 
             nums = wx.FlexGridSizer(2, 4, 6, 8)
@@ -592,6 +704,14 @@ def _install_dialog():
             ):
                 row2.Add(btn, 0, wx.RIGHT, 6)
             vbox.Add(row2, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+            row_turn = wx.BoxSizer(wx.HORIZONTAL)
+            self.btn_turn_right = wx.Button(self, label="Un quarto a destra (&B)")
+            self.btn_turn_left = wx.Button(self, label="Un quarto a sinistra (&J)")
+            self.btn_turn_half = wx.Button(self, label="Mezzo giro (&N)")
+            for btn in (self.btn_turn_right, self.btn_turn_left, self.btn_turn_half):
+                row_turn.Add(btn, 0, wx.RIGHT, 6)
+            vbox.Add(row_turn, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
 
             row3 = wx.BoxSizer(wx.HORIZONTAL)
             self.btn_keep = wx.Button(self, label="&Tieni questo taglio")
@@ -639,6 +759,9 @@ def _install_dialog():
             self.btn_top.Bind(wx.EVT_TOGGLEBUTTON, lambda e: self._preset("top"))
             self.btn_bottom.Bind(wx.EVT_TOGGLEBUTTON, lambda e: self._preset("bottom"))
             self.btn_center.Bind(wx.EVT_TOGGLEBUTTON, lambda e: self._preset("center"))
+            self.btn_turn_right.Bind(wx.EVT_BUTTON, lambda e: self._on_turn(1, "Un quarto a destra"))
+            self.btn_turn_left.Bind(wx.EVT_BUTTON, lambda e: self._on_turn(-1, "Un quarto a sinistra"))
+            self.btn_turn_half.Bind(wx.EVT_BUTTON, lambda e: self._on_turn(2, "Mezzo giro"))
             self.btn_keep.Bind(wx.EVT_BUTTON, self._on_keep)
             self.btn_run.Bind(wx.EVT_BUTTON, self._on_run)
             self.btn_under.Bind(wx.EVT_BUTTON, lambda e: self._on_join(False))
@@ -647,7 +770,13 @@ def _install_dialog():
             self.Bind(wx.EVT_CLOSE, self._on_close)
             self.SetEscapeId(wx.ID_CANCEL)
             self.SetSizer(vbox)
-            self.SetInitialSize((820, 920))
+            try:
+                area = wx.Display(wx.Display.GetFromWindow(parent) if parent else 0).GetClientArea()
+                dialog_h = min(area.height - 24, preview_height(area.height) + 760)
+                dialog_w = min(area.width - 40, 900)
+            except Exception:
+                dialog_h, dialog_w = 980, 860
+            self.SetInitialSize((max(820, dialog_w), max(860, dialog_h)))
             self.CentreOnParent()
             self._refresh(0)
             self._refresh_done()
@@ -710,12 +839,15 @@ def _install_dialog():
                 self._mark_parts(None)
                 return
             image, _err = load_image(shot.path)
+            if image is not None and normalize_turns(shot.turns):
+                image = rotate_image(image, shot.turns)
             self._view_image = image
             self.view.set_image(image, shot.crop)
+            view_w, view_h = view_size(shot.width, shot.height, shot.turns)
             if shot.crop:
                 left, top, width, height = shot.crop
             else:
-                left, top, width, height = 0, 0, shot.width, shot.height
+                left, top, width, height = 0, 0, view_w, view_h
             self.txt_left.ChangeValue(str(left))
             self.txt_top.ChangeValue(str(top))
             self.txt_width.ChangeValue(str(width))
@@ -726,9 +858,8 @@ def _install_dialog():
             kind = ""
             if shot is not None and shot.crop:
                 left, top, width, height = shot.crop
-                kind, _sentence = crop_kind(
-                    shot.width, shot.height, left, top, width, height
-                )
+                view_w, view_h = view_size(shot.width, shot.height, shot.turns)
+                kind, _sentence = crop_kind(view_w, view_h, left, top, width, height)
             for btn, name in (
                 (self.btn_left, "metà sinistra"),
                 (self.btn_right, "metà destra"),
@@ -750,13 +881,18 @@ def _install_dialog():
                 self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
                 return
             shot = self._rows[index]
+            view_w, view_h = view_size(shot.width, shot.height, shot.turns)
             if shot.crop:
                 left, top, width, height = shot.crop
             else:
-                left, top, width, height = 0, 0, shot.width, shot.height
-            self._say(compare_phrase(
-                "Questa riga", left, top, width, height, shot.width, shot.height
-            ))
+                left, top, width, height = 0, 0, view_w, view_h
+            phrase = compare_phrase(
+                "Questa riga", left, top, width, height, view_w, view_h
+            )
+            turned = turn_name(shot.turns)
+            if turned:
+                phrase = f"{phrase} Giro: {turned}."
+            self._say(phrase)
 
         def _refresh_done(self):
             self.lst_done.Clear()
@@ -897,18 +1033,20 @@ def _install_dialog():
                 self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
                 return
             shot = self._rows[index]
-            err = check_box(left, top, width, height, shot.width, shot.height)
+            view_w, view_h = view_size(shot.width, shot.height, shot.turns)
+            err = check_box(left, top, width, height, view_w, view_h)
             if err:
                 self._say(err)
                 return
             box = (int(left), int(top), int(width), int(height))
-            if box == (0, 0, shot.width, shot.height):
+            if box == (0, 0, view_w, view_h):
                 shot.crop = None
             else:
                 apply_box(shot, left, top, width, height)
-            phrase = compare_phrase(
-                title, left, top, width, height, shot.width, shot.height
-            )
+            phrase = compare_phrase(title, left, top, width, height, view_w, view_h)
+            turned = turn_name(shot.turns)
+            if turned:
+                phrase = f"{phrase} Giro: {turned}."
             self._refresh(index)
             self._say(phrase)
 
@@ -940,7 +1078,7 @@ def _install_dialog():
                 self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
                 return
             shot = self._rows[index]
-            if shot.crop is None:
+            if shot.crop is None and not normalize_turns(shot.turns):
                 if len(self._rows) >= 2:
                     self._say(
                         "Esegui scrive il taglio di una riga sola. "
@@ -951,6 +1089,28 @@ def _install_dialog():
                     self._say(MSG_NEED_CROP)
                 return
             self._finish([shot], False)
+
+        def _on_turn(self, delta: int, title: str):
+            index = self._selected()
+            if index < 0:
+                self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
+                return
+            shot = self._rows[index]
+            shot.turns = normalize_turns(shot.turns + delta)
+            shot.crop = None
+            self._refresh(index)
+            view_w, view_h = view_size(shot.width, shot.height, shot.turns)
+            turned = turn_name(shot.turns)
+            if turned:
+                state = f"Ora è {turned}, larga {view_w}, alta {view_h}."
+                follow = (
+                    "Invio sul pulsante Esegui, o un clic, scrive il file nuovo. "
+                    "Il file di partenza resta com'è."
+                )
+            else:
+                state = f"È di nuovo dritta come il file, larga {view_w}, alta {view_h}."
+                follow = "Il file di partenza resta com'è."
+            self._say(f"{title}. {state} {follow}")
 
         def _on_join(self, side_by_side: bool):
             if len(self._rows) < 2:
@@ -1035,6 +1195,12 @@ def _install_dialog():
                 self._preset("bottom")
             elif name == "center":
                 self._preset("center")
+            elif name == "turn_right":
+                self._on_turn(1, "Un quarto a destra")
+            elif name == "turn_left":
+                self._on_turn(-1, "Un quarto a sinistra")
+            elif name == "turn_half":
+                self._on_turn(2, "Mezzo giro")
             elif name == "keep":
                 self._on_keep()
             elif name == "run":

@@ -129,7 +129,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -7386,6 +7386,30 @@ def _track_gemini_chat(frm):
     frm.Bind(wx.EVT_CLOSE, _on_close)
 
 
+def _apply_chat_renames(renamed):
+    """Il nome nuovo resta anche se la conversazione è già aperta."""
+    if not renamed or rtad_chat is None:
+        return
+    frames = getattr(_track_gemini_chat, "frames", None) or []
+    for json_path, title in renamed:
+        for frm in list(frames):
+            session = getattr(frm, "session", None)
+            if not session:
+                continue
+            try:
+                hit = rtad_chat.session_matches_saved(CONFIG_DIR, session, json_path)
+            except Exception:
+                hit = False
+            if not hit:
+                continue
+            session["title"] = title
+            session["title_custom"] = True
+            try:
+                frm.SetTitle(f"Chiedi a Gemini — {title}")
+            except Exception:
+                pass
+
+
 def _result_item(item):
     if isinstance(item, str):
         return {"file_path": item}
@@ -7824,6 +7848,7 @@ class GeminiChatHistoryDialog(wx.Dialog):
         )
         self.rows = list(rows or [])
         self.choice = None
+        self.renamed = []
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
         vbox.Add(
@@ -7842,10 +7867,28 @@ class GeminiChatHistoryDialog(wx.Dialog):
         if self.lst.GetCount():
             self.lst.SetSelection(0)
         vbox.Add(self.lst, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        vbox.Add(
+            wx.StaticText(
+                panel,
+                label=(
+                    "Invio sul pulsante Apri, o un doppio clic, apre la conversazione. "
+                    "Un clic solo seleziona la riga. "
+                    "Invio sul pulsante Rinomina, o un clic, cambia il nome. "
+                    "Il contenuto resta com'è. "
+                    "Invio sul pulsante Elimina, o un clic, la toglie da questo PC."
+                ),
+            ),
+            0,
+            wx.ALL | wx.EXPAND,
+            8,
+        )
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         btn_open = wx.Button(panel, label="&Apri")
         btn_open.Bind(wx.EVT_BUTTON, self._on_open)
         hbox.Add(btn_open, 0, wx.ALL, 5)
+        btn_name = wx.Button(panel, label="Ri&nomina")
+        btn_name.Bind(wx.EVT_BUTTON, self._on_rename)
+        hbox.Add(btn_name, 0, wx.ALL, 5)
         btn_del = wx.Button(panel, label="&Elimina")
         btn_del.Bind(wx.EVT_BUTTON, self._on_delete)
         hbox.Add(btn_del, 0, wx.ALL, 5)
@@ -7857,7 +7900,10 @@ class GeminiChatHistoryDialog(wx.Dialog):
         if self.lst.GetCount():
             self.lst.SetFocus()
         speak_accessible(
-            f"{self.lst.GetCount()} conversazioni. Invio o Apri per continuare."
+            f"{self.lst.GetCount()} conversazioni. "
+            "Invio sul pulsante Apri, o un doppio clic, apre. "
+            "Invio sul pulsante Rinomina, o un clic, cambia il nome. "
+            "Il contenuto resta com'è."
         )
 
     def _selected(self):
@@ -7873,6 +7919,38 @@ class GeminiChatHistoryDialog(wx.Dialog):
             return
         self.choice = ("open", row)
         self.EndModal(wx.ID_OK)
+
+    def _on_rename(self, event=None):
+        row = self._selected()
+        if not row:
+            speak_accessible("Nessuna conversazione selezionata.")
+            return
+        if rtad_chat is None:
+            speak_accessible("Modulo conversazione non disponibile.")
+            return
+        name = rtad_chat.ask_conversation_name(self, row.get("title") or "")
+        if name is None:
+            speak_accessible("Rinomina annullata. Il contenuto resta com'è.")
+            return
+        if not name:
+            speak_accessible("Nome non cambiato. Il contenuto resta com'è.")
+            return
+        written = rtad_chat.rename_saved(row.get("path") or "", name)
+        if not written:
+            speak_accessible(
+                "Non sono riuscito a rinominare. Il contenuto resta com'è."
+            )
+            return
+        row["title"] = written
+        row["label"] = rtad_chat.label_for_row(row)
+        idx = self.lst.GetSelection()
+        if idx != wx.NOT_FOUND:
+            self.lst.SetString(idx, row["label"])
+            self.lst.SetSelection(idx)
+        self.renamed.append((row.get("path") or "", written))
+        speak_accessible(
+            f"Conversazione rinominata in {written}. Il contenuto resta com'è."
+        )
 
     def _on_delete(self, event=None):
         row = self._selected()
@@ -8573,12 +8651,17 @@ class GeminiChatFrame(wx.Frame):
             speak_accessible("Nessuna conversazione salvata per questo file.")
             return
         dlg = GeminiChatHistoryDialog(self, rows)
+        action = None
+        row = None
         try:
-            if dlg.ShowModal() != wx.ID_OK or not dlg.choice:
-                return
-            action, row = dlg.choice
+            if dlg.ShowModal() == wx.ID_OK and dlg.choice:
+                action, row = dlg.choice
+            renamed = list(dlg.renamed)
         finally:
             dlg.Destroy()
+        _apply_chat_renames(renamed)
+        if not action:
+            return
         if action == "delete":
             self._delete_saved_row(row)
             return
@@ -10438,7 +10521,8 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Strumenti, Taglia e unisci audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Taglia e unisci. Invio sul pulsante Aggiungi, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga ascolta quel pezzo. Un clic solo seleziona la riga. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Tieni da qui a qui, o un clic, tiene quel tratto. Invio sul pulsante Togli questo tratto, o un clic, toglie quel tratto e tiene il prima e il dopo. Invio sul pulsante Ferma, o un clic, ferma l'ascolto o il lavoro. Invio sul pulsante Altro tratto, o un clic, aggiunge quel tratto senza cambiare la riga. Con un file solo, Invio sul pulsante Esegui, o un clic, taglia la riga selezionata e scrive un file nuovo. Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce l'elenco: il file intero, oppure il tratto già scelto. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Il file di partenza resta com'è. Se i file non sono uguali, a schermo e a voce: «I file non sono uguali: li converto, ci vuole più tempo.» Se manca ffmpeg: «Per questo formato serve ffmpeg». A schermo e a voce: «Creato nome, durata, nella stessa cartella.»\n• Strumenti, Taglia e unisci immagini. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Aggiungi file, o un clic, mette le immagini in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga dice quel taglio. Un clic solo seleziona la riga. I quattro numeri sono sinistra, alto, larghezza e altezza. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, scrive quei numeri e li tiene sulla riga. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri si riempiono e il taglio è sulla riga. Invio sul pulsante Tieni questo taglio, o un clic, tiene i quattro numeri sulla riga selezionata. Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga. Il file si chiama nome-taglio, poi nome-taglio-2. Con almeno due immagini, Invio sul pulsante Uno sotto l'altro, o un clic, le mette una sotto l'altra. Invio sul pulsante Uno accanto all'altro, o un clic, le mette una accanto all'altra. Si unisce l'immagine intera, oppure il taglio già scelto. Il file unito si chiama Unito, poi Unito-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. Il file di partenza resta com'è. A schermo e a voce: «Creato nome, nella stessa cartella.»\n• Strumenti, Converti audio e video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi file, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. In lettura entrano anche M4B, AIFF, MKA, FLV, MTS e M2TS. Invio o doppio clic su una riga dice quel file. Un clic solo seleziona la riga. Nell'elenco Formato, freccia su e freccia giù scelgono: MP3, M4A, WAV, FLAC, OGG, Opus, WMA, MP4 e MKV. Vale per Converti la riga e per Converti tutti. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è. Il file nuovo sta nella stessa cartella, con la nuova estensione. Se il nome c'è già, si chiama nome-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, M Rimuovi, C Converti la riga, T Converti tutti, F Ferma. Invio sul pulsante Ferma, o un clic, ferma il lavoro. A schermo e a voce: «Creato nome, durata, nella stessa cartella.» Se manca ffmpeg: «Per questo formato serve ffmpeg».\n• Resta dalla 1.9.10: Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
+            "• Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on. Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.\n"
+            "• Resta dalla 2.0.0: Strumenti, Taglia e unisci audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Taglia e unisci. Invio sul pulsante Aggiungi, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga ascolta quel pezzo. Un clic solo seleziona la riga. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Tieni da qui a qui, o un clic, tiene quel tratto. Invio sul pulsante Togli questo tratto, o un clic, toglie quel tratto e tiene il prima e il dopo. Invio sul pulsante Ferma, o un clic, ferma l'ascolto o il lavoro. Invio sul pulsante Altro tratto, o un clic, aggiunge quel tratto senza cambiare la riga. Con un file solo, Invio sul pulsante Esegui, o un clic, taglia la riga selezionata e scrive un file nuovo. Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce l'elenco: il file intero, oppure il tratto già scelto. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Il file di partenza resta com'è. Se i file non sono uguali, a schermo e a voce: «I file non sono uguali: li converto, ci vuole più tempo.» Se manca ffmpeg: «Per questo formato serve ffmpeg». A schermo e a voce: «Creato nome, durata, nella stessa cartella.»\n• Resta dalla 2.0.0: Strumenti, Taglia e unisci immagini. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Aggiungi file, o un clic, mette le immagini in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga dice quel taglio. Un clic solo seleziona la riga. I quattro numeri sono sinistra, alto, larghezza e altezza. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, scrive quei numeri e li tiene sulla riga. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri si riempiono e il taglio è sulla riga. Invio sul pulsante Tieni questo taglio, o un clic, tiene i quattro numeri sulla riga selezionata. Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga. Il file si chiama nome-taglio, poi nome-taglio-2. Con almeno due immagini, Invio sul pulsante Uno sotto l'altro, o un clic, le mette una sotto l'altra. Invio sul pulsante Uno accanto all'altro, o un clic, le mette una accanto all'altra. Si unisce l'immagine intera, oppure il taglio già scelto. Il file unito si chiama Unito, poi Unito-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. Il file di partenza resta com'è. A schermo e a voce: «Creato nome, nella stessa cartella.»\n• Resta dalla 2.0.0: Strumenti, Converti audio e video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi file, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. In lettura entrano anche M4B, AIFF, MKA, FLV, MTS e M2TS. Invio o doppio clic su una riga dice quel file. Un clic solo seleziona la riga. Nell'elenco Formato, freccia su e freccia giù scelgono: MP3, M4A, WAV, FLAC, OGG, Opus, WMA, MP4 e MKV. Vale per Converti la riga e per Converti tutti. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è. Il file nuovo sta nella stessa cartella, con la nuova estensione. Se il nome c'è già, si chiama nome-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, M Rimuovi, C Converti la riga, T Converti tutti, F Ferma. Invio sul pulsante Ferma, o un clic, ferma il lavoro. A schermo e a voce: «Creato nome, durata, nella stessa cartella.» Se manca ffmpeg: «Per questo formato serve ffmpeg».\n• Resta dalla 1.9.10: Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
             "• Nell'Add-on, se la finestra di ricerca è ridotta a icona, Alt+Tab la riapre e il focus torna sul campo.\n"
             "• Resta dalla 1.9.9, con la voce di RTAD accesa: Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
             "• Nella Standalone, Alt+P e la lettera S dicono lo stato per intero, anche con «Pronuncia i tasti di spostamento» acceso: il nome del tasto non copre la frase. Dopo una copia, la frase resta circa 2 secondi, a schermo e a voce, poi la barra torna alla riga della ricerca. S, F8 e Alt+P rileggono quella riga. Nell'Add-on la lettera S e Alt+P restano come nella 1.9.8.\n"
@@ -10731,7 +10815,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + A : Allega file. Elenco per data, i più recenti in cima\n"
             "  - Strumenti, Confronta file… : da due a dodici file. Anche nel menu del risultato\n"
             "  - Strumenti, Taglia e unisci audio/video… : Invio sulla voce, o un clic, apre la finestra. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Invio sul pulsante Esegui, o un clic, taglia la riga selezionata. Invio sul pulsante Unisci, o un clic, unisce almeno due file. Il file di partenza resta com'è.\n"
-            "  - Strumenti, Taglia e unisci immagini… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, tiene quel taglio. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri, sinistra, alto, larghezza e altezza, si riempiono. Invio sul pulsante Esegui, o un clic, scrive il taglio. Invio sul pulsante Uno sotto l'altro o Uno accanto all'altro, o un clic, unisce almeno due immagini. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. Il file di partenza resta com'è.\n"
+            "  - Strumenti, Taglia e unisci immagini… : Invio sulla voce, o un clic, apre la finestra. L'anteprima è più alta. Il file scritto resta a misura intera. Invio sul pulsante Un quarto a destra, Un quarto a sinistra o Mezzo giro, o un clic, gira l'immagine. Invio sul pulsante Esegui, o un clic, scrive nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, tiene quel taglio. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri, sinistra, alto, larghezza e altezza, si riempiono. Invio sul pulsante Esegui, o un clic, scrive il taglio. Invio sul pulsante Uno sotto l'altro o Uno accanto all'altro, o un clic, unisce almeno due immagini. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. Il file di partenza resta com'è.\n"
             "  - Strumenti, Converti audio e video… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Nell'elenco Formato, freccia su e freccia giù scelgono. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è.\n"
             "  - Nella finestra Confronta: Alt + A aggiunge, Alt + L toglie, anche prima di Invio. Canc sull'elenco toglie\n"
             "  - Nella scelta: Shift + freccia giù, Control + freccia, Control + Spazio, Alt + C cambia cartella\n"
@@ -15476,12 +15560,17 @@ class SearchFrame(wx.Frame):
         dlg = GeminiChatHistoryDialog(
             self, rows, title="Conversazioni Gemini"
         )
+        action = None
+        row = None
         try:
-            if dlg.ShowModal() != wx.ID_OK or not dlg.choice:
-                return
-            action, row = dlg.choice
+            if dlg.ShowModal() == wx.ID_OK and dlg.choice:
+                action, row = dlg.choice
+            renamed = list(dlg.renamed)
         finally:
             dlg.Destroy()
+        _apply_chat_renames(renamed)
+        if not action:
+            return
         if action == "delete":
             try:
                 rtad_chat.delete_saved(row.get("path") or "")

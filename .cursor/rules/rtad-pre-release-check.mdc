@@ -22,8 +22,13 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
    - `addon/doc/it/readme.html` e `addon/doc/en/readme.html`: primo blocco novità.
    - `Standalone/changelog.txt`: primo blocco.
    - `docs/NOTE_RILASCIO_` della versione corrente: elenco GitHub e Summary IT/EN dello store.
-4. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco. L’exe non lo compili tu: lo fa Maurizio con `compila.bat` e F9 su `setup.iss`.
-5. Un `.nvda-addon` già accettato dallo store non si sostituisce su GitHub. Lo store tiene il file accettato. Due file diversi con lo stesso numero confondono. La correzione dei testi va nella versione successiva. I due exe della Standalone, sulla release GitHub, si sostituiscono: non passano dallo store.
+4. Le tre note del rilascio, nello stesso commit. «In corso» e «l’ultima pubblicata è la precedente» non ci restano.
+   - `docs/NOTE_CONTESTO_v1.5.md`, in cima: ultima pubblicata è questa versione, con data e tag `vX.Y.Z` e `app-vX.Y.Z`. La prossima è nominata e non è iniziata.
+   - `docs/ROADMAP_DOPO_1.5.0.md`: la voce di questa versione è barrata, con «pubblicata» e la data. Sotto, la successiva, non iniziata.
+   - `docs/PIANO_` di questa versione: la prima riga dice «Pubblicata», con data e tag.
+   - Il commit corto e il numero DataStore si aggiungono quando esistono. Se il push non è ancora partito, prima del push. Se la release è già online, con la versione successiva. Non un commit solo per loro.
+5. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco. L’exe non lo compili tu: lo fa Maurizio con `compila.bat` e F9 su `setup.iss`.
+6. Un `.nvda-addon` già accettato dallo store non si sostituisce su GitHub. Lo store tiene il file accettato. Due file diversi con lo stesso numero confondono. La correzione dei testi va nella versione successiva. I due exe della Standalone, sulla release GitHub, si sostituiscono: non passano dallo store.
 
 ## Cosa scrivere prima di «puoi compilare»
 
@@ -37,11 +42,14 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
 - readme.html IT e EN: primo punto, fra virgolette
 - changelog: primo punto, fra virgolette
 - Note di rilascio e Summary store: primo punto, fra virgolette
+- Note di contesto: la frase «Ultima pubblicata», fra virgolette, con questa versione
+- Roadmap: la voce barrata di questa versione, fra virgolette
+- Piano: la prima riga, fra virgolette
 
-Manca una riga, o un primo punto è della versione precedente: non è pronto.
+Manca una riga, un primo punto è della versione precedente, o le tre note dicono ancora «in corso»: non è pronto.
 
 ## Storico, non è un buco
 
 - `docs/NOTE_RILASCIO_` di versioni già pubblicate
-- Roadmap e NOTE_CONTESTO che citano l’ultima pubblicata e il lavoro corrente
+- I paragrafi vecchi di Roadmap e NOTE_CONTESTO. La cima, la voce barrata di questa versione e la prima riga del piano si aggiornano nel commit di rilascio
 - `docs/GUIDA_COMPLETA.html` (resto vecchio, non è la guida del programma)

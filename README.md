@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.0)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.1)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,10 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.1
+
+- Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.
 
 ### 🌟 Novità della Versione 2.0.0
 
@@ -368,6 +372,10 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.1
+
+- Cut and join images: the preview is taller, so the photo is easier to see while you work. The written file stays full size: a 900 by 900 photo stays 900 by 900. Enter on Un quarto a destra, or a click, turns the image a quarter to the right. Enter on Un quarto a sinistra, or a click, turns it the other way. Enter on Mezzo giro, or a click, turns it upside down. The original file stays as it is. Enter on Esegui, or a click, writes the new file: it is named nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra or nome-giro-mezzo-giro. The joined file is named Unito-uno-sotto-l-altro or Unito-uno-accanto-all-altro. If that name already exists, -2 is added. From the list, Alt and the letter: B a quarter to the right, J a quarter to the left, N a half turn. In the installed Standalone, in File Explorer, right-click or the Applications key, Cerca con Accesso Digitale: on an image there is Taglia e unisci; on an audio or a video there are Taglia e unisci and Converti. Enter on the item, or a click, opens the window with that file already in the list. The Add-on does not add items in File Explorer. In the Gemini history, Enter on Rinomina, or a click, gives the conversation a new name. The content stays as it is. It works in the Standalone and in the Add-on.
 
 ### 🌟 What's New in Version 2.0.0
 

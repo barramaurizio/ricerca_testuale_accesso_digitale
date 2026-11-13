@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.1
 
-**Pubblicata** il 12/11/2026. Versione `2.0.1`. GitHub `v2.0.1` / `app-v2.0.1`. Il commit corto e il numero DataStore si aggiungono prima del push. Vale per Standalone e Add-on, tranne le voci di Esplora file, che sono solo della Standalone installata. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**Pubblicata** il 12/11/2026. Versione `2.0.1`. GitHub `v2.0.1` / `app-v2.0.1`. Commit `c430151`. DataStore #12978 via #12979 accettato. Vale per Standalone e Add-on, tranne le voci di Esplora file, che sono solo della Standalone installata. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 L’ultima pubblicata prima di questa è la `2.0.0` (11/11/2026, GitHub `v2.0.0` / `app-v2.0.0`, commit `b70e333`, DataStore #12942 via #12943). Non si rifà.
 

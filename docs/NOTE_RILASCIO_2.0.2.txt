@@ -1,0 +1,89 @@
+🌟 Novità della Versione 2.0.2
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.2
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Salva immagine, se la pagina consegna il testo del post, propone un pezzo breve di quel testo come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.
+- Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\Roaming\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- Save image: if the page delivers the post text, the file name is a short piece of that text. Enter on Salva immagine, or a click, saves with that name. If the page does not deliver the text, the name stays as it is today. Text drawn inside the photo stays out. With Ctrl+Alt+V, or Describe from URL, you can paste the post address or the photo address: with the post, the name is the comment; with only the photo, if you already described it with the page, the name stays that of the post. It works for X and for the other pages that deliver the comment, in the Standalone and in the Add-on.
+- Gemini chats, reading marks and search profiles of the Standalone and the Add-on live in the shared folder %AppData%\Roaming\RTAD. Portable, Installer and Add-on read the same folder. If the same conversation was changed in both copies, on screen and by voice: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» If at startup the two copies were different, on screen and by voice: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.2.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.2
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.2
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.2.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.2.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Salva immagine: se la pagina consegna il testo del post, un pezzo breve di quel testo è il nome del file. Se non lo consegna, il nome resta quello di oggi. Cartella comune per chat, punti di lettura e profili. Niente si sovrascrive in silenzio. NVDA testata: 2026.3.1.
+
+Summary EN:
+Save image: if the page delivers the post text, a short piece of that text is the file name. If it does not, the name stays as it is today. A shared folder for chats, reading marks and profiles. Nothing is overwritten in silence. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.2/ricerca_testuale_accesso_digitale-2.0.2.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.2
+
+Description:
+Salva immagine usa un pezzo del testo del post, se la pagina lo consegna. Chat, punti di lettura e profili stanno in %AppData%\Roaming\RTAD. Se le due copie sono diverse, restano tutte e due.

@@ -118,6 +118,8 @@ def main() -> int:
     shutil.copy2(
         ROOT / "Standalone" / "rtad_guida_html.py", LIB / "rtad_guida_html.py"
     )
+    shutil.copy2(ROOT / "Standalone" / "rtad_ocr.py", LIB / "rtad_ocr.py")
+    shutil.copy2(ROOT / "Standalone" / "rtad_epub.py", LIB / "rtad_epub.py")
 
     pairs = [
         ("rtad_ocr.py", ROOT / "Standalone" / "rtad_ocr.py", LIB / "rtad_ocr.py"),

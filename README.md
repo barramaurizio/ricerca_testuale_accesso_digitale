@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.1)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.2)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,11 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.2
+
+- Salva immagine, se la pagina consegna il testo del post, propone un pezzo breve di quel testo come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.
+- Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\Roaming\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»
 
 ### 🌟 Novità della Versione 2.0.1
 
@@ -372,6 +377,11 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.2
+
+- Save image: if the page delivers the post text, the file name is a short piece of that text. Enter on Salva immagine, or a click, saves with that name. If the page does not deliver the text, the name stays as it is today. Text drawn inside the photo stays out. With Ctrl+Alt+V, or Describe from URL, you can paste the post address or the photo address: with the post, the name is the comment; with only the photo, if you already described it with the page, the name stays that of the post. It works for X and for the other pages that deliver the comment, in the Standalone and in the Add-on.
+- Gemini chats, reading marks and search profiles of the Standalone and the Add-on live in the shared folder %AppData%\Roaming\RTAD. Portable, Installer and Add-on read the same folder. If the same conversation was changed in both copies, on screen and by voice: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» If at startup the two copies were different, on screen and by voice: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»
 
 ### 🌟 What's New in Version 2.0.1
 

@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import uuid
 import urllib.error
 import urllib.parse
@@ -244,10 +245,242 @@ def _keys_for_path(file_path: str, session: dict | None = None) -> list:
     return keys
 
 
+NOTICE_BOTH_CHANGED = (
+    "Questa conversazione è stata cambiata anche nell'altra copia. "
+    "Non l'ho sovrascritta. Restano tutte e due."
+)
+NOTICE_UPDATED = "Conversazione aggiornata dall'altra copia."
+NOTICE_CHATS_KEPT = (
+    "Due copie di una conversazione sono diverse. "
+    "Le tengo tutte e due. Non ne ho sovrascritta una."
+)
+NOTICE_PROFILES_KEPT = (
+    "Un profilo di ricerca era diverso nelle due copie. "
+    "Li tengo tutti e due. Non ne ho sovrascritto uno."
+)
+
+_use_shared = False
+_notice = ""
+_pending = []
+
+
+def shared_root() -> str:
+    """Cartella comune di Standalone e Add-on."""
+    root = os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "RTAD")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def take_notice() -> str:
+    global _notice
+    text = _notice
+    _notice = ""
+    return text
+
+
+def take_pending() -> list:
+    global _pending
+    out = list(_pending)
+    _pending = []
+    return out
+
+
+def _queue(text: str) -> None:
+    text = (text or "").strip()
+    if text and text not in _pending:
+        _pending.append(text)
+
+
 def chat_dir(base_dir: str) -> str:
-    folder = os.path.join(base_dir or "", "chat")
+    if _use_shared:
+        folder = os.path.join(shared_root(), "chat")
+    else:
+        folder = os.path.join(base_dir or "", "chat")
     os.makedirs(folder, exist_ok=True)
     return folder
+
+
+def _file_digest(path: str) -> str:
+    try:
+        with open(path, "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
+    except Exception:
+        return ""
+
+
+def _copy_new_chats(src: str, dest: str) -> None:
+    if not src or not os.path.isdir(src):
+        return
+    try:
+        same = os.path.normcase(os.path.abspath(src)) == os.path.normcase(
+            os.path.abspath(dest)
+        )
+    except Exception:
+        same = False
+    if same:
+        return
+    os.makedirs(dest, exist_ok=True)
+    kept = False
+    try:
+        names = os.listdir(src)
+    except Exception:
+        names = []
+    for name in names:
+        if not name.endswith(".json"):
+            continue
+        origin = os.path.join(src, name)
+        if not os.path.isfile(origin):
+            continue
+        target = os.path.join(dest, name)
+        origin_digest = _file_digest(origin)
+        if not os.path.isfile(target):
+            try:
+                shutil.copy2(origin, target)
+            except Exception:
+                pass
+            continue
+        if _file_digest(target) == origin_digest:
+            continue
+        stem, ext = os.path.splitext(name)
+        extra = os.path.join(dest, stem + "__altra-copia" + ext)
+        number = 2
+        while os.path.isfile(extra):
+            if _file_digest(extra) == origin_digest:
+                extra = ""
+                break
+            extra = os.path.join(dest, f"{stem}__altra-copia-{number}" + ext)
+            number += 1
+        if not extra:
+            continue
+        try:
+            shutil.copy2(origin, extra)
+            kept = True
+        except Exception:
+            pass
+    if kept:
+        _queue(NOTICE_CHATS_KEPT)
+
+
+def _profile_key(item: dict) -> tuple:
+    return (
+        str(item.get("path") or ""),
+        str(item.get("query") or ""),
+        int(item.get("filter_mode") or 0),
+        str(item.get("custom_ext") or ""),
+    )
+
+
+def _read_profiles() -> list:
+    path = os.path.join(shared_root(), "search_profiles.json")
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _write_profiles(profiles: list) -> None:
+    path = os.path.join(shared_root(), "search_profiles.json")
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(profiles, handle, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
+
+
+def _absorb_profiles(base: list, extra: list) -> list:
+    """Unisce senza cancellare. Se lo stesso nome ha contenuti diversi, li tiene tutti e due."""
+    merged = [dict(item) for item in base if isinstance(item, dict)]
+    names = {str(item.get("name") or "").casefold(): item for item in merged}
+    contents = {_profile_key(item) for item in merged}
+    for item in extra or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        key = _profile_key(item)
+        if key in contents:
+            continue
+        current = names.get(name.casefold())
+        if current is None:
+            merged.append(dict(item))
+            names[name.casefold()] = item
+            contents.add(key)
+            continue
+        copy = dict(item)
+        copy["name"] = name + ", altra copia"
+        taken = {str(row.get("name") or "").casefold() for row in merged}
+        number = 2
+        while copy["name"].casefold() in taken:
+            copy["name"] = f"{name}, altra copia {number}"
+            number += 1
+        merged.append(copy)
+        contents.add(key)
+        _queue(NOTICE_PROFILES_KEPT)
+    return merged
+
+
+def absorb_profiles(local: list) -> list:
+    """Elenco comune. La prima volta parte da questo programma."""
+    if not _use_shared:
+        return list(local or [])
+    path = os.path.join(shared_root(), "search_profiles.json")
+    if not os.path.isfile(path):
+        seeded = [dict(item) for item in (local or []) if isinstance(item, dict)]
+        if seeded:
+            _write_profiles(seeded)
+        return seeded
+    disk = _read_profiles()
+    merged = _absorb_profiles(disk, local or [])
+    if merged != disk:
+        _write_profiles(merged)
+    return merged
+
+
+def store_profiles(profiles: list) -> None:
+    """Scrive l'elenco, e tiene un profilo che sta solo nell'altra copia."""
+    if not _use_shared:
+        return
+    disk = _read_profiles()
+    merged = _absorb_profiles(disk, profiles or [])
+    # Il salvataggio aggiorna il profilo che ha lo stesso nome.
+    by_name = {
+        str(item.get("name") or "").casefold(): dict(item)
+        for item in (profiles or [])
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    }
+    out = []
+    for item in merged:
+        name = str(item.get("name") or "")
+        incoming = by_name.get(name.casefold())
+        if incoming is not None and ", altra copia" not in name.casefold():
+            out.append(dict(incoming))
+        else:
+            out.append(item)
+    _write_profiles(out)
+
+
+def enable_shared(local_base: str) -> list:
+    """Chat, profili e punti di lettura nella cartella comune.
+
+    Le cartelle di prima restano. Si copia ciò che manca.
+    Se le due copie sono diverse, restano tutte e due.
+    """
+    global _use_shared
+    local_chat = os.path.join(local_base or "", "chat")
+    dest = os.path.join(shared_root(), "chat")
+    _copy_new_chats(local_chat, dest)
+    _use_shared = True
+    try:
+        import rtad_reading_mark as marks
+
+        for text in marks.enable_shared(local_base):
+            _queue(text)
+    except Exception:
+        pass
+    return list(_pending)
 
 
 def set_text_extractor(fn) -> None:
@@ -1889,12 +2122,110 @@ def promote_url_identity(base_dir: str, json_path: str, data: dict) -> tuple:
     return new_path, data
 
 
+def _content_digest(data: dict) -> str:
+    if not isinstance(data, dict):
+        return ""
+    payload = {
+        "title": data.get("title") or "",
+        "title_custom": bool(data.get("title_custom")),
+        "turns": [
+            {"role": turn.get("role"), "text": turn.get("text") or ""}
+            for turn in (data.get("turns") or [])
+            if isinstance(turn, dict) and turn.get("role") in ("user", "model")
+        ],
+        "attachments": [
+            {"path": item.get("path") or "", "title": item.get("title") or ""}
+            for item in (data.get("attachments") or [])
+            if isinstance(item, dict)
+        ],
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _read_json(path: str) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _aside_path_for(dest: str) -> str:
+    folder, name = os.path.split(dest)
+    stem, ext = os.path.splitext(name)
+    cand = os.path.join(folder, stem + "__altra-copia" + ext)
+    number = 2
+    while os.path.isfile(cand):
+        cand = os.path.join(folder, f"{stem}__altra-copia-{number}" + ext)
+        number += 1
+    return cand
+
+
+def _remember_disk(session: dict, data: dict) -> dict:
+    if isinstance(session, dict):
+        session["_disk_digest"] = _content_digest(data)
+        session["_aside_path"] = ""
+    return session
+
+
 def save_current(base_dir: str, session: dict) -> str:
+    """Scrive la conversazione. Se l'altra copia è cambiata, non la sovrascrive."""
+    global _notice
+    path = session.get("path") or ""
+    aside = (session.get("_aside_path") or "").strip()
+    dest = aside or _current_path(base_dir, path, session)
+    public = _public_dict(session)
+    ours = _content_digest(public)
+    if not aside and os.path.isfile(dest):
+        disk = _read_json(dest)
+        disk_d = _content_digest(disk)
+        loaded = session.get("_disk_digest") or ""
+        if disk_d and disk_d != ours:
+            if loaded and ours == loaded:
+                fresh = _session_from_public(disk, do_refresh=False)
+                session.clear()
+                session.update(fresh)
+                session["_disk_digest"] = disk_d
+                session["_aside_path"] = ""
+                _notice = NOTICE_UPDATED
+                return dest
+            if (not loaded) or disk_d != loaded:
+                dest = _aside_path_for(dest)
+                session["_aside_path"] = dest
+                _notice = NOTICE_BOTH_CHANGED
+    with open(dest, "w", encoding="utf-8") as handle:
+        json.dump(public, handle, ensure_ascii=False, indent=1)
+    session["_disk_digest"] = ours
+    return dest
+
+
+def pull_other_copy(base_dir: str, session: dict) -> str:
+    """Se l'altra copia ha salvato e qui non c'è una modifica, ricarica.
+
+    Ritorna '' , 'updated', oppure la frase del conflitto.
+    """
+    if not isinstance(session, dict) or session.get("_aside_path"):
+        return ""
     path = session.get("path") or ""
     dest = _current_path(base_dir, path, session)
-    with open(dest, "w", encoding="utf-8") as handle:
-        json.dump(_public_dict(session), handle, ensure_ascii=False, indent=1)
-    return dest
+    if not os.path.isfile(dest):
+        return ""
+    disk = _read_json(dest)
+    disk_d = _content_digest(disk)
+    loaded = session.get("_disk_digest") or ""
+    if not loaded or not disk_d or disk_d == loaded:
+        return ""
+    ours = _content_digest(_public_dict(session))
+    if ours != loaded:
+        return NOTICE_BOTH_CHANGED
+    fresh = _session_from_public(disk, do_refresh=False)
+    session.clear()
+    session.update(fresh)
+    session["_disk_digest"] = disk_d
+    session["_aside_path"] = ""
+    return "updated"
 
 
 def _session_from_public(
@@ -1997,11 +2328,14 @@ def load_current(
         if not isinstance(data, dict):
             continue
         dest, data = promote_url_identity(base_dir, dest, data)
-        return _session_from_public(
+        return _remember_disk(
+            _session_from_public(
+                data,
+                struct=struct,
+                displayed=displayed,
+                prior_report=prior_report,
+            ),
             data,
-            struct=struct,
-            displayed=displayed,
-            prior_report=prior_report,
         )
     return None
 
@@ -2099,12 +2433,15 @@ def load_saved(
         return None
     if not isinstance(data, dict):
         return None
-    return _session_from_public(
+    return _remember_disk(
+        _session_from_public(
+            data,
+            struct=struct,
+            displayed=displayed,
+            prior_report=prior_report,
+            do_refresh=do_refresh,
+        ),
         data,
-        struct=struct,
-        displayed=displayed,
-        prior_report=prior_report,
-        do_refresh=do_refresh,
     )
 
 
@@ -2131,11 +2468,14 @@ def load_by_key(
         return None
     if not isinstance(data, dict):
         return None
-    return _session_from_public(
+    return _remember_disk(
+        _session_from_public(
+            data,
+            struct=struct,
+            displayed=displayed,
+            prior_report=prior_report,
+        ),
         data,
-        struct=struct,
-        displayed=displayed,
-        prior_report=prior_report,
     )
 
 

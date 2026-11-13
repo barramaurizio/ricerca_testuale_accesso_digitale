@@ -1,7 +1,7 @@
 VSVersionInfo(
     ffi=FixedFileInfo(
-        filevers=(2, 0, 1, 0),
-        prodvers=(2, 0, 1, 0),
+        filevers=(2, 0, 2, 0),
+        prodvers=(2, 0, 2, 0),
         mask=0x3F,
         flags=0x0,
         OS=0x40004,
@@ -20,7 +20,7 @@ VSVersionInfo(
                     StringStruct(
                         "FileDescription", "Ricerca Testuale Accesso Digitale"
                     ),
-                    StringStruct("FileVersion", "2.0.1.0"),
+                    StringStruct("FileVersion", "2.0.2.0"),
                     StringStruct(
                         "InternalName", "Ricerca Testuale Accesso Digitale"
                     ),
@@ -31,7 +31,7 @@ VSVersionInfo(
                     StringStruct(
                         "ProductName", "Ricerca Testuale Accesso Digitale"
                     ),
-                    StringStruct("ProductVersion", "2.0.1.0"),
+                    StringStruct("ProductVersion", "2.0.2.0"),
                 ],
             )
         ]),

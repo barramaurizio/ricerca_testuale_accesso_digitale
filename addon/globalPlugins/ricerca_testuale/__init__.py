@@ -129,7 +129,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -159,6 +159,12 @@ if rtad_ocr is not None:
 if rtad_media is not None:
     try:
         rtad_media.configure(MEDIA_CACHE_DIR)
+    except Exception:
+        pass
+
+if rtad_chat is not None:
+    try:
+        rtad_chat.enable_shared(CONFIG_DIR)
     except Exception:
         pass
 
@@ -2023,6 +2029,11 @@ def load_search_profiles():
                 "auto_start": bool(item.get("auto_start", False)),
             }
         )
+    try:
+        if rtad_chat is not None:
+            out = rtad_chat.absorb_profiles(out)
+    except Exception:
+        pass
     return out[:PROFILES_MAX]
 
 
@@ -2057,6 +2068,11 @@ def save_search_profiles(profiles):
     data = _load_settings_dict()
     data["search_profiles"] = clean
     _save_settings_dict(data)
+    try:
+        if rtad_chat is not None:
+            rtad_chat.store_profiles(clean)
+    except Exception:
+        pass
 
 
 def upsert_search_profile(profile):
@@ -5234,6 +5250,7 @@ def run_image_analysis(
     image_url="",
     page_url="",
     from_screen=False,
+    post_text="",
 ):
     """Analisi immagine riusabile da SearchFrame e GlobalPlugin (1.6.4).
 
@@ -5331,7 +5348,28 @@ def run_image_analysis(
             title = "Errore analisi immagine"
             body = str(e)
 
-        def _show():
+        found_post = (post_text or "").strip()
+        page_for_name = pg_url
+        if not found_post and img_url:
+            try:
+                known = rtad_ocr.recall_image_post(img_url)
+                found_post = (known.get("post_text") or "").strip()
+                if not page_for_name:
+                    page_for_name = (known.get("page_url") or "").strip()
+            except Exception:
+                pass
+        if not found_post and page_for_name:
+            try:
+                found_post = rtad_ocr.fetch_page_post_text(page_for_name) or ""
+            except Exception:
+                found_post = ""
+        if img_url:
+            try:
+                rtad_ocr.remember_image_post(img_url, page_for_name, found_post)
+            except Exception:
+                pass
+
+        def _show(post_text=found_post, page_url=page_for_name):
             if copy_only:
                 if wx.TheClipboard.Open():
                     wx.TheClipboard.SetData(wx.TextDataObject(body))
@@ -5344,6 +5382,13 @@ def run_image_analysis(
                 return
             if not hasattr(host, "_image_info_frames") or host._image_info_frames is None:
                 host._image_info_frames = []
+            try:
+                if hasattr(host, "txt_status_progress") and host.txt_status_progress is not None:
+                    host.txt_status_progress.SetValue(
+                        "Descrizione pronta. La finestra del report è aperta."
+                    )
+            except Exception:
+                pass
             frm = ImageInfoFrame(
                 None,
                 title,
@@ -5351,7 +5396,8 @@ def run_image_analysis(
                 image_path=file_path,
                 source_path=src_path,
                 image_url=img_url,
-                page_url=pg_url,
+                page_url=page_url,
+                post_text=post_text,
             )
 
             def _on_close(evt, frame=frm, path=file_path, do_del=delete_after):
@@ -5387,8 +5433,9 @@ def describe_image_from_url_dialog(host, speak=None, url=""):
         parent = host if isinstance(host, wx.Window) else None
         dlg = wx.TextEntryDialog(
             parent,
-            "Incolla l'URL completo dell'immagine da descrivere\n"
-            "(http o https, anche da gallerie o articoli web):",
+            "Incolla l'indirizzo della foto, oppure l'indirizzo del post.\n"
+            "Con il post, se la pagina consegna il commento, il nome del file è quel testo.\n"
+            "Con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post:",
             "Descrivi immagine da URL",
             "",
         )
@@ -5400,10 +5447,24 @@ def describe_image_from_url_dialog(host, speak=None, url=""):
     if not url:
         speak("URL non inserito.")
         return
+    opener = getattr(host, "_open_image_from_pasted_url", None)
+    if callable(opener) and opener(url):
+        return
     speak("Download immagine in corso…")
 
     def _work():
-        res = rtad_ocr.materialize_image_from_url(url)
+        try:
+            res = rtad_ocr.resolve_pasted_image(url)
+        except Exception:
+            res = rtad_ocr.materialize_image_from_url(url)
+            if res.get("ok"):
+                res = {
+                    "ok": True,
+                    "path": res.get("path") or "",
+                    "image_url": res.get("url") or url,
+                    "page_url": "",
+                    "post_text": "",
+                }
         if not res.get("ok") or not res.get("path"):
             wx.CallAfter(speak, res.get("error") or "Download immagine non riuscito.")
             return
@@ -5416,7 +5477,9 @@ def describe_image_from_url_dialog(host, speak=None, url=""):
             True,
             speak,
             None,
-            image_url=res.get("url") or url,
+            image_url=res.get("image_url") or res.get("url") or url,
+            page_url=res.get("page_url") or "",
+            post_text=res.get("post_text") or "",
         )
 
     threading.Thread(target=_work, daemon=True).start()
@@ -5472,10 +5535,24 @@ def describe_image_from_clipboard(host, speak=None):
         or url_text.lower().startswith("http://")
         or url_text.lower().startswith("https://")
     ):
+        opener = getattr(host, "_open_image_from_pasted_url", None)
+        if callable(opener) and opener(url_text):
+            return
         speak("Download immagine dall'URL negli appunti…")
 
         def _work():
-            res = rtad_ocr.materialize_image_from_url(url_text)
+            try:
+                res = rtad_ocr.resolve_pasted_image(url_text)
+            except Exception:
+                res = rtad_ocr.materialize_image_from_url(url_text)
+                if res.get("ok"):
+                    res = {
+                        "ok": True,
+                        "path": res.get("path") or "",
+                        "image_url": res.get("url") or url_text,
+                        "page_url": "",
+                        "post_text": "",
+                    }
             if not res.get("ok") or not res.get("path"):
                 wx.CallAfter(speak, res.get("error") or "Download immagine non riuscito.")
                 return
@@ -5488,7 +5565,9 @@ def describe_image_from_clipboard(host, speak=None):
                 True,
                 speak,
                 None,
-                image_url=res.get("url") or url_text,
+                image_url=res.get("image_url") or res.get("url") or url_text,
+                page_url=res.get("page_url") or "",
+                post_text=res.get("post_text") or "",
             )
 
         threading.Thread(target=_work, daemon=True).start()
@@ -8004,6 +8083,8 @@ class GeminiChatFrame(wx.Frame):
         self._abort = False
         self._gen = 0
         self._live = None
+        self._conflict_said = ""
+        self.Bind(wx.EVT_ACTIVATE, self._on_chat_activate)
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -8331,6 +8412,37 @@ class GeminiChatFrame(wx.Frame):
             pass
         speak_accessible(text)
 
+    def _save_chat(self):
+        try:
+            rtad_chat.save_current(CONFIG_DIR, self.session)
+        except Exception as exc:
+            logging.warning(f"Chat: salvataggio non riuscito: {exc}")
+            return
+        note = ""
+        try:
+            note = rtad_chat.take_notice()
+        except Exception:
+            note = ""
+        if note:
+            self._show_notice(note)
+
+    def _on_chat_activate(self, event):
+        event.Skip()
+        if self._busy or rtad_chat is None:
+            return
+        try:
+            kind = rtad_chat.pull_other_copy(CONFIG_DIR, self.session)
+        except Exception:
+            return
+        if kind == "updated":
+            self._conflict_said = ""
+            self._render()
+            self._show_notice(rtad_chat.NOTICE_UPDATED)
+            return
+        if kind and kind != self._conflict_said:
+            self._conflict_said = kind
+            self._show_notice(kind)
+
     def _fill_suggestions(self):
         kind = (self.session or {}).get("kind") or "document"
         atts = (self.session or {}).get("attachments") or []
@@ -8420,7 +8532,7 @@ class GeminiChatFrame(wx.Frame):
             speak_accessible("Nessun file allegato.")
             return
         try:
-            rtad_chat.save_current(CONFIG_DIR, self.session)
+            self._save_chat()
         except Exception as exc:
             logging.debug(f"Chat: allegati non salvati: {exc}")
         title = (self.session.get("title") or "").strip()
@@ -8476,7 +8588,7 @@ class GeminiChatFrame(wx.Frame):
             self._show_notice("Allegato non trovato.")
             return
         try:
-            rtad_chat.save_current(CONFIG_DIR, self.session)
+            self._save_chat()
         except Exception:
             pass
         self._fill_suggestions()
@@ -8585,7 +8697,7 @@ class GeminiChatFrame(wx.Frame):
                 result.get("text") or "",
                 result.get("model") or "",
             )
-            rtad_chat.save_current(CONFIG_DIR, self.session)
+            self._save_chat()
         except Exception as exc:
             logging.warning(f"Chat: salvataggio cronologia non riuscito: {exc}")
             speak_accessible(f"Risposta ricevuta, cronologia non salvata: {exc}")
@@ -8628,7 +8740,7 @@ class GeminiChatFrame(wx.Frame):
             self.session["title"] = "Conversazione"
             self.SetTitle("Chiedi a Gemini — Conversazione")
         try:
-            rtad_chat.save_current(CONFIG_DIR, self.session)
+            self._save_chat()
         except Exception as exc:
             logging.debug(f"Chat: nuova conversazione non salvata: {exc}")
         self._fill_suggestions()
@@ -8686,7 +8798,7 @@ class GeminiChatFrame(wx.Frame):
             return
         self.session = loaded
         try:
-            rtad_chat.save_current(CONFIG_DIR, self.session)
+            self._save_chat()
         except Exception as exc:
             logging.warning(f"Chat: non posso rendere corrente l'archivio: {exc}")
         self._render()
@@ -8865,6 +8977,7 @@ class ImageInfoFrame(wx.Frame):
         after_close_cb=None,
         image_url="",
         page_url="",
+        post_text="",
     ):
         # Ignora parent: top-level indipendente (non si chiude col dialogo padre)
         super(ImageInfoFrame, self).__init__(
@@ -8877,6 +8990,7 @@ class ImageInfoFrame(wx.Frame):
         self.source_path = source_path or ""
         self.image_url = (image_url or "").strip()
         self.page_url = (page_url or "").strip()
+        self.post_text = (post_text or "").strip()
         self.body_text = wrap_report_text(body_text or "")
         self._action_cb = action_cb
         self._after_close_cb = after_close_cb
@@ -8886,10 +9000,18 @@ class ImageInfoFrame(wx.Frame):
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         label_path = self._save_ref_path() or self.image_path
-        lbl = wx.StaticText(
-            panel,
-            label=os.path.basename(label_path) if label_path else "Immagine",
-        )
+        shown = os.path.basename(label_path) if label_path else "Immagine"
+        notice = ""
+        if rtad_ocr is not None:
+            try:
+                notice = rtad_ocr.image_name_notice(
+                    self.post_text, self.page_url, self.image_url
+                )
+            except Exception:
+                notice = ""
+        if notice:
+            shown = notice
+        lbl = wx.StaticText(panel, label=shown)
         vbox.Add(lbl, 0, wx.ALL, 8)
 
         self.txt_display = wx.TextCtrl(
@@ -8942,7 +9064,8 @@ class ImageInfoFrame(wx.Frame):
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.Bind(wx.EVT_CLOSE, self._on_close_frame)
         _trad = " Alt+U: traduci." if rtad_translate is not None else ""
-        rtad_speak(f"{title}. Usa le frecce per leggere.{_trad}")
+        _name = f" {notice}" if notice else ""
+        rtad_speak(f"{title}. Usa le frecce per leggere.{_trad}{_name}")
 
     def _save_ref_path(self):
         """Percorso per stem/cartella: PDF/originale se valido, altrimenti image_path."""
@@ -9005,6 +9128,7 @@ class ImageInfoFrame(wx.Frame):
                     stem = rtad_ocr.suggest_image_save_stem(
                         getattr(self, "page_url", ""),
                         getattr(self, "image_url", ""),
+                        getattr(self, "post_text", ""),
                     ) or stem
                 except Exception:
                     stem = "immagine"
@@ -10521,7 +10645,9 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION} dell'Add-on per NVDA!\n\n"
             "Ecco le principali novità di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on. Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.\n"
+            "• Salva immagine, se la pagina consegna il testo del post, propone un pezzo breve di quel testo come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.\n"
+            "• Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\\Roaming\\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.» Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.\n"
+            "• Resta dalla 2.0.1: Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on. Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.\n"
             "• Resta dalla 2.0.0: Strumenti, Taglia e unisci audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Taglia e unisci. Invio sul pulsante Aggiungi, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga ascolta quel pezzo. Un clic solo seleziona la riga. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama Unito, poi Unito-2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Tieni da qui a qui, o un clic, tiene quel tratto. Invio sul pulsante Togli questo tratto, o un clic, toglie quel tratto e tiene il prima e il dopo. Invio sul pulsante Ferma, o un clic, ferma l'ascolto o il lavoro. Invio sul pulsante Altro tratto, o un clic, aggiunge quel tratto senza cambiare la riga. Con un file solo, Invio sul pulsante Esegui, o un clic, taglia la riga selezionata e scrive un file nuovo. Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce l'elenco: il file intero, oppure il tratto già scelto. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Il file di partenza resta com'è. Se i file non sono uguali, a schermo e a voce: «I file non sono uguali: li converto, ci vuole più tempo.» Se manca ffmpeg: «Per questo formato serve ffmpeg». A schermo e a voce: «Creato nome, durata, nella stessa cartella.»\n• Resta dalla 2.0.0: Strumenti, Taglia e unisci immagini. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Aggiungi file, o un clic, mette le immagini in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. L'ordine dell'elenco è l'ordine del risultato. Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. Invio o doppio clic su una riga dice quel taglio. Un clic solo seleziona la riga. I quattro numeri sono sinistra, alto, larghezza e altezza. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, scrive quei numeri e li tiene sulla riga. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri si riempiono e il taglio è sulla riga. Invio sul pulsante Tieni questo taglio, o un clic, tiene i quattro numeri sulla riga selezionata. Invio sul pulsante Esegui, o un clic, scrive il taglio di quella riga. Il file si chiama nome-taglio, poi nome-taglio-2. Con almeno due immagini, Invio sul pulsante Uno sotto l'altro, o un clic, le mette una sotto l'altra. Invio sul pulsante Uno accanto all'altro, o un clic, le mette una accanto all'altra. Si unisce l'immagine intera, oppure il taglio già scelto. Il file unito si chiama Unito, poi Unito-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. Il file di partenza resta com'è. A schermo e a voce: «Creato nome, nella stessa cartella.»\n• Resta dalla 2.0.0: Strumenti, Converti audio e video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi file, o un clic, mette i file in elenco. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. In lettura entrano anche M4B, AIFF, MKA, FLV, MTS e M2TS. Invio o doppio clic su una riga dice quel file. Un clic solo seleziona la riga. Nell'elenco Formato, freccia su e freccia giù scelgono: MP3, M4A, WAV, FLAC, OGG, Opus, WMA, MP4 e MKV. Vale per Converti la riga e per Converti tutti. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è. Il file nuovo sta nella stessa cartella, con la nuova estensione. Se il nome c'è già, si chiama nome-2. I file creati restano nell'elenco Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. Un clic solo seleziona la riga. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi file, K Aggiungi cartella, M Rimuovi, C Converti la riga, T Converti tutti, F Ferma. Invio sul pulsante Ferma, o un clic, ferma il lavoro. A schermo e a voce: «Creato nome, durata, nella stessa cartella.» Se manca ffmpeg: «Per questo formato serve ffmpeg».\n• Resta dalla 1.9.10: Ctrl+E, oppure Invio sul pulsante Esporta Risultati, o un clic, apre la finestra. Spazio sulla casella, o un clic, sceglie il formato: testo, pagina web, tabella. Puoi accenderne più di una. Invio sul pulsante Esporta, o un clic, scrive tutti i file scelti, con lo stesso nome, nella cartella. Invio sul pulsante Sfoglia cartella, o un clic, cambia la cartella. Nella Standalone, con la voce di RTAD accesa, Salva e Sfoglia sono finestre di RTAD. Con la voce di RTAD spenta, sono le finestre di Windows, come nell'Add-on: le legge NVDA. La cartella proposta è quella da cui hai preso i file. La ricerca successiva non rilegge quei file di risultati: in elenco restano i documenti. Se quei file ci sono già, una domanda ha tre pulsanti. Invio sul pulsante Sì a tutti, o un clic, li sostituisce. Invio sul pulsante No a tutti, o un clic, torna alla finestra. A schermo e a voce: «Niente è stato scritto. I file già presenti restano.» Invio sul pulsante Scegli uno per uno, o un clic, chiede per ogni file: Invio sul pulsante Sì, o un clic, lo sostituisce; Invio sul pulsante No, o un clic, lo lascia. Esc annulla. Con la voce di RTAD, sull'elenco si sente il posto, per esempio «1 di 65». Su un pulsante si sente la parola Pulsante. Con la voce di RTAD, Ctrl+E dice «Esporta risultati, finestra di dialogo». La tabella si apre in Excel con lettere e simboli al loro posto. Esc annulla. A schermo e a voce: «Esportati 3 file: testo, pagina web e tabella. Cartella: nome.»\n"
             "• Nell'Add-on, se la finestra di ricerca è ridotta a icona, Alt+Tab la riapre e il focus torna sul campo.\n"
             "• Resta dalla 1.9.9, con la voce di RTAD accesa: Nella Standalone, Salva e Sfoglia sono finestre di RTAD, al posto di quelle di Windows. L'elenco Unità scorre solo i dischi, con freccia su e freccia giù oppure con la lettera iniziale. Invio o un doppio clic apre il disco e il focus resta su quell'elenco. Tab mostra solo le cartelle di quel disco: la lettera iniziale porta alla cartella, Invio o un doppio clic la apre. Shift+Tab torna all'elenco delle unità. I file della cartella aperta sono i più recenti in cima: Home va al primo, la lettera iniziale porta al file, Invio o un doppio clic lo sceglie. Il tipo di file si sente col nome prima: Immagini casella combinata. Freccia giù cambia. Alt+freccia giù apre l'elenco e le frecce restano sui tipi. Su Solo Audio e Video, il campo in cui incollare l'URL si apre dopo 4 secondi: se prima scegli un altro tipo, non si apre. Invio sul filtro già su Audio e Video lo apre subito. Invio sul pulsante Indietro, o un clic, oppure Alt+freccia sinistra, torna al percorso precedente. Invio sul pulsante Apri, Salva o Seleziona, o un clic, conferma. Alt+P legge lo stato: premuto due volte di seguito lo copia. Un clic sull'etichetta Stato porta allo stato. Con la voce di RTAD le dice RTAD. Con NVDA acceso e la voce di RTAD spenta, le dice NVDA. Nell'Add-on, Salva e Sfoglia restano le finestre di Windows. I 4 secondi su Solo Audio e Video ci sono anche lì: Freccia su o freccia giù, prima, sceglie un altro tipo e il campo non si apre. Invio sul filtro già su Audio e Video lo apre subito.\n"
@@ -10582,7 +10708,7 @@ class WhatsNewFrame(wx.Frame):
             "  Invio o doppio clic su un titolo del sommario, o su un link interno,\n"
             "  va a quel titolo, qui. Un clic solo seleziona la riga.\n"
             "  Un sito web si apre fuori.\n"
-            "• Salva immagine, Salva audio o Salva video propone il nome della pagina,\n"
+            "• Salva immagine, se la pagina consegna il testo del post, propone un pezzo breve di quel testo. Se non lo consegna, propone il nome della pagina, il più lungo che Windows accetta. Con Ctrl+Alt+V, o Descrivi da URL, l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Salva audio o Salva video propone il nome della pagina,\n"
             "  il più lungo che Windows accetta per un file.\n"
             "  Se lo cambi, anche solo qualche carattere, Salva testo propone\n"
             "  lo stesso nome, con .rtad.txt. Invio sul pulsante, e un clic.\n"
@@ -10686,7 +10812,7 @@ class WhatsNewFrame(wx.Frame):
             "  pagine HTML, indirizzo Internet in elenco.\n"
             "• Resta dalla 1.8.7: punti di lettura, cifre nei PDF, lettere EPUB.\n"
             "• Resta dalla 1.8.6: Whisper sul mio PC, casella spenta.\n"
-            "• Ultima versione NVDA testata: 2026.3.1. Le chat dell'Add-on restano nel profilo NVDA.\n"
+            "• Ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.\n"
             "--------------------------------------------------\n"
             "Grazie per usare Ricerca Testuale Accesso Digitale!\n"
         )
@@ -11654,6 +11780,29 @@ class SearchFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_show_info, item_info)
         self.Bind(wx.EVT_MENU, self.on_export_diagnostic, item_diag)
         self.Bind(wx.EVT_MENU, self.on_send_feedback, item_feedback)
+        self._announce_shared_store()
+
+    def _announce_shared_store(self):
+        """Se due copie erano diverse, la stessa frase sta nello stato e in voce."""
+        if getattr(self, "_shared_said", False) or rtad_chat is None:
+            return
+        self._shared_said = True
+        try:
+            load_search_profiles()
+        except Exception:
+            pass
+        try:
+            notes = rtad_chat.take_pending()
+        except Exception:
+            notes = []
+        if not notes:
+            return
+        text = " ".join(notes)
+        try:
+            self.txt_status_progress.SetValue(text)
+        except Exception:
+            pass
+        speak_accessible(text)
 
     def on_open_web_guides(self, event=None):
         """Menu Aiuto: la pagina sul web con i due link. Invio sulla voce, o un clic."""
@@ -13676,6 +13825,74 @@ class SearchFrame(wx.Frame):
         self._open_message_html_or_viewer(path, None, "", "", "[EML]")
         return True
 
+    def _open_image_from_pasted_url(self, url):
+        """Ctrl+Alt+V su un post o su una foto: stessa descrizione, e il nome del post se c'è."""
+        url = (url or "").strip()
+        if rtad_ocr is None:
+            return False
+        try:
+            image = rtad_ocr.is_likely_image_url(url)
+            post = rtad_ocr.is_social_post_url(url)
+        except Exception:
+            return False
+        if not image and not post:
+            return False
+        msg = rtad_ocr.pasted_image_wait(url)
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        rtad_speak(msg)
+
+        def _work():
+            try:
+                res = rtad_ocr.resolve_pasted_image(url)
+            except Exception as exc:
+                res = {
+                    "ok": False,
+                    "error": str(exc),
+                    "kind": "image" if image else "post",
+                }
+
+            def _done():
+                if not res.get("ok") or not res.get("path"):
+                    err = (res.get("error") or "Download immagine non riuscito.").strip()
+                    if res.get("kind") == "post":
+                        self.show_internet_url_in_list(url, announce=False, fetch=False)
+                        err = err + " L'indirizzo resta in elenco."
+                    try:
+                        self.txt_status_progress.SetValue(err)
+                    except Exception:
+                        pass
+                    rtad_speak(err)
+                    return
+                page = (res.get("page_url") or "").strip()
+                image_url = (res.get("image_url") or "").strip()
+                found = (res.get("post_text") or "").strip()
+                self.show_shell_target_in_list(
+                    res["path"],
+                    announce=False,
+                    source_url=page or image_url or url,
+                )
+                if self.current_matches:
+                    item = self.current_matches[0]
+                    item["image_url"] = image_url
+                    item["page_url"] = page
+                    item["post_text"] = found
+                self.show_image_analysis(
+                    res["path"],
+                    "describe",
+                    delete_after=False,
+                    image_url=image_url,
+                    page_url=page,
+                    post_text=found,
+                )
+
+            wx.CallAfter(_done)
+
+        threading.Thread(target=_work, daemon=True).start()
+        return True
+
     def on_paste_path_from_clipboard(self, event=None):
         """Strumenti / Incolla… / Ctrl+Alt+V: file, percorso o testo di un messaggio."""
         paths = paths_from_windows_clipboard()
@@ -13697,7 +13914,11 @@ class SearchFrame(wx.Frame):
             rtad_speak(msg)
             return
         if len(paths) == 1:
-            self.apply_search_path(paths[0], offer_open=os.path.isfile(paths[0]))
+            one = paths[0]
+            if isinstance(one, str) and one.lower().startswith(("http://", "https://")):
+                if self._open_image_from_pasted_url(one):
+                    return
+            self.apply_search_path(one, offer_open=os.path.isfile(one))
         else:
             self.apply_search_path(paths, offer_open=False)
 
@@ -16230,7 +16451,9 @@ class SearchFrame(wx.Frame):
         if item_all is not None:
             self.Bind(
                 wx.EVT_MENU,
-                lambda e: self.show_image_all_dialog(file_path),
+                lambda e, p=file_path, item=item_data: self.show_image_all_dialog(
+                    p, item_data=item
+                ),
                 item_all,
             )
         if item_ocr is not None:
@@ -16700,6 +16923,7 @@ class SearchFrame(wx.Frame):
         image_url="",
         page_url="",
         from_screen=False,
+        post_text="",
     ):
         """Descrivi / etichette / scheda tecnica su un file immagine."""
         run_image_analysis(
@@ -16714,9 +16938,10 @@ class SearchFrame(wx.Frame):
             image_url=image_url,
             page_url=page_url,
             from_screen=from_screen,
+            post_text=post_text,
         )
 
-    def show_image_all_dialog(self, file_path):
+    def show_image_all_dialog(self, file_path, item_data=None):
         """Dialogo unico «Tutto sull'immagine» → subito analisi dopo Avvia."""
         if not file_path or not os.path.isfile(file_path):
             rtad_speak("File immagine non trovato.")
@@ -16741,10 +16966,37 @@ class SearchFrame(wx.Frame):
                 sel.get("include_tech"),
             ]
         )
+        item = item_data or {}
+        image_url = (item.get("image_url") or "").strip()
+        page_url = (item.get("page_url") or "").strip()
+        source = (item.get("source_url") or "").strip()
+        found = (item.get("post_text") or "").strip()
+        if rtad_ocr is not None and source:
+            try:
+                if rtad_ocr.is_likely_image_url(source):
+                    if not image_url:
+                        image_url = source
+                elif not page_url:
+                    page_url = source
+            except Exception:
+                pass
         if only_ocr:
-            self.show_image_analysis(file_path, mode="ocr")
+            self.show_image_analysis(
+                file_path,
+                mode="ocr",
+                image_url=image_url,
+                page_url=page_url,
+                post_text=found,
+            )
         else:
-            self.show_image_analysis(file_path, mode="all", sections=sel)
+            self.show_image_analysis(
+                file_path,
+                mode="all",
+                sections=sel,
+                image_url=image_url,
+                page_url=page_url,
+                post_text=found,
+            )
 
     def _pick_image_path_for_tools(self):
         """Risultato selezionato se immagine, altrimenti FileDialog."""
@@ -16774,8 +17026,15 @@ class SearchFrame(wx.Frame):
     def on_image_all_dialog(self, event=None):
         """Strumenti → Tutto sull'immagine."""
         path = self._pick_image_path_for_tools()
-        if path:
-            self.show_image_all_dialog(path)
+        if not path:
+            return
+        item = None
+        sel = self.lst_results.GetSelection()
+        if sel != wx.NOT_FOUND and sel in self.file_map:
+            cand = self.file_map[sel]
+            if (cand.get("file_path") or "") == path:
+                item = cand
+        self.show_image_all_dialog(path, item_data=item)
 
     def on_image_ocr_dialog(self, event=None):
         """Strumenti → Leggi testo nell'immagine (OCR) — gemello SA."""

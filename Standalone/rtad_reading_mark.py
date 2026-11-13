@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 from datetime import datetime
 
 MSG_NONE = "Nessun segnalibro di lettura per questo documento."
@@ -38,10 +39,109 @@ MAX_MARKS = 200
 MAX_PER_FILE = 100
 SAME_SPOT = 15
 _STORE_NAME = "reading_marks.json"
+NOTICE_MARKS_KEPT = (
+    "I punti di lettura c'erano in tutte e due le copie. "
+    "Li ho tenuti tutti. Non ne ho cancellato uno."
+)
+_shared = False
 
 
 def store_path(config_dir: str) -> str:
+    if _shared:
+        root = os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "RTAD")
+        os.makedirs(root, exist_ok=True)
+        return os.path.join(root, _STORE_NAME)
     return os.path.join(config_dir, _STORE_NAME)
+
+
+def _merge_groups(base: dict, extra: dict) -> tuple:
+    """Unisce i punti. Se lo stesso punto è diverso, li tiene tutti e due."""
+    left = _as_group(base)
+    right = _as_group(extra)
+    items = [dict(item) for item in left.get("items") or []]
+    by_id = {str(item.get("id") or ""): item for item in items}
+    conflict = False
+    for item in right.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        ident = str(item.get("id") or "")
+        current = by_id.get(ident)
+        if current is None:
+            items.append(dict(item))
+            by_id[ident] = item
+            continue
+        same = (
+            str(current.get("anchor") or "") == str(item.get("anchor") or "")
+            and int(current.get("pos") or 0) == int(item.get("pos") or 0)
+        )
+        if same:
+            continue
+        copy = dict(item)
+        number = len(items) + 1
+        copy["id"] = f"{ident}-altra-{number}"
+        items.append(copy)
+        conflict = True
+    resume = str(left.get("resume_id") or "") or str(right.get("resume_id") or "")
+    return {"resume_id": resume, "items": items[:MAX_PER_FILE]}, conflict
+
+
+def enable_shared(local_dir: str) -> list:
+    """I punti di lettura vanno nella cartella comune. Le copie diverse restano."""
+    global _shared
+    notices = []
+    local = os.path.join(local_dir or "", _STORE_NAME)
+    root = os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "RTAD")
+    os.makedirs(root, exist_ok=True)
+    shared = os.path.join(root, _STORE_NAME)
+    _shared = True
+    if not os.path.isfile(local):
+        return notices
+    try:
+        if os.path.normcase(os.path.abspath(local)) == os.path.normcase(
+            os.path.abspath(shared)
+        ):
+            return notices
+    except Exception:
+        pass
+    if not os.path.isfile(shared):
+        try:
+            shutil.copy2(local, shared)
+        except Exception:
+            pass
+        return notices
+    try:
+        with open(local, "r", encoding="utf-8") as handle:
+            extra = json.load(handle)
+        with open(shared, "r", encoding="utf-8") as handle:
+            base = json.load(handle)
+    except Exception:
+        return notices
+    if not isinstance(base, dict):
+        base = {"marks": {}}
+    if not isinstance(extra, dict):
+        return notices
+    marks = dict(base.get("marks") or {})
+    conflict = False
+    changed = False
+    for key, group in (extra.get("marks") or {}).items():
+        if key not in marks:
+            marks[key] = group
+            changed = True
+            continue
+        merged, clash = _merge_groups(marks[key], group)
+        if clash:
+            conflict = True
+        if merged != _as_group(marks[key]):
+            marks[key] = merged
+            changed = True
+    if conflict:
+        notices.append(NOTICE_MARKS_KEPT)
+    if changed:
+        try:
+            _save(root, {"marks": marks})
+        except Exception:
+            pass
+    return notices
 
 
 def mark_key(file_path: str) -> str:

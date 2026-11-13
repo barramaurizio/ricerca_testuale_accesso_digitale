@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import html
 import json
 import logging
 import os
@@ -5007,8 +5008,342 @@ def _download_url_bytes(url: str, timeout: int):
     return data, ctype, final_url
 
 
-def suggest_image_save_stem(page_url: str = "", image_url: str = "") -> str:
-    """Nome file dall'indirizzo della pagina, altrimenti da quello dell'immagine."""
+def post_piece(text: str, limit: int = 80) -> str:
+    """Pezzo breve del commento, se la pagina ha consegnato proprio quello.
+
+    Un nome di sito, un invito ad accedere o un indirizzo non sono il post.
+    """
+    raw = html.unescape(text or "")
+    raw = re.sub(r"\s+", " ", raw).strip()
+    wrapped = re.match(
+        r"^.{1,80}?\s+on\s+(?:X|Twitter)\s*:\s*[\"“](.+?)[\"”]\s*$",
+        raw,
+        re.I,
+    )
+    if wrapped:
+        raw = wrapped.group(1).strip()
+    raw = raw.strip(" \"'“”«»")
+    if len(raw) < 12:
+        return ""
+    low = raw.casefold()
+    if low in {
+        "x", "twitter", "facebook", "instagram", "tiktok",
+        "home", "login", "log in", "sign up", "accedi",
+        "immagine", "photo", "foto",
+    }:
+        return ""
+    if low.startswith(("http://", "https://")):
+        return ""
+    if re.fullmatch(r".{1,80}\s+on\s+(?:x|twitter)", low):
+        return ""
+    walls = (
+        "log in to", "sign up to", "accedi per", "accedi a",
+        "this post is unavailable", "contenuto non disponibile",
+        "see this post", "watch on tiktok",
+    )
+    if any(wall in low for wall in walls):
+        return ""
+    raw = re.sub(r'[<>:"/\\|?*\r\n]+', " ", raw)
+    raw = re.sub(r"\s+", " ", raw).strip(" .-_")
+    if len(raw) > limit:
+        cut = raw[:limit].rsplit(" ", 1)[0].strip(" .-_")
+        raw = cut or raw[:limit].strip(" .-_")
+    if len(raw) < 12:
+        return ""
+    return raw
+
+
+def post_text_from_html(html_text: str) -> str:
+    """Il commento che la pagina scrive nei meta, se c'è."""
+    if not html_text:
+        return ""
+    patterns = (
+        r'<meta[^>]+property=["\']og:description["\'][^>]*content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*property=["\']og:description["\']',
+        r'<meta[^>]+name=["\']twitter:description["\'][^>]*content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*name=["\']twitter:description["\']',
+        r'<meta[^>]+name=["\']description["\'][^>]*content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*name=["\']description["\']',
+    )
+    for pattern in patterns:
+        found = re.search(pattern, html_text, re.I | re.S)
+        if not found:
+            continue
+        piece = post_piece(found.group(1))
+        if piece:
+            return piece
+    return ""
+
+
+def _fetch_html(page_url: str, timeout: int = 8) -> str:
+    """Legge il testo della pagina. Se arriva un file, stringa vuota."""
+    url = (page_url or "").strip()
+    if not url.lower().startswith(("http://", "https://")):
+        return ""
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": _WEB_UA,
+                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+            if ctype and "html" not in ctype and "xml" not in ctype and "text" not in ctype:
+                return ""
+            data = resp.read(400_000)
+        return data.decode("utf-8", "replace")
+    except Exception:
+        return ""
+
+
+def fetch_page_post_text(page_url: str, timeout: int = 8) -> str:
+    """Legge la pagina. Se non consegna il commento, stringa vuota."""
+    return post_text_from_html(_fetch_html(page_url, timeout))
+
+
+def image_url_from_html(html_text: str) -> str:
+    """L'indirizzo dell'immagine che la pagina indica, se c'è."""
+    if not html_text:
+        return ""
+    patterns = (
+        r'<meta[^>]+property=["\']og:image(?::url)?["\'][^>]*content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']og:image(?::url)?["\']',
+        r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]*content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*name=["\']twitter:image(?::src)?["\']',
+    )
+    for pattern in patterns:
+        found = re.search(pattern, html_text, re.I | re.S)
+        if not found:
+            continue
+        url = html.unescape(found.group(1) or "").strip()
+        if url.lower().startswith(("http://", "https://")):
+            return url
+    return ""
+
+
+_SOCIAL_POST_HOSTS = {
+    "x.com",
+    "mobile.x.com",
+    "twitter.com",
+    "mobile.twitter.com",
+    "facebook.com",
+    "m.facebook.com",
+    "fb.com",
+    "instagram.com",
+    "tiktok.com",
+    "vm.tiktok.com",
+}
+
+
+def is_social_post_url(url: str) -> bool:
+    """True se l'indirizzo è un post, non il file della foto."""
+    raw = (url or "").strip()
+    if not raw.lower().startswith(("http://", "https://")):
+        return False
+    if is_likely_image_url(raw):
+        return False
+    try:
+        parsed = urllib.parse.urlparse(raw)
+    except Exception:
+        return False
+    host = (parsed.netloc or "").lower().split(":")[0]
+    if host.startswith("www."):
+        host = host[4:]
+    if host not in _SOCIAL_POST_HOSTS:
+        return False
+    path = (parsed.path or "").lower()
+    marks = (
+        "/status/",
+        "/photo",
+        "/posts/",
+        "/permalink",
+        "/p/",
+        "/reel",
+        "/videos/",
+        "/video/",
+        "/t/",
+    )
+    return any(mark in path for mark in marks)
+
+
+def image_name_notice(post_text: str = "", page_url: str = "", image_url: str = "") -> str:
+    """Frase a schermo e a voce sul nome proposto. Vuota se non c'è un indirizzo."""
+    if not ((page_url or "").strip() or (image_url or "").strip()):
+        return ""
+    if post_piece(post_text or ""):
+        return "Descrizione dell'immagine. Il nome è il testo del post."
+    if (page_url or "").strip():
+        return (
+            "Descrizione dell'immagine. La pagina non consegna il testo del post. "
+            "Il nome resta quello dell'indirizzo."
+        )
+    return (
+        "Descrizione dell'immagine dall'indirizzo della foto. "
+        "Il nome è quello di quell'indirizzo."
+    )
+
+
+def pasted_image_wait(url: str) -> str:
+    """Frase mentre si scarica, a schermo e a voce."""
+    if is_social_post_url(url):
+        return "Scarico l'immagine del post. Poi la descrizione, attendere."
+    return "Descrizione dell'immagine dall'indirizzo. Attendere."
+
+
+_image_post_dir = ""
+_image_post_lock = threading.Lock()
+
+
+def _image_post_path() -> str:
+    root = (_image_post_dir or "").strip()
+    if not root:
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        root = os.path.join(base, "RTAD")
+    return os.path.join(root, "image_posts.json")
+
+
+def image_post_key(url: str) -> str:
+    """Chiave stabile: host e percorso, senza la query e senza l'estensione."""
+    try:
+        parsed = urllib.parse.urlparse((url or "").strip())
+    except Exception:
+        return ""
+    host = (parsed.netloc or "").lower().split(":")[0]
+    path = urllib.parse.unquote(parsed.path or "")
+    stem, ext = os.path.splitext(path)
+    if ext.lower() in _IMG_EXTS:
+        path = stem
+    path = path.rstrip("/")
+    if not host or not path:
+        return ""
+    return host + path
+
+
+def remember_image_post(image_url: str, page_url: str = "", post_text: str = "") -> None:
+    """Ricorda pagina e commento di una foto, per quando si incolla solo il suo indirizzo."""
+    key = image_post_key(image_url)
+    post = post_piece(post_text or "")
+    page = (page_url or "").strip()
+    if page and image_post_key(page) == key:
+        page = ""
+    if not key or (not post and not page):
+        return
+    path = _image_post_path()
+    with _image_post_lock:
+        data = {}
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            data = {}
+        prev = data.get(key) if isinstance(data.get(key), dict) else {}
+        data[key] = {
+            "page_url": page or (prev.get("page_url") or ""),
+            "post_text": post or (prev.get("post_text") or ""),
+            "image_url": (image_url or "").strip(),
+        }
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle, ensure_ascii=False, indent=1)
+        except Exception:
+            return
+
+
+def recall_image_post(image_url: str) -> dict:
+    """Pagina e commento già visti per questa foto. Vuoti se non ci sono."""
+    key = image_post_key(image_url)
+    empty = {"page_url": "", "post_text": "", "image_url": (image_url or "").strip()}
+    if not key:
+        return empty
+    try:
+        with open(_image_post_path(), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return empty
+    row = data.get(key) if isinstance(data, dict) else None
+    if not isinstance(row, dict):
+        return empty
+    return {
+        "page_url": (row.get("page_url") or "").strip(),
+        "post_text": post_piece(row.get("post_text") or ""),
+        "image_url": (row.get("image_url") or image_url or "").strip(),
+    }
+
+
+def resolve_pasted_image(url: str) -> dict:
+    """Scarica la foto di un indirizzo incollato.
+
+    Un post consegna il commento e l'immagine della pagina.
+    L'indirizzo della foto scarica quel file. Se quella foto era già stata
+    descritta con la pagina, il commento torna insieme.
+    """
+    raw = (url or "").strip().strip('"').strip("'")
+    out = {
+        "ok": False,
+        "path": "",
+        "image_url": "",
+        "page_url": "",
+        "post_text": "",
+        "error": "",
+        "kind": "other",
+        "url": raw,
+    }
+    if not raw.lower().startswith(("http://", "https://")):
+        out["error"] = "Serve un URL http o https."
+        return out
+    if is_likely_image_url(raw):
+        out["kind"] = "image"
+        known = recall_image_post(raw)
+        res = materialize_image_from_url(raw)
+        if not res.get("ok") or not res.get("path"):
+            out["error"] = res.get("error") or "Download immagine non riuscito."
+            return out
+        out["ok"] = True
+        out["path"] = res.get("path") or ""
+        out["image_url"] = res.get("url") or raw
+        out["page_url"] = known.get("page_url") or ""
+        out["post_text"] = known.get("post_text") or ""
+        return out
+    if is_social_post_url(raw):
+        out["kind"] = "post"
+        html_text = _fetch_html(raw, timeout=12)
+        post = post_text_from_html(html_text)
+        image = image_url_from_html(html_text)
+        out["page_url"] = raw
+        out["post_text"] = post
+        if not image:
+            out["error"] = "La pagina non consegna un'immagine."
+            return out
+        res = materialize_image_from_url(image)
+        if not res.get("ok") or not res.get("path"):
+            out["error"] = res.get("error") or "Download immagine non riuscito."
+            return out
+        out["ok"] = True
+        out["path"] = res.get("path") or ""
+        out["image_url"] = res.get("url") or image
+        remember_image_post(out["image_url"], raw, post)
+        return out
+    return out
+
+
+def suggest_image_save_stem(
+    page_url: str = "",
+    image_url: str = "",
+    post_text: str = "",
+) -> str:
+    """Nome file dal commento del post, se la pagina lo ha consegnato.
+
+    Altrimenti dall'indirizzo della pagina, poi da quello dell'immagine.
+    """
+    piece = post_piece(post_text) if post_text else ""
+    if piece:
+        return piece[:240].rstrip(" .-_") or "immagine"
     skip = {
         "status", "photo", "photos", "media", "image", "images", "img",
         "uploads", "wp-content", "content", "static", "assets", "p", "i",

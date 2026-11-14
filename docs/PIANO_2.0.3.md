@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.3
 
-**Pubblicata** il 14/11/2026. Versione `2.0.3`. GitHub `v2.0.3` / `app-v2.0.3`. Il commit corto e il DataStore si aggiungono quando esistono. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**Pubblicata** il 14/11/2026. Versione `2.0.3`. GitHub `v2.0.3` / `app-v2.0.3`. Commit `20d8838`. Il numero DataStore si aggiunge quando lo store accetta. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 L’ultima pubblicata prima di questa è la `2.0.2` (13/11/2026, GitHub `v2.0.2` / `app-v2.0.2`, commit `384771d`, DataStore #13000 via #13001 accettato). Non si rifà. In questo rilascio entrano anche quel commit corto e quel numero DataStore, già nelle tre note.
 

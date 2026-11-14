@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.2
 
-**Pubblicata** il 13/11/2026. Versione `2.0.2`. GitHub `v2.0.2` / `app-v2.0.2`. Commit `384771d`. Il numero DataStore si aggiunge quando lo store accetta. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**Pubblicata** il 13/11/2026. Versione `2.0.2`. GitHub `v2.0.2` / `app-v2.0.2`. Commit `384771d`. DataStore #13000 via #13001 accettato. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 L’ultima pubblicata prima di questa è la `2.0.1` (12/11/2026, GitHub `v2.0.1` / `app-v2.0.1`, commit `c430151`, DataStore #12978 via #12979 accettato). Non si rifà.
 
@@ -20,4 +20,4 @@ La voce, la posizione della finestra e le chiavi restano nel programma che le ha
 
 ## Resta fuori
 
-PDF e testo. Un audio su un video. Le immagini in un PDF. Non entrano nella 2.0.2.
+Nella Standalone, scaricare e descrivere tutte le immagini di un post (su X fino a quattro), non solo la prima: per la `2.0.3`. Oggi le altre restano sul navigatore dell’Add-on. PDF e testo. Un audio su un video. Le immagini in un PDF. Non entrano nella 2.0.2.

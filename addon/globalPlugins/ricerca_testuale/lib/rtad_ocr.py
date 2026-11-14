@@ -5104,10 +5104,90 @@ def fetch_page_post_text(page_url: str, timeout: int = 8) -> str:
     return post_text_from_html(_fetch_html(page_url, timeout))
 
 
-def image_url_from_html(html_text: str) -> str:
-    """L'indirizzo dell'immagine che la pagina indica, se c'è."""
-    if not html_text:
+_POST_IMAGE_LIMIT = 4
+
+
+def _media_image_key(url: str) -> str:
+    """Chiave stabile per deduplicare foto dello stesso file."""
+    try:
+        parsed = urllib.parse.urlparse((url or "").strip())
+    except Exception:
         return ""
+    host = (parsed.netloc or "").lower().split(":")[0]
+    if host.startswith("www."):
+        host = host[4:]
+    path = urllib.parse.unquote(parsed.path or "").rstrip("/")
+    stem, ext = os.path.splitext(path)
+    if ext.lower() in _IMG_EXTS or ext.lower() in {".webp"}:
+        path = stem
+    if not host or not path:
+        return ""
+    return host + path
+
+
+def prefer_post_image_url(url: str) -> str:
+    """Per le foto di X, preferisce JPEG a misura grande."""
+    raw = html.unescape((url or "").strip()).replace("&amp;", "&")
+    if not raw.lower().startswith(("http://", "https://")):
+        return ""
+    try:
+        parsed = urllib.parse.urlparse(raw)
+    except Exception:
+        return raw
+    host = (parsed.netloc or "").lower().split(":")[0]
+    if host.startswith("www."):
+        host = host[4:]
+    path = parsed.path or ""
+    if "pbs.twimg.com" in host and "/media/" in path:
+        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=False)
+        query["format"] = ["jpg"]
+        query["name"] = ["large"]
+        return urllib.parse.urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                path,
+                "",
+                urllib.parse.urlencode(
+                    {key: values[0] for key, values in query.items() if values},
+                    doseq=False,
+                ),
+                "",
+            )
+        )
+    return raw
+
+
+def image_urls_from_html(html_text: str, limit: int = _POST_IMAGE_LIMIT) -> list:
+    """Indirizzi delle foto del post, nell'ordine della pagina, fino a limit.
+
+    Su X il testo della pagina porta spesso tutte e quattro. Altrimenti resta
+    l'immagine dei meta, come oggi.
+    """
+    if not html_text or limit < 1:
+        return []
+    found = []
+    seen = set()
+
+    def _add(raw: str) -> bool:
+        url = prefer_post_image_url(raw)
+        if not url:
+            return False
+        key = _media_image_key(url)
+        if not key or key in seen:
+            return False
+        seen.add(key)
+        found.append(url)
+        return len(found) >= limit
+
+    for match in re.finditer(
+        r"https://pbs\.twimg\.com/media/[A-Za-z0-9_\-]+(?:\?[^\"'\s<>]*)?",
+        html_text,
+        re.I,
+    ):
+        if _add(match.group(0)):
+            return found
+
     patterns = (
         r'<meta[^>]+property=["\']og:image(?::url)?["\'][^>]*content=["\']([^"\']+)["\']',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']og:image(?::url)?["\']',
@@ -5115,13 +5195,16 @@ def image_url_from_html(html_text: str) -> str:
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*name=["\']twitter:image(?::src)?["\']',
     )
     for pattern in patterns:
-        found = re.search(pattern, html_text, re.I | re.S)
-        if not found:
-            continue
-        url = html.unescape(found.group(1) or "").strip()
-        if url.lower().startswith(("http://", "https://")):
-            return url
-    return ""
+        for match in re.finditer(pattern, html_text, re.I | re.S):
+            if _add(match.group(1) or ""):
+                return found
+    return found
+
+
+def image_url_from_html(html_text: str) -> str:
+    """L'indirizzo della prima immagine che la pagina indica, se c'è."""
+    urls = image_urls_from_html(html_text, limit=1)
+    return urls[0] if urls else ""
 
 
 _SOCIAL_POST_HOSTS = {
@@ -5186,11 +5269,30 @@ def image_name_notice(post_text: str = "", page_url: str = "", image_url: str = 
     )
 
 
-def pasted_image_wait(url: str) -> str:
+def pasted_image_wait(url: str, count: int = 0) -> str:
     """Frase mentre si scarica, a schermo e a voce."""
     if is_social_post_url(url):
-        return "Scarico l'immagine del post. Poi la descrizione, attendere."
+        if count > 1:
+            return (
+                f"Il post ha {count} immagini. "
+                "Scegli quali scaricare e descrivere, una dopo l'altra."
+            )
+        if count == 1:
+            return "Scarico l'immagine del post. Poi la descrizione, attendere."
+        return "Leggo il post e le sue immagini. Attendere."
     return "Descrizione dell'immagine dall'indirizzo. Attendere."
+
+
+def post_images_choice_hint(count: int) -> str:
+    """Istruzioni della finestra di scelta, a schermo e a voce."""
+    n = max(1, int(count or 1))
+    return (
+        f"Il post ha {n} immagini. "
+        "Spazio sulla casella, o un clic, accende o spegne ciascuna. "
+        "Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate "
+        "una dopo l'altra. Invio su Solo la prima, o un clic, prende solo la prima. "
+        "Esc chiude."
+    )
 
 
 _image_post_dir = ""
@@ -5276,10 +5378,11 @@ def recall_image_post(image_url: str) -> dict:
     }
 
 
-def resolve_pasted_image(url: str) -> dict:
+def resolve_pasted_image(url: str, download: bool = True) -> dict:
     """Scarica la foto di un indirizzo incollato.
 
-    Un post consegna il commento e l'immagine della pagina.
+    Un post consegna il commento e le immagini della pagina (fino a quattro).
+    Se ce n'è più di una e download è False, restituisce solo l'elenco.
     L'indirizzo della foto scarica quel file. Se quella foto era già stata
     descritta con la pagina, il commento torna insieme.
     """
@@ -5288,6 +5391,7 @@ def resolve_pasted_image(url: str) -> dict:
         "ok": False,
         "path": "",
         "image_url": "",
+        "image_urls": [],
         "page_url": "",
         "post_text": "",
         "error": "",
@@ -5307,6 +5411,7 @@ def resolve_pasted_image(url: str) -> dict:
         out["ok"] = True
         out["path"] = res.get("path") or ""
         out["image_url"] = res.get("url") or raw
+        out["image_urls"] = [out["image_url"]]
         out["page_url"] = known.get("page_url") or ""
         out["post_text"] = known.get("post_text") or ""
         return out
@@ -5314,12 +5419,18 @@ def resolve_pasted_image(url: str) -> dict:
         out["kind"] = "post"
         html_text = _fetch_html(raw, timeout=12)
         post = post_text_from_html(html_text)
-        image = image_url_from_html(html_text)
+        images = image_urls_from_html(html_text, limit=_POST_IMAGE_LIMIT)
         out["page_url"] = raw
         out["post_text"] = post
-        if not image:
+        out["image_urls"] = list(images)
+        if not images:
             out["error"] = "La pagina non consegna un'immagine."
             return out
+        if len(images) > 1 and not download:
+            out["ok"] = True
+            out["image_url"] = images[0]
+            return out
+        image = images[0]
         res = materialize_image_from_url(image)
         if not res.get("ok") or not res.get("path"):
             out["error"] = res.get("error") or "Download immagine non riuscito."
@@ -5328,6 +5439,8 @@ def resolve_pasted_image(url: str) -> dict:
         out["path"] = res.get("path") or ""
         out["image_url"] = res.get("url") or image
         remember_image_post(out["image_url"], raw, post)
+        for extra in images[1:]:
+            remember_image_post(extra, raw, post)
         return out
     return out
 
@@ -5336,14 +5449,26 @@ def suggest_image_save_stem(
     page_url: str = "",
     image_url: str = "",
     post_text: str = "",
+    image_index: int = 0,
+    image_count: int = 0,
 ) -> str:
     """Nome file dal commento del post, se la pagina lo ha consegnato.
 
     Altrimenti dall'indirizzo della pagina, poi da quello dell'immagine.
+    Con più foto dello stesso post, aggiunge il numero (1, 2, …).
     """
     piece = post_piece(post_text) if post_text else ""
     if piece:
-        return piece[:240].rstrip(" .-_") or "immagine"
+        stem = piece[:240].rstrip(" .-_") or "immagine"
+        count = int(image_count or 0)
+        index = int(image_index or 0)
+        if count > 1 and index > 0:
+            suffix = f" {index}"
+            room = 240 - len(suffix)
+            if room < 8:
+                return f"immagine{suffix}"
+            return stem[:room].rstrip(" .-_") + suffix
+        return stem
     skip = {
         "status", "photo", "photos", "media", "image", "images", "img",
         "uploads", "wp-content", "content", "static", "assets", "p", "i",

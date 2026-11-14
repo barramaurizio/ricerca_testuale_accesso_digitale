@@ -1,0 +1,89 @@
+🌟 Novità della Versione 2.0.3
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.3
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- With Ctrl+Alt+V, or Describe from URL, if the post has more than one image (on X up to four), a list appears with a checkbox next to each one, all on. Space on the checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another; the title says «Descrizione immagine (2 di 4)». Enter on Solo la prima, or a click, takes only the first. The file name stays the post text; with more photos, 1, 2, 3 or 4 is added. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.3.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.3
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.3
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.3.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.3.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), elenco con casella, scarico e descrizione una dopo l'altra in finestre separate. Nome dal testo del post. NVDA testata: 2026.3.1.
+
+Summary EN:
+With Ctrl+Alt+V, or Describe from URL, if the post has more images (on X up to four), a checklist, then download and describe one after another in separate windows. Name from the post text. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.3/ricerca_testuale_accesso_digitale-2.0.3.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.3
+
+Description:
+Post con più immagini: elenco con caselle, scarico e descrizione una dopo l'altra.
+Ogni report in una finestra a parte; nome dal testo del post con 1, 2, 3 o 4.

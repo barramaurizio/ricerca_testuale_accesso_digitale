@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.2)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.3)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,10 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.3
+
+- Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
 
 ### 🌟 Novità della Versione 2.0.2
 
@@ -377,6 +381,10 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.3
+
+- With Ctrl+Alt+V, or Describe from URL, if the post has more than one image (on X up to four), a list appears with a checkbox next to each one, all on. Space on the checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another; the title says «Descrizione immagine (2 di 4)». Enter on Solo la prima, or a click, takes only the first. The file name stays the post text; with more photos, 1, 2, 3 or 4 is added. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
 
 ### 🌟 What's New in Version 2.0.2
 

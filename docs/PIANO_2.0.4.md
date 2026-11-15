@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.4
 
-**Pubblicata** il 15/11/2026. Versione `2.0.4`. GitHub `v2.0.4` / `app-v2.0.4`. Vale per Standalone e Add-on (punti 1–3). Il punto 4 solo Installer. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
+**Pubblicata** il 15/11/2026. Versione `2.0.4`. GitHub `v2.0.4` / `app-v2.0.4`, commit `5a4ba86`. Vale per Standalone e Add-on (punti 1–3). Il punto 4 solo Installer. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase.
 
 L’ultima pubblicata prima di questa è la `2.0.3` (14/11/2026, GitHub `v2.0.3` / `app-v2.0.3`, commit `20d8838`, DataStore #13027 via #13028 accettato). Non si rifà. In questo rilascio entrano anche quel commit corto e quel numero DataStore della 2.0.3, già nelle tre note.
 

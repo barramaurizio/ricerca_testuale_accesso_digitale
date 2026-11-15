@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ricerca Testuale Accesso Digitale v2.0.3 — Guide</title>
+    <title>Ricerca Testuale Accesso Digitale v2.0.4 — Guide</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; max-width: 900px; }
         h1, h2 { color: #0056b3; }
@@ -15,9 +15,20 @@
     </style>
 </head>
 <body>
-    <h1>Ricerca Testuale Accesso Digitale v2.0.3</h1>
+    <h1>Ricerca Testuale Accesso Digitale v2.0.4</h1>
     <p>Author: <strong>Maurizio Barra (Accesso Digitale)</strong></p>
     <p>An NVDA add-on for accessible text search across files, folders and entire drives, with jump-to-line, native EML reading, RSS/Atom feeds and Thunderbird Feeds.</p>
+
+    <div class="update">
+        <strong>What's New in Version 2.0.4</strong>
+        <ul>
+            <li>Save image and post descriptions: if the page delivers the post text, the file name uses that text as long as possible, up to about 240 characters, as already for videos. Before, it was a short piece at 80. If the text includes a URL with other words, it may stay. Text that is only an address does not become the name. With more photos of the same post, 1, 2, 3 or 4 remain. It works in the Standalone and in the Add-on.</li>
+            <li>After Save video or Save audio, Taglia e unisci, or Converti, from the result use the file already saved: same folder and same title, not the temporary file in Temp. On the report, Enter on Taglia e unisci, or a click, or Enter on Converti, or a click, opens that window on the saved file. The cut file is named title-taglio. If the result stays in Temp, Status and Done say the full path.</li>
+            <li>Joining audio or video: with two files, Enter on Unisci, or a click, writes name1-unione-name2. If the titles are long, the beginning of both remains. From three files up: the first two names and e-N. If the name already exists, -2 is added. The original file stays as it is.</li>
+            <li>In the installed Standalone, the Installer puts the shortcut in Send to (shell:sendto). It points to the installed exe and follows updates. It is not a full copy of the exe. Portable and Add-on: no automatic Send to.</li>
+            <li>Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.</li>
+        </ul>
+    </div>
 
     <div class="update">
         <strong>What's New in Version 2.0.3</strong>

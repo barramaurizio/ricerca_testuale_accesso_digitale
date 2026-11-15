@@ -21,7 +21,7 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
    - `README.md`: prima sezione novità IT e prima sezione EN.
    - `addon/doc/it/readme.html` e `addon/doc/en/readme.html`: primo blocco novità.
    - `Standalone/changelog.txt`: primo blocco.
-   - `docs/NOTE_RILASCIO_` della versione corrente: elenco GitHub e Summary IT/EN dello store.
+   - `docs/NOTE_RILASCIO_` della versione corrente: elenco GitHub, Summary IT/EN dello store, e in fondo **GitHub Desktop — Commit** con `Summary:` e `Description:` già compilati (non il placeholder «scrivi 2-4 righe»). Senza quel blocco Maurizio non ha i testi pronti per Desktop e si rifà il giro.
 4. Le tre note del rilascio, nello stesso commit. «In corso» e «l’ultima pubblicata è la precedente» non ci restano.
    - `docs/NOTE_CONTESTO_v1.5.md`, in cima: ultima pubblicata è questa versione, con data e tag `vX.Y.Z` e `app-vX.Y.Z`. La prossima è nominata e non è iniziata.
    - `docs/ROADMAP_DOPO_1.5.0.md`: la voce di questa versione è barrata, con «pubblicata» e la data. Sotto, la successiva, non iniziata.
@@ -42,11 +42,12 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
 - readme.html IT e EN: primo punto, fra virgolette
 - changelog: primo punto, fra virgolette
 - Note di rilascio e Summary store: primo punto, fra virgolette
+- Note di rilascio — Commit Desktop: `Summary:` e prima riga di `Description:`, fra virgolette (blocco in fondo al file)
 - Note di contesto: la frase «Ultima pubblicata», fra virgolette, con questa versione
 - Roadmap: la voce barrata di questa versione, fra virgolette
 - Piano: la prima riga, fra virgolette
 
-Manca una riga, un primo punto è della versione precedente, o le tre note dicono ancora «in corso»: non è pronto.
+Manca una riga, un primo punto è della versione precedente, le tre note dicono ancora «in corso», o manca Summary/Description commit in `NOTE_RILASCIO_`: non è pronto.
 
 ## Storico, non è un buco
 

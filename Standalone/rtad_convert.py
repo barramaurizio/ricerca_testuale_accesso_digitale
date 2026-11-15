@@ -96,6 +96,7 @@ def convert_file(piece, ext: str, kind: str, cancel) -> tuple[bool, str, str]:
         _ffmpeg_exe,
         _run,
         speak_duration,
+        spoken_result_path,
     )
 
     name = os.path.basename(piece.path)
@@ -133,7 +134,7 @@ def convert_file(piece, ext: str, kind: str, cancel) -> tuple[bool, str, str]:
     duration = speak_duration(piece.duration)
     extra = ", solo l'audio" if only_audio else ""
     phrase = (
-        f"Creato {os.path.basename(dest)}, {duration}{extra}, "
+        f"Creato {spoken_result_path(dest)}, {duration}{extra}, "
         "nella stessa cartella."
     )
     return True, phrase, dest

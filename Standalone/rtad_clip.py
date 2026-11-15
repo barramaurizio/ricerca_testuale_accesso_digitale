@@ -98,9 +98,12 @@ _INTRO = (
     "Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce "
     "l'elenco: il file intero, oppure il tratto già scelto. "
     "I file creati restano nell'elenco Fatti. "
-    "Il file unito si chiama Unito, poi Unito-2. "
+    "Il file unito si chiama nome1-unione-nome2, dai nomi dei due file. "
+    "Se sono più di due, restano i primi due nomi e si aggiunge e-N. "
+    "Se il nome c'è già, si aggiunge -2. "
     "Lo Stato, la barra di stato e Fatti dicono la stessa frase, "
     "con il nome di ogni file. "
+    "Se il file resta in Temp, dicono il percorso intero. "
     "Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: "
     "A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, "
     "F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. "
@@ -240,8 +243,23 @@ def action_words(piece: "Piece") -> str:
     return "tutto il file"
 
 
+def spoken_result_path(path: str) -> str:
+    """Nome del file creato. Se resta in Temp, il percorso intero."""
+    full = os.path.abspath(path or "")
+    if not full:
+        return ""
+    try:
+        tmp = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
+        here = os.path.normcase(full)
+        if here == tmp or here.startswith(tmp + os.sep):
+            return full
+    except Exception:
+        pass
+    return os.path.basename(full)
+
+
 def history_label(pieces: list, out_path: str, dur_spoken: str) -> str:
-    name = os.path.basename(out_path)
+    name = spoken_result_path(out_path)
     if len(pieces) == 1:
         return f"{name}, {action_words(pieces[0])}, {dur_spoken}"
     bits = []
@@ -832,14 +850,47 @@ def _render_simple(piece: Piece, dest: str, cancel) -> bool:
     return _video_encode(piece.path, dest, start, dur, cancel, piece.has_audio)
 
 
+def _clip_name_piece(text: str, max_len: int) -> str:
+    """Accorcia un pezzo di nome sul confine di parola, se serve."""
+    raw = (text or "").strip(" .-_")
+    if max_len < 8:
+        max_len = 8
+    if len(raw) <= max_len:
+        return raw
+    cut = raw[:max_len].rsplit(" ", 1)[0].strip(" .-_")
+    return cut or raw[:max_len].strip(" .-_")
+
+
+def _union_stem(pieces: list[Piece]) -> str:
+    """Due nomi: a-unione-b. Da tre in su: a-unione-b-e-N, col tetto del nome file."""
+    stems = [
+        os.path.splitext(os.path.basename(piece.path))[0] for piece in pieces
+    ]
+    joiner = "-unione-"
+    # ~220: resta spazio per -2 e l'estensione sul percorso intero.
+    max_total = 220
+    if len(stems) == 2:
+        budget = max_total - len(joiner)
+        first_room = max(8, budget // 2)
+        a = _clip_name_piece(stems[0], first_room)
+        b = _clip_name_piece(stems[1], max(8, budget - len(a)))
+        return f"{a}{joiner}{b}"
+    more = f"-e-{len(stems)}"
+    budget = max_total - len(joiner) - len(more)
+    first_room = max(8, budget // 2)
+    a = _clip_name_piece(stems[0], first_room)
+    b = _clip_name_piece(stems[1], max(8, budget - len(a)))
+    return f"{a}{joiner}{b}{more}"
+
+
 def _output_for(pieces: list[Piece], reencode: bool) -> str:
     first = pieces[0]
     folder = os.path.dirname(os.path.abspath(first.path)) or os.getcwd()
     if len(pieces) > 1:
-        stem = "Unito"
+        stem = _union_stem(pieces)
     else:
-        stem = os.path.splitext(os.path.basename(first.path))[0]
-        stem = f"{stem}-taglio"
+        base = os.path.splitext(os.path.basename(first.path))[0]
+        stem = f"{base}-taglio"
     if first.kind == "video" and (reencode or any(p.mode != "all" for p in pieces)):
         ext = ".mp4"
     elif reencode or any(p.mode != "all" for p in pieces):
@@ -881,7 +932,7 @@ def build(pieces: list[Piece], cancel=None, made_path=None) -> tuple[bool, str]:
                     made_path.append(dest)
                 dur = _duration_of(dest)
                 return True, (
-                    f"Creato {os.path.basename(dest)}, {speak_duration(dur)}, "
+                    f"Creato {spoken_result_path(dest)}, {speak_duration(dur)}, "
                     "nella stessa cartella."
                 )
         if cancel is not None and cancel.is_set():
@@ -942,7 +993,7 @@ def build(pieces: list[Piece], cancel=None, made_path=None) -> tuple[bool, str]:
             made_path.append(dest)
         dur = _duration_of(dest)
         return True, (
-            f"Creato {os.path.basename(dest)}, {speak_duration(dur)}, "
+            f"Creato {spoken_result_path(dest)}, {speak_duration(dur)}, "
             "nella stessa cartella."
         )
     finally:

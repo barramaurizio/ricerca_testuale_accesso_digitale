@@ -43,11 +43,11 @@ Scorciatoia solo controllo: **`verifica_versioni.bat`**.
 ## Cosa resta sempre a te
 
 1. Scrivere/implementare le novità (con Cursor o a mano).  
-2. Completare i bullet in `docs/NOTE_RILASCIO_…` e nel changelog.  
+2. Completare i bullet in `docs/NOTE_RILASCIO_…` e nel changelog, **incluso** il blocco in fondo «GitHub Desktop — Commit» (`Summary:` + `Description:`). Senza quello, Desktop non ha i testi pronti.  
 3. Test Standalone + Add-on.  
 4. `Standalone\compila.bat` → Inno Setup → Portable.  
 5. Pulizia: elimina `build\` e `*.spec`; **non** commitare `dist\` / `InstallerOutput\`.  
-6. GitHub Desktop → Commit → Push.  
+6. GitHub Desktop → Commit (incolla Summary/Description dalle note) → Push.  
 7. Due Release Web + issue addon-datastore.
 
 ## GitHub Desktop / Web: sync automatica?

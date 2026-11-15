@@ -5008,15 +5008,16 @@ def _download_url_bytes(url: str, timeout: int):
     return data, ctype, final_url
 
 
-def post_piece(text: str, limit: int = 80) -> str:
-    """Pezzo breve del commento, se la pagina ha consegnato proprio quello.
+def post_piece(text: str, limit: int = 240) -> str:
+    """Pezzo del commento per il nome file, se la pagina ha consegnato proprio quello.
 
-    Un nome di sito, un invito ad accedere o un indirizzo non sono il post.
+    Stesso tetto dei video / titolo pagina (~240). Un nome di sito, un invito
+    ad accedere o un indirizzo da solo non sono il post.
     """
     raw = html.unescape(text or "")
     raw = re.sub(r"\s+", " ", raw).strip()
     wrapped = re.match(
-        r"^.{1,80}?\s+on\s+(?:X|Twitter)\s*:\s*[\"“](.+?)[\"”]\s*$",
+        rf"^.{{1,{int(limit)}}}?\s+on\s+(?:X|Twitter)\s*:\s*[\"“](.+?)[\"”]\s*$",
         raw,
         re.I,
     )
@@ -5034,7 +5035,7 @@ def post_piece(text: str, limit: int = 80) -> str:
         return ""
     if low.startswith(("http://", "https://")):
         return ""
-    if re.fullmatch(r".{1,80}\s+on\s+(?:x|twitter)", low):
+    if re.fullmatch(rf".{{1,{int(limit)}}}\s+on\s+(?:x|twitter)", low):
         return ""
     walls = (
         "log in to", "sign up to", "accedi per", "accedi a",

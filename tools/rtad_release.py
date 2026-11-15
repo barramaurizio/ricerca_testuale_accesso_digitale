@@ -117,6 +117,25 @@ def collect_versions() -> dict[str, str | None]:
     }
 
 
+def check_notes_commit_block(version: str) -> None:
+    """Avvisa se manca Summary/Description per GitHub Desktop in NOTE_RILASCIO."""
+    path = ROOT / "docs" / f"NOTE_RILASCIO_{version}.txt"
+    print("\n=== Note di rilascio (Commit Desktop) ===")
+    if not path.exists():
+        print(f"  ATTENZIONE: manca {path.name}")
+        return
+    text = read_text(path)
+    has_header = "GitHub Desktop — Commit" in text
+    has_summary = bool(re.search(r"(?m)^Summary:\s*\nAggiornamento Standalone e Add-on alla v", text))
+    has_desc = bool(re.search(r"(?m)^Description:\s*\n(?!\(scrivi)", text))
+    placeholder = "(scrivi 2-4 righe" in text
+    if has_header and has_summary and has_desc and not placeholder:
+        print(f"  OK: {path.name} ha Summary e Description per Desktop")
+    else:
+        print(f"  ATTENZIONE: completa in fondo a {path.name} il blocco")
+        print("  «GitHub Desktop — Commit» con Summary: e Description: (non il placeholder).")
+
+
 def cmd_check(_: argparse.Namespace) -> None:
     versions = collect_versions()
     print("=== Verifica allineamento versioni ===\n")
@@ -130,6 +149,7 @@ def cmd_check(_: argparse.Namespace) -> None:
     print()
     if len(unique) == 1:
         print(f"OK: tutte allineate a {present[0]}")
+        check_notes_commit_block(present[0])
         print_manual_checklist(present[0], include_build_hints=False)
     else:
         print("ATTENZIONE: versioni NON allineate.")

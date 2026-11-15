@@ -1,0 +1,96 @@
+🌟 Novità della Versione 2.0.4
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.4
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.
+- Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.
+- Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.
+- Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- Save image and post descriptions: if the page delivers the post text, the file name uses that text as long as possible, up to about 240 characters, as already for videos. Before, it was a short piece at 80. If the text includes a URL with other words, it may stay. Text that is only an address does not become the name. With more photos of the same post, 1, 2, 3 or 4 remain. It works in the Standalone and in the Add-on.
+- After Save video or Save audio, Taglia e unisci, or Converti, from the result use the file already saved: same folder and same title, not the temporary file in Temp. On the report, Enter on Taglia e unisci, or a click, or Enter on Converti, or a click, opens that window on the saved file. The cut file is named title-taglio. If the result stays in Temp, Status and Done say the full path.
+- Joining audio or video: with two files, Enter on Unisci, or a click, writes name1-unione-name2. If the titles are long, the beginning of both remains. From three files up: the first two names and e-N. If the name already exists, -2 is added. The original file stays as it is.
+- In the installed Standalone, the Installer puts the shortcut in Send to (shell:sendto). It points to the installed exe and follows updates. It is not a full copy of the exe. Portable and Add-on: no automatic Send to.
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.4.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.4
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.4
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.4.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.4.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Nome post fino a ~240. Dopo Salva A/V, Taglia/Converti sul file salvato; unione nome1-unione-nome2. Installer: Invia a. NVDA testata: 2026.3.1.
+
+Summary EN:
+Post name up to ~240. After Save A/V, Cut/Convert use the saved file; join name1-unione-name2. Installer: Send to. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.4/ricerca_testuale_accesso_digitale-2.0.4.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.4
+
+Description:
+Nome post fino a ~240 caratteri, come già per i video.
+Dopo Salva A/V, Taglia/Converti sul file salvato; unione nome1-unione-nome2.
+Installer: collegamento in Invia a (SendTo).

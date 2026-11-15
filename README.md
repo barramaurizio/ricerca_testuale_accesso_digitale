@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.3)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.4)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.4
+
+- Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.
+- Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.
+- Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.
+- Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.
+- Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
 
 ### 🌟 Novità della Versione 2.0.3
 
@@ -381,6 +389,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.4
+
+- Save image and post descriptions: if the page delivers the post text, the file name uses that text as long as possible, up to about 240 characters, as already for videos. Before, it was a short piece at 80. If the text includes a URL with other words, it may stay. Text that is only an address does not become the name. With more photos of the same post, 1, 2, 3 or 4 remain. It works in the Standalone and in the Add-on.
+- After Save video or Save audio, Taglia e unisci, or Converti, from the result use the file already saved: same folder and same title, not the temporary file in Temp. On the report, Enter on Taglia e unisci, or a click, or Enter on Converti, or a click, opens that window on the saved file. The cut file is named title-taglio. If the result stays in Temp, Status and Done say the full path.
+- Joining audio or video: with two files, Enter on Unisci, or a click, writes name1-unione-name2. If the titles are long, the beginning of both remains. From three files up: the first two names and e-N. If the name already exists, -2 is added. The original file stays as it is.
+- In the installed Standalone, the Installer puts the shortcut in Send to (shell:sendto). It points to the installed exe and follows updates. It is not a full copy of the exe. Portable and Add-on: no automatic Send to.
+- From 2.0.3: With Ctrl+Alt+V, or Describe from URL, if the post has more than one image (on X up to four), a list appears with a checkbox next to each one, all on. Space on the checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another; the title says «Descrizione immagine (2 di 4)». Enter on Solo la prima, or a click, takes only the first. The file name stays the post text; with more photos, 1, 2, 3 or 4 is added. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
 
 ### 🌟 What's New in Version 2.0.3
 

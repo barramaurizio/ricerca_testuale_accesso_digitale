@@ -9,6 +9,8 @@ Maurizio si fida del controllo. Non dire «puoi compilare», «è pronto» o «d
 
 Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «versione 1.8.8» non basta: il primo punto può essere ancora quello della versione precedente. È il buco della 1.8.8: guide pratiche nuove, finestra di benvenuto e sezione HTML ancora sui punti di lettura della 1.8.7.
 
+**Annotazioni e indicazioni, con scrupolo.** Ogni frase «Resta dalla…», «come nella…», Summary Desktop, Summary store, primi punti novità: devono nominare la versione che ha **introdotto** quella funzione, non «l’ultima pubblicata» per abitudine. Esempio: i post con più immagini sono della **2.0.3**; la 2.0.4 era nomi lunghi e Taglia/Converti — scrivere «come nella 2.0.4» lì sarebbe sbagliato. Se una riga può far pensare che saltiamo una versione, chiariscila («già dalla 2.0.3», «non toccati») prima del commit Desktop.
+
 ## Obbligo, in quest’ordine
 
 1. `python tools/rtad_release.py check` → **OK tutte allineate**. Copre `APP_VERSION`, `manifest.ini`, `setup.iss`, `version.txt`, `compila.bat`, titolo del `README.md`.

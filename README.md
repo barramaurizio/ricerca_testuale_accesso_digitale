@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.4)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.5)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,10 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.5
+
+- Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
 
 ### 🌟 Novità della Versione 2.0.4
 
@@ -389,6 +393,10 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.5
+
+- With Ctrl+Alt+V, or Describe from URL, on any page with more than one image, a list appears with a checkbox next to each one. Space on Nascondi icone piccole, or a click, turns that filter off and also shows icons; when it is on, icons stay out. Space on each image checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another. Enter on Solo la prima, or a click, takes only the first. If the page provides a title or comment, the file name uses that text; with more photos, 1, 2, 3… is added. Posts with more images stay as in 2.0.3. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
 
 ### 🌟 What's New in Version 2.0.4
 

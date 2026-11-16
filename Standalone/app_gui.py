@@ -125,7 +125,7 @@ except ImportError:
     rtad_picker = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.4"
+APP_VERSION = "2.0.5"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -13263,7 +13263,7 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
+            "• Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
             "• Resta dalla 2.0.2: Salva immagine, se la pagina consegna il testo del post, propone il testo del post come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.\n"
             "• Resta dalla 2.0.2: Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\\Roaming\\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»\n"
             "• Resta dalla 2.0.1: Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.\n"
@@ -16424,32 +16424,147 @@ class MainWindow(wx.Frame):
         else:
             dlg.Destroy()
 
-    def _choose_post_images(self, image_urls):
-        """Caselle sulle foto del post. Restituisce gli URL scelti, o []."""
+    def _choose_post_images(self, image_urls, kind="post", image_infos=None):
+        """Caselle sulle foto. Restituisce gli URL scelti, o [].
+
+        kind=post: come nella 2.0.3. kind=page: filtro Nascondi icone piccole.
+        """
+        kind_l = (kind or "post").strip().lower() or "post"
+        infos = [
+            row
+            for row in (image_infos or [])
+            if isinstance(row, dict) and (row.get("url") or "").strip()
+        ]
         urls = [u for u in (image_urls or []) if (u or "").strip()]
-        if not urls:
+        if kind_l != "page":
+            if not urls:
+                return []
+            if len(urls) == 1:
+                return list(urls)
+            hint = rtad_ocr.post_images_choice_hint(len(urls))
+            dlg = wx.Dialog(
+                self,
+                title="Immagini del post",
+                style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+            )
+            panel = wx.Panel(dlg)
+            vbox = wx.BoxSizer(wx.VERTICAL)
+            text = wx.StaticText(panel, label=hint)
+            text.Wrap(520)
+            vbox.Add(text, 0, wx.ALL | wx.EXPAND, 12)
+            boxes = []
+            for i in range(1, len(urls) + 1):
+                label = f"Immagine {i}"
+                box = wx.CheckBox(panel, label=label)
+                box.SetName(label)
+                box.SetValue(True)
+                boxes.append(box)
+                vbox.Add(box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+            row = wx.BoxSizer(wx.HORIZONTAL)
+            btn_go = wx.Button(panel, wx.ID_OK, "Scarica e descrivi")
+            btn_first = wx.Button(panel, wx.ID_ANY, "Solo la prima")
+            btn_cancel = wx.Button(panel, wx.ID_CANCEL, "Annulla")
+            row.Add(btn_go, 0, wx.ALL, 5)
+            row.Add(btn_first, 0, wx.ALL, 5)
+            row.Add(btn_cancel, 0, wx.ALL, 5)
+            vbox.Add(row, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+            panel.SetSizer(vbox)
+            outer = wx.BoxSizer(wx.VERTICAL)
+            outer.Add(panel, 1, wx.EXPAND)
+            dlg.SetSizerAndFit(outer)
+            btn_go.SetDefault()
+            first_only = {"value": False}
+
+            def _only_first(event=None):
+                first_only["value"] = True
+                dlg.EndModal(wx.ID_OK)
+
+            btn_first.Bind(wx.EVT_BUTTON, _only_first)
+            try:
+                dlg.CentreOnParent()
+            except Exception:
+                pass
+            speak_accessible(hint)
+            first_box = boxes[0] if boxes else btn_go
+            wx.CallAfter(first_box.SetFocus)
+            code = dlg.ShowModal()
+            selected = []
+            if code == wx.ID_OK:
+                if first_only["value"]:
+                    selected = [urls[0]]
+                else:
+                    selected = [
+                        urls[i] for i, box in enumerate(boxes) if box.GetValue()
+                    ]
+            dlg.Destroy()
+            if code != wx.ID_OK:
+                return []
+            if not selected:
+                msg = (
+                    "Nessuna immagine selezionata. "
+                    "Spazio sulla casella, o un clic, ne accende almeno una."
+                )
+                try:
+                    self.txt_status_progress.SetValue(msg)
+                except Exception:
+                    pass
+                speak_accessible(msg)
+                return []
+            return selected
+
+        # Pagina qualsiasi: filtro + caselle vere (wx.CheckBox).
+        # Non usare CheckListBox: in NVDA spesso non espone le caselle.
+        if not infos and urls:
+            infos = [
+                {"url": u, "width": 0, "height": 0, "alt": ""} for u in urls
+            ]
+        if not infos:
             return []
-        if len(urls) == 1:
-            return list(urls)
-        hint = rtad_ocr.post_images_choice_hint(len(urls))
+        state = {
+            "hide_icons": True,
+            "rows": [],
+            "first_only": False,
+            "checked_urls": set(),
+            "loaded": False,
+            "boxes": [],
+        }
+
+        def _visible_rows():
+            rows = rtad_ocr.filter_page_image_infos(
+                infos, hide_icons=bool(state["hide_icons"])
+            )
+            if not rows and infos:
+                return []
+            return rows
+
+        state["rows"] = _visible_rows()
+        if len(state["rows"]) == 1 and len(infos) == 1:
+            return [state["rows"][0]["url"]]
+
         dlg = wx.Dialog(
             self,
-            title="Immagini del post",
+            title="Immagini della pagina",
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         panel = wx.Panel(dlg)
         vbox = wx.BoxSizer(wx.VERTICAL)
-        text = wx.StaticText(panel, label=hint)
-        text.Wrap(520)
-        vbox.Add(text, 0, wx.ALL | wx.EXPAND, 12)
-        boxes = []
-        for i in range(1, len(urls) + 1):
-            label = f"Immagine {i}"
-            box = wx.CheckBox(panel, label=label)
-            box.SetName(label)
-            box.SetValue(True)
-            boxes.append(box)
-            vbox.Add(box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        hint_text = wx.StaticText(panel, label="")
+        hint_text.Wrap(560)
+        vbox.Add(hint_text, 0, wx.ALL | wx.EXPAND, 12)
+        filter_box = wx.CheckBox(panel, label="Nascondi icone piccole")
+        filter_box.SetName("Nascondi icone piccole")
+        filter_box.SetValue(True)
+        vbox.Add(filter_box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        scroll = wx.ScrolledWindow(panel, style=wx.VSCROLL)
+        scroll.SetScrollRate(0, 20)
+        scroll.SetMinSize((520, 240))
+        scroll.SetName("Immagini della pagina")
+        scroll_sizer = wx.BoxSizer(wx.VERTICAL)
+        scroll.SetSizer(scroll_sizer)
+        vbox.Add(scroll, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        empty_label = wx.StaticText(panel, label="")
+        empty_label.Wrap(520)
+        vbox.Add(empty_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         row = wx.BoxSizer(wx.HORIZONTAL)
         btn_go = wx.Button(panel, wx.ID_OK, "Scarica e descrivi")
         btn_first = wx.Button(panel, wx.ID_ANY, "Solo la prima")
@@ -16461,30 +16576,101 @@ class MainWindow(wx.Frame):
         panel.SetSizer(vbox)
         outer = wx.BoxSizer(wx.VERTICAL)
         outer.Add(panel, 1, wx.EXPAND)
-        dlg.SetSizerAndFit(outer)
+        dlg.SetSizer(outer)
+        dlg.SetMinSize((580, 420))
+        dlg.Fit()
         btn_go.SetDefault()
-        first_only = {"value": False}
+
+        def _remember_checks():
+            kept = set(state.get("checked_urls") or set())
+            rows_now = state.get("rows") or []
+            boxes = state.get("boxes") or []
+            for i, info in enumerate(rows_now):
+                url = (info.get("url") or "").strip()
+                if not url or i >= len(boxes):
+                    continue
+                if boxes[i].GetValue():
+                    kept.add(url)
+                else:
+                    kept.discard(url)
+            state["checked_urls"] = kept
+
+        def _refresh(speak=False):
+            if state.get("loaded"):
+                _remember_checks()
+            state["hide_icons"] = bool(filter_box.GetValue())
+            state["rows"] = _visible_rows()
+            rows = state["rows"]
+            hint = rtad_ocr.page_images_choice_hint(
+                len(rows), hide_icons=state["hide_icons"]
+            )
+            hint_text.SetLabel(hint)
+            hint_text.Wrap(560)
+            scroll_sizer.Clear(True)
+            boxes = []
+            if not state.get("loaded"):
+                state["checked_urls"] = {
+                    (info.get("url") or "").strip() for info in rows if info.get("url")
+                }
+                state["loaded"] = True
+            chosen = state.get("checked_urls") or set()
+            for i, info in enumerate(rows, start=1):
+                label = rtad_ocr.page_image_label(i, info)
+                box = wx.CheckBox(scroll, label=label)
+                box.SetName(label)
+                url = (info.get("url") or "").strip()
+                box.SetValue(bool(url and url in chosen))
+                boxes.append(box)
+                scroll_sizer.Add(box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+            state["boxes"] = boxes
+            scroll.FitInside()
+            if rows:
+                empty_label.SetLabel("")
+                btn_go.Enable(True)
+                btn_first.Enable(True)
+            else:
+                empty_msg = (
+                    "Nessuna immagine con questo filtro. "
+                    "Spazio sulla casella Nascondi icone piccole, o un clic, la spegne."
+                )
+                empty_label.SetLabel(empty_msg)
+                btn_go.Enable(False)
+                btn_first.Enable(False)
+            dlg.Layout()
+            if speak:
+                speak_accessible(hint if rows else empty_label.GetLabel())
+
+        def _on_filter(event=None):
+            _refresh(speak=True)
 
         def _only_first(event=None):
-            first_only["value"] = True
+            state["first_only"] = True
             dlg.EndModal(wx.ID_OK)
 
+        filter_box.Bind(wx.EVT_CHECKBOX, _on_filter)
         btn_first.Bind(wx.EVT_BUTTON, _only_first)
+        _refresh(speak=False)
         try:
             dlg.CentreOnParent()
         except Exception:
             pass
-        speak_accessible(hint)
-        first_box = boxes[0] if boxes else btn_go
-        wx.CallAfter(first_box.SetFocus)
+        speak_accessible(hint_text.GetLabel())
+        boxes = state.get("boxes") or []
+        focus = boxes[0] if boxes else filter_box
+        wx.CallAfter(focus.SetFocus)
         code = dlg.ShowModal()
         selected = []
         if code == wx.ID_OK:
-            if first_only["value"]:
-                selected = [urls[0]]
+            rows = state["rows"]
+            boxes = state.get("boxes") or []
+            if state["first_only"]:
+                if rows:
+                    selected = [rows[0]["url"]]
             else:
                 selected = [
-                    urls[i] for i, box in enumerate(boxes) if box.GetValue()
+                    rows[i]["url"]
+                    for i, box in enumerate(boxes)
+                    if i < len(rows) and box.GetValue()
                 ]
         dlg.Destroy()
         if code != wx.ID_OK:
@@ -16584,8 +16770,40 @@ class MainWindow(wx.Frame):
 
         _next()
 
+    def _is_av_web_url(self, url):
+        """True se l'indirizzo è audio/video (YouTube, file diretto, stream), non una pagina foto."""
+        raw = (url or "").strip()
+        if not raw.lower().startswith(("http://", "https://")):
+            return False
+        if rtad_media is None:
+            return False
+        try:
+            return bool(
+                rtad_media.is_page_media_url(raw)
+                or rtad_media.is_likely_direct_media_url(raw)
+                or rtad_media.is_stream_manifest_url(raw)
+            )
+        except Exception:
+            return False
+
+    def _open_av_from_pasted_url(self, url):
+        """YouTube e simili: restano in elenco come prima (2.0.4), senza passare dalle immagini."""
+        url = (url or "").strip()
+        if not self._is_av_web_url(url):
+            return False
+        # I post social con foto (X, Instagram…) restano sul percorso immagini.
+        if rtad_ocr is not None:
+            try:
+                if rtad_ocr.is_social_post_url(url) or rtad_ocr.is_likely_image_url(url):
+                    return False
+            except Exception:
+                pass
+        # Come Ctrl+Alt+V fino alla 2.0.4: indirizzo in elenco; l'hub si apre dal menu.
+        self.show_internet_url_in_list(url)
+        return True
+
     def _open_image_from_pasted_url(self, url):
-        """Ctrl+Alt+V su un post o su una foto: stessa descrizione, e il nome del post se c'è."""
+        """Ctrl+Alt+V su post, pagina o foto: descrizione, e il nome se la pagina lo dà."""
         url = (url or "").strip()
         if rtad_ocr is None:
             return False
@@ -16594,9 +16812,16 @@ class MainWindow(wx.Frame):
             post = rtad_ocr.is_social_post_url(url)
         except Exception:
             return False
-        if not image and not post:
+        http = url.lower().startswith("http://") or url.lower().startswith("https://")
+        # YouTube, Vimeo, Shorts… non sono pagine di foto: restano in elenco come prima.
+        av = (not image) and (not post) and http and self._is_av_web_url(url)
+        if av:
             return False
-        msg = rtad_ocr.pasted_image_wait(url)
+        page_url = (not image) and (not post) and http
+        if not image and not post and not page_url:
+            return False
+        kind = "image" if image else ("post" if post else "page")
+        msg = rtad_ocr.pasted_image_wait(url, kind=kind)
         try:
             self.txt_status_progress.SetValue(msg)
         except Exception:
@@ -16605,7 +16830,7 @@ class MainWindow(wx.Frame):
 
         def _work():
             try:
-                if post:
+                if post or page_url:
                     res = rtad_ocr.resolve_pasted_image(url, download=False)
                 else:
                     res = rtad_ocr.resolve_pasted_image(url)
@@ -16613,8 +16838,9 @@ class MainWindow(wx.Frame):
                 res = {
                     "ok": False,
                     "error": str(exc),
-                    "kind": "image" if image else "post",
+                    "kind": kind,
                     "image_urls": [],
+                    "image_infos": [],
                 }
 
             def _done():
@@ -16625,10 +16851,18 @@ class MainWindow(wx.Frame):
                 ]
                 if not urls and (res.get("image_url") or "").strip():
                     urls = [(res.get("image_url") or "").strip()]
+                infos = [
+                    row
+                    for row in (res.get("image_infos") or [])
+                    if isinstance(row, dict) and (row.get("url") or "").strip()
+                ]
                 page = (res.get("page_url") or "").strip()
                 found = (res.get("post_text") or "").strip()
-                if res.get("kind") == "post" and len(urls) > 1:
-                    if not res.get("ok") and not urls:
+                res_kind = (res.get("kind") or kind or "").strip().lower()
+                if res_kind in ("post", "page") and (
+                    len(urls) > 1 or (res_kind == "page" and len(infos) > 1)
+                ):
+                    if not res.get("ok") and not urls and not infos:
                         err = (
                             res.get("error") or "Download immagine non riuscito."
                         ).strip()
@@ -16642,7 +16876,11 @@ class MainWindow(wx.Frame):
                             pass
                         speak_accessible(err)
                         return
-                    chosen = self._choose_post_images(urls)
+                    chosen = self._choose_post_images(
+                        urls,
+                        kind=res_kind,
+                        image_infos=infos,
+                    )
                     if not chosen:
                         return
                     self._describe_post_image_urls(
@@ -16654,7 +16892,7 @@ class MainWindow(wx.Frame):
                     return
                 if not res.get("ok") or not res.get("path"):
                     err = (res.get("error") or "Download immagine non riuscito.").strip()
-                    if res.get("kind") == "post":
+                    if res_kind in ("post", "page"):
                         self.show_internet_url_in_list(url, announce=False, fetch=False)
                         err = err + " L'indirizzo resta in elenco."
                     try:
@@ -16712,6 +16950,8 @@ class MainWindow(wx.Frame):
         if len(paths) == 1:
             one = paths[0]
             if isinstance(one, str) and one.lower().startswith(("http://", "https://")):
+                if self._open_av_from_pasted_url(one):
+                    return
                 if self._open_image_from_pasted_url(one):
                     return
             self.apply_search_path(one, offer_open=os.path.isfile(one))
@@ -21797,9 +22037,10 @@ class MainWindow(wx.Frame):
         if not url:
             dlg = wx.TextEntryDialog(
                 self,
-                "Incolla l'indirizzo della foto, oppure l'indirizzo del post.\n"
-                "Con il post, se la pagina consegna il commento, il nome del file è quel testo.\n"
-                "Con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post:",
+                "Incolla l'indirizzo della foto, del post, o di una pagina qualsiasi.\n"
+                "Su una pagina con più immagini: elenco, filtro sulle icone e caselle.\n"
+                "Se la pagina consegna titolo o commento, il nome del file usa quel testo.\n"
+                "Con solo la foto, se l'hai già descritta con la pagina, il nome resta quello:",
                 "Descrivi immagine da URL",
                 "",
             )
@@ -21810,6 +22051,8 @@ class MainWindow(wx.Frame):
             dlg.Destroy()
         if not url:
             speak_accessible("URL non inserito.")
+            return
+        if self._open_av_from_pasted_url(url):
             return
         if self._open_image_from_pasted_url(url):
             return
@@ -21887,6 +22130,8 @@ class MainWindow(wx.Frame):
             or url_text.lower().startswith("http://")
             or url_text.lower().startswith("https://")
         ):
+            if self._open_av_from_pasted_url(url_text):
+                return
             if self._open_image_from_pasted_url(url_text):
                 return
             speak_accessible("Download immagine dall'URL negli appunti…")

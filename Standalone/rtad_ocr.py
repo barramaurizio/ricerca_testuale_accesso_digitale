@@ -5076,7 +5076,7 @@ def post_text_from_html(html_text: str) -> str:
     return ""
 
 
-def _fetch_html(page_url: str, timeout: int = 8) -> str:
+def _fetch_html(page_url: str, timeout: int = 8, max_bytes: int = 400_000) -> str:
     """Legge il testo della pagina. Se arriva un file, stringa vuota."""
     url = (page_url or "").strip()
     if not url.lower().startswith(("http://", "https://")):
@@ -5094,7 +5094,7 @@ def _fetch_html(page_url: str, timeout: int = 8) -> str:
             ctype = (resp.headers.get("Content-Type") or "").lower()
             if ctype and "html" not in ctype and "xml" not in ctype and "text" not in ctype:
                 return ""
-            data = resp.read(400_000)
+            data = resp.read(max(40_000, int(max_bytes or 400_000)))
         return data.decode("utf-8", "replace")
     except Exception:
         return ""
@@ -5106,6 +5106,30 @@ def fetch_page_post_text(page_url: str, timeout: int = 8) -> str:
 
 
 _POST_IMAGE_LIMIT = 4
+_PAGE_IMAGE_LIMIT = 40
+_PAGE_HTML_MAX_BYTES = 800_000
+_ICON_MAX_EDGE = 64
+
+
+def page_title_from_html(html_text: str) -> str:
+    """Titolo della pagina dai meta o dal tag title, se c'è."""
+    if not html_text:
+        return ""
+    patterns = (
+        r'<meta[^>]+property=["\']og:title["\'][^>]*content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*property=["\']og:title["\']',
+        r'<meta[^>]+name=["\']twitter:title["\'][^>]*content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*name=["\']twitter:title["\']',
+        r"<title[^>]*>(.*?)</title>",
+    )
+    for pattern in patterns:
+        found = re.search(pattern, html_text, re.I | re.S)
+        if not found:
+            continue
+        piece = post_piece(html.unescape(found.group(1) or ""))
+        if piece:
+            return piece
+    return ""
 
 
 def _media_image_key(url: str) -> str:
@@ -5118,11 +5142,17 @@ def _media_image_key(url: str) -> str:
     if host.startswith("www."):
         host = host[4:]
     path = urllib.parse.unquote(parsed.path or "").rstrip("/")
-    stem, ext = os.path.splitext(path)
+    stem_path, ext = os.path.splitext(path)
     if ext.lower() in _IMG_EXTS or ext.lower() in {".webp"}:
-        path = stem
+        path = stem_path
     if not host or not path:
         return ""
+    # CDN tipo Juventus/Cloudinary: stesso id con o senza trasformazioni.
+    last = os.path.basename(path)
+    if re.fullmatch(r"[A-Za-z0-9]{12,}", last or ""):
+        low = path.lower()
+        if "/dev/" in low or "/upload/" in low or "/image/" in low:
+            return host + "/cdn/" + last.lower()
     return host + path
 
 
@@ -5208,6 +5238,280 @@ def image_url_from_html(html_text: str) -> str:
     return urls[0] if urls else ""
 
 
+def _absolute_page_url(base_url: str, raw: str) -> str:
+    """Rende assoluto un indirizzo relativo alla pagina."""
+    cand = html.unescape((raw or "").strip()).replace("&amp;", "&")
+    if not cand or cand.lower().startswith(
+        ("data:", "javascript:", "blob:", "about:", "#")
+    ):
+        return ""
+    if cand.lower().startswith("//"):
+        try:
+            scheme = urllib.parse.urlparse(base_url or "").scheme or "https"
+        except Exception:
+            scheme = "https"
+        cand = f"{scheme}:{cand}"
+    if not cand.lower().startswith(("http://", "https://")):
+        try:
+            cand = urllib.parse.urljoin(base_url or "", cand)
+        except Exception:
+            return ""
+    if not cand.lower().startswith(("http://", "https://")):
+        return ""
+    try:
+        path = urllib.parse.urlparse(cand).path.lower()
+    except Exception:
+        return ""
+    if path.endswith(".svg"):
+        return ""
+    return cand
+
+
+def _best_srcset_url(srcset: str) -> str:
+    """Prende l'indirizzo più grande da un attributo srcset."""
+    best = ""
+    best_score = -1.0
+    for part in re.split(r"\s*,\s*", srcset or ""):
+        piece = (part or "").strip()
+        if not piece:
+            continue
+        bits = piece.split()
+        cand = bits[0] if bits else ""
+        score = 1.0
+        if len(bits) >= 2:
+            mark = bits[1].lower()
+            if mark.endswith("w"):
+                try:
+                    score = float(mark[:-1])
+                except Exception:
+                    score = 1.0
+            elif mark.endswith("x"):
+                try:
+                    score = float(mark[:-1]) * 1000.0
+                except Exception:
+                    score = 1.0
+        if cand and score >= best_score:
+            best = cand
+            best_score = score
+    return best
+
+
+def _html_attr(tag: str, name: str) -> str:
+    """Valore di un attributo in un tag HTML, se c'è."""
+    found = re.search(
+        rf'\b{re.escape(name)}\s*=\s*(["\'])(.*?)\1',
+        tag or "",
+        re.I | re.S,
+    )
+    if found:
+        return html.unescape(found.group(2) or "").strip()
+    found = re.search(
+        rf"\b{re.escape(name)}\s*=\s*([^\s>]+)",
+        tag or "",
+        re.I,
+    )
+    if found:
+        return html.unescape((found.group(1) or "").strip("\"'"))
+    return ""
+
+
+def _html_size_attr(tag: str, name: str) -> int:
+    """Larghezza o altezza numerica da attributo HTML."""
+    raw = _html_attr(tag, name)
+    if not raw:
+        return 0
+    found = re.match(r"(\d+)", raw.strip())
+    if not found:
+        return 0
+    try:
+        return max(0, int(found.group(1)))
+    except Exception:
+        return 0
+
+
+def _looks_like_icon_url(url: str) -> bool:
+    """True se l'indirizzo sembra un'icona, un pixel o un badge."""
+    raw = (url or "").strip().lower()
+    if not raw:
+        return True
+    try:
+        parsed = urllib.parse.urlparse(raw)
+        path = urllib.parse.unquote(parsed.path or "").lower()
+        name = os.path.basename(path)
+    except Exception:
+        path = raw
+        name = raw
+    if path.endswith(".ico"):
+        return True
+    marks = (
+        "favicon",
+        "/icon/",
+        "/icons/",
+        "/sprite",
+        "sprite.",
+        "/badge",
+        "badge.",
+        "pixel.",
+        "1x1",
+        "/emoji",
+        "tracking",
+        "spacer",
+        "blank.gif",
+        "logo-small",
+        "avatar-small",
+        "thumb_small",
+        "placeholder",
+        "grey-placehold",
+        "gray-placehold",
+        "spacer.gif",
+        "transparent.gif",
+        "/assets/logo",
+        "logo_white",
+        "logo_black",
+        "logo_dark",
+        "logo_light",
+    )
+    if any(mark in path for mark in marks):
+        return True
+    if re.search(r"(?:^|[-_/])(?:icon|favicon|logo)(?:[-_.]|$)", name):
+        return True
+    if re.search(r"(?:^|[-_])(?:icon|favicon)(?:[-_.]|$)", name):
+        return True
+    if re.search(r"(?:^|[-_])(?:\d{1,2})x(?:\d{1,2})(?:[-_.]|$)", name):
+        try:
+            wh = re.search(r"(\d{1,2})x(\d{1,2})", name)
+            if wh and max(int(wh.group(1)), int(wh.group(2))) <= _ICON_MAX_EDGE:
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def is_page_icon_image(url: str, width: int = 0, height: int = 0) -> bool:
+    """True se larghezza/altezza o indirizzo dicono che è un'icona piccola."""
+    w = max(0, int(width or 0))
+    h = max(0, int(height or 0))
+    if w > 0 and h > 0:
+        if max(w, h) < _ICON_MAX_EDGE:
+            return True
+        if max(w, h) < 96 and min(w, h) <= 32:
+            return True
+    return _looks_like_icon_url(url)
+
+
+def page_image_infos_from_html(
+    html_text: str,
+    base_url: str = "",
+    limit: int = _PAGE_IMAGE_LIMIT,
+) -> list:
+    """Immagini di una pagina qualsiasi: url, width, height, alt.
+
+    Ordine della pagina. Deduplica. Salta data URI e SVG.
+    """
+    if not html_text or limit < 1:
+        return []
+    found = []
+    seen = set()
+
+    def _add(raw: str, width: int = 0, height: int = 0, alt: str = "") -> bool:
+        url = prefer_post_image_url(_absolute_page_url(base_url, raw))
+        if not url:
+            url = _absolute_page_url(base_url, raw)
+        if not url:
+            return False
+        key = _media_image_key(url) or url.lower()
+        if key in seen:
+            return False
+        seen.add(key)
+        found.append(
+            {
+                "url": url,
+                "width": max(0, int(width or 0)),
+                "height": max(0, int(height or 0)),
+                "alt": re.sub(r"\s+", " ", (alt or "").strip())[:80],
+            }
+        )
+        return len(found) >= limit
+
+    for match in re.finditer(
+        r"https://pbs\.twimg\.com/media/[A-Za-z0-9_\-]+(?:\?[^\"'\s<>]*)?",
+        html_text,
+        re.I,
+    ):
+        if _add(match.group(0)):
+            return found
+
+    patterns = (
+        r'<meta[^>]+property=["\']og:image(?::url)?["\'][^>]*content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']og:image(?::url)?["\']',
+        r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]*content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*name=["\']twitter:image(?::src)?["\']',
+        r'<link[^>]+rel=["\']image_src["\'][^>]*href=["\']([^"\']+)["\']',
+        r'<link[^>]+href=["\']([^"\']+)["\'][^>]*rel=["\']image_src["\']',
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, html_text, re.I | re.S):
+            if _add(match.group(1) or ""):
+                return found
+
+    for match in re.finditer(r"<img\b[^>]*>", html_text, re.I | re.S):
+        tag = match.group(0) or ""
+        src = _html_attr(tag, "src")
+        srcset = _html_attr(tag, "srcset")
+        cand = _best_srcset_url(srcset) if srcset else ""
+        if not cand:
+            cand = src
+        if not cand:
+            continue
+        if _add(
+            cand,
+            width=_html_size_attr(tag, "width"),
+            height=_html_size_attr(tag, "height"),
+            alt=_html_attr(tag, "alt"),
+        ):
+            return found
+
+    for match in re.finditer(r"<source\b[^>]*>", html_text, re.I | re.S):
+        tag = match.group(0) or ""
+        srcset = _html_attr(tag, "srcset")
+        src = _html_attr(tag, "src")
+        cand = _best_srcset_url(srcset) if srcset else src
+        if not cand:
+            continue
+        if _add(cand):
+            return found
+
+    return found
+
+
+def filter_page_image_infos(infos: list, hide_icons: bool = True) -> list:
+    """Toglie le icone piccole se hide_icons è acceso."""
+    rows = [row for row in (infos or []) if isinstance(row, dict) and row.get("url")]
+    if not hide_icons:
+        return list(rows)
+    kept = []
+    for row in rows:
+        if is_page_icon_image(
+            row.get("url") or "",
+            row.get("width") or 0,
+            row.get("height") or 0,
+        ):
+            continue
+        kept.append(row)
+    return kept
+
+
+def page_image_label(index: int, info: dict = None) -> str:
+    """Etichetta elenco: Immagine N, e alt breve se c'è."""
+    n = max(1, int(index or 1))
+    alt = ""
+    if isinstance(info, dict):
+        alt = re.sub(r"\s+", " ", (info.get("alt") or "").strip())
+    if alt and len(alt) >= 3:
+        return f"Immagine {n}: {alt[:60]}"
+    return f"Immagine {n}"
+
+
 _SOCIAL_POST_HOSTS = {
     "x.com",
     "mobile.x.com",
@@ -5270,9 +5574,17 @@ def image_name_notice(post_text: str = "", page_url: str = "", image_url: str = 
     )
 
 
-def pasted_image_wait(url: str, count: int = 0) -> str:
+def pasted_image_wait(url: str, count: int = 0, kind: str = "") -> str:
     """Frase mentre si scarica, a schermo e a voce."""
-    if is_social_post_url(url):
+    kind_l = (kind or "").strip().lower()
+    if not kind_l:
+        if is_social_post_url(url):
+            kind_l = "post"
+        elif is_likely_image_url(url):
+            kind_l = "image"
+        elif (url or "").lower().startswith(("http://", "https://")):
+            kind_l = "page"
+    if kind_l == "post":
         if count > 1:
             return (
                 f"Il post ha {count} immagini. "
@@ -5281,15 +5593,47 @@ def pasted_image_wait(url: str, count: int = 0) -> str:
         if count == 1:
             return "Scarico l'immagine del post. Poi la descrizione, attendere."
         return "Leggo il post e le sue immagini. Attendere."
+    if kind_l == "page":
+        if count > 1:
+            return (
+                f"La pagina ha {count} immagini. "
+                "Scegli quali scaricare e descrivere, una dopo l'altra."
+            )
+        if count == 1:
+            return "Scarico l'immagine della pagina. Poi la descrizione, attendere."
+        return "Leggo la pagina e le sue immagini. Attendere."
     return "Descrizione dell'immagine dall'indirizzo. Attendere."
 
 
 def post_images_choice_hint(count: int) -> str:
-    """Istruzioni della finestra di scelta, a schermo e a voce."""
+    """Istruzioni della finestra di scelta sui post, a schermo e a voce."""
     n = max(1, int(count or 1))
     return (
         f"Il post ha {n} immagini. "
         "Spazio sulla casella, o un clic, accende o spegne ciascuna. "
+        "Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate "
+        "una dopo l'altra. Invio su Solo la prima, o un clic, prende solo la prima. "
+        "Esc chiude."
+    )
+
+
+def page_images_choice_hint(count: int, hide_icons: bool = True) -> str:
+    """Istruzioni della finestra di scelta su una pagina qualsiasi."""
+    n = max(0, int(count or 0))
+    if n <= 0:
+        return (
+            "Nessuna immagine con questo filtro. "
+            "Spazio sulla casella Nascondi icone piccole, o un clic, la spegne "
+            "e mostra anche le icone. Esc chiude."
+        )
+    filtro = (
+        "La casella Nascondi icone piccole è accesa: le icone restano fuori. "
+        if hide_icons
+        else "La casella Nascondi icone piccole è spenta: vedi anche le icone. "
+    )
+    return (
+        f"La pagina ha {n} immagini in elenco. {filtro}"
+        "Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. "
         "Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate "
         "una dopo l'altra. Invio su Solo la prima, o un clic, prende solo la prima. "
         "Esc chiude."
@@ -5310,6 +5654,9 @@ def _image_post_path() -> str:
 
 def image_post_key(url: str) -> str:
     """Chiave stabile: host e percorso, senza la query e senza l'estensione."""
+    media = _media_image_key(url)
+    if media:
+        return media
     try:
         parsed = urllib.parse.urlparse((url or "").strip())
     except Exception:
@@ -5383,6 +5730,7 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
     """Scarica la foto di un indirizzo incollato.
 
     Un post consegna il commento e le immagini della pagina (fino a quattro).
+    Una pagina qualsiasi consegna le immagini del HTML, con meta e tag img.
     Se ce n'è più di una e download è False, restituisce solo l'elenco.
     L'indirizzo della foto scarica quel file. Se quella foto era già stata
     descritta con la pagina, il commento torna insieme.
@@ -5393,6 +5741,7 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         "path": "",
         "image_url": "",
         "image_urls": [],
+        "image_infos": [],
         "page_url": "",
         "post_text": "",
         "error": "",
@@ -5413,6 +5762,7 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         out["path"] = res.get("path") or ""
         out["image_url"] = res.get("url") or raw
         out["image_urls"] = [out["image_url"]]
+        out["image_infos"] = [{"url": out["image_url"], "width": 0, "height": 0, "alt": ""}]
         out["page_url"] = known.get("page_url") or ""
         out["post_text"] = known.get("post_text") or ""
         return out
@@ -5424,6 +5774,9 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         out["page_url"] = raw
         out["post_text"] = post
         out["image_urls"] = list(images)
+        out["image_infos"] = [
+            {"url": u, "width": 0, "height": 0, "alt": ""} for u in images
+        ]
         if not images:
             out["error"] = "La pagina non consegna un'immagine."
             return out
@@ -5443,6 +5796,46 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         for extra in images[1:]:
             remember_image_post(extra, raw, post)
         return out
+
+    # Pagina qualsiasi (articolo, blog, sito)
+    out["kind"] = "page"
+    html_text = _fetch_html(raw, timeout=12, max_bytes=_PAGE_HTML_MAX_BYTES)
+    if not html_text:
+        out["error"] = "La pagina non si apre o non consegna HTML."
+        return out
+    post = post_text_from_html(html_text) or page_title_from_html(html_text)
+    infos = page_image_infos_from_html(
+        html_text, base_url=raw, limit=_PAGE_IMAGE_LIMIT
+    )
+    filtered = filter_page_image_infos(infos, hide_icons=True)
+    use_infos = filtered if filtered else list(infos)
+    images = [row.get("url") or "" for row in use_infos if row.get("url")]
+    out["page_url"] = raw
+    out["post_text"] = post
+    out["image_infos"] = list(infos)
+    out["image_urls"] = list(images)
+    if not infos:
+        out["error"] = "La pagina non consegna immagini."
+        return out
+    # Con più immagini in pagina, la scelta (e il filtro) restano alla finestra.
+    if not download and len(infos) > 1:
+        out["ok"] = True
+        out["image_url"] = images[0] if images else (infos[0].get("url") or "")
+        return out
+    image = images[0] if images else (infos[0].get("url") or "")
+    if not image:
+        out["error"] = "La pagina non consegna immagini."
+        return out
+    res = materialize_image_from_url(image)
+    if not res.get("ok") or not res.get("path"):
+        out["error"] = res.get("error") or "Download immagine non riuscito."
+        return out
+    out["ok"] = True
+    out["path"] = res.get("path") or ""
+    out["image_url"] = res.get("url") or image
+    remember_image_post(out["image_url"], raw, post)
+    for extra in images[1:]:
+        remember_image_post(extra, raw, post)
     return out
 
 
@@ -5473,6 +5866,8 @@ def suggest_image_save_stem(
     skip = {
         "status", "photo", "photos", "media", "image", "images", "img",
         "uploads", "wp-content", "content", "static", "assets", "p", "i",
+        "dev", "private", "upload", "f_auto", "t_album", "album",
+        "editorial", "landscape", "desktop", "mobile",
     }
 
     def clean(text: str) -> str:

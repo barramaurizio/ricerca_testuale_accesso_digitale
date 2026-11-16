@@ -1,0 +1,90 @@
+🌟 Novità della Versione 2.0.5
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.5
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- With Ctrl+Alt+V, or Describe from URL, on any page with more than one image, a list appears with a checkbox next to each one. Space on Nascondi icone piccole, or a click, turns that filter off and also shows icons; when it is on, icons stay out. Space on each image checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another. Enter on Solo la prima, or a click, takes only the first. If the page provides a title or comment, the file name uses that text; with more photos, 1, 2, 3… is added. Posts with more images stay as in 2.0.3. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.5.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.5
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.5
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.5.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.5.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Pagina qualsiasi: tutte le immagini, filtro icone e caselle; report uno per foto. NVDA testata: 2026.3.1.
+
+Summary EN:
+Any page: all images, icon filter and checkboxes; one report per photo. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.5/ricerca_testuale_accesso_digitale-2.0.5.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.5
+
+Description:
+Tutte le immagini di una pagina qualsiasi: filtro icone e caselle.
+Scarica e descrivi le scelte, un report per foto.
+I post con più immagini restano come già dalla 2.0.3 (non toccati).

@@ -1,0 +1,48 @@
+# RTAD — nuove funzioni senza rompere le vecchie
+
+Una novità si **aggiunge**. Non riscrive il percorso che già funzionava.
+
+## Prima di toccare un ingresso già usato
+
+Ctrl+Alt+V, Descrivi da URL, menu del risultato, Invio sull’elenco, hub audio/video, hub immagine: se già fanno una cosa, dopo la modifica devono farla **uguale**, a meno che Maurizio chieda di cambiarla.
+
+- **YouTube / Shorts / Vimeo / audio-video noti:** Ctrl+Alt+V → indirizzo in elenco (come fino alla 2.0.4). Poi pagina/file locale e menu completo. L’hub «Tutto sull’audio/video» si apre dal menu o da «Audio/video da questo URL», non da solo al posto dell’elenco.
+- **Post e pagine foto (X, gallerie, JPG):** restano sul percorso immagini (caselle vere, Scarica e descrivi / Solo la prima). Filtro icone: le caselle già scelte restano; le nuove restano spente.
+- **Menu Strumenti e menu del risultato:** stesse voci di prima; si possono solo aggiungere voci nuove, non toglierne né accorciare i rami media/immagine già presenti.
+- **File locale mp3/mp4:** domanda «Tutto sull’audio/video?»; se No, dal menu del file restano le voci media di prima (circa 20).
+
+## Come aggiungere senza rubare il flusso
+
+1. Riconosci il caso nuovo con un controllo stretto (es. galleria HTML), non con «ogni http».
+2. Se il caso è già coperto (media page, post, file locale), **return False** / lascia passare al codice vecchio.
+3. Solo il caso nuovo entra nel ramo nuovo.
+4. Standalone e Add-on: stessa regola, stessi messaggi.
+
+Esempio del buco 2.0.5: «pagina qualsiasi» aveva preso anche YouTube → niente immagini → menu ridotto. YouTube non è una pagina foto.
+
+## Smoke obbligatorio (impianto) — prima di «ok» / «puoi compilare»
+
+L’agente lo fa in codice (SA ↔ Add-on allineati) e chiede a Maurizio almeno queste prove, o le conferma se le ha già fatte. Non basta la sola novità.
+
+### Nevralgici (sempre, se si è toccato URL / elenco / menu / hub)
+
+1. **Ctrl+Alt+V su YouTube o Shorts** — indirizzo in elenco; non si apre da solo l’hub; dopo lo scarico, menu con le voci complete (non solo le 4 da URL “secco”).
+2. **Galleria o post con più foto** — caselle; filtro icone on/off con scelte che restano; Scarica e descrivi / Solo la prima.
+3. **File .mp4 (o .mp3) in elenco** — se No alla domanda hub, menu del file ≈ voci di prima (ramo media presente).
+
+### Se si è toccato altro, aggiungere il punto legato
+
+- Menu Strumenti: conteggio/voci non ridotte rispetto a prima (solo aggiunte).
+- Hub audio/video: sezioni (scheda, riassunto, trascrizione, ecc.) ancora tutte lì.
+- Caselle Add-on: `CheckBox` vere, Tab/Spazio, NVDA legge il nome.
+- Gemelli: stessa logica in `app_gui.py` e `addon/.../__init__.py` (e moduli `rtad_*` se toccati).
+
+### SA vs Add-on
+
+Se il gemello è allineato e Maurizio ha già fatto i tre nevralgici sull’Add-on, sulla Standalone basta uno smoke breve (punto 1 o 3) prima di compilare — non rifare tutta la galleria se non ha toccato UI diversa. Se ha toccato solo SA, i tre sull’Add-on restano dovuti.
+
+Se uno dei nevralgici è diverso da prima senza che sia stato chiesto, **non è pronto**.
+
+## Annotazioni nei testi
+
+Anche le note («Resta dalla…», Description commit, Summary store) si controllano con scrupolo: il numero di versione citato è quello che ha portato la funzione, non un arrotondamento all’ultima. Vedi `rtad-pre-release-check.mdc`.

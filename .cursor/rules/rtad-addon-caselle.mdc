@@ -1,0 +1,18 @@
+---
+description: Add-on — caselle di scelta sempre wx.CheckBox, mai solo CheckListBox; verificare SA ↔ Add-on
+alwaysApply: true
+---
+
+# RTAD — caselle SA ↔ Add-on
+
+Buco ricorrente: nella Standalone le caselle ci sono; nell’Add-on NVDA non le trova. Succede quando si usa `wx.CheckListBox`. Nell’Add-on (e di preferenza anche in SA) le scelte multiple usano **`wx.CheckBox` vere**, una per riga, come già per i post nella 2.0.3. Se l’elenco è lungo: `wx.ScrolledWindow` + caselle dentro.
+
+## Prima di dire che l’Add-on è pronto
+
+Se la versione ha una finestra di scelta (immagini, allegati, elenco con «accendi/spegni»):
+
+1. Confronta SA e Add-on: stesso tipo di controllo (`CheckBox`, non solo `CheckListBox`).
+2. Prova nell’Add-on con NVDA: Tab sulle caselle, Spazio accende/spegne, si sente il nome.
+3. Non bastano i testi «casella» nelle novità se il controllo non è una casella vera.
+
+Esempio del buco: 2.0.5, immagini di pagina — SA ok con `CheckListBox`, Add-on senza caselle usabili finché non si è passati a `CheckBox` + scroll.

@@ -1,8 +1,8 @@
 # Piano RTAD 2.0.5
 
-**Pubblicata** il 16/11/2026. Versione `2.0.5`. GitHub `v2.0.5` / `app-v2.0.5`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
+**Pubblicata** il 16/11/2026. Versione `2.0.5`. GitHub `v2.0.5` / `app-v2.0.5`, commit `3e83931`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
 
-L’ultima pubblicata prima di questa è la `2.0.4` (15/11/2026, GitHub `v2.0.4` / `app-v2.0.4`, commit `5a4ba86`). Non si tocca. Se lo store ha già un numero DataStore per la 2.0.4, entra nelle tre note in questo rilascio o con la successiva. Il commit corto di questa 2.0.5 si scrive appena si conosce.
+L’ultima pubblicata prima di questa è la `2.0.4` (15/11/2026, GitHub `v2.0.4` / `app-v2.0.4`, commit `5a4ba86`). Non si tocca. Se lo store ha già un numero DataStore per la 2.0.4, entra nelle tre note in questo rilascio o con la successiva.
 
 ## Primo punto
 

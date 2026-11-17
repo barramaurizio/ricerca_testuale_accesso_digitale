@@ -125,7 +125,7 @@ except ImportError:
     rtad_picker = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.5"
+APP_VERSION = "2.0.6"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -13263,7 +13263,7 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
+            "• Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.\n• In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video. Utile anche se il video è muto. Il file si chiama nomevideo-con-audio-nomeaudio. Se le durate differiscono, si ferma al più corto e lo dice a schermo e a voce. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
             "• Resta dalla 2.0.2: Salva immagine, se la pagina consegna il testo del post, propone il testo del post come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.\n"
             "• Resta dalla 2.0.2: Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\\Roaming\\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»\n"
             "• Resta dalla 2.0.1: Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.\n"
@@ -16688,7 +16688,37 @@ class MainWindow(wx.Frame):
             return []
         return selected
 
-    def _describe_post_image_urls(self, urls, page_url="", post_text="", source_url=""):
+    def _keep_page_url_for_video(
+        self, page_url, kind="post", image_count=1, video_only=False
+    ):
+        """Se c'è un video, l'indirizzo va in elenco con scarico (menu completo, non URL secco)."""
+        page = (page_url or "").strip()
+        if not page or rtad_ocr is None:
+            return ""
+        # Come YouTube fino alla 2.0.4: fetch=True → file locale → menu ~21 voci.
+        # fetch=False lascia solo le 4 voci dell'URL secco (buco da non ripetere).
+        self.show_internet_url_in_list(page, announce=False, fetch=True)
+        if video_only:
+            msg = rtad_ocr.page_video_only_notice(kind=kind)
+        else:
+            msg = rtad_ocr.page_video_with_images_notice(
+                kind=kind, image_count=image_count
+            )
+        try:
+            self.txt_status_progress.SetValue(msg)
+        except Exception:
+            pass
+        speak_accessible(msg)
+        return msg
+
+    def _describe_post_image_urls(
+        self,
+        urls,
+        page_url="",
+        post_text="",
+        source_url="",
+        keep_page_url=False,
+    ):
         """Scarica e descrive le foto scelte, una dopo l'altra."""
         selected = [u for u in (urls or []) if (u or "").strip()]
         if not selected or rtad_ocr is None:
@@ -16697,6 +16727,8 @@ class MainWindow(wx.Frame):
         found = (post_text or "").strip()
         total = len(selected)
         queue = list(enumerate(selected, start=1))
+        # Con video già in elenco (fetch): non toccare l'elenco, altrimenti torna URL secco.
+        keep_url = bool(keep_page_url and page)
 
         def _announce(msg):
             try:
@@ -16708,10 +16740,17 @@ class MainWindow(wx.Frame):
         def _next():
             if not queue:
                 if total > 1:
-                    _announce(
+                    fin = (
                         f"Fine. {total} immagini descritte. "
                         "Ogni report resta aperto finché non lo chiudi."
                     )
+                    if keep_url:
+                        fin = (
+                            fin
+                            + " L'indirizzo del post resta in elenco, "
+                            "con il menu completo per Audio/video."
+                        )
+                    _announce(fin)
                 return
             index, image_url = queue.pop(0)
             if total > 1:
@@ -16742,16 +16781,17 @@ class MainWindow(wx.Frame):
                         rtad_ocr.remember_image_post(final_url, page, found)
                     except Exception:
                         pass
-                    self.show_shell_target_in_list(
-                        res["path"],
-                        announce=False,
-                        source_url=page or final_url or source_url,
-                    )
-                    if self.current_matches:
-                        item = self.current_matches[0]
-                        item["image_url"] = final_url
-                        item["page_url"] = page
-                        item["post_text"] = found
+                    if not keep_url:
+                        self.show_shell_target_in_list(
+                            res["path"],
+                            announce=False,
+                            source_url=page or final_url or source_url,
+                        )
+                        if self.current_matches:
+                            item = self.current_matches[0]
+                            item["image_url"] = final_url
+                            item["page_url"] = page
+                            item["post_text"] = found
                     self.show_image_analysis(
                         res["path"],
                         "describe",
@@ -16859,6 +16899,18 @@ class MainWindow(wx.Frame):
                 page = (res.get("page_url") or "").strip()
                 found = (res.get("post_text") or "").strip()
                 res_kind = (res.get("kind") or kind or "").strip().lower()
+                has_video = bool(res.get("has_video"))
+                # Solo video: indirizzo in elenco per Audio/video, senza forzare le foto.
+                if (
+                    res_kind in ("post", "page")
+                    and has_video
+                    and not urls
+                    and not infos
+                ):
+                    self._keep_page_url_for_video(
+                        page or url, kind=res_kind, video_only=True
+                    )
+                    return
                 if res_kind in ("post", "page") and (
                     len(urls) > 1 or (res_kind == "page" and len(infos) > 1)
                 ):
@@ -16876,6 +16928,12 @@ class MainWindow(wx.Frame):
                             pass
                         speak_accessible(err)
                         return
+                    if has_video:
+                        self._keep_page_url_for_video(
+                            page or url,
+                            kind=res_kind,
+                            image_count=len(urls) or len(infos) or 1,
+                        )
                     chosen = self._choose_post_images(
                         urls,
                         kind=res_kind,
@@ -16888,11 +16946,17 @@ class MainWindow(wx.Frame):
                         page_url=page or url,
                         post_text=found,
                         source_url=url,
+                        keep_page_url=has_video,
                     )
                     return
                 if not res.get("ok") or not res.get("path"):
                     err = (res.get("error") or "Download immagine non riuscito.").strip()
                     if res_kind in ("post", "page"):
+                        if has_video:
+                            self._keep_page_url_for_video(
+                                page or url, kind=res_kind, video_only=True
+                            )
+                            return
                         self.show_internet_url_in_list(url, announce=False, fetch=False)
                         err = err + " L'indirizzo resta in elenco."
                     try:
@@ -16902,16 +16966,21 @@ class MainWindow(wx.Frame):
                     speak_accessible(err)
                     return
                 image_url = (res.get("image_url") or "").strip()
-                self.show_shell_target_in_list(
-                    res["path"],
-                    announce=False,
-                    source_url=page or image_url or url,
-                )
-                if self.current_matches:
-                    item = self.current_matches[0]
-                    item["image_url"] = image_url
-                    item["page_url"] = page
-                    item["post_text"] = found
+                if has_video and res_kind in ("post", "page"):
+                    self._keep_page_url_for_video(
+                        page or url, kind=res_kind, image_count=1
+                    )
+                else:
+                    self.show_shell_target_in_list(
+                        res["path"],
+                        announce=False,
+                        source_url=page or image_url or url,
+                    )
+                    if self.current_matches:
+                        item = self.current_matches[0]
+                        item["image_url"] = image_url
+                        item["page_url"] = page
+                        item["post_text"] = found
                 self.show_image_analysis(
                     res["path"],
                     "describe",

@@ -33,8 +33,29 @@ MSG_FAIL = "Non sono riuscito a creare il file. Il file di partenza resta com'è
 MSG_NO_LISTEN = "In questo pezzo non c'è audio da ascoltare."
 MSG_LISTEN_FAIL = "Non riesco ad ascoltare questo pezzo."
 MSG_MIXED = (
-    "Un audio e un video non si uniscono qui. "
-    "Tieni solo audio, oppure solo video."
+    "Un audio e un video non si uniscono con Unisci. "
+    "Per mettere l'audio sul video: Invio sul pulsante Audio sul video, o un clic. "
+    "Altrimenti tieni solo audio, oppure solo video."
+)
+MSG_NEED_AV_PAIR = (
+    "Per mettere un audio su un video servono un file video e un file audio in elenco. "
+    "Aggiungi entrambi, poi Invio sul pulsante Audio sul video, o un clic. "
+    "Vanno bene qualsiasi video e qualsiasi audio: non devono essere dello stesso pezzo, "
+    "e il video può già avere un audio suo (viene sostituito nel file nuovo)."
+)
+MSG_AV_PAIR_ONLY = (
+    "Per Audio sul video lascia in elenco un solo video e un solo audio. "
+    "Rimuovi gli altri, poi riprova."
+)
+MSG_EMPTY_MEDIA = (
+    "Un file in elenco è vuoto (0 byte) o non si apre. "
+    "Scegli un audio e un video con contenuto, poi riprova. "
+    "Il file di partenza resta com'è."
+)
+MSG_AUDIO_UNREADABLE = (
+    "L'audio in elenco non si legge (durata assente o niente traccia audio). "
+    "Prova un altro file audio, poi Invio su Audio sul video, o un clic. "
+    "Il file di partenza resta com'è."
 )
 MSG_NEED_RANGE = (
     "Scrivi il tratto sulla riga selezionata, poi Tieni, poi Esegui. "
@@ -81,6 +102,7 @@ _INTRO = (
     "L'ordine dell'elenco è l'ordine del risultato. "
     "Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. "
     "Invio o doppio clic su una riga ascolta quel pezzo. "
+    "Spazio sull'elenco ascolta; se sta già suonando, Spazio di nuovo ferma. "
     "Un clic solo seleziona la riga. "
     "Due numeri, 1:20, sono un minuto e 20 secondi. "
     "Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. "
@@ -97,17 +119,21 @@ _INTRO = (
     "selezionata. "
     "Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce "
     "l'elenco: il file intero, oppure il tratto già scelto. "
+    "Con un video e un audio, Invio sul pulsante Audio sul video, o un clic, "
+    "scrive un video nuovo con quell'audio. Il risultato si ferma al più corto. "
     "I file creati restano nell'elenco Fatti. "
     "Il file unito si chiama nome1-unione-nome2, dai nomi dei due file. "
     "Se sono più di due, restano i primi due nomi e si aggiunge e-N. "
+    "Il video con l'audio nuovo si chiama nomevideo-con-audio-nomeaudio. "
     "Se il nome c'è già, si aggiunge -2. "
     "Lo Stato, la barra di stato e Fatti dicono la stessa frase, "
     "con il nome di ogni file. "
     "Se il file resta in Temp, dicono il percorso intero. "
     "Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: "
     "A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, "
-    "F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. "
+    "F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci, V Audio sul video. "
     "Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. "
+    "Spazio su un fatto ascolta quel risultato; se sta già suonando, Spazio ferma. "
     "Il file di partenza resta com'è. Esc chiude."
 )
 _CLOCK_HINT = (
@@ -130,6 +156,7 @@ _ALT_ACTIONS = {
     "L": "another",
     "E": "run",
     "U": "join",
+    "V": "audio_on_video",
 }
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
@@ -436,6 +463,26 @@ class Piece:
         return dur
 
 
+def _stream_is_cover_art(stream: dict) -> bool:
+    """True se è solo copertina/foto nel file (mp3 con cover), non un video vero."""
+    if not isinstance(stream, dict):
+        return False
+    disp = stream.get("disposition")
+    if not isinstance(disp, dict):
+        return False
+    try:
+        if int(disp.get("attached_pic") or 0):
+            return True
+    except (TypeError, ValueError):
+        pass
+    try:
+        if int(disp.get("still_image") or 0):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
 def load_piece(path: str) -> tuple[Piece | None, str]:
     path = (path or "").strip().strip('"')
     if not path or not os.path.isfile(path):
@@ -452,6 +499,9 @@ def load_piece(path: str) -> tuple[Piece | None, str]:
         for st in data.get("streams") or []:
             ctype = (st.get("codec_type") or "").lower()
             if ctype == "video" and not piece.has_video:
+                # Copertina ID3/embedded: non è un video da unire o da «Audio sul video».
+                if _stream_is_cover_art(st):
+                    continue
                 piece.has_video = True
                 piece.video_codec = (st.get("codec_name") or "").strip()
                 try:
@@ -472,6 +522,12 @@ def load_piece(path: str) -> tuple[Piece | None, str]:
         piece.has_video = True
     elif ext in _AUDIO_EXTS and not piece.has_audio and not piece.has_video:
         piece.has_audio = True
+    # Estensione audio + traccia audio: resta audio anche se ffprobe ha visto altro rumore.
+    if ext in _AUDIO_EXTS and piece.has_audio and piece.has_video:
+        piece.has_video = False
+        piece.video_codec = ""
+        piece.width = 0
+        piece.height = 0
     return piece, ""
 
 
@@ -883,6 +939,152 @@ def _union_stem(pieces: list[Piece]) -> str:
     return f"{a}{joiner}{b}{more}"
 
 
+def _audio_on_video_stem(video: Piece, audio: Piece) -> str:
+    """nomevideo-con-audio-nomeaudio, col tetto del nome file."""
+    joiner = "-con-audio-"
+    max_total = 220
+    v_stem = os.path.splitext(os.path.basename(video.path))[0]
+    a_stem = os.path.splitext(os.path.basename(audio.path))[0]
+    budget = max_total - len(joiner)
+    first_room = max(8, budget // 2)
+    v = _clip_name_piece(v_stem, first_room)
+    a = _clip_name_piece(a_stem, max(8, budget - len(v)))
+    return f"{v}{joiner}{a}"
+
+
+def _pick_av_pair(pieces: list[Piece]) -> tuple[Piece | None, Piece | None, str]:
+    """Un video e un audio, oppure errore."""
+    rows = list(pieces or [])
+    videos = [p for p in rows if p.kind == "video"]
+    audios = [p for p in rows if p.kind == "audio"]
+    if len(videos) == 1 and len(audios) == 1 and len(rows) == 2:
+        return videos[0], audios[0], ""
+    if not videos or not audios:
+        return None, None, MSG_NEED_AV_PAIR
+    return None, None, MSG_AV_PAIR_ONLY
+
+
+def _media_file_ok(path: str) -> bool:
+    """True se il file esiste e non è vuoto."""
+    try:
+        return bool(path) and os.path.isfile(path) and os.path.getsize(path) > 0
+    except OSError:
+        return False
+
+
+def build_audio_on_video(
+    video: Piece, audio: Piece, cancel=None, made_path=None
+) -> tuple[bool, str]:
+    """Scrive un video nuovo: immagini del video, suono dell'audio.
+
+    Qualsiasi video + qualsiasi audio. Se il video ha già un audio, nel file
+    nuovo resta solo l'audio scelto. Non serve che siano dello stesso pezzo.
+    """
+    if not _ffmpeg_exe():
+        return False, MSG_NEED_FFMPEG
+    if video is None or audio is None:
+        return False, MSG_NEED_AV_PAIR
+    if cancel is not None and cancel.is_set():
+        return False, MSG_STOPPED
+    if not _media_file_ok(video.path) or not _media_file_ok(audio.path):
+        empty = []
+        if not _media_file_ok(getattr(video, "path", "")):
+            empty.append(os.path.basename(video.path) if video else "video")
+        if not _media_file_ok(getattr(audio, "path", "")):
+            empty.append(os.path.basename(audio.path) if audio else "audio")
+        names = " e ".join(empty) if empty else "un file"
+        return False, (
+            f"«{names}» è vuoto (0 byte) o non si apre. "
+            "Scegli un audio e un video con contenuto, poi riprova. "
+            "Il file di partenza resta com'è."
+        )
+    # Audio senza durata leggibile: spesso file vuoto/corrotto; se ha byte, si prova uguale.
+    a_dur = float(audio.duration or 0)
+    if a_dur <= 0 and not audio.has_audio:
+        probed, _err = load_piece(audio.path)
+        if probed is not None:
+            audio = probed
+            a_dur = float(audio.duration or 0)
+        if a_dur <= 0 and not getattr(audio, "has_audio", False):
+            # File con byte ma senza traccia: avvisa, non forzare ffmpeg cieco.
+            if os.path.getsize(audio.path) < 1024:
+                return False, MSG_EMPTY_MEDIA
+            return False, MSG_AUDIO_UNREADABLE
+    folder = os.path.dirname(os.path.abspath(video.path)) or os.getcwd()
+    dest = _unique_output(folder, _audio_on_video_stem(video, audio), ".mp4")
+    v_dur = float(video.duration or 0)
+    note = ""
+    if v_dur > 0.5 and a_dur > 0.5 and abs(v_dur - a_dur) > 0.5:
+        if a_dur < v_dur:
+            note = (
+                f"L'audio dura {speak_duration(a_dur)}, "
+                f"il video {speak_duration(v_dur)}. "
+                "Il risultato si ferma con l'audio, il più corto. "
+            )
+        else:
+            note = (
+                f"Il video dura {speak_duration(v_dur)}, "
+                f"l'audio {speak_duration(a_dur)}. "
+                "Il risultato si ferma con il video, il più corto. "
+            )
+    ff = _ffmpeg_exe()
+    # Prima prova: video copiato, audio nuovo. Se fallisce, ricodifica tutto.
+    attempts = [
+        [
+            ff, "-y",
+            "-i", video.path,
+            "-i", audio.path,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-shortest",
+            "-movflags", "+faststart",
+            dest,
+        ],
+        [
+            ff, "-y",
+            "-i", video.path,
+            "-i", audio.path,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-shortest",
+            "-movflags", "+faststart",
+            dest,
+        ],
+    ]
+    ok = False
+    last_err = ""
+    for args in attempts:
+        if cancel is not None and cancel.is_set():
+            return False, MSG_STOPPED
+        try:
+            if os.path.isfile(dest):
+                os.remove(dest)
+        except OSError:
+            pass
+        ok_run, err = _run(args, cancel)
+        last_err = (err or "").strip()
+        ok = ok_run and os.path.isfile(dest) and os.path.getsize(dest) > 0
+        if ok:
+            break
+    if not ok:
+        if last_err:
+            log.warning("Audio sul video: %s", last_err[:400])
+        return False, MSG_FAIL
+    if made_path is not None:
+        made_path.append(dest)
+    dur = _duration_of(dest)
+    return True, (
+        f"{note}"
+        f"Creato {spoken_result_path(dest)}, {speak_duration(dur)}, "
+        "nella stessa cartella. Il file di partenza resta com'è."
+    )
+
+
 def _output_for(pieces: list[Piece], reencode: bool) -> str:
     first = pieces[0]
     folder = os.path.dirname(os.path.abspath(first.path)) or os.getcwd()
@@ -1058,16 +1260,22 @@ def preview_wav(piece: Piece, dest: str, cancel=None) -> tuple[bool, str]:
     if piece.mode == "keep" and piece.start is not None:
         start = float(piece.start)
     span = piece.span() or float(piece.duration or 0)
-    take = min(20.0, span if span > 0 else 20.0)
+    # Fino a 2 minuti: tutto il pezzo (es. risultato Unisci). Oltre: solo l'inizio.
+    full_max = 120.0
+    head = 20.0
+    if span > 0 and span <= full_max:
+        take = span
+    else:
+        take = head
     ok, _err = _run(
         _seek_args(piece.path, start, take) + ["-vn", "-ac", "1", "-ar", "22050", dest],
         cancel,
-        timeout=120,
+        timeout=180,
     )
     if not ok or not os.path.isfile(dest):
         return False, MSG_LISTEN_FAIL
     heard = _wav_duration(dest) or take
-    if span > 20:
+    if span > full_max:
         return True, f"Ascolto l'inizio, {speak_duration(heard)}."
     return True, f"Ascolto il pezzo, {speak_duration(heard)}."
 
@@ -1103,7 +1311,11 @@ def _install_dialog():
             self._busy = False
             self._open = True
             self._preview = ""
+            self._preview_phrase = ""
+            self._preview_key = ""
             self._playing = False
+            self._listen_busy = False
+            self._listen_gen = 0
             self._initial = list(paths or [])
 
             vbox = wx.BoxSizer(wx.VERTICAL)
@@ -1117,6 +1329,7 @@ def _install_dialog():
                     label=(
                         "File, nell'ordine. "
                         "Invio o doppio clic ascolta il pezzo. "
+                        "Spazio ascolta; se sta già suonando, Spazio di nuovo ferma. "
                         "Un clic solo seleziona la riga."
                     ),
                 ),
@@ -1165,9 +1378,11 @@ def _install_dialog():
             row3 = wx.BoxSizer(wx.HORIZONTAL)
             self.btn_run = wx.Button(self, label="&Esegui")
             self.btn_join = wx.Button(self, label="&Unisci")
+            self.btn_audio_on_video = wx.Button(self, label="Audio sul &video")
             self.btn_close = wx.Button(self, wx.ID_CANCEL, "Chiudi")
             row3.Add(self.btn_run, 0, wx.RIGHT, 6)
             row3.Add(self.btn_join, 0, wx.RIGHT, 6)
+            row3.Add(self.btn_audio_on_video, 0, wx.RIGHT, 6)
             row3.Add(self.btn_close, 0)
             vbox.Add(row3, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -1176,6 +1391,7 @@ def _install_dialog():
                     self,
                     label=(
                         "Fatti. Invio o doppio clic rimette il file nell'elenco di lavoro. "
+                        "Spazio ascolta il risultato; se sta già suonando, Spazio ferma. "
                         "Un clic solo seleziona la riga."
                     ),
                 ),
@@ -1184,6 +1400,7 @@ def _install_dialog():
             self.lst_done = wx.ListBox(self, style=wx.LB_SINGLE)
             self.lst_done.SetMinSize((680, 110))
             vbox.Add(self.lst_done, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+            self.lst_done.Bind(wx.EVT_LISTBOX, self._on_select_done)
             self.lst_done.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._on_use_done())
 
             vbox.Add(wx.StaticText(self, label="Stato"), 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
@@ -1212,6 +1429,7 @@ def _install_dialog():
             self.btn_another.Bind(wx.EVT_BUTTON, self._on_another)
             self.btn_run.Bind(wx.EVT_BUTTON, self._on_run)
             self.btn_join.Bind(wx.EVT_BUTTON, self._on_join)
+            self.btn_audio_on_video.Bind(wx.EVT_BUTTON, self._on_audio_on_video)
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
             self.SetEscapeId(wx.ID_CANCEL)
@@ -1300,6 +1518,34 @@ def _install_dialog():
             if index < 0:
                 return
             self._fill_times(index)
+            # Cambiando riga, ferma in silenzio l'ascolto del pezzo precedente.
+            if self._playing or self._listen_busy:
+                key = self._piece_listen_key(self._rows[index])
+                if key != self._preview_key:
+                    self._listen_gen += 1
+                    if self._listen_busy:
+                        self._cancel.set()
+                    self._listen_busy = False
+                    self._set_busy(False)
+                    self._stop_sound()
+
+        def _on_select_done(self, _event=None):
+            if not self._done:
+                return
+            index = self.lst_done.GetSelection()
+            if index < 0 or index >= len(self._done):
+                return
+            if self._playing or self._listen_busy:
+                _label, path = self._done[index]
+                piece, _err = load_piece(path)
+                key = self._piece_listen_key(piece) if piece is not None else ""
+                if key != self._preview_key:
+                    self._listen_gen += 1
+                    if self._listen_busy:
+                        self._cancel.set()
+                    self._listen_busy = False
+                    self._set_busy(False)
+                    self._stop_sound()
 
         def _clocks(self):
             try:
@@ -1311,7 +1557,7 @@ def _install_dialog():
 
         def _on_char(self, event):
             key = event.GetKeyCode()
-            if key == wx.WXK_ESCAPE and (self._busy or self._playing):
+            if key == wx.WXK_ESCAPE and (self._busy or self._playing or self._listen_busy):
                 self._on_stop()
                 return
             if (
@@ -1327,6 +1573,11 @@ def _install_dialog():
                 if name:
                     self._alt_do(name)
                     return
+            if key == wx.WXK_SPACE:
+                focused = self.FindFocus()
+                if focused is self.lst or focused is self.lst_done or self._playing or self._listen_busy:
+                    self._on_space()
+                    return
             if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
                 focused = self.FindFocus()
                 if focused is self.lst:
@@ -1336,6 +1587,16 @@ def _install_dialog():
                     self._on_use_done()
                     return
             event.Skip()
+
+        def _piece_listen_key(self, piece) -> str:
+            return "|".join(
+                (
+                    os.path.normcase(os.path.abspath(piece.path or "")),
+                    str(piece.mode),
+                    str(piece.start),
+                    str(piece.end),
+                )
+            )
 
         def _alt_do(self, name: str):
             if name == "add":
@@ -1362,13 +1623,23 @@ def _install_dialog():
                 self._on_run()
             elif name == "join":
                 self._on_join()
+            elif name == "audio_on_video":
+                self._on_audio_on_video()
 
         def _set_busy(self, busy: bool):
+            if busy:
+                # Se spegniamo il pulsante col focus, wx perde il focus e Spazio muore.
+                try:
+                    focused = self.FindFocus()
+                    if focused is not None and focused is not self.lst and focused is not self.lst_done:
+                        self.lst.SetFocus()
+                except Exception:
+                    pass
             self._busy = busy
             for btn in (
                 self.btn_add, self.btn_folder, self.btn_up, self.btn_down, self.btn_remove,
                 self.btn_listen, self.btn_keep, self.btn_drop, self.btn_another,
-                self.btn_run, self.btn_join,
+                self.btn_run, self.btn_join, self.btn_audio_on_video,
             ):
                 btn.Enable(not busy)
 
@@ -1379,7 +1650,19 @@ def _install_dialog():
             except Exception:
                 pass
 
+        def _stop_listen_only(self):
+            """Ferma solo l'ascolto (Spazio), senza annullare Unisci/Esegui."""
+            self._listen_gen += 1
+            if self._listen_busy:
+                self._cancel.set()
+            self._listen_busy = False
+            self._set_busy(False)
+            self._stop_sound()
+            self._say(MSG_STOPPED)
+
         def _on_stop(self, _event=None):
+            self._listen_gen += 1
+            self._listen_busy = False
             self._cancel.set()
             self._stop_sound()
             self._say(MSG_STOPPED)
@@ -1603,6 +1886,66 @@ def _install_dialog():
             self._refresh(index)
             self._say(phrase)
 
+        def _current_listen_piece(self):
+            """Pezzo della riga selezionata (elenco di lavoro o Fatti)."""
+            focused = self.FindFocus()
+            if focused is self.lst_done:
+                if not self._done:
+                    return None, MSG_NO_DONE
+                index = self.lst_done.GetSelection()
+                if index < 0 or index >= len(self._done):
+                    return None, MSG_SELECT
+                _label, path = self._done[index]
+                piece, err = load_piece(path)
+                if piece is None:
+                    return None, err or f"{os.path.basename(path)} non c'è più."
+                return piece, ""
+            index = self._selected()
+            if index < 0:
+                return None, MSG_EMPTY if not self._rows else MSG_SELECT
+            return self._rows[index], ""
+
+        def _on_space(self):
+            """Spazio sulla riga selezionata: ascolta, ferma, o passa a un altro pezzo."""
+            if self._listen_busy:
+                self._stop_listen_only()
+                return
+            if self._busy:
+                self._say(MSG_WORKING)
+                return
+            piece, err = self._current_listen_piece()
+            if piece is None:
+                self._say(err or MSG_SELECT)
+                return
+            key = self._piece_listen_key(piece)
+            if self._playing:
+                if key == self._preview_key:
+                    self._stop_listen_only()
+                    return
+                # Freccia su un altro file: Spazio ferma il vecchio e ascolta questo.
+                self._listen_gen += 1
+                self._stop_sound()
+            self._start_listen(piece)
+
+        def _on_listen_done_row(self):
+            """Ascolta il risultato selezionato nei Fatti, senza rimetterlo in elenco."""
+            if self._busy:
+                self._say(MSG_WORKING)
+                return
+            if not self._done:
+                self._say(MSG_NO_DONE)
+                return
+            index = self.lst_done.GetSelection()
+            if index < 0 or index >= len(self._done):
+                self._say(MSG_SELECT)
+                return
+            _label, path = self._done[index]
+            piece, err = load_piece(path)
+            if piece is None:
+                self._say(err or f"{os.path.basename(path)} non c'è più.")
+                return
+            self._start_listen(piece)
+
         def _on_listen(self):
             if self._busy:
                 self._say(MSG_WORKING)
@@ -1611,37 +1954,79 @@ def _install_dialog():
             if index < 0:
                 self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
                 return
-            piece = self._rows[index]
+            self._start_listen(self._rows[index])
+
+        def _start_listen(self, piece):
+            key = self._piece_listen_key(piece)
+            # Stesso pezzo già preparato: riparti subito (copia con nome nuovo).
+            if (
+                self._preview
+                and key == self._preview_key
+                and os.path.isfile(self._preview)
+            ):
+                self._cancel.clear()
+                self._stop_sound()
+                self._play_async(self._preview, self._preview_phrase or "Ascolto.")
+                return
             self._cancel.clear()
             self._stop_sound()
+            self._listen_busy = True
             self._set_busy(True)
             self._say(MSG_PREPARE)
-            dest = os.path.join(tempfile.gettempdir(), "rtad-ascolto.wav")
+            self._listen_gen += 1
+            gen = self._listen_gen
+            dest = os.path.join(
+                tempfile.gettempdir(),
+                f"rtad-ascolto-{os.getpid()}-{gen}.wav",
+            )
 
             def work():
                 ok, phrase = preview_wav(piece, dest, self._cancel)
-                wx.CallAfter(self._listen_done, ok, phrase, dest)
+                wx.CallAfter(self._listen_done, ok, phrase, dest, gen, key)
 
             threading.Thread(target=work, daemon=True).start()
 
-        def _listen_done(self, ok, phrase, dest):
-            if not self._open:
-                return
-            self._set_busy(False)
-            if self._cancel.is_set() or not ok:
-                self._say(MSG_STOPPED if self._cancel.is_set() else phrase)
-                return
+        def _play_async(self, path: str, phrase: str):
+            """Ascolto async da file. Copia con nome nuovo così dopo PURGE riparte."""
+            self._listen_gen += 1
+            gen = self._listen_gen
+            play_path = path
+            try:
+                play_path = os.path.join(
+                    tempfile.gettempdir(),
+                    f"rtad-ascolto-play-{os.getpid()}-{gen}.wav",
+                )
+                shutil.copy2(path, play_path)
+            except Exception:
+                play_path = path
             try:
                 winsound.PlaySound(
-                    dest,
+                    play_path,
                     winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
                 )
                 self._playing = True
-                self._preview = dest
             except Exception:
                 self._say(MSG_LISTEN_FAIL)
                 return
             self._say(phrase)
+
+        def _listen_done(self, ok, phrase, dest, gen=0, key=""):
+            if not self._open:
+                return
+            self._listen_busy = False
+            self._set_busy(False)
+            if gen != self._listen_gen:
+                return
+            if self._cancel.is_set() or not ok:
+                self._say(MSG_STOPPED if self._cancel.is_set() else phrase)
+                return
+            if not dest or not os.path.isfile(dest):
+                self._say(MSG_LISTEN_FAIL)
+                return
+            self._preview = dest
+            self._preview_phrase = phrase
+            self._preview_key = key
+            self._play_async(dest, phrase)
 
         def _on_run(self, _event=None):
             if self._busy:
@@ -1665,6 +2050,57 @@ def _install_dialog():
                 self._say(MSG_NEED_TWO)
                 return
             self._start_job(list(self._rows))
+
+        def _on_audio_on_video(self, _event=None):
+            if self._busy:
+                self._say(MSG_WORKING)
+                return
+            video, audio, err = _pick_av_pair(self._rows)
+            if err or video is None or audio is None:
+                self._say(err or MSG_NEED_AV_PAIR)
+                return
+            if not _ffmpeg_exe():
+                self._say(MSG_NEED_FFMPEG)
+                return
+            # Controlli subito, prima del lavoro: file vuoto → messaggio chiaro.
+            if not _media_file_ok(video.path) or not _media_file_ok(audio.path):
+                empty = []
+                if not _media_file_ok(video.path):
+                    empty.append(os.path.basename(video.path))
+                if not _media_file_ok(audio.path):
+                    empty.append(os.path.basename(audio.path))
+                names = " e ".join(empty) if empty else "un file"
+                self._say(
+                    f"«{names}» è vuoto (0 byte) o non si apre. "
+                    "Scegli un audio e un video con contenuto, poi riprova. "
+                    "Il file di partenza resta com'è."
+                )
+                return
+            self._cancel.clear()
+            self._stop_sound()
+            self._set_busy(True)
+            self._say(MSG_WORKING)
+            v_piece = clone_piece(video)
+            a_piece = clone_piece(audio)
+
+            def work():
+                made = []
+                ok, phrase = build_audio_on_video(
+                    v_piece, a_piece, self._cancel, made
+                )
+                path = made[0] if made else ""
+                label = ""
+                if ok and path and os.path.isfile(path):
+                    dur = speak_duration(_duration_of(path))
+                    label = (
+                        f"{spoken_result_path(path)}, "
+                        f"audio di {os.path.basename(a_piece.path)} "
+                        f"sul video {os.path.basename(v_piece.path)}, "
+                        f"{dur}"
+                    )
+                wx.CallAfter(self._run_done, ok, phrase, path, label)
+
+            threading.Thread(target=work, daemon=True).start()
 
         def _start_job(self, pieces):
             rows = [clone_piece(piece) for piece in pieces]

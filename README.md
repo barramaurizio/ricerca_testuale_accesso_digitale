@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.5)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.6)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -7,9 +7,12 @@
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
 
-### 🌟 Novità della Versione 2.0.5
+### 🌟 Novità della Versione 2.0.6
 
-- Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
+- Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.
+- In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video. Utile anche se il video è muto. Il file si chiama nomevideo-con-audio-nomeaudio. Se le durate differiscono, si ferma al più corto e lo dice a schermo e a voce. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.
+- In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.
 
 ### 🌟 Novità della Versione 2.0.4
 
@@ -394,9 +397,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
 
-### 🌟 What's New in Version 2.0.5
+### 🌟 What's New in Version 2.0.6
 
-- With Ctrl+Alt+V, or Describe from URL, on any page with more than one image, a list appears with a checkbox next to each one. Space on Nascondi icone piccole, or a click, turns that filter off and also shows icons; when it is on, icons stay out. Space on each image checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another. Enter on Solo la prima, or a click, takes only the first. If the page provides a title or comment, the file name uses that text; with more photos, 1, 2, 3… is added. Posts with more images stay as in 2.0.3. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
+- With Ctrl+Alt+V, or Describe from URL, if the post or page has a video and also images, RTAD recognises both. The image description opens as before. The address stays in the list with download, as for YouTube: afterwards, the Applications key or right-click menu has all the items, including Audio/video and Tutto sull'audio/video. The hub does not open by itself. It works in the Standalone and in the Add-on.
+- In Cut and join audio/video, with one video and one audio in the list, Enter on Audio sul video, or a click, writes a new video with that audio in place of the video's own. Useful also if the video is silent. The file is named videoname-con-audio-audioname. If the lengths differ, it stops at the shorter one and says so on screen and by voice. A cover picture inside an mp3 does not count as video. The source file stays as it is. It works in the Standalone and in the Add-on.
+- In Cut and join audio/video, Space on the work list or on Done plays the piece; if it is already playing, Space again stops it. Enter or double-click on a Done row puts it back in the work list, as before. It works in the Standalone and in the Add-on.
+- From 2.0.5: With Ctrl+Alt+V, or Describe from URL, on any page with more than one image, a list appears with a checkbox next to each one. Space on Nascondi icone piccole, or a click, turns that filter off and also shows icons; when it is on, icons stay out. Space on each image checkbox, or a click, turns it on or off. Enter on Scarica e descrivi, or a click, takes the selected ones one after another: each photo has its own report in a separate window. Alt+Tab moves from one to another. Enter on Solo la prima, or a click, takes only the first. If the page provides a title or comment, the file name uses that text; with more photos, 1, 2, 3… is added. Posts with more images stay as in 2.0.3. It works in the Standalone and in the Add-on. The Add-on navigator remains for the figure under focus.
 
 ### 🌟 What's New in Version 2.0.4
 

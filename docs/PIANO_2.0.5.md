@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.5
 
-**Pubblicata** il 16/11/2026. Versione `2.0.5`. GitHub `v2.0.5` / `app-v2.0.5`, commit `3e83931`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
+**Pubblicata** il 16/11/2026. Versione `2.0.5`. GitHub `v2.0.5` / `app-v2.0.5`, commit `3e83931`, DataStore #13068 via #13069 accettato. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
 
 L’ultima pubblicata prima di questa è la `2.0.4` (15/11/2026, GitHub `v2.0.4` / `app-v2.0.4`, commit `5a4ba86`). Non si tocca. Se lo store ha già un numero DataStore per la 2.0.4, entra nelle tre note in questo rilascio o con la successiva.
 
@@ -10,8 +10,10 @@ Tutte le immagini di una pagina qualsiasi, non solo i post. Con Ctrl+Alt+V, o De
 
 ## Resta fuori (versioni successive)
 
-- **`2.0.6`:** da un formato all’altro — un audio su un video; le immagini in un PDF.
-- **`2.0.7`:** PDF e testo (pagine da-a, più PDF nell’ordine, brano dal lettore).
+- **`2.0.6` (in corso):** post/pagina con immagine e video → entrambi i flussi; più Audio sul video (sostituzione). Piano `docs/PIANO_2.0.6.md`.
+- **`2.0.7`:** mix audio sul video con volumi; scelte di durata.
+- **`2.0.8`:** le immagini in un PDF.
+- **`2.0.9`:** PDF e testo (pagine da-a, più PDF nell’ordine, brano dal lettore).
 
 ## Idee future (da discutere con calma)
 

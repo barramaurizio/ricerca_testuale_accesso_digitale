@@ -5557,6 +5557,67 @@ def is_social_post_url(url: str) -> bool:
     return any(mark in path for mark in marks)
 
 
+def page_has_video(html_text: str) -> bool:
+    """True se la pagina indica un video scaricabile (non solo il poster)."""
+    text = html_text or ""
+    if not text:
+        return False
+    low = text.lower()
+    # X / Twitter: stream e player, non solo amplify_video_thumb.
+    if "video.twimg.com/" in low:
+        return True
+    if "ext_tw_video" in low:
+        return True
+    if "amplify_video/" in low and ".m3u8" in low:
+        return True
+    if re.search(r"""property=["']og:video""", text, re.I):
+        return True
+    if re.search(r"""name=["']twitter:player""", text, re.I):
+        return True
+    if re.search(r"<video[\s>]", text, re.I):
+        return True
+    if "player.vimeo.com/" in low or "youtube.com/embed/" in low:
+        return True
+    if "youtube-nocookie.com/embed/" in low:
+        return True
+    if '"type":"video"' in low or '"__typename":"video"' in low:
+        return True
+    if "playbackurl" in low and (".m3u8" in low or ".mp4" in low):
+        return True
+    return False
+
+
+def page_video_with_images_notice(kind: str = "post", image_count: int = 1) -> str:
+    """Frase a schermo e a voce: c'è video e almeno un'immagine."""
+    kind_l = (kind or "post").strip().lower()
+    where = "Il post" if kind_l == "post" else "La pagina"
+    n = max(1, int(image_count or 1))
+    if n == 1:
+        imgs = "un'immagine"
+        now = "Ora la descrizione dell'immagine."
+    else:
+        imgs = f"{n} immagini"
+        now = "Ora scegli quali immagini scaricare e descrivere."
+    return (
+        f"{where} ha un video e {imgs}. "
+        "L'indirizzo resta in elenco, come per un video: dopo lo scarico "
+        "il menu del tasto applicazioni o del tasto destro ha tutte le voci, "
+        "compreso Audio/video e Tutto sull'audio/video. "
+        f"{now}"
+    )
+
+
+def page_video_only_notice(kind: str = "post") -> str:
+    """Frase quando c'è video e nessuna immagine fissa."""
+    kind_l = (kind or "post").strip().lower()
+    where = "Il post" if kind_l == "post" else "La pagina"
+    return (
+        f"{where} ha un video. "
+        "L'indirizzo è in elenco, come per YouTube: dopo lo scarico "
+        "il menu del tasto applicazioni o del tasto destro ha tutte le voci."
+    )
+
+
 def image_name_notice(post_text: str = "", page_url: str = "", image_url: str = "") -> str:
     """Frase a schermo e a voce sul nome proposto. Vuota se non c'è un indirizzo."""
     if not ((page_url or "").strip() or (image_url or "").strip()):
@@ -5747,6 +5808,7 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         "error": "",
         "kind": "other",
         "url": raw,
+        "has_video": False,
     }
     if not raw.lower().startswith(("http://", "https://")):
         out["error"] = "Serve un URL http o https."
@@ -5777,8 +5839,12 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
         out["image_infos"] = [
             {"url": u, "width": 0, "height": 0, "alt": ""} for u in images
         ]
+        out["has_video"] = page_has_video(html_text)
         if not images:
-            out["error"] = "La pagina non consegna un'immagine."
+            if out["has_video"]:
+                out["error"] = "Il post ha un video, senza immagine fissa da descrivere."
+            else:
+                out["error"] = "La pagina non consegna un'immagine."
             return out
         if len(images) > 1 and not download:
             out["ok"] = True
@@ -5814,8 +5880,12 @@ def resolve_pasted_image(url: str, download: bool = True) -> dict:
     out["post_text"] = post
     out["image_infos"] = list(infos)
     out["image_urls"] = list(images)
+    out["has_video"] = page_has_video(html_text)
     if not infos:
-        out["error"] = "La pagina non consegna immagini."
+        if out["has_video"]:
+            out["error"] = "La pagina ha un video, senza immagini fisse da descrivere."
+        else:
+            out["error"] = "La pagina non consegna immagini."
         return out
     # Con più immagini in pagina, la scelta (e il filtro) restano alla finestra.
     if not download and len(infos) > 1:

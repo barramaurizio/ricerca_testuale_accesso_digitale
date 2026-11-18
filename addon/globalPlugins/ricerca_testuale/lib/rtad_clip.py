@@ -40,13 +40,41 @@ MSG_MIXED = (
 MSG_NEED_AV_PAIR = (
     "Per mettere un audio su un video servono un file video e un file audio in elenco. "
     "Aggiungi entrambi, poi Invio sul pulsante Audio sul video, o un clic. "
-    "Vanno bene qualsiasi video e qualsiasi audio: non devono essere dello stesso pezzo, "
-    "e il video può già avere un audio suo (viene sostituito nel file nuovo)."
+    "Vanno bene qualsiasi video e qualsiasi audio: non devono essere dello stesso pezzo. "
+    "Puoi sostituire l'audio del video, oppure mischiarlo con volumi regolabili."
 )
 MSG_AV_PAIR_ONLY = (
     "Per Audio sul video lascia in elenco un solo video e un solo audio. "
     "Rimuovi gli altri, poi riprova."
 )
+MSG_PAUSED_AT = "Fermato a {pos}."
+MSG_RESUME_AT = "Riparto da {pos}."
+MSG_SEEK_AT = "Ascolto da {pos}."
+MSG_VOL_AT = "Volume ascolto {vol} percento."
+MSG_AV_CANCEL = "Audio sul video annullato. Niente è stato scritto."
+# Ascolto: freccia ± secondi; volume 0–200 (oltre 100 con soft-limit).
+_LISTEN_SEEK_SEC = 5.0
+_LISTEN_VOL_MIN = 0
+_LISTEN_VOL_MAX = 200
+_LISTEN_VOL_STEP = 5
+_LISTEN_VOL_DEFAULT = 100
+_LISTEN_HEAD_SEC = 20.0
+_LISTEN_FULL_MAX_SEC = 3 * 3600.0
+MSG_LISTEN_END = "Fine dell'ascolto. Riparto dall'inizio."
+MSG_LISTEN_HEAD_ON = (
+    "Ascolto solo i primi 20 secondi: attivato."
+)
+MSG_LISTEN_HEAD_OFF = (
+    "Ascolto solo i primi 20 secondi: disattivato. "
+    "Si ascolta tutto il pezzo."
+)
+# Compatibilità testi guida / anteprima
+MSG_LISTEN_HEAD = "Ascolto solo i primi 20 secondi."
+MSG_LISTEN_FULL = "Si ascolta tutto il pezzo."
+_AV_VOL_MIN = 0
+_AV_VOL_MAX = 200
+_AV_VOL_STEP = 10
+_AV_VOL_DEFAULT = 100
 MSG_EMPTY_MEDIA = (
     "Un file in elenco è vuoto (0 byte) o non si apre. "
     "Scegli un audio e un video con contenuto, poi riprova. "
@@ -102,7 +130,15 @@ _INTRO = (
     "L'ordine dell'elenco è l'ordine del risultato. "
     "Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. "
     "Invio o doppio clic su una riga ascolta quel pezzo. "
-    "Spazio sull'elenco ascolta; se sta già suonando, Spazio di nuovo ferma. "
+    "Spazio sull'elenco ascolta; Spazio di nuovo mette in pausa e dice l'orario; "
+    "Spazio ancora riparte da lì. "
+    "Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi, "
+    "senza interrompere l'ascolto. "
+    "Mentre suona, freccia su e giù regolano il volume fino a 200 percento, in continuo. "
+    "In pausa o da fermo, freccia su e giù scorrono l'elenco. "
+    "Ogni file ricorda punto e volume finché la finestra resta aperta. "
+    "La casella «Solo i primi 20 secondi» accorcia l'ascolto; spenta, si ascolta tutto il pezzo. "
+    "Spazio vale sull'elenco; sui pulsanti Spazio attiva il pulsante. "
     "Un clic solo seleziona la riga. "
     "Due numeri, 1:20, sono un minuto e 20 secondi. "
     "Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. "
@@ -120,7 +156,8 @@ _INTRO = (
     "Con almeno due file, Invio sul pulsante Unisci, o un clic, unisce "
     "l'elenco: il file intero, oppure il tratto già scelto. "
     "Con un video e un audio, Invio sul pulsante Audio sul video, o un clic, "
-    "scrive un video nuovo con quell'audio. Il risultato si ferma al più corto. "
+    "apre le scelte: sostituisci o mix con volumi, e la durata "
+    "(il più corto, tutto il video, tutto l'audio). "
     "I file creati restano nell'elenco Fatti. "
     "Il file unito si chiama nome1-unione-nome2, dai nomi dei due file. "
     "Se sono più di due, restano i primi due nomi e si aggiunge e-N. "
@@ -133,7 +170,8 @@ _INTRO = (
     "A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, "
     "F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci, V Audio sul video. "
     "Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. "
-    "Spazio su un fatto ascolta quel risultato; se sta già suonando, Spazio ferma. "
+    "Spazio su un fatto ascolta quel risultato; Spazio di nuovo pausa con orario; "
+    "poi riparte da lì. Durante l'ascolto valgono le frecce come sopra. "
     "Il file di partenza resta com'è. Esc chiude."
 )
 _CLOCK_HINT = (
@@ -972,13 +1010,111 @@ def _media_file_ok(path: str) -> bool:
         return False
 
 
-def build_audio_on_video(
-    video: Piece, audio: Piece, cancel=None, made_path=None
-) -> tuple[bool, str]:
-    """Scrive un video nuovo: immagini del video, suono dell'audio.
+def _clamp_av_vol(pct) -> int:
+    try:
+        value = int(round(float(pct)))
+    except (TypeError, ValueError):
+        value = _AV_VOL_DEFAULT
+    step = _AV_VOL_STEP
+    value = int(round(value / step) * step)
+    return max(_AV_VOL_MIN, min(_AV_VOL_MAX, value))
 
-    Qualsiasi video + qualsiasi audio. Se il video ha già un audio, nel file
-    nuovo resta solo l'audio scelto. Non serve che siano dello stesso pezzo.
+
+def _vol_af(pct: int) -> str:
+    """Filtro volume ffmpeg. Oltre 100%: gain + soft-limiter (niente clip brusco)."""
+    gain = max(0.0, float(_clamp_av_vol(pct)) / 100.0)
+    if gain > 1.001:
+        return (
+            f"volume={gain:.4f},"
+            "alimiter=limit=0.95:attack=5:release=50:level=false"
+        )
+    return f"volume={gain:.4f}"
+
+
+def _length_note(v_dur: float, a_dur: float, length_mode: str) -> str:
+    if v_dur <= 0.5 or a_dur <= 0.5 or abs(v_dur - a_dur) <= 0.5:
+        return ""
+    if length_mode == "both":
+        if a_dur > v_dur:
+            return (
+                f"Il video dura {speak_duration(v_dur)}, "
+                f"l'audio {speak_duration(a_dur)}. "
+                "Ho tenuto tutti e due; l'immagine resta sull'ultimo fotogramma. "
+            )
+        return (
+            f"L'audio dura {speak_duration(a_dur)}, "
+            f"il video {speak_duration(v_dur)}. "
+            "Ho tenuto tutti e due; dopo l'audio il video continua. "
+        )
+    if length_mode == "video":
+        if a_dur < v_dur:
+            return (
+                f"L'audio dura {speak_duration(a_dur)}, "
+                f"il video {speak_duration(v_dur)}. "
+                "Ho tenuto la durata del video. "
+            )
+        return (
+            f"L'audio dura {speak_duration(a_dur)}, "
+            f"il video {speak_duration(v_dur)}. "
+            "Ho tenuto la durata del video. "
+        )
+    if length_mode == "audio":
+        if v_dur < a_dur:
+            return (
+                f"Il video dura {speak_duration(v_dur)}, "
+                f"l'audio {speak_duration(a_dur)}. "
+                "Ho tenuto la durata dell'audio; l'immagine resta sull'ultimo fotogramma. "
+            )
+        return (
+            f"Il video dura {speak_duration(v_dur)}, "
+            f"l'audio {speak_duration(a_dur)}. "
+            "Ho tenuto la durata dell'audio. "
+        )
+    if a_dur < v_dur:
+        return (
+            f"L'audio dura {speak_duration(a_dur)}, "
+            f"il video {speak_duration(v_dur)}. "
+            "Il risultato si ferma al più corto. "
+        )
+    return (
+        f"Il video dura {speak_duration(v_dur)}, "
+        f"l'audio {speak_duration(a_dur)}. "
+        "Il risultato si ferma al più corto. "
+    )
+
+
+def _hms_from_seconds(seconds: float) -> tuple[int, int, int]:
+    total = max(0, int(round(float(seconds or 0))))
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return h, m, s
+
+
+def _seconds_from_hms(h: int, m: int, s: int) -> float:
+    try:
+        return max(0.0, float(int(h) * 3600 + int(m) * 60 + int(s)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def build_audio_on_video(
+    video: Piece,
+    audio: Piece,
+    cancel=None,
+    made_path=None,
+    mode: str = "replace",
+    video_vol: int = _AV_VOL_DEFAULT,
+    audio_vol: int = _AV_VOL_DEFAULT,
+    length_mode: str = "shortest",
+    video_cap: float = 0.0,
+    audio_cap: float = 0.0,
+) -> tuple[bool, str]:
+    """Scrive un video nuovo: immagini del video + audio (sostituisci o mix).
+
+    mode: replace | mix
+    length_mode: shortest | video | audio | both
+    video_vol / audio_vol: 0–200 (oltre 100 con soft-limiter).
+    video_cap / audio_cap: tetto in secondi su quel pezzo (0 = intero).
     """
     if not _ffmpeg_exe():
         return False, MSG_NEED_FFMPEG
@@ -986,6 +1122,22 @@ def build_audio_on_video(
         return False, MSG_NEED_AV_PAIR
     if cancel is not None and cancel.is_set():
         return False, MSG_STOPPED
+    mode = (mode or "replace").strip().lower()
+    if mode not in ("replace", "mix"):
+        mode = "replace"
+    length_mode = (length_mode or "shortest").strip().lower()
+    if length_mode not in ("shortest", "video", "audio", "both"):
+        length_mode = "shortest"
+    video_vol = _clamp_av_vol(video_vol)
+    audio_vol = _clamp_av_vol(audio_vol)
+    try:
+        video_cap = float(video_cap or 0)
+    except (TypeError, ValueError):
+        video_cap = 0.0
+    try:
+        audio_cap = float(audio_cap or 0)
+    except (TypeError, ValueError):
+        audio_cap = 0.0
     if not _media_file_ok(video.path) or not _media_file_ok(audio.path):
         empty = []
         if not _media_file_ok(getattr(video, "path", "")):
@@ -998,7 +1150,6 @@ def build_audio_on_video(
             "Scegli un audio e un video con contenuto, poi riprova. "
             "Il file di partenza resta com'è."
         )
-    # Audio senza durata leggibile: spesso file vuoto/corrotto; se ha byte, si prova uguale.
     a_dur = float(audio.duration or 0)
     if a_dur <= 0 and not audio.has_audio:
         probed, _err = load_piece(audio.path)
@@ -1006,56 +1157,197 @@ def build_audio_on_video(
             audio = probed
             a_dur = float(audio.duration or 0)
         if a_dur <= 0 and not getattr(audio, "has_audio", False):
-            # File con byte ma senza traccia: avvisa, non forzare ffmpeg cieco.
             if os.path.getsize(audio.path) < 1024:
                 return False, MSG_EMPTY_MEDIA
             return False, MSG_AUDIO_UNREADABLE
+    if not getattr(video, "has_audio", False) and float(video.duration or 0) > 0:
+        probed_v, _err = load_piece(video.path)
+        if probed_v is not None:
+            video = probed_v
     folder = os.path.dirname(os.path.abspath(video.path)) or os.getcwd()
     dest = _unique_output(folder, _audio_on_video_stem(video, audio), ".mp4")
-    v_dur = float(video.duration or 0)
-    note = ""
-    if v_dur > 0.5 and a_dur > 0.5 and abs(v_dur - a_dur) > 0.5:
-        if a_dur < v_dur:
-            note = (
-                f"L'audio dura {speak_duration(a_dur)}, "
-                f"il video {speak_duration(v_dur)}. "
-                "Il risultato si ferma con l'audio, il più corto. "
-            )
-        else:
-            note = (
-                f"Il video dura {speak_duration(v_dur)}, "
-                f"l'audio {speak_duration(a_dur)}. "
-                "Il risultato si ferma con il video, il più corto. "
-            )
+    v_file = float(video.duration or 0)
+    a_file = float(a_dur or 0)
+    v_dur = v_file
+    a_dur = a_file
+    if video_cap > 0.1:
+        v_dur = min(v_file, video_cap) if v_file > 0.1 else video_cap
+    if audio_cap > 0.1:
+        a_dur = min(a_file, audio_cap) if a_file > 0.1 else audio_cap
+    note = _length_note(v_dur, a_dur, length_mode)
+    mix_note = ""
+    use_mix = mode == "mix" and bool(getattr(video, "has_audio", False))
+    if mode == "mix" and not use_mix:
+        mix_note = (
+            "Il video non ha audio suo: ho messo solo l'audio scelto "
+            "(come in sostituzione). "
+        )
+        mode = "replace"
+    if mode == "mix":
+        mix_note = (
+            f"Mix: volume video {video_vol} percento, "
+            f"volume audio nuovo {audio_vol} percento. "
+        )
+    elif audio_vol != _AV_VOL_DEFAULT:
+        mix_note = f"Volume audio {audio_vol} percento. "
     ff = _ffmpeg_exe()
-    # Prima prova: video copiato, audio nuovo. Se fallisce, ricodifica tutto.
-    attempts = [
-        [
-            ff, "-y",
-            "-i", video.path,
-            "-i", audio.path,
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-c:v", "copy",
-            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
-            "-shortest",
-            "-movflags", "+faststart",
-            dest,
-        ],
-        [
-            ff, "-y",
-            "-i", video.path,
-            "-i", audio.path,
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p",
-            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
-            "-shortest",
-            "-movflags", "+faststart",
-            dest,
-        ],
-    ]
+
+    def _in_args() -> list[str]:
+        """Limita ogni ingresso al tetto scelto, se più corto del file."""
+        out = [ff, "-y"]
+        if v_dur > 0.1 and (v_file <= 0.1 or v_dur < v_file - 0.05):
+            out += ["-t", f"{v_dur:.3f}"]
+        out += ["-i", video.path]
+        if a_dur > 0.1 and (a_file <= 0.1 or a_dur < a_file - 0.05):
+            out += ["-t", f"{a_dur:.3f}"]
+        out += ["-i", audio.path]
+        return out
+
+    attempts: list[list[str]] = []
+    # Caso semplice come 2.0.6: sostituisci, più corto, volume 100, senza tetti.
+    if (
+        mode == "replace"
+        and length_mode == "shortest"
+        and audio_vol == 100
+        and video_cap <= 0.1
+        and audio_cap <= 0.1
+    ):
+        attempts.append(
+            [
+                ff, "-y",
+                "-i", video.path,
+                "-i", audio.path,
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-c:v", "copy",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-shortest",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        )
+    a_f = _vol_af(audio_vol)
+    v_f = _vol_af(video_vol)
+    vf_scale = "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p"
+    need_freeze = (
+        length_mode in ("audio", "both")
+        and a_dur > 0.1
+        and v_dur > 0.1
+        and a_dur > v_dur + 0.2
+    )
+    need_apad = (
+        length_mode in ("video", "both")
+        and v_dur > 0.1
+        and a_dur > 0.1
+        and v_dur > a_dur + 0.2
+    )
+    if mode == "replace":
+        if need_freeze:
+            pad = a_dur - v_dur
+            graph = (
+                f"[0:v]{vf_scale},tpad=stop_mode=clone:stop_duration={pad:.3f}[v];"
+                f"[1:a]{a_f}[a]"
+            )
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        elif need_apad or (length_mode == "video" and v_dur > 0.1):
+            graph = f"[0:v]{vf_scale}[v];[1:a]{a_f},apad[a]"
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-t", f"{v_dur:.3f}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        elif length_mode == "audio" and a_dur > 0.1:
+            graph = f"[0:v]{vf_scale}[v];[1:a]{a_f}[a]"
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-t", f"{a_dur:.3f}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        else:
+            graph = f"[0:v]{vf_scale}[v];[1:a]{a_f}[a]"
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-shortest",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        attempts.append(args)
+    else:
+        # mix: audio video + audio nuovo
+        aformat = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
+        limit = "alimiter=limit=0.95:attack=5:release=50:level=false"
+        if need_freeze:
+            pad = a_dur - v_dur
+            graph = (
+                f"[0:v]{vf_scale},tpad=stop_mode=clone:stop_duration={pad:.3f}[v];"
+                f"[0:a]{v_f},{aformat}[a0];"
+                f"[1:a]{a_f},{aformat}[a1];"
+                f"[a0][a1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,"
+                f"{limit}[a]"
+            )
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        elif need_apad or (length_mode == "video" and v_dur > 0.1):
+            graph = (
+                f"[0:v]{vf_scale}[v];"
+                f"[0:a]{v_f},{aformat}[a0];"
+                f"[1:a]{a_f},{aformat}[a1];"
+                f"[a0][a1]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+                f"{limit}[a]"
+            )
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-t", f"{v_dur:.3f}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        else:
+            amix_dur = "longest" if length_mode in ("audio", "both") else "shortest"
+            graph = (
+                f"[0:v]{vf_scale}[v];"
+                f"[0:a]{v_f},{aformat}[a0];"
+                f"[1:a]{a_f},{aformat}[a1];"
+                f"[a0][a1]amix=inputs=2:duration={amix_dur}:dropout_transition=0:normalize=0,"
+                f"{limit}[a]"
+            )
+            args = _in_args() + [
+                "-filter_complex", graph,
+                "-map", "[v]", "-map", "[a]",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+                "-shortest",
+                "-movflags", "+faststart",
+                dest,
+            ]
+        attempts.append(args)
+
     ok = False
     last_err = ""
     for args in attempts:
@@ -1078,9 +1370,22 @@ def build_audio_on_video(
     if made_path is not None:
         made_path.append(dest)
     dur = _duration_of(dest)
+    # «Usato» = dopo i tetti ore/min/s; se diverso dal file, lo diciamo chiaro.
+    if abs(v_file - v_dur) > 0.5 or abs(a_file - a_dur) > 0.5:
+        src_note = (
+            f"File video {speak_duration(v_file)}, "
+            f"file audio {speak_duration(a_file)}. "
+            f"Usati: video {speak_duration(v_dur)}, "
+            f"audio {speak_duration(a_dur)}. "
+        )
+    else:
+        src_note = (
+            f"Video usato {speak_duration(v_dur)}, "
+            f"audio usato {speak_duration(a_dur)}. "
+        )
     return True, (
-        f"{note}"
-        f"Creato {spoken_result_path(dest)}, {speak_duration(dur)}, "
+        f"{mix_note}{note}{src_note}"
+        f"Creato {spoken_result_path(dest)}, risultato {speak_duration(dur)}, "
         "nella stessa cartella. Il file di partenza resta com'è."
     )
 
@@ -1214,8 +1519,492 @@ def _wav_duration(path: str) -> float:
         return 0.0
 
 
-def preview_wav(piece: Piece, dest: str, cancel=None) -> tuple[bool, str]:
-    """Un wav corto del pezzo. La frase dice che cosa si sta per sentire."""
+def speak_position(seconds: float) -> str:
+    """Orario breve per pausa/ripresa (es. «6 s», «1 min 20 s»)."""
+    if seconds is None or seconds < 0:
+        seconds = 0.0
+    total = int(round(float(seconds)))
+    if total < 60:
+        return f"{total} s"
+    m, s = divmod(total, 60)
+    if m < 60:
+        return f"{m} min {s} s" if s else f"{m} min"
+    h, m = divmod(m, 60)
+    return f"{h} h {m:02d} min {s:02d} s"
+
+
+def _clamp_listen_vol(pct) -> int:
+    try:
+        value = int(round(float(pct)))
+    except (TypeError, ValueError):
+        value = _LISTEN_VOL_DEFAULT
+    step = _LISTEN_VOL_STEP
+    value = int(round(value / step) * step)
+    return max(_LISTEN_VOL_MIN, min(_LISTEN_VOL_MAX, value))
+
+
+def _soft_gain_pcm(raw: bytes, sampwidth: int, vol_pct: int) -> bytes:
+    """Applica volume 0–200. Oltre 100: soft-clip (tanh), senza taglio a dente di sega."""
+    vol_pct = _clamp_listen_vol(vol_pct)
+    if not raw or sampwidth != 2 or vol_pct == 100:
+        return raw
+    import array
+    import math
+
+    samples = array.array("h")
+    samples.frombytes(raw)
+    if vol_pct == 0:
+        for i in range(len(samples)):
+            samples[i] = 0
+        return samples.tobytes()
+    gain = vol_pct / 100.0
+    peak = 32767.0
+    for i, sample in enumerate(samples):
+        x = float(sample) * gain
+        if x > peak or x < -peak:
+            x = peak * math.tanh(x / peak)
+        if x >= peak:
+            samples[i] = 32767
+        elif x <= -peak:
+            samples[i] = -32768
+        else:
+            samples[i] = int(round(x))
+    return samples.tobytes()
+
+
+def slice_wav_for_play(
+    src: str, dest: str, start_sec: float, vol_pct: int = 100
+) -> tuple[bool, float]:
+    """Copia un wav da start_sec in poi. Ritorna (ok, secondi rimasti)."""
+    try:
+        with wave.open(src, "rb") as reader:
+            rate = reader.getframerate() or 0
+            channels = reader.getnchannels() or 1
+            width = reader.getsampwidth() or 2
+            total = reader.getnframes() or 0
+            if rate <= 0 or total <= 0:
+                return False, 0.0
+            start_frame = max(0, int(float(start_sec or 0) * rate))
+            if start_frame >= total:
+                return False, 0.0
+            remain_frames = total - start_frame
+            remain_sec = remain_frames / float(rate)
+            if remain_sec < 0.12:
+                return False, remain_sec
+            reader.setpos(start_frame)
+            raw = reader.readframes(remain_frames)
+            raw = _soft_gain_pcm(raw, width, vol_pct)
+            with wave.open(dest, "wb") as writer:
+                writer.setnchannels(channels)
+                writer.setsampwidth(width)
+                writer.setframerate(rate)
+                writer.writeframes(raw)
+        ok = os.path.isfile(dest) and os.path.getsize(dest) > 44
+        return ok, remain_sec
+    except Exception:
+        log.exception("slice_wav_for_play")
+        return False, 0.0
+
+
+def _restore_wave_out_volume() -> None:
+    """Ripristina il wave del processo a pieno (uscita / recovery).
+
+    Non usarlo per l'ascolto: waveOutSetVolume(0) nell'Add-on abbassa anche
+    la sintesi di NVDA (stesso processo). In Standalone è un processo a parte.
+    """
+    try:
+        import ctypes
+
+        ctypes.windll.winmm.waveOutSetVolume(0, 0xFFFFFFFF)
+    except Exception:
+        pass
+
+
+def _listen_volume_af(user_vol: int) -> str:
+    """Filtro ffmpeg per volume ascolto 0–200 (oltre 100 con soft-limiter)."""
+    vol = _clamp_listen_vol(user_vol)
+    gain = max(0.0, float(vol) / 100.0)
+    if gain > 1.0:
+        return (
+            f"volume={gain:.4f},"
+            "alimiter=limit=0.95:attack=5:release=50:level=false"
+        )
+    return f"volume={gain:.4f}"
+
+
+def _bake_listen_volume_pcm(src: str, dest: str, vol: int) -> bool:
+    """Fallback: volume in PCM (pezzi corti; sui lunghi può impiegare)."""
+    with wave.open(src, "rb") as reader:
+        rate = reader.getframerate() or 22050
+        channels = reader.getnchannels() or 1
+        width = reader.getsampwidth() or 2
+        raw = reader.readframes(reader.getnframes() or 0)
+    raw = _soft_gain_pcm(raw, width, vol)
+    with wave.open(dest, "wb") as writer:
+        writer.setnchannels(channels)
+        writer.setsampwidth(width)
+        writer.setframerate(rate)
+        writer.writeframes(raw)
+    return os.path.isfile(dest) and os.path.getsize(dest) > 44
+
+
+def bake_listen_volume(src: str, dest: str, user_vol: int) -> bool:
+    """Scrive dest con il volume utente. A 100% copia il base (niente ricodifica)."""
+    if not src or not os.path.isfile(src):
+        return False
+    vol = _clamp_listen_vol(user_vol)
+    try:
+        if vol == 100:
+            if os.path.abspath(src) == os.path.abspath(dest):
+                return True
+            import shutil
+
+            shutil.copy2(src, dest)
+            return os.path.isfile(dest) and os.path.getsize(dest) > 44
+        ff = _ffmpeg_exe()
+        if ff:
+            af = _listen_volume_af(vol)
+            ok, _err = _run(
+                [ff, "-y", "-i", src, "-af", af, "-ac", "1", "-ar", "22050", dest],
+                None,
+                timeout=600,
+            )
+            if bool(ok) and os.path.isfile(dest) and os.path.getsize(dest) > 44:
+                return True
+        return _bake_listen_volume_pcm(src, dest, vol)
+    except Exception:
+        log.exception("bake_listen_volume")
+        try:
+            return _bake_listen_volume_pcm(src, dest, vol)
+        except Exception:
+            log.exception("bake_listen_volume_pcm")
+            return False
+
+
+class LiveListenPlayer:
+    """Ascolto wav con volume 0–200 sui campioni (niente waveOutSetVolume / NVDA).
+
+    Seek e pausa ripartono il thread dal punto giusto (affidabile).
+    Il volume cambia in tempo reale mentre suona, senza ricuocere il file.
+    """
+
+    _BUF_MS = 50
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._vol = _LISTEN_VOL_DEFAULT
+        self._path = ""
+        self._rate = 22050
+        self._channels = 1
+        self._width = 2
+        self._nframes = 0
+        self._frame = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._playing = False
+
+    def set_volume(self, pct: int) -> None:
+        with self._lock:
+            self._vol = _clamp_listen_vol(pct)
+
+    def volume(self) -> int:
+        with self._lock:
+            return int(self._vol)
+
+    def is_playing(self) -> bool:
+        with self._lock:
+            return bool(self._playing) and bool(self._thread and self._thread.is_alive())
+
+    def is_open(self) -> bool:
+        with self._lock:
+            return bool(self._thread and self._thread.is_alive())
+
+    def position_sec(self) -> float:
+        with self._lock:
+            rate = float(self._rate or 1)
+            return max(0.0, float(self._frame) / rate)
+
+    def duration_sec(self) -> float:
+        with self._lock:
+            rate = float(self._rate or 1)
+            return max(0.0, float(self._nframes) / rate)
+
+    def _halt(self, clear_path: bool = False) -> None:
+        self._stop.set()
+        thread = None
+        with self._lock:
+            thread = self._thread
+            self._playing = False
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=2.5)
+        with self._lock:
+            self._thread = None
+            self._playing = False
+            if clear_path:
+                self._path = ""
+                self._frame = 0
+
+    def stop(self) -> None:
+        self._halt(clear_path=True)
+
+    def pause(self) -> float:
+        with self._lock:
+            path = self._path
+            pos = self.position_sec()
+            vol = self._vol
+            rate = self._rate
+            channels = self._channels
+            width = self._width
+            nframes = self._nframes
+        self._halt(clear_path=False)
+        with self._lock:
+            # Conserva i metadati per resume/seek anche a thread fermo.
+            self._path = path
+            self._vol = vol
+            self._rate = rate
+            self._channels = channels
+            self._width = width
+            self._nframes = nframes
+            self._frame = int(max(0.0, pos) * float(rate or 1))
+            self._playing = False
+        return max(0.0, pos)
+
+    def resume(self) -> bool:
+        with self._lock:
+            path = self._path
+            pos = float(self._frame) / float(self._rate or 1)
+            vol = self._vol
+        if not path or not os.path.isfile(path):
+            return False
+        return self.play(path, from_sec=pos, vol=vol)
+
+    def seek(self, sec: float, play: bool = True) -> bool:
+        with self._lock:
+            path = self._path
+            vol = self._vol
+            rate = float(self._rate or 1)
+            nframes = int(self._nframes)
+        if not path or not os.path.isfile(path):
+            return False
+        frame = int(max(0.0, float(sec)) * rate)
+        if nframes > 0:
+            frame = min(frame, max(0, nframes - 1))
+        pos = float(frame) / rate
+        if play:
+            return self.play(path, from_sec=pos, vol=vol)
+        self._halt(clear_path=False)
+        with self._lock:
+            self._path = path
+            self._vol = vol
+            self._frame = frame
+            self._playing = False
+        return True
+
+    def play(self, path: str, from_sec: float = 0.0, vol: int | None = None) -> bool:
+        if not path or not os.path.isfile(path):
+            return False
+        try:
+            with wave.open(path, "rb") as reader:
+                rate = int(reader.getframerate() or 0)
+                channels = int(reader.getnchannels() or 1)
+                width = int(reader.getsampwidth() or 2)
+                nframes = int(reader.getnframes() or 0)
+        except Exception:
+            log.exception("LiveListenPlayer.play open")
+            return False
+        if rate <= 0 or nframes <= 0 or width != 2:
+            return False
+        start = int(max(0.0, float(from_sec or 0)) * rate)
+        if start >= nframes:
+            start = 0
+        self._halt(clear_path=False)
+        with self._lock:
+            self._path = path
+            self._rate = rate
+            self._channels = max(1, channels)
+            self._width = width
+            self._nframes = nframes
+            self._frame = start
+            if vol is not None:
+                self._vol = _clamp_listen_vol(vol)
+            self._stop = threading.Event()
+            self._playing = True
+            self._thread = threading.Thread(
+                target=self._run, args=(path, start), daemon=True
+            )
+            self._thread.start()
+        return True
+
+    def _run(self, path: str, start_frame: int) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class WAVEFORMATEX(ctypes.Structure):
+            _fields_ = [
+                ("wFormatTag", wintypes.WORD),
+                ("nChannels", wintypes.WORD),
+                ("nSamplesPerSec", wintypes.DWORD),
+                ("nAvgBytesPerSec", wintypes.DWORD),
+                ("nBlockAlign", wintypes.WORD),
+                ("wBitsPerSample", wintypes.WORD),
+                ("cbSize", wintypes.WORD),
+            ]
+
+        class WAVEHDR(ctypes.Structure):
+            _fields_ = [
+                ("lpData", ctypes.c_void_p),
+                ("dwBufferLength", wintypes.DWORD),
+                ("dwBytesRecorded", wintypes.DWORD),
+                ("dwUser", ctypes.c_void_p),
+                ("dwFlags", wintypes.DWORD),
+                ("dwLoops", wintypes.DWORD),
+                ("lpNext", ctypes.c_void_p),
+                ("reserved", ctypes.c_void_p),
+            ]
+
+        winmm = ctypes.windll.winmm
+        WAVE_MAPPER = 0xFFFFFFFF  # -1 as DWORD
+        WAVE_FORMAT_PCM = 1
+        WHDR_DONE = 0x00000001
+        CALLBACK_NULL = 0
+
+        with self._lock:
+            rate = int(self._rate)
+            channels = int(self._channels)
+            width = int(self._width)
+            nframes = int(self._nframes)
+
+        hwo = wintypes.HANDLE()
+        fmt = WAVEFORMATEX()
+        fmt.wFormatTag = WAVE_FORMAT_PCM
+        fmt.nChannels = channels
+        fmt.nSamplesPerSec = rate
+        fmt.wBitsPerSample = width * 8
+        fmt.nBlockAlign = channels * width
+        fmt.nAvgBytesPerSec = rate * fmt.nBlockAlign
+        fmt.cbSize = 0
+        err = int(
+            winmm.waveOutOpen(
+                ctypes.byref(hwo),
+                WAVE_MAPPER,
+                ctypes.byref(fmt),
+                0,
+                0,
+                CALLBACK_NULL,
+            )
+            or 0
+        )
+        if err:
+            log.warning("waveOutOpen err=%s", err)
+            with self._lock:
+                self._playing = False
+                self._thread = None
+            return
+
+        frames_per_buf = max(1, int(rate * (self._BUF_MS / 1000.0)))
+        byte_len = frames_per_buf * channels * width
+        # Due buffer: i bytes devono restare vivi finché WHDR_DONE.
+        bufs = [ctypes.create_string_buffer(byte_len) for _ in range(2)]
+        hdrs = [WAVEHDR() for _ in range(2)]
+        reader = None
+        try:
+            reader = wave.open(path, "rb")
+            reader.setpos(min(max(0, int(start_frame)), max(0, nframes - 1)))
+            with self._lock:
+                self._frame = reader.tell()
+
+            def _wait_done(hdr: WAVEHDR) -> bool:
+                while not (int(hdr.dwFlags) & WHDR_DONE):
+                    if self._stop.is_set():
+                        return False
+                    time.sleep(0.005)
+                return True
+
+            def _queue(idx: int) -> bool:
+                if self._stop.is_set():
+                    return False
+                frame_pos = reader.tell()
+                if frame_pos >= nframes:
+                    return False
+                raw = reader.readframes(frames_per_buf)
+                if not raw:
+                    return False
+                with self._lock:
+                    vol = int(self._vol)
+                gained = _soft_gain_pcm(raw, width, vol)
+                n = min(len(gained), byte_len)
+                bufs[idx][:n] = gained[:n]
+                if n < byte_len:
+                    bufs[idx][n:byte_len] = b"\x00" * (byte_len - n)
+                hdr = hdrs[idx]
+                hdr.lpData = ctypes.addressof(bufs[idx])
+                hdr.dwBufferLength = n
+                hdr.dwBytesRecorded = 0
+                hdr.dwUser = 0
+                hdr.dwFlags = 0
+                hdr.dwLoops = 0
+                hdr.lpNext = 0
+                hdr.reserved = 0
+                if winmm.waveOutPrepareHeader(hwo, ctypes.byref(hdr), ctypes.sizeof(hdr)):
+                    return False
+                if winmm.waveOutWrite(hwo, ctypes.byref(hdr), ctypes.sizeof(hdr)):
+                    winmm.waveOutUnprepareHeader(
+                        hwo, ctypes.byref(hdr), ctypes.sizeof(hdr)
+                    )
+                    return False
+                got = n // max(1, channels * width)
+                with self._lock:
+                    self._frame = min(nframes, frame_pos + got)
+                return True
+
+            active: list[int] = []
+            for i in range(2):
+                if not _queue(i):
+                    break
+                active.append(i)
+            while active and not self._stop.is_set():
+                idx = active.pop(0)
+                if not _wait_done(hdrs[idx]):
+                    break
+                winmm.waveOutUnprepareHeader(
+                    hwo, ctypes.byref(hdrs[idx]), ctypes.sizeof(hdrs[idx])
+                )
+                hdrs[idx].dwFlags = 0
+                if _queue(idx):
+                    active.append(idx)
+            for idx in list(active):
+                _wait_done(hdrs[idx])
+                try:
+                    winmm.waveOutUnprepareHeader(
+                        hwo, ctypes.byref(hdrs[idx]), ctypes.sizeof(hdrs[idx])
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            log.exception("LiveListenPlayer._run")
+        finally:
+            try:
+                winmm.waveOutReset(hwo)
+            except Exception:
+                pass
+            try:
+                winmm.waveOutClose(hwo)
+            except Exception:
+                pass
+            if reader is not None:
+                try:
+                    reader.close()
+                except Exception:
+                    pass
+            with self._lock:
+                self._playing = False
+                self._thread = None
+
+
+def preview_wav(
+    piece: Piece, dest: str, cancel=None, head_only: bool = False
+) -> tuple[bool, str]:
+    """Wav del pezzo per l'ascolto. head_only=True: solo i primi 20 secondi."""
     if not piece.has_audio and piece.kind == "video":
         probed, _err = load_piece(piece.path)
         if probed is not None and probed.has_audio:
@@ -1243,6 +2032,8 @@ def preview_wav(piece: Piece, dest: str, cancel=None) -> tuple[bool, str]:
                 f"asetpts=PTS-STARTPTS[a]"
             )
             phrase = "Ascolto 5 secondi dopo il taglio."
+        # Volume ascolto 0–200: sul pezzo in riproduzione (bake), non sul wave di sistema
+        # (nell'Add-on waveOutSetVolume abbassa anche la voce di NVDA).
         ok, _err = _run(
             [
                 ff, "-y", "-i", piece.path,
@@ -1260,23 +2051,31 @@ def preview_wav(piece: Piece, dest: str, cancel=None) -> tuple[bool, str]:
     if piece.mode == "keep" and piece.start is not None:
         start = float(piece.start)
     span = piece.span() or float(piece.duration or 0)
-    # Fino a 2 minuti: tutto il pezzo (es. risultato Unisci). Oltre: solo l'inizio.
-    full_max = 120.0
-    head = 20.0
-    if span > 0 and span <= full_max:
-        take = span
+    head = _LISTEN_HEAD_SEC
+    full_max = _LISTEN_FULL_MAX_SEC
+    if head_only:
+        take = head if span <= 0 else min(head, span)
+        phrase_head = True
+    elif span > 0:
+        take = min(span, full_max)
+        phrase_head = span > full_max
     else:
-        take = head
+        take = full_max
+        phrase_head = False
+    # Base a volume naturale; frecce su/giù cuociono il volume sul wav di play.
     ok, _err = _run(
-        _seek_args(piece.path, start, take) + ["-vn", "-ac", "1", "-ar", "22050", dest],
+        _seek_args(piece.path, start, take)
+        + ["-vn", "-ac", "1", "-ar", "22050", dest],
         cancel,
-        timeout=180,
+        timeout=600,
     )
     if not ok or not os.path.isfile(dest):
         return False, MSG_LISTEN_FAIL
     heard = _wav_duration(dest) or take
-    if span > full_max:
-        return True, f"Ascolto l'inizio, {speak_duration(heard)}."
+    if head_only:
+        return True, f"{MSG_LISTEN_HEAD} {speak_duration(heard)}."
+    if phrase_head:
+        return True, f"Ascolto i primi {speak_duration(heard)}."
     return True, f"Ascolto il pezzo, {speak_duration(heard)}."
 
 
@@ -1297,6 +2096,273 @@ def _install_dialog():
     import winsound
     import wx
 
+    class AudioOnVideoDialog(wx.Dialog):
+        """Scelte: sostituisci/mix, volumi, caselle durata indipendenti, ore/min/s."""
+
+        def __init__(self, parent, speaker, video: Piece, audio: Piece):
+            super().__init__(
+                parent,
+                title="Audio sul video",
+                style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+            )
+            self._speaker = speaker or (lambda _text: None)
+            self.result = None
+            self._v_dur = float(video.duration or 0)
+            self._a_dur = float(audio.duration or 0)
+            v_name = os.path.basename(video.path)
+            a_name = os.path.basename(audio.path)
+            root = wx.BoxSizer(wx.VERTICAL)
+            intro = wx.StaticText(
+                self,
+                label=(
+                    f"Video: {v_name}. Audio: {a_name}. "
+                    "Scegli come metterli insieme. "
+                    "Spazio sulle caselle le accende o le spegne. "
+                    "Se una casella «Tutto» è spenta, regola ore, minuti e secondi "
+                    "con le frecce su e giù. "
+                    "I volumi arrivano a 200 percento, in modo pulito. "
+                    "Invio sul pulsante Crea, o un clic, scrive il file nuovo. "
+                    "Esc o Annulla non scrive nulla."
+                ),
+            )
+            intro.Wrap(560)
+            root.Add(intro, 0, wx.ALL | wx.EXPAND, 10)
+
+            root.Add(wx.StaticText(self, label="Modo"), 0, wx.LEFT | wx.RIGHT, 10)
+            self.radio_replace = wx.RadioButton(
+                self,
+                label="&Sostituisci l'audio del video (solo l'audio scelto)",
+                style=wx.RB_GROUP,
+            )
+            self.radio_mix = wx.RadioButton(
+                self, label="&Mix: tieni l'audio del video e aggiungi l'audio scelto"
+            )
+            self.radio_replace.SetValue(True)
+            root.Add(self.radio_replace, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+            root.Add(self.radio_mix, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+            vol_box = wx.BoxSizer(wx.HORIZONTAL)
+            vol_box.Add(
+                wx.StaticText(self, label="Volume &video %"),
+                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
+            )
+            self.spin_v = wx.SpinCtrl(
+                self, min=_AV_VOL_MIN, max=_AV_VOL_MAX, initial=_AV_VOL_DEFAULT
+            )
+            try:
+                self.spin_v.SetIncrement(_AV_VOL_STEP)
+            except Exception:
+                pass
+            vol_box.Add(self.spin_v, 0, wx.RIGHT, 16)
+            vol_box.Add(
+                wx.StaticText(self, label="Volume &audio nuovo %"),
+                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
+            )
+            self.spin_a = wx.SpinCtrl(
+                self, min=_AV_VOL_MIN, max=_AV_VOL_MAX, initial=_AV_VOL_DEFAULT
+            )
+            try:
+                self.spin_a.SetIncrement(_AV_VOL_STEP)
+            except Exception:
+                pass
+            vol_box.Add(self.spin_a, 0)
+            root.Add(vol_box, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+            root.Add(
+                wx.StaticText(
+                    self,
+                    label=(
+                        "In Sostituisci conta il volume dell'audio nuovo. "
+                        "In Mix contano tutti e due. Da 0 a 200."
+                    ),
+                ),
+                0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10,
+            )
+
+            root.Add(
+                wx.StaticText(self, label="Durata (caselle indipendenti)"),
+                0, wx.LEFT | wx.RIGHT, 10,
+            )
+            hint = wx.StaticText(
+                self,
+                label=(
+                    "Spente tutte e due: risultato al più corto (dei tempi impostati). "
+                    "Accesa solo Tutto il video: dura quanto il video; "
+                    "se l'audio impostato è più lungo, freeze. "
+                    "Accesa solo Tutto l'audio: dura quanto l'audio; "
+                    "se il video impostato è più lungo, il video continua. "
+                    "Accese tutte e due: restano tutti e due (freeze o silenzio se serve). "
+                    "Casella spenta: scegli tu dove fermare quel pezzo."
+                ),
+            )
+            hint.Wrap(560)
+            root.Add(hint, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
+            # Predefinito: come 2.0.6 = più corto (entrambe spente).
+            # Ordine Tab: casella video → campi video → casella audio → campi audio.
+            vh, vm, vs = _hms_from_seconds(self._v_dur if self._v_dur > 0 else 0)
+            ah, am, as_ = _hms_from_seconds(self._a_dur if self._a_dur > 0 else 0)
+            self.chk_full_video = wx.CheckBox(self, label="Tutto il &video")
+            self.chk_full_video.SetValue(False)
+            root.Add(self.chk_full_video, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+            root.Add(
+                wx.StaticText(
+                    self,
+                    label="Durata video da usare (se «Tutto il video» è spenta)",
+                ),
+                0, wx.LEFT | wx.RIGHT | wx.TOP, 6,
+            )
+            self.spin_vh, self.spin_vm, self.spin_vs, row_v = self._make_hms_row(
+                vh, vm, vs
+            )
+            root.Add(row_v, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+            self.chk_full_audio = wx.CheckBox(self, label="Tutto l'a&udio")
+            self.chk_full_audio.SetValue(False)
+            root.Add(self.chk_full_audio, 0, wx.LEFT | wx.RIGHT | wx.TOP, 4)
+            root.Add(
+                wx.StaticText(
+                    self,
+                    label="Durata audio da usare (se «Tutto l'audio» è spenta)",
+                ),
+                0, wx.LEFT | wx.RIGHT | wx.TOP, 6,
+            )
+            self.spin_ah, self.spin_am, self.spin_as, row_a = self._make_hms_row(
+                ah, am, as_
+            )
+            root.Add(row_a, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+            row = wx.BoxSizer(wx.HORIZONTAL)
+            btn_ok = wx.Button(self, wx.ID_OK, "&Crea")
+            btn_cancel = wx.Button(self, wx.ID_CANCEL, "Annulla")
+            btn_ok.SetDefault()
+            row.Add(btn_ok, 0, wx.RIGHT, 8)
+            row.Add(btn_cancel, 0)
+            root.Add(row, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
+
+            self.radio_replace.Bind(wx.EVT_RADIOBUTTON, self._on_mode)
+            self.radio_mix.Bind(wx.EVT_RADIOBUTTON, self._on_mode)
+            self.chk_full_video.Bind(wx.EVT_CHECKBOX, self._on_dur_toggle)
+            self.chk_full_audio.Bind(wx.EVT_CHECKBOX, self._on_dur_toggle)
+            self.Bind(wx.EVT_BUTTON, self._on_ok, id=wx.ID_OK)
+            self.SetSizer(root)
+            self.Fit()
+            self.CentreOnParent()
+            self._on_mode()
+            self._on_dur_toggle()
+            wx.CallAfter(self._announce)
+
+        def _make_hms_row(self, h: int, m: int, s: int):
+            row = wx.BoxSizer(wx.HORIZONTAL)
+            row.Add(wx.StaticText(self, label="Ore"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4)
+            spin_h = wx.SpinCtrl(self, min=0, max=99, initial=h)
+            row.Add(spin_h, 0, wx.RIGHT, 10)
+            row.Add(wx.StaticText(self, label="Minuti"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4)
+            spin_m = wx.SpinCtrl(self, min=0, max=59, initial=m)
+            row.Add(spin_m, 0, wx.RIGHT, 10)
+            row.Add(wx.StaticText(self, label="Secondi"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4)
+            spin_s = wx.SpinCtrl(self, min=0, max=59, initial=s)
+            row.Add(spin_s, 0)
+            return spin_h, spin_m, spin_s, row
+
+        def _announce(self):
+            try:
+                self._speaker(
+                    "Audio sul video. Scegli sostituisci o mix, i volumi, "
+                    "le caselle di durata e se serve ore minuti secondi, "
+                    "poi Invio su Crea, o un clic."
+                )
+            except Exception:
+                pass
+
+        def _on_mode(self, _event=None):
+            mix = self.radio_mix.GetValue()
+            self.spin_v.Enable(mix)
+            if not mix:
+                self.spin_v.SetValue(_AV_VOL_DEFAULT)
+
+        def _on_dur_toggle(self, _event=None):
+            use_v = not self.chk_full_video.GetValue()
+            use_a = not self.chk_full_audio.GetValue()
+            for spin in (self.spin_vh, self.spin_vm, self.spin_vs):
+                spin.Enable(use_v)
+            for spin in (self.spin_ah, self.spin_am, self.spin_as):
+                spin.Enable(use_a)
+            if self.chk_full_video.GetValue() and self._v_dur > 0:
+                h, m, s = _hms_from_seconds(self._v_dur)
+                self.spin_vh.SetValue(h)
+                self.spin_vm.SetValue(m)
+                self.spin_vs.SetValue(s)
+            if self.chk_full_audio.GetValue() and self._a_dur > 0:
+                h, m, s = _hms_from_seconds(self._a_dur)
+                self.spin_ah.SetValue(h)
+                self.spin_am.SetValue(m)
+                self.spin_as.SetValue(s)
+
+        def _on_ok(self, _event):
+            mode = "mix" if self.radio_mix.GetValue() else "replace"
+            full_v = bool(self.chk_full_video.GetValue())
+            full_a = bool(self.chk_full_audio.GetValue())
+            video_cap = 0.0
+            audio_cap = 0.0
+            if not full_v:
+                video_cap = _seconds_from_hms(
+                    self.spin_vh.GetValue(),
+                    self.spin_vm.GetValue(),
+                    self.spin_vs.GetValue(),
+                )
+                if video_cap < 0.2:
+                    self._speaker(
+                        "La durata video è troppo corta. "
+                        "Regola ore, minuti e secondi, oppure accendi Tutto il video."
+                    )
+                    return
+            if not full_a:
+                audio_cap = _seconds_from_hms(
+                    self.spin_ah.GetValue(),
+                    self.spin_am.GetValue(),
+                    self.spin_as.GetValue(),
+                )
+                if audio_cap < 0.2:
+                    self._speaker(
+                        "La durata audio è troppo corta. "
+                        "Regola ore, minuti e secondi, oppure accendi Tutto l'audio."
+                    )
+                    return
+            # Durate effettive (dopo tetti) per capire se il video deve continuare
+            # o se l'immagine deve restare ferma oltre l'audio.
+            v_use = float(self._v_dur or 0) if full_v else float(video_cap)
+            a_use = float(self._a_dur or 0) if full_a else float(audio_cap)
+            if self._v_dur > 0.1 and v_use > self._v_dur:
+                v_use = float(self._v_dur)
+            if self._a_dur > 0.1 and a_use > self._a_dur:
+                a_use = float(self._a_dur)
+            if full_v and full_a:
+                length_mode = "both"
+            elif full_v and not full_a:
+                # Video intero + audio impostato più lungo: freeze oltre il video.
+                if a_use > v_use + 0.2:
+                    length_mode = "both"
+                else:
+                    length_mode = "video"
+            elif full_a and not full_v:
+                # Audio intero + video impostato più lungo: il video continua dopo l'audio.
+                if v_use > a_use + 0.2:
+                    length_mode = "both"
+                else:
+                    length_mode = "audio"
+            else:
+                # Tutte e due spente: come 2.0.6, al più corto (dei tetti impostati).
+                length_mode = "shortest"
+            self.result = {
+                "mode": mode,
+                "video_vol": _clamp_av_vol(self.spin_v.GetValue()),
+                "audio_vol": _clamp_av_vol(self.spin_a.GetValue()),
+                "length_mode": length_mode,
+                "video_cap": video_cap,
+                "audio_cap": audio_cap,
+            }
+            self.EndModal(wx.ID_OK)
+
     class ClipDialog(wx.Dialog):
         def __init__(self, parent, speaker, paths):
             super().__init__(
@@ -1313,9 +2379,17 @@ def _install_dialog():
             self._preview = ""
             self._preview_phrase = ""
             self._preview_key = ""
+            self._preview_dur = 0.0
             self._playing = False
             self._listen_busy = False
             self._listen_gen = 0
+            self._listen_vol = _LISTEN_VOL_DEFAULT
+            self._play_pos = 0.0
+            self._play_t0 = 0.0
+            self._paused_at = None
+            self._player = LiveListenPlayer()
+            self._listen_mem: dict = {}
+            self._announce_gen = 0
             self._initial = list(paths or [])
 
             vbox = wx.BoxSizer(wx.VERTICAL)
@@ -1329,7 +2403,13 @@ def _install_dialog():
                     label=(
                         "File, nell'ordine. "
                         "Invio o doppio clic ascolta il pezzo. "
-                        "Spazio ascolta; se sta già suonando, Spazio di nuovo ferma. "
+                        "Spazio ascolta; Spazio di nuovo pausa con orario; "
+                        "Spazio ancora riparte da lì. "
+                        "Mentre suona o in pausa: freccia destra/sinistra avanti/indietro di 5 s, "
+                        "senza interrompere l'ascolto. "
+                        "Mentre suona: freccia su/giù volume fino a 200 percento, in continuo. "
+                        "In pausa o da fermo: freccia su/giù scorrono l'elenco. "
+                        "Ogni file ricorda punto e volume finché la finestra resta aperta. "
                         "Un clic solo seleziona la riga."
                     ),
                 ),
@@ -1374,6 +2454,13 @@ def _install_dialog():
             for btn in (self.btn_listen, self.btn_stop, self.btn_keep, self.btn_drop, self.btn_another):
                 row2.Add(btn, 0, wx.RIGHT, 6)
             vbox.Add(row2, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+            # Alt+S (non Alt+2: il &20 faceva leggere «Alt+2» a NVDA).
+            self.chk_listen_head = wx.CheckBox(
+                self, label="Ascolto &solo i primi 20 secondi"
+            )
+            self.chk_listen_head.SetValue(False)
+            vbox.Add(self.chk_listen_head, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+            self.chk_listen_head.Bind(wx.EVT_CHECKBOX, self._on_listen_head_toggle)
 
             row3 = wx.BoxSizer(wx.HORIZONTAL)
             self.btn_run = wx.Button(self, label="&Esegui")
@@ -1391,7 +2478,8 @@ def _install_dialog():
                     self,
                     label=(
                         "Fatti. Invio o doppio clic rimette il file nell'elenco di lavoro. "
-                        "Spazio ascolta il risultato; se sta già suonando, Spazio ferma. "
+                        "Spazio ascolta il risultato; Spazio di nuovo pausa con orario; "
+                        "poi riparte da lì. Stesse frecce dell'elenco di lavoro. "
                         "Un clic solo seleziona la riga."
                     ),
                 ),
@@ -1448,29 +2536,80 @@ def _install_dialog():
         def close_work(self):
             self._open = False
             self._cancel.set()
+            self._announce_gen += 1
             self._stop_sound()
+            self._clear_listen_session()
+            self._listen_mem.clear()
+            # Recovery se una build precedente aveva abbassato il wave del processo.
+            _restore_wave_out_volume()
 
         def _on_close(self, event):
             self.close_work()
             event.Skip()
 
+        def _on_listen_head_toggle(self, _event=None):
+            # Cambia la prossima preparazione; la sessione corrente si invalida.
+            self._save_listen_mem()
+            self._preview = ""
+            self._preview_key = ""
+            self._preview_phrase = ""
+            self._preview_dur = 0.0
+            if self._playing or self._paused_at is not None:
+                self._stop_sound()
+                self._clear_listen_session()
+            on = bool(self.chk_listen_head.GetValue())
+            self._say(MSG_LISTEN_HEAD_ON if on else MSG_LISTEN_HEAD_OFF)
+
+        def _show_status(self, text: str):
+            """Solo a schermo (Stato + barra), senza interrompere l'ascolto con la voce."""
+            text = (text or "").strip()
+            if not text or not self._open:
+                return
+            try:
+                self.txt_status.SetValue(text)
+            except Exception:
+                pass
+            try:
+                self._status_bar.SetStatusText(text)
+            except Exception:
+                pass
+
         def _say(self, text: str):
             text = (text or "").strip()
             if not text:
                 return
-            if self._open:
-                try:
-                    self.txt_status.SetValue(text)
-                except Exception:
-                    pass
-                try:
-                    self._status_bar.SetStatusText(text)
-                except Exception:
-                    pass
+            self._show_status(text)
             try:
                 self._speaker(text)
             except Exception:
                 log.info("voce: %s", text)
+
+        def _live_feedback(self, text: str):
+            """A schermo subito; a voce dopo un attimo (ultimo valore se premi di fila).
+
+            Così chi ascolta sa sempre punto e volume, come a schermo, senza
+            una frase per ogni freccia se si tiene premuto.
+            """
+            text = (text or "").strip()
+            if not text:
+                return
+            self._show_status(text)
+            self._announce_gen += 1
+            gen = self._announce_gen
+
+            def _speak_later():
+                if not self._open or gen != self._announce_gen:
+                    return
+                try:
+                    self._speaker(text)
+                except Exception:
+                    log.info("voce: %s", text)
+
+            # ~0,4 s: abbastanza corto da seguire il gesto, evita coda di annunci.
+            try:
+                wx.CallLater(400, _speak_later)
+            except Exception:
+                _speak_later()
 
         def _done_label(self, path: str) -> str:
             key = os.path.normcase(os.path.abspath(path))
@@ -1518,16 +2657,19 @@ def _install_dialog():
             if index < 0:
                 return
             self._fill_times(index)
-            # Cambiando riga, ferma in silenzio l'ascolto del pezzo precedente.
-            if self._playing or self._listen_busy:
+            # Cambiando riga: memorizza dove eri, ferma in silenzio il pezzo precedente.
+            if self._playing or self._listen_busy or self._paused_at is not None:
                 key = self._piece_listen_key(self._rows[index])
                 if key != self._preview_key:
+                    self._save_listen_mem()
                     self._listen_gen += 1
+                    self._announce_gen += 1
                     if self._listen_busy:
                         self._cancel.set()
                     self._listen_busy = False
                     self._set_busy(False)
                     self._stop_sound()
+                    self._clear_listen_session()
 
         def _on_select_done(self, _event=None):
             if not self._done:
@@ -1535,17 +2677,20 @@ def _install_dialog():
             index = self.lst_done.GetSelection()
             if index < 0 or index >= len(self._done):
                 return
-            if self._playing or self._listen_busy:
+            if self._playing or self._listen_busy or self._paused_at is not None:
                 _label, path = self._done[index]
                 piece, _err = load_piece(path)
                 key = self._piece_listen_key(piece) if piece is not None else ""
                 if key != self._preview_key:
+                    self._save_listen_mem()
                     self._listen_gen += 1
+                    self._announce_gen += 1
                     if self._listen_busy:
                         self._cancel.set()
                     self._listen_busy = False
                     self._set_busy(False)
                     self._stop_sound()
+                    self._clear_listen_session()
 
         def _clocks(self):
             try:
@@ -1557,7 +2702,12 @@ def _install_dialog():
 
         def _on_char(self, event):
             key = event.GetKeyCode()
-            if key == wx.WXK_ESCAPE and (self._busy or self._playing or self._listen_busy):
+            if key == wx.WXK_ESCAPE and (
+                self._busy
+                or self._playing
+                or self._listen_busy
+                or self._paused_at is not None
+            ):
                 self._on_stop()
                 return
             if (
@@ -1575,9 +2725,24 @@ def _install_dialog():
                     return
             if key == wx.WXK_SPACE:
                 focused = self.FindFocus()
-                if focused is self.lst or focused is self.lst_done or self._playing or self._listen_busy:
+                # Solo sugli elenchi: altrimenti Spazio attiva il pulsante (Audio sul video, ecc.).
+                if focused is self.lst or focused is self.lst_done:
                     self._on_space()
                     return
+            # Sinistra/destra: seek solo con sessione di ascolto (elenco non le usa).
+            # Su/giù volume solo mentre suona; in pausa o fermo scorrono l'elenco.
+            self._sync_listen_playing()
+            if key in (wx.WXK_LEFT, wx.WXK_RIGHT):
+                if self._playing or self._paused_at is not None:
+                    self._seek_listen(
+                        _LISTEN_SEEK_SEC if key == wx.WXK_RIGHT else -_LISTEN_SEEK_SEC
+                    )
+                    return
+            if key in (wx.WXK_UP, wx.WXK_DOWN) and self._playing:
+                self._nudge_listen_vol(
+                    _LISTEN_VOL_STEP if key == wx.WXK_UP else -_LISTEN_VOL_STEP
+                )
+                return
             if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
                 focused = self.FindFocus()
                 if focused is self.lst:
@@ -1589,12 +2754,14 @@ def _install_dialog():
             event.Skip()
 
         def _piece_listen_key(self, piece) -> str:
+            head_flag = "20" if self._listen_head_only() else "full"
             return "|".join(
                 (
                     os.path.normcase(os.path.abspath(piece.path or "")),
                     str(piece.mode),
                     str(piece.start),
                     str(piece.end),
+                    head_flag,
                 )
             )
 
@@ -1646,25 +2813,183 @@ def _install_dialog():
         def _stop_sound(self):
             self._playing = False
             try:
+                self._player.stop()
+            except Exception:
+                pass
+            try:
                 winsound.PlaySound(None, winsound.SND_PURGE)
             except Exception:
                 pass
 
+        def _sync_listen_playing(self) -> None:
+            """Se il pezzo è finito da solo, allinea lo stato (Spazio non deve «pausare» il vuoto)."""
+            if self._playing and not self._player.is_open() and self._paused_at is None:
+                self._playing = False
+                self._play_pos = float(self._preview_dur or self._play_pos or 0)
+
+        def _listen_position(self) -> float:
+            self._sync_listen_playing()
+            if self._paused_at is not None:
+                return max(0.0, float(self._paused_at))
+            if self._playing or self._player.is_open():
+                pos = float(self._player.position_sec())
+                dur = float(self._preview_dur or 0)
+                if dur > 0:
+                    return max(0.0, min(dur, pos))
+                return max(0.0, pos)
+            return max(0.0, float(self._play_pos or 0))
+
+        def _clear_listen_session(self):
+            self._paused_at = None
+            self._play_pos = 0.0
+            self._play_t0 = 0.0
+
+        def _save_listen_mem(self):
+            key = self._preview_key
+            if not key:
+                return
+            self._listen_mem[key] = {
+                "pos": float(self._listen_position()),
+                "vol": int(self._listen_vol),
+                "paused": self._paused_at is not None or not self._playing,
+            }
+
+        def _restore_listen_mem(self, key: str) -> tuple[float, int]:
+            data = self._listen_mem.get(key) or {}
+            try:
+                pos = float(data.get("pos") or 0)
+            except (TypeError, ValueError):
+                pos = 0.0
+            vol = _clamp_listen_vol(data.get("vol", self._listen_vol))
+            return max(0.0, pos), vol
+
         def _stop_listen_only(self):
-            """Ferma solo l'ascolto (Spazio), senza annullare Unisci/Esegui."""
+            """Ferma solo l'ascolto (preparazione), senza annullare Unisci/Esegui."""
             self._listen_gen += 1
+            self._announce_gen += 1
             if self._listen_busy:
                 self._cancel.set()
             self._listen_busy = False
             self._set_busy(False)
+            self._save_listen_mem()
             self._stop_sound()
+            self._clear_listen_session()
             self._say(MSG_STOPPED)
+
+        def _pause_listen(self):
+            try:
+                pos = float(self._player.pause())
+            except Exception:
+                pos = self._listen_position()
+                self._stop_sound()
+            self._playing = False
+            self._paused_at = pos
+            self._play_pos = pos
+            self._play_t0 = 0.0
+            self._save_listen_mem()
+            self._say(MSG_PAUSED_AT.format(pos=speak_position(pos)))
+
+        def _resume_listen(self):
+            if not self._preview or not os.path.isfile(self._preview):
+                self._clear_listen_session()
+                self._say(MSG_LISTEN_FAIL)
+                return
+            pos = float(self._paused_at if self._paused_at is not None else self._play_pos or 0)
+            phrase = MSG_RESUME_AT.format(pos=speak_position(pos))
+            self._paused_at = None
+            if self._player.is_open() and self._player.resume():
+                self._playing = True
+                self._play_pos = pos
+                self._play_t0 = time.monotonic()
+                self._save_listen_mem()
+                self._say(phrase)
+                return
+            self._play_from(pos, phrase, live=False)
+
+        def _seek_listen(self, delta: float):
+            if not self._preview or not os.path.isfile(self._preview):
+                self._say(MSG_LISTEN_FAIL)
+                return
+            dur = float(self._preview_dur or _wav_duration(self._preview) or 0)
+            if dur <= 0:
+                dur = float(self._player.duration_sec() or 0)
+            self._preview_dur = dur
+            pos = self._listen_position() + float(delta)
+            if dur > 0:
+                pos = max(0.0, min(dur, pos))
+            else:
+                pos = max(0.0, pos)
+            phrase = MSG_SEEK_AT.format(pos=speak_position(pos))
+            was_playing = self._playing
+            if self._player.is_open():
+                if not self._player.seek(pos, play=was_playing):
+                    self._say(MSG_LISTEN_FAIL)
+                    return
+                if was_playing:
+                    self._playing = True
+                    self._paused_at = None
+                    self._play_pos = pos
+                    self._play_t0 = time.monotonic()
+                else:
+                    self._paused_at = pos
+                    self._play_pos = pos
+                    self._playing = False
+                self._save_listen_mem()
+                self._live_feedback(phrase)
+                return
+            if was_playing:
+                self._play_from(pos, phrase, live=True)
+                return
+            self._paused_at = pos
+            self._play_pos = pos
+            self._save_listen_mem()
+            self._live_feedback(phrase)
+
+        def _nudge_listen_vol(self, delta: int):
+            self._listen_vol = _clamp_listen_vol(self._listen_vol + int(delta))
+            phrase = MSG_VOL_AT.format(vol=self._listen_vol)
+            # Guadagno sui campioni in tempo reale: niente bake, NVDA indipendente.
+            self._player.set_volume(self._listen_vol)
+            self._save_listen_mem()
+            if self._playing:
+                self._live_feedback(phrase)
+            else:
+                self._say(phrase)
+
+        def _play_from(self, start_sec: float, phrase: str, live: bool = False):
+            """Parte (o riparte) dal secondo indicato, volume in tempo reale."""
+            if not self._preview or not os.path.isfile(self._preview):
+                self._say(MSG_LISTEN_FAIL)
+                return
+            dur = float(self._preview_dur or _wav_duration(self._preview) or 0)
+            self._preview_dur = dur
+            start = float(start_sec or 0)
+            if dur > 0 and start >= max(0.0, dur - 0.15):
+                start = 0.0
+                phrase = MSG_LISTEN_END
+            if not self._player.play(
+                self._preview, from_sec=start, vol=self._listen_vol
+            ):
+                self._say(MSG_LISTEN_FAIL)
+                return
+            self._playing = True
+            self._paused_at = None
+            self._play_pos = float(start)
+            self._play_t0 = time.monotonic()
+            self._save_listen_mem()
+            if live:
+                self._live_feedback(phrase)
+            else:
+                self._say(phrase)
 
         def _on_stop(self, _event=None):
             self._listen_gen += 1
+            self._announce_gen += 1
             self._listen_busy = False
             self._cancel.set()
+            self._save_listen_mem()
             self._stop_sound()
+            self._clear_listen_session()
             self._say(MSG_STOPPED)
 
         def _on_add(self, _event=None):
@@ -1906,7 +3231,7 @@ def _install_dialog():
             return self._rows[index], ""
 
         def _on_space(self):
-            """Spazio sulla riga selezionata: ascolta, ferma, o passa a un altro pezzo."""
+            """Spazio: ascolta, pausa con orario, ripresa, o altro pezzo."""
             if self._listen_busy:
                 self._stop_listen_only()
                 return
@@ -1918,13 +3243,24 @@ def _install_dialog():
                 self._say(err or MSG_SELECT)
                 return
             key = self._piece_listen_key(piece)
-            if self._playing:
-                if key == self._preview_key:
-                    self._stop_listen_only()
-                    return
-                # Freccia su un altro file: Spazio ferma il vecchio e ascolta questo.
+            if self._playing and key == self._preview_key:
+                self._pause_listen()
+                return
+            if (
+                self._paused_at is not None
+                and key == self._preview_key
+                and self._preview
+                and os.path.isfile(self._preview)
+            ):
+                self._resume_listen()
+                return
+            if self._playing or self._paused_at is not None:
+                # Altro file: ricorda dove eri, poi ascolta questo (dalla sua memoria).
+                self._save_listen_mem()
                 self._listen_gen += 1
+                self._announce_gen += 1
                 self._stop_sound()
+                self._clear_listen_session()
             self._start_listen(piece)
 
         def _on_listen_done_row(self):
@@ -1944,6 +3280,7 @@ def _install_dialog():
             if piece is None:
                 self._say(err or f"{os.path.basename(path)} non c'è più.")
                 return
+            self._clear_listen_session()
             self._start_listen(piece)
 
         def _on_listen(self):
@@ -1954,11 +3291,20 @@ def _install_dialog():
             if index < 0:
                 self._say(MSG_EMPTY if not self._rows else MSG_SELECT)
                 return
+            self._clear_listen_session()
             self._start_listen(self._rows[index])
+
+        def _listen_head_only(self) -> bool:
+            try:
+                return bool(self.chk_listen_head.GetValue())
+            except Exception:
+                return False
 
         def _start_listen(self, piece):
             key = self._piece_listen_key(piece)
-            # Stesso pezzo già preparato: riparti subito (copia con nome nuovo).
+            start_pos, start_vol = self._restore_listen_mem(key)
+            self._listen_vol = start_vol
+            # Stesso pezzo già preparato: riparti dalla memoria (non da zero).
             if (
                 self._preview
                 and key == self._preview_key
@@ -1966,12 +3312,18 @@ def _install_dialog():
             ):
                 self._cancel.clear()
                 self._stop_sound()
-                self._play_async(self._preview, self._preview_phrase or "Ascolto.")
+                self._paused_at = None
+                self._preview_dur = _wav_duration(self._preview)
+                if start_pos > 0.15:
+                    phrase = MSG_RESUME_AT.format(pos=speak_position(start_pos))
+                else:
+                    phrase = self._preview_phrase or "Ascolto."
+                self._play_from(start_pos, phrase)
                 return
             self._cancel.clear()
             self._stop_sound()
+            self._clear_listen_session()
             self._listen_busy = True
-            self._set_busy(True)
             self._say(MSG_PREPARE)
             self._listen_gen += 1
             gen = self._listen_gen
@@ -1979,42 +3331,20 @@ def _install_dialog():
                 tempfile.gettempdir(),
                 f"rtad-ascolto-{os.getpid()}-{gen}.wav",
             )
+            head_only = self._listen_head_only()
 
             def work():
-                ok, phrase = preview_wav(piece, dest, self._cancel)
+                ok, phrase = preview_wav(
+                    piece, dest, self._cancel, head_only=head_only
+                )
                 wx.CallAfter(self._listen_done, ok, phrase, dest, gen, key)
 
             threading.Thread(target=work, daemon=True).start()
-
-        def _play_async(self, path: str, phrase: str):
-            """Ascolto async da file. Copia con nome nuovo così dopo PURGE riparte."""
-            self._listen_gen += 1
-            gen = self._listen_gen
-            play_path = path
-            try:
-                play_path = os.path.join(
-                    tempfile.gettempdir(),
-                    f"rtad-ascolto-play-{os.getpid()}-{gen}.wav",
-                )
-                shutil.copy2(path, play_path)
-            except Exception:
-                play_path = path
-            try:
-                winsound.PlaySound(
-                    play_path,
-                    winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
-                )
-                self._playing = True
-            except Exception:
-                self._say(MSG_LISTEN_FAIL)
-                return
-            self._say(phrase)
 
         def _listen_done(self, ok, phrase, dest, gen=0, key=""):
             if not self._open:
                 return
             self._listen_busy = False
-            self._set_busy(False)
             if gen != self._listen_gen:
                 return
             if self._cancel.is_set() or not ok:
@@ -2026,7 +3356,12 @@ def _install_dialog():
             self._preview = dest
             self._preview_phrase = phrase
             self._preview_key = key
-            self._play_async(dest, phrase)
+            self._preview_dur = _wav_duration(dest)
+            start_pos, start_vol = self._restore_listen_mem(key)
+            self._listen_vol = start_vol
+            if start_pos > 0.15:
+                phrase = MSG_RESUME_AT.format(pos=speak_position(start_pos))
+            self._play_from(start_pos, phrase)
 
         def _on_run(self, _event=None):
             if self._busy:
@@ -2062,7 +3397,6 @@ def _install_dialog():
             if not _ffmpeg_exe():
                 self._say(MSG_NEED_FFMPEG)
                 return
-            # Controlli subito, prima del lavoro: file vuoto → messaggio chiaro.
             if not _media_file_ok(video.path) or not _media_file_ok(audio.path):
                 empty = []
                 if not _media_file_ok(video.path):
@@ -2076,29 +3410,49 @@ def _install_dialog():
                     "Il file di partenza resta com'è."
                 )
                 return
+            # Ferma l'ascolto: Spazio sui pulsanti non deve riprendere il pezzo.
+            self._announce_gen += 1
+            self._save_listen_mem()
+            self._stop_sound()
+            self._clear_listen_session()
+            choices = AudioOnVideoDialog(self, self._speaker, video, audio)
+            modal = choices.ShowModal()
+            opts = choices.result
+            choices.Destroy()
+            if modal != wx.ID_OK or not opts:
+                self._say(MSG_AV_CANCEL)
+                return
             self._cancel.clear()
             self._stop_sound()
+            self._clear_listen_session()
             self._set_busy(True)
             self._say(MSG_WORKING)
             v_piece = clone_piece(video)
             a_piece = clone_piece(audio)
+            mode = opts.get("mode", "replace")
+            video_vol = opts.get("video_vol", _AV_VOL_DEFAULT)
+            audio_vol = opts.get("audio_vol", _AV_VOL_DEFAULT)
+            length_mode = opts.get("length_mode", "shortest")
+            video_cap = float(opts.get("video_cap") or 0)
+            audio_cap = float(opts.get("audio_cap") or 0)
 
             def work():
                 made = []
                 ok, phrase = build_audio_on_video(
-                    v_piece, a_piece, self._cancel, made
+                    v_piece,
+                    a_piece,
+                    self._cancel,
+                    made,
+                    mode=mode,
+                    video_vol=video_vol,
+                    audio_vol=audio_vol,
+                    length_mode=length_mode,
+                    video_cap=video_cap,
+                    audio_cap=audio_cap,
                 )
                 path = made[0] if made else ""
-                label = ""
-                if ok and path and os.path.isfile(path):
-                    dur = speak_duration(_duration_of(path))
-                    label = (
-                        f"{spoken_result_path(path)}, "
-                        f"audio di {os.path.basename(a_piece.path)} "
-                        f"sul video {os.path.basename(v_piece.path)}, "
-                        f"{dur}"
-                    )
-                wx.CallAfter(self._run_done, ok, phrase, path, label)
+                # label vuota: _run_done usa phrase (già con duree video/audio + risultato).
+                wx.CallAfter(self._run_done, ok, phrase, path, "")
 
             threading.Thread(target=work, daemon=True).start()
 
@@ -2129,12 +3483,25 @@ def _install_dialog():
             if not self._open:
                 return
             self._set_busy(False)
-            if ok and path and label and os.path.isfile(path):
-                self._done.append((label, path))
-                self._refresh_done()
-                text = label if label.endswith(".") else f"{label}."
-                self._say(f"Creato {text} Nella stessa cartella.")
-                return
+            if ok and path and os.path.isfile(path):
+                if label:
+                    self._done.append((label, path))
+                    self._refresh_done()
+                    text = label if label.endswith(".") else f"{label}."
+                    self._say(f"Creato {text} Nella stessa cartella.")
+                    return
+                if phrase:
+                    # Audio sul video: riepilogo già completo (duree + risultato).
+                    line = phrase
+                    for cut in (
+                        " Nella stessa cartella.",
+                        " Il file di partenza resta com'è.",
+                    ):
+                        line = line.replace(cut, "")
+                    self._done.append((line.strip().rstrip("."), path))
+                    self._refresh_done()
+                    self._say(phrase)
+                    return
             self._say(phrase)
 
     globals()["ClipDialog"] = ClipDialog

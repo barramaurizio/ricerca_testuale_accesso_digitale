@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.6)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.7)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,14 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.7
+
+- In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.
+- In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.6: Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.6: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video (sostituzione). Utile anche se il video è muto. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.6: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.
 
 ### 🌟 Novità della Versione 2.0.6
 
@@ -396,6 +404,14 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.7
+
+- In Cut and join audio/video, with one video and one audio in the list, Enter on Audio sul video, or a click, opens the choices: Replace (as in 2.0.6) or Mix with volumes from 0 to 200 percent, cleanly. Two independent checkboxes, full video and full audio: Space on the checkbox, or a click, turns them on or off. If a checkbox is off, hours, minutes and seconds for that piece are right below, adjustable with up and down arrows. When finished, on screen and by voice, it says the chosen video and audio lengths and the result length. The file is named videoname-con-audio-audioname. The source file stays as it is. It works in the Standalone and in the Add-on.
+- In Cut and join audio/video, Space on the work list or on Done plays the piece; Space again pauses and says the time on screen and by voice; Space again resumes from there. While playing or paused, right and left arrows skip forward and back by 5 seconds; while playing, up and down arrows set the volume up to 200 percent, without jumps. Each file remembers position and volume while the window stays open. Space on Listen to the first 20 seconds only, or a click, or Alt+S, turns the short preview on or off; when off, the whole piece is heard. It works in the Standalone and in the Add-on.
+- As in 2.0.6: post/page with video and images — both flows. Standalone and Add-on.
+- As in 2.0.6: Audio sul video replacement (also silent video). Standalone and Add-on.
+- As in 2.0.6: Space play/stop in Cut and join. Standalone and Add-on.
 
 ### 🌟 What's New in Version 2.0.6
 

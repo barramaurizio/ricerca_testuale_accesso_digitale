@@ -76,7 +76,8 @@ HINT = (
     "(Ferma resta Ferma). Il focus resta sul pulsante usato: "
     "dopo Pausa resta su Riprendi; dopo Ferma resta su Ferma. "
     "Con Tab si arriva all'elenco Segnalibri: frecce su e giù scorrono; "
-    "Invio o un clic sulla riga riparte da quel segnalibro. "
+    "Invio, un clic sulla riga, oppure Invio su Vai al segnalibro "
+    "riparte da quel punto. "
     "Se Ferma è già fermo, Invio o clic dice solo Già fermo. "
     "Ripartire dopo la pausa: Invio o clic su Riprendi. "
     "Ogni avviso sta a voce e a schermo."
@@ -293,7 +294,8 @@ def _build_player():
             self._cancel = threading.Event()
             self._open = True
             self._marks: list[dict] = []
-            self._goto_gen = 0
+            # Ogni preparazione asincrona ha un generatore: i risultati vecchi si ignorano.
+            self._play_gen = 0
 
             root = wx.BoxSizer(wx.VERTICAL)
             intro = wx.StaticText(self, label=HINT)
@@ -342,10 +344,11 @@ def _build_player():
             root.Add(self.lst_marks, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
             row_m = wx.BoxSizer(wx.HORIZONTAL)
+            self.btn_goto = wx.Button(self, label="&Vai al segnalibro")
             self.btn_rename = wx.Button(self, label="&Rinomina…")
             self.btn_delete = wx.Button(self, label="&Elimina segnalibro")
             self.btn_close = wx.Button(self, wx.ID_CANCEL, "Chiudi")
-            for btn in (self.btn_rename, self.btn_delete, self.btn_close):
+            for btn in (self.btn_goto, self.btn_rename, self.btn_delete, self.btn_close):
                 row_m.Add(btn, 0, wx.RIGHT, 8)
             root.Add(row_m, 0, wx.ALL, 10)
 
@@ -358,6 +361,7 @@ def _build_player():
             self.txt_path.Bind(wx.EVT_TEXT_ENTER, lambda e: self._open_from_path())
             self.btn_pause.Bind(wx.EVT_BUTTON, lambda e: self._on_pause_toggle())
             self.btn_stop.Bind(wx.EVT_BUTTON, lambda e: self._on_stop())
+            self.btn_goto.Bind(wx.EVT_BUTTON, lambda e: self._goto_selected_mark())
             self.btn_rename.Bind(wx.EVT_BUTTON, lambda e: self._on_rename())
             self.btn_delete.Bind(wx.EVT_BUTTON, lambda e: self._on_delete())
             self.lst_marks.Bind(wx.EVT_LISTBOX, self._on_mark_select)
@@ -460,6 +464,9 @@ def _build_player():
                     return
                 if focused is self.btn_open:
                     self._open_from_path()
+                    return
+                if focused is self.btn_goto:
+                    self._goto_selected_mark()
                     return
                 if focused is self.btn_rename:
                     self._on_rename()
@@ -879,12 +886,21 @@ def _build_player():
                 return sec
             return 0.0
 
+        def _begin_prepare(self) -> tuple[int, threading.Event]:
+            """Nuova preparazione: invalida quelle in corso e restituisce (gen, cancel)."""
+            try:
+                self._cancel.set()
+            except Exception:
+                pass
+            self._cancel = threading.Event()
+            self._play_gen += 1
+            self._listen_busy = True
+            return self._play_gen, self._cancel
+
         def _prepare_and_play(self, start_sec: float, stay_on_marks: bool = False):
             if self._piece is None:
                 return
-            if self._listen_busy:
-                return
-            self._listen_busy = True
+            gen, cancel = self._begin_prepare()
             self._say("Preparazione ascolto…")
             dest = os.path.join(
                 tempfile.gettempdir(),
@@ -893,15 +909,31 @@ def _build_player():
 
             def work():
                 ok, phrase = clip.preview_wav(
-                    self._piece, dest, cancel=self._cancel, head_only=False
+                    self._piece, dest, cancel=cancel, head_only=False
                 )
                 wx.CallAfter(
-                    self._after_prepare, ok, phrase, dest, start_sec, stay_on_marks
+                    self._after_prepare,
+                    ok,
+                    phrase,
+                    dest,
+                    start_sec,
+                    stay_on_marks,
+                    gen,
                 )
 
             threading.Thread(target=work, daemon=True).start()
 
-        def _after_prepare(self, ok, phrase, dest, start_sec, stay_on_marks=False):
+        def _after_prepare(
+            self, ok, phrase, dest, start_sec, stay_on_marks=False, gen=0
+        ):
+            # Risultato vecchio (es. dopo un salto a segnalibro): scarta.
+            if gen and gen != self._play_gen:
+                try:
+                    if os.path.isfile(dest):
+                        os.remove(dest)
+                except Exception:
+                    pass
+                return
             self._listen_busy = False
             if not self._open:
                 try:
@@ -1192,26 +1224,48 @@ def _build_player():
                 return idx
             return self._selection_index()
 
+        def _jump_in_preview(self, sec: float) -> bool:
+            """Salto immediato nel wav già in cache (file intero, origin 0)."""
+            sec = max(0.0, float(sec or 0))
+            if not self._preview or not os.path.isfile(self._preview):
+                return False
+            if float(self._preview_origin or 0) > 0.01:
+                return False
+            dur = float(self._preview_dur or 0) or float(
+                clip._wav_duration(self._preview) or 0
+            )
+            self._preview_dur = dur
+            if dur <= 0.2 or sec >= max(0.05, dur - 0.05):
+                return False
+            if not self._player.play(
+                self._preview, from_sec=sec, vol=self._listen_vol
+            ):
+                return False
+            self._playing = True
+            self._paused = False
+            self._play_pos = sec
+            self._preview_origin = 0.0
+            self._set_pause_label(paused=False)
+            return True
+
         def _prepare_mark_at(
             self,
             start_sec: float,
             stay_on_marks: bool = True,
             announce: str = "",
             gen: int = 0,
+            cancel=None,
         ):
             """Estrae dal file sorgente DAL secondo del segnalibro e riproduce."""
             if self._piece is None:
                 self._say(MSG_NEED_FILE)
                 return
-            # Nuova richiesta: annulla eventuale preparazione precedente.
-            try:
-                self._cancel.set()
-            except Exception:
-                pass
-            self._cancel = threading.Event()
-            self._listen_busy = True
+            if not gen:
+                gen, cancel = self._begin_prepare()
+            if cancel is None:
+                cancel = self._cancel
             if announce:
-                self._say(announce + " Preparazione…")
+                self._say(announce + " Preparazione dal file…")
             else:
                 self._say("Preparazione ascolto dal segnalibro…")
             dest = os.path.join(
@@ -1219,7 +1273,6 @@ def _build_player():
                 f"rtad_player_mark_{os.getpid()}_{int(time.time() * 1000)}.wav",
             )
             start = max(0.0, float(start_sec or 0))
-            cancel = self._cancel
 
             def work():
                 ok, phrase = clip.preview_wav_from(
@@ -1248,8 +1301,7 @@ def _build_player():
             announce="",
             gen=0,
         ):
-            # Scarta risultati vecchi se nel frattempo si è chiesto un altro segnalibro.
-            if gen and gen != self._goto_gen:
+            if gen and gen != self._play_gen:
                 try:
                     if os.path.isfile(dest):
                         os.remove(dest)
@@ -1322,12 +1374,13 @@ def _build_player():
             goto_key = (idx, round(sec, 2))
             last_key = getattr(self, "_last_goto_key", None)
             last_t = float(getattr(self, "_last_goto_t", 0) or 0)
-            if goto_key == last_key and (now - last_t) < 0.45:
+            if goto_key == last_key and (now - last_t) < 0.35:
                 return
             self._last_goto_key = goto_key
             self._last_goto_t = now
 
-            # Ferma l'audio attuale.
+            # Ferma l'audio attuale e invalida preparazioni in corso
+            # (altrimenti un wav "vecchio" può ripartire da capo e coprire il salto).
             try:
                 if self._player.is_playing() or self._player.is_open():
                     self._player.pause()
@@ -1335,12 +1388,30 @@ def _build_player():
                 pass
             self._playing = False
             self._paused = False
+            try:
+                self._cancel.set()
+            except Exception:
+                pass
+            self._cancel = threading.Event()
+            self._play_gen += 1
+            self._listen_busy = False
 
-            # Sempre: estrai dal sorgente DA questo secondo (niente seek su wav sbagliato).
-            self._goto_gen += 1
-            gen = self._goto_gen
+            # 1) Salto subito nel wav già pronto (caso normale dopo Pausa).
+            if self._jump_in_preview(sec):
+                self._say(
+                    f"{announce} {MSG_RESUME_AT.format(pos=clip.speak_position(sec))}"
+                )
+                self._focus_marks()
+                return
+
+            # 2) Altrimenti estrai dal file sorgente da quel secondo.
+            gen, cancel = self._begin_prepare()
             self._prepare_mark_at(
-                sec, stay_on_marks=True, announce=announce, gen=gen
+                sec,
+                stay_on_marks=True,
+                announce=announce,
+                gen=gen,
+                cancel=cancel,
             )
 
         def _on_rename(self):

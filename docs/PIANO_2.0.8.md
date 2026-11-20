@@ -12,6 +12,11 @@ La chat Desktop della prima stesura è andata persa col PC Acer (scheda madre). 
 
 Immagini in un PDF e PDF/testo → `2.0.9` / `2.0.10` (dopo il lettore).
 
+## Regola per tutti (sempre)
+
+Chi vede e chi non vede: **stessa informazione a voce e a schermo**.  
+Trascinamento col mouse = **Control+Alt+V** (file copiato in Esplora) = pulsante **Incolla…**. Stesso effetto. Invio e clic sullo stesso pulsante. Non basta che NVDA lo dica.
+
 ## Must — Lettore interno
 
 1. **Finestra dedicata** «Riproduttore» (o «Lettore audio/video»), Standalone e Add-on gemelli.

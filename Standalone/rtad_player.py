@@ -22,9 +22,14 @@ _shared = False
 
 MSG_NEED_FILE = (
     "Serve un audio o un video. "
-    "Copia il file in Esplora con Control+C, poi qui Control+Alt+V, "
+    "Trascina il file qui col mouse, oppure in Esplora Control+C "
+    "e qui Control+Alt+V (stessa cosa del trascinamento), "
     "oppure Invio su Incolla, o un clic. "
     "Oppure Invio su Sfoglia, o un clic."
+)
+MSG_DROP_BAD = (
+    "Trascinato un file che non è audio o video. "
+    "Trascina un audio o un video, oppure usa Control+Alt+V."
 )
 MSG_NEED_FFMPEG = "Per questo formato serve ffmpeg."
 MSG_NO_AUDIO = "Questo file non ha una traccia audio da ascoltare."
@@ -54,9 +59,9 @@ MSG_RESUME_ASK_NAMED = (
     "Invio su Dall'inizio, o un clic, riparte da zero."
 )
 HINT = (
-    "Come nel resto di RTAD: copia un file in Esplora con Control+C, "
-    "poi qui Control+Alt+V (equivalente al trascinamento), "
-    "oppure Invio su Incolla, o un clic. "
+    "Per tutti: chi vede trascina il file in questa finestra col mouse; "
+    "chi usa la tastiera, in Esplora Control+C e qui Control+Alt+V "
+    "(stessa cosa del trascinamento), oppure Invio su Incolla, o un clic. "
     "Invio su Sfoglia, o un clic, apre la finestra di Windows. "
     "Spazio: pausa o ripresa. "
     "Invio o clic su Pausa: mentre suona resta Pausa; in pausa diventa Riprendi. "
@@ -65,7 +70,8 @@ HINT = (
     "Frecce destra e sinistra: avanti e indietro di 5 secondi. "
     "Frecce su e giù: volume fino a 200 percento. "
     "Nell'elenco segnalibri: Invio o doppio clic va a quel punto; "
-    "un clic solo seleziona la riga."
+    "un clic solo seleziona la riga. "
+    "Ogni avviso sta a voce e a schermo."
 )
 
 _MEDIA_EXTS = {
@@ -331,7 +337,7 @@ def _build_player():
             self.lst_marks.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._goto_selected_mark())
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
-            # Ctrl+Alt+V come nella finestra principale (equivalente al trascinamento).
+            # Ctrl+Alt+V = stesso effetto del trascinamento (per tutti).
             accel = wx.AcceleratorTable(
                 [
                     (
@@ -342,6 +348,7 @@ def _build_player():
                 ]
             )
             self.SetAcceleratorTable(accel)
+            self._enable_file_drop()
 
             if self._path and os.path.isfile(self._path):
                 wx.CallAfter(self._load_path, self._path, ask_resume=True)
@@ -414,6 +421,63 @@ def _build_player():
                     out.append(os.path.normpath(path))
             return out
 
+        def _enable_file_drop(self):
+            """Trascinamento col mouse = stesso effetto di Control+Alt+V."""
+
+            class _Drop(wx.FileDropTarget):
+                def __init__(self, owner):
+                    super().__init__()
+                    self._owner = owner
+
+                def OnDropFiles(self, x, y, filenames):
+                    try:
+                        self._owner._apply_dropped_paths(filenames or [])
+                    except Exception:
+                        log.exception("OnDropFiles player")
+                    return True
+
+            targets = [self, self.txt_path, self.lst_marks, self.lbl_file, self.lbl_status]
+            seen = set()
+            for win in targets:
+                if win is None:
+                    continue
+                wid = id(win)
+                if wid in seen:
+                    continue
+                seen.add(wid)
+                try:
+                    win.SetDropTarget(_Drop(self))
+                except Exception:
+                    pass
+
+        def _first_media_path(self, filenames) -> str:
+            for path in filenames or []:
+                path = (path or "").strip().strip('"')
+                if not path:
+                    continue
+                try:
+                    path = os.path.normpath(path)
+                except Exception:
+                    continue
+                if not os.path.isfile(path):
+                    continue
+                ext = os.path.splitext(path)[1].lower()
+                if ext in _MEDIA_EXTS:
+                    return path
+            return ""
+
+        def _apply_dropped_paths(self, filenames):
+            path = self._first_media_path(filenames)
+            if not path:
+                self._say(MSG_DROP_BAD)
+                return
+            try:
+                self.txt_path.SetValue(path)
+            except Exception:
+                pass
+            self._say(f"Trascinato: {os.path.basename(path)}.")
+            self._load_path(path, ask_resume=True)
+
         def _paste_from_clipboard(self):
             paths = self._clipboard_media_paths()
             if not paths:
@@ -424,7 +488,10 @@ def _build_player():
                 self.txt_path.SetValue(path)
             except Exception:
                 pass
-            self._say(f"Appunti: {os.path.basename(path)}.")
+            self._say(
+                f"Appunti: {os.path.basename(path)}. "
+                "Come se l'avessi trascinato qui."
+            )
             self._load_path(path, ask_resume=True)
 
         def _typed_path(self) -> str:

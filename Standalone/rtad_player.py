@@ -560,17 +560,9 @@ def _build_player():
             return -1
 
         def _selection_index(self) -> int:
-            """Indice del segnalibro scelto: prima l'id ricordato, poi GetSelection."""
+            """Indice del segnalibro scelto: prima la riga evidenziata in elenco."""
             if not self._marks:
                 return -1
-            by_id = self._index_for_mark_id(self._sel_mark_id)
-            if by_id >= 0:
-                try:
-                    if int(self.lst_marks.GetSelection()) != by_id:
-                        self.lst_marks.SetSelection(by_id)
-                except Exception:
-                    pass
-                return by_id
             idx = -1
             try:
                 idx = int(self.lst_marks.GetSelection())
@@ -579,6 +571,13 @@ def _build_player():
             if 0 <= idx < len(self._marks):
                 self._remember_sel(idx)
                 return idx
+            by_id = self._index_for_mark_id(self._sel_mark_id)
+            if by_id >= 0:
+                try:
+                    self.lst_marks.SetSelection(by_id)
+                except Exception:
+                    pass
+                return by_id
             return -1
 
         def _nav_marks(self, delta: int) -> None:
@@ -587,7 +586,12 @@ def _build_player():
                 self._say(MSG_NO_MARKS)
                 return
             n = len(self._marks)
-            idx = self._selection_index()
+            try:
+                idx = int(self.lst_marks.GetSelection())
+            except Exception:
+                idx = -1
+            if idx < 0 or idx >= n:
+                idx = self._selection_index()
             if idx < 0:
                 idx = 0 if delta >= 0 else n - 1
             else:
@@ -1099,7 +1103,7 @@ def _build_player():
                 except Exception:
                     pass
                 self._remember_sel(idx)
-            self._goto_selected_mark()
+            self._goto_selected_mark(force_idx=idx if idx >= 0 else None)
 
         def _selected_mark(self) -> dict | None:
             if not self._marks:
@@ -1110,11 +1114,15 @@ def _build_player():
             return self._marks[idx]
 
         def _play_from_sec(self, sec: float) -> bool:
-            """Parte da sec usando il preview già pronto."""
+            """Parte da sec usando il preview già pronto (stesso file ascoltato)."""
             sec = max(0.0, float(sec or 0))
             if not self._preview or not os.path.isfile(self._preview):
                 return False
-            # play() diretto: non dipende dal path interno lasciato da pause/stop.
+            dur = float(self._preview_dur or 0) or float(clip._wav_duration(self._preview) or 0)
+            self._preview_dur = dur
+            # Se il punto è oltre il wav in cache, non forzare: si rifà dal file sorgente.
+            if dur > 0 and sec >= max(0.05, dur - 0.05):
+                return False
             ok = self._player.play(
                 self._preview, from_sec=sec, vol=self._listen_vol
             )
@@ -1126,27 +1134,116 @@ def _build_player():
             self._set_pause_label(paused=False)
             return True
 
-        def _goto_selected_mark(self):
-            item = self._selected_mark()
-            if item is None:
+        def _prepare_mark_at(self, start_sec: float, stay_on_marks: bool = True):
+            """Prepara un wav che INIZIA al segnalibro (salto preciso dal file sorgente)."""
+            if self._piece is None:
+                self._say(MSG_NEED_FILE)
+                return
+            if self._listen_busy:
+                return
+            self._listen_busy = True
+            self._say("Preparazione ascolto dal segnalibro…")
+            dest = os.path.join(
+                tempfile.gettempdir(),
+                f"rtad_player_mark_{os.getpid()}_{int(time.time() * 1000)}.wav",
+            )
+            start = max(0.0, float(start_sec or 0))
+
+            def work():
+                ok, phrase = clip.preview_wav_from(
+                    self._piece, dest, start, cancel=self._cancel
+                )
+                # Il nuovo wav parte già da start: si ascolta da 0.
+                wx.CallAfter(
+                    self._after_prepare_mark, ok, phrase, dest, start, stay_on_marks
+                )
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def _after_prepare_mark(self, ok, phrase, dest, mark_sec, stay_on_marks=True):
+            self._listen_busy = False
+            if not self._open:
+                try:
+                    if os.path.isfile(dest):
+                        os.remove(dest)
+                except Exception:
+                    pass
+                return
+            if not ok or not os.path.isfile(dest):
+                self._say(phrase or MSG_LISTEN_FAIL)
+                return
+            if self._preview and self._preview != dest:
+                try:
+                    if os.path.isfile(self._preview):
+                        os.remove(self._preview)
+                except Exception:
+                    pass
+            self._preview = dest
+            self._preview_dur = clip._wav_duration(dest)
+            # mark_sec = orario nel file originale; il wav inizia lì → play da 0.
+            if not self._player.play(dest, from_sec=0.0, vol=self._listen_vol):
+                self._say(MSG_LISTEN_FAIL)
+                return
+            self._playing = True
+            self._paused = False
+            self._play_pos = float(mark_sec or 0)
+            self._set_pause_label(paused=False)
+            if stay_on_marks:
+                self._focus_marks()
+            else:
+                self._focus_controls()
+            self._say(
+                MSG_RESUME_AT.format(pos=clip.speak_position(mark_sec))
+                + (f" {phrase}" if phrase else "")
+            )
+
+        def _goto_selected_mark(self, force_idx=None):
+            if not self._marks:
                 self._say(MSG_NO_MARKS)
                 return
-            idx = self._selection_index()
-            # Congela la selezione scelta (freccia o clic) prima di ripartire.
-            self._sel_mark_id = str(item.get("id") or "")
+            # Fonte di verità: riga evidenziata O indice del doppio clic.
+            idx = -1
+            if force_idx is not None:
+                try:
+                    idx = int(force_idx)
+                except Exception:
+                    idx = -1
+            if idx < 0 or idx >= len(self._marks):
+                try:
+                    idx = int(self.lst_marks.GetSelection())
+                except Exception:
+                    idx = -1
+            if idx < 0 or idx >= len(self._marks):
+                idx = self._selection_index()
+            if idx < 0 or idx >= len(self._marks):
+                self._say(MSG_NO_MARKS)
+                return
+            try:
+                self.lst_marks.SetSelection(idx)
+            except Exception:
+                pass
+            self._remember_sel(idx)
+            item = self._marks[idx]
             sec = float(item.get("sec") or 0)
             label = mark_row_label(item)
             total = len(self._marks)
-            n = (idx + 1) if idx >= 0 else 1
-            announce = MSG_GOTO_MARK.format(n=n, total=total, label=label)
+            announce = MSG_GOTO_MARK.format(n=idx + 1, total=total, label=label)
 
+            # Ferma l'audio attuale, poi salta a QUESTO orario.
+            try:
+                if self._player.is_playing():
+                    self._player.pause()
+            except Exception:
+                pass
+            self._playing = False
+            self._paused = False
+
+            self._say(announce)
             if self._play_from_sec(sec):
-                self._say(announce)
                 self._focus_marks()
                 return
-            # Niente preview pronto: prepara e parti da quel secondo.
-            self._say(announce)
-            self._prepare_and_play(sec, stay_on_marks=True)
+            # Preview assente o troppo corto: estrai dal file sorgente da questo secondo.
+            self._prepare_mark_at(sec, stay_on_marks=True)
 
         def _on_rename(self):
             item = self._selected_mark()

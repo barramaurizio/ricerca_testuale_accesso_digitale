@@ -1815,8 +1815,9 @@ class LiveListenPlayer:
         if rate <= 0 or nframes <= 0 or width != 2:
             return False
         start = int(max(0.0, float(from_sec or 0)) * rate)
-        if start >= nframes:
-            start = 0
+        # Oltre la fine: resta sull'ultimo frame (non ripartire da zero).
+        if nframes > 0 and start >= nframes:
+            start = max(0, nframes - 1)
         self._halt(clear_path=False)
         with self._lock:
             self._path = path
@@ -1999,6 +2000,38 @@ class LiveListenPlayer:
             with self._lock:
                 self._playing = False
                 self._thread = None
+
+
+def preview_wav_from(
+    piece: Piece, dest: str, start_sec: float, cancel=None
+) -> tuple[bool, str]:
+    """Wav dal secondo start_sec in poi (salto a segnalibro / ripresa precisa)."""
+    if not piece.has_audio and piece.kind == "video":
+        probed, _err = load_piece(piece.path)
+        if probed is not None and probed.has_audio:
+            piece.has_audio = True
+    if not piece.has_audio:
+        return False, MSG_NO_LISTEN
+    ff = _ffmpeg_exe()
+    if not ff:
+        return False, MSG_NEED_FFMPEG
+    start = max(0.0, float(start_sec or 0))
+    span = piece.span() or float(piece.duration or 0)
+    if span > start:
+        remain = max(0.1, span - start)
+    else:
+        remain = _LISTEN_FULL_MAX_SEC
+    take = min(remain, _LISTEN_FULL_MAX_SEC)
+    ok, _err = _run(
+        _seek_args(piece.path, start, take)
+        + ["-vn", "-ac", "1", "-ar", "22050", dest],
+        cancel,
+        timeout=600,
+    )
+    if not ok or not os.path.isfile(dest):
+        return False, MSG_LISTEN_FAIL
+    heard = _wav_duration(dest) or take
+    return True, f"Ascolto da {speak_position(start)}, {speak_duration(heard)}."
 
 
 def preview_wav(

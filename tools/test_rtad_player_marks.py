@@ -27,6 +27,21 @@ def main() -> int:
         assert player.delete_mark(tmp, media, item["id"])
         assert player.last_mark(tmp, media) is None
         assert player.list_marks(tmp, media) == []
+
+        # Tre segnalibri: l'indice in elenco deve corrispondere al secondo salvato.
+        a = player.add_mark(tmp, media, 10.0)
+        b = player.add_mark(tmp, media, 65.0)
+        c = player.add_mark(tmp, media, 130.0)
+        marks = player.list_marks(tmp, media)
+        assert [round(float(m["sec"])) for m in marks] == [10, 65, 130], marks
+        assert marks[0]["id"] == a["id"]
+        assert marks[1]["id"] == b["id"]
+        assert marks[2]["id"] == c["id"]
+        assert player.mark_row_label(marks[1]) == "1:05"
+        assert float(marks[1]["sec"]) == 65.0
+        assert player.rename_mark(tmp, media, b["id"], "Capitolo")
+        marks = player.list_marks(tmp, media)
+        assert player.mark_row_label(marks[1]) == "1:05 — Capitolo"
     print("OK test_rtad_player_marks")
     return 0
 

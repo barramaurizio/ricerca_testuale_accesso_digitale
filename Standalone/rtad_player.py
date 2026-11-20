@@ -65,12 +65,13 @@ HINT = (
     "(stessa cosa del trascinamento), oppure Invio su Incolla, o un clic. "
     "Invio su Sfoglia, o un clic, apre la finestra di Windows. "
     "Quando parte l'ascolto, il focus va su Pausa: Spazio mette in pausa o riprende. "
-    "In pausa o con Ferma si salva un segnalibro con l'orario; si può rinominare "
-    "e nell'elenco restano orario e nome. "
-    "Frecce destra e sinistra: avanti e indietro di 5 secondi. "
-    "Frecce su e giù: volume fino a 200 percento. "
-    "Nell'elenco segnalibri: Invio o doppio clic va a quel punto; "
-    "un clic solo seleziona la riga. "
+    "Su Pausa o Ferma: frecce destra e sinistra avanti e indietro; "
+    "frecce su e giù volume fino a 200 percento. "
+    "Sull'elenco Segnalibri: frecce su e giù scorrono le righe (come in Taglia e unisci); "
+    "Invio o doppio clic va a quel punto; un clic solo seleziona. "
+    "Invio su Rinomina o Elimina, o un clic, agisce sul segnalibro selezionato. "
+    "In pausa o con Ferma si salva un segnalibro con l'orario; se lo rinomini, "
+    "in elenco restano orario e nome. "
     "Ogni avviso sta a voce e a schermo."
 )
 
@@ -324,7 +325,8 @@ def _build_player():
                 wx.StaticText(self, label="Segnalibri di questo file"),
                 0, wx.LEFT | wx.RIGHT | wx.TOP, 10,
             )
-            self.lst_marks = wx.ListBox(self, style=wx.LB_SINGLE)
+            self.lst_marks = wx.ListBox(self, style=wx.LB_SINGLE | wx.LB_NEEDED_SB)
+            self.lst_marks.SetName("Segnalibri")
             self.lst_marks.SetMinSize((680, 140))
             root.Add(self.lst_marks, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
@@ -348,6 +350,7 @@ def _build_player():
             self.btn_rename.Bind(wx.EVT_BUTTON, lambda e: self._on_rename())
             self.btn_delete.Bind(wx.EVT_BUTTON, lambda e: self._on_delete())
             self.lst_marks.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._goto_selected_mark())
+            self.lst_marks.Bind(wx.EVT_LISTBOX, self._on_mark_select)
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
             # Ctrl+Alt+V: in wx l'accelerator manda EVT_MENU, non EVT_BUTTON.
@@ -411,22 +414,40 @@ def _build_player():
             except Exception:
                 focused = None
             in_text = isinstance(focused, wx.TextCtrl)
+            on_marks = focused is self.lst_marks
             session = bool(self._playing or self._paused)
-            # Durante l'ascolto le frecce valgono anche con focus su Pausa/Ferma.
-            if not in_text and session and key in (wx.WXK_LEFT, wx.WXK_RIGHT):
+            # Elenco segnalibri: su/giù scorrono le righe (come Taglia e unisci).
+            if on_marks and key in (wx.WXK_UP, wx.WXK_DOWN):
+                event.Skip()
+                return
+            if on_marks and key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+                self._goto_selected_mark()
+                return
+            # Fuori dall'elenco, in ascolto: frecce seek/volume (anche su Pausa/Ferma).
+            if not in_text and not on_marks and session and key in (
+                wx.WXK_LEFT,
+                wx.WXK_RIGHT,
+            ):
                 self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
                 return
-            if not in_text and session and key in (wx.WXK_UP, wx.WXK_DOWN):
+            if not in_text and not on_marks and session and key in (
+                wx.WXK_UP,
+                wx.WXK_DOWN,
+            ):
                 self._nudge_vol(+_VOL_STEP if key == wx.WXK_UP else -_VOL_STEP)
                 return
+            # Sull'elenco, destra/sinistra restano seek in ascolto (l'elenco non le usa).
+            if on_marks and session and key in (wx.WXK_LEFT, wx.WXK_RIGHT):
+                self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
+                return
             if key == wx.WXK_SPACE:
-                # Su pulsante: Spazio lo attiva (Pausa/Riprendi). Altrimenti pausa diretta.
                 if isinstance(
                     focused,
                     (wx.Button, wx.TextCtrl, wx.CheckBox, wx.RadioButton, wx.Choice),
                 ):
                     event.Skip()
                     return
+                # Anche sull'elenco: Spazio pausa/riprende (come in Taglia e unisci).
                 self._on_pause_toggle()
                 return
             if isinstance(
@@ -744,7 +765,7 @@ def _build_player():
             if not self._path or pos <= 0.2:
                 return
             item = add_mark(self._config_dir, self._path, pos)
-            self._refresh_marks()
+            self._refresh_marks(select_id=str(item.get("id") or ""))
             spoken = clip.speak_position(float(item["sec"]))
             if paused:
                 self._say(MSG_PAUSED_MARK.format(pos=spoken))
@@ -825,14 +846,27 @@ def _build_player():
             self._player.set_volume(self._listen_vol)
             self._say(f"Volume {self._listen_vol} percento.")
 
-        def _refresh_marks(self):
+        def _refresh_marks(self, select_id: str = ""):
+            keep_id = str(select_id or "")
+            if not keep_id:
+                cur = self._selected_mark()
+                if cur:
+                    keep_id = str(cur.get("id") or "")
             self._marks = list_marks(self._config_dir, self._path) if self._path else []
             self.lst_marks.Clear()
             if not self._marks:
                 self.lst_marks.Append(MSG_NO_MARKS)
                 return
-            for item in self._marks:
+            select_at = 0
+            for index, item in enumerate(self._marks):
                 self.lst_marks.Append(mark_row_label(item))
+                if keep_id and str(item.get("id") or "") == keep_id:
+                    select_at = index
+            self.lst_marks.SetSelection(select_at)
+
+        def _on_mark_select(self, event=None):
+            if event is not None:
+                event.Skip()
 
         def _selected_mark(self) -> dict | None:
             if not self._marks:
@@ -855,6 +889,7 @@ def _build_player():
                     self._play_pos = sec
                     self.btn_pause.SetLabel("&Pausa")
                     self._say(MSG_RESUME_AT.format(pos=clip.speak_position(sec)))
+                    wx.CallAfter(self._focus_controls)
                 return
             self._prepare_and_play(sec)
 
@@ -863,18 +898,31 @@ def _build_player():
             if item is None:
                 self._say(MSG_NO_MARKS)
                 return
+            sec = float(item.get("sec") or 0)
+            clock = format_clock(sec)
+            # Campo: orario se non ancora rinominato; altrimenti il nome già dato.
+            if bool(item.get("auto_name")):
+                initial = clock
+            else:
+                initial = str(item.get("name") or clock)
             with wx.TextEntryDialog(
                 self,
-                "Nuovo nome del segnalibro",
+                "Nome del segnalibro. L'orario resta in elenco.",
                 "Rinomina segnalibro",
-                str(item.get("name") or ""),
+                initial,
             ) as dlg:
                 if dlg.ShowModal() != wx.ID_OK:
                     return
                 name = dlg.GetValue().strip()
             if rename_mark(self._config_dir, self._path, item["id"], name):
-                self._refresh_marks()
-                self._say(MSG_MARK_RENAMED)
+                self._refresh_marks(select_id=str(item.get("id") or ""))
+                shown = mark_row_label(
+                    next(
+                        (m for m in self._marks if str(m.get("id")) == str(item["id"])),
+                        item,
+                    )
+                )
+                self._say(f"{MSG_MARK_RENAMED} {shown}.")
             else:
                 self._say(MSG_NO_MARKS)
 
@@ -883,7 +931,8 @@ def _build_player():
             if item is None:
                 self._say(MSG_NO_MARKS)
                 return
-            if delete_mark(self._config_dir, self._path, item["id"]):
+            mark_id = str(item.get("id") or "")
+            if delete_mark(self._config_dir, self._path, mark_id):
                 self._refresh_marks()
                 self._say(MSG_MARK_REMOVED)
             else:

@@ -42,9 +42,10 @@ MSG_CLIP_EMPTY = (
     "In Esplora seleziona il file e premi Control+C, poi qui Control+Alt+V."
 )
 MSG_PAUSED_AT = "Fermato a {pos}."
+MSG_PAUSED_MARK = "Fermato a {pos}. Segnalibro salvato."
 MSG_RESUME_AT = "Riparto da {pos}."
 MSG_STOPPED_MARK = "Fermo a {pos}. Segnalibro salvato."
-MSG_PLAYING = "In riproduzione."
+MSG_PLAYING = "In riproduzione. Spazio pausa; frecce destra e sinistra avanti e indietro; frecce su e giù volume."
 MSG_MARK_RENAMED = "Segnalibro rinominato."
 MSG_MARK_REMOVED = "Segnalibro eliminato."
 MSG_NO_MARKS = "Nessun segnalibro per questo file."
@@ -59,20 +60,30 @@ MSG_RESUME_ASK_NAMED = (
     "Invio su Dall'inizio, o un clic, riparte da zero."
 )
 HINT = (
-    "Per tutti: chi vede trascina il file in questa finestra col mouse; "
+    "Per tutti: chi vede trascina il file qui col mouse; "
     "chi usa la tastiera, in Esplora Control+C e qui Control+Alt+V "
     "(stessa cosa del trascinamento), oppure Invio su Incolla, o un clic. "
     "Invio su Sfoglia, o un clic, apre la finestra di Windows. "
-    "Spazio: pausa o ripresa. "
-    "Invio o clic su Pausa: mentre suona resta Pausa; in pausa diventa Riprendi. "
-    "Invio o clic su Ferma: ferma e salva un segnalibro a quell'orario. "
-    "Se è già fermo o in pausa, Ferma lo dice a voce e a schermo. "
+    "Quando parte l'ascolto, il focus va su Pausa: Spazio mette in pausa o riprende. "
+    "In pausa o con Ferma si salva un segnalibro con l'orario; si può rinominare "
+    "e nell'elenco restano orario e nome. "
     "Frecce destra e sinistra: avanti e indietro di 5 secondi. "
     "Frecce su e giù: volume fino a 200 percento. "
     "Nell'elenco segnalibri: Invio o doppio clic va a quel punto; "
     "un clic solo seleziona la riga. "
     "Ogni avviso sta a voce e a schermo."
 )
+
+
+def mark_row_label(item: dict) -> str:
+    """Orario sempre; se rinominato, anche il nome."""
+    sec = float(item.get("sec") or 0)
+    clock = format_clock(sec)
+    name = str(item.get("name") or "").strip()
+    auto = bool(item.get("auto_name"))
+    if auto or not name or name == clock:
+        return clock
+    return f"{clock} — {name}"
 
 _MEDIA_EXTS = {
     ".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
@@ -399,28 +410,37 @@ def _build_player():
                 focused = wx.Window.FindFocus()
             except Exception:
                 focused = None
-            # Come Taglia e unisci: Spazio sui pulsanti li attiva; non rubarlo.
+            in_text = isinstance(focused, wx.TextCtrl)
+            session = bool(self._playing or self._paused)
+            # Durante l'ascolto le frecce valgono anche con focus su Pausa/Ferma.
+            if not in_text and session and key in (wx.WXK_LEFT, wx.WXK_RIGHT):
+                self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
+                return
+            if not in_text and session and key in (wx.WXK_UP, wx.WXK_DOWN):
+                self._nudge_vol(+_VOL_STEP if key == wx.WXK_UP else -_VOL_STEP)
+                return
+            if key == wx.WXK_SPACE:
+                # Su pulsante: Spazio lo attiva (Pausa/Riprendi). Altrimenti pausa diretta.
+                if isinstance(
+                    focused,
+                    (wx.Button, wx.TextCtrl, wx.CheckBox, wx.RadioButton, wx.Choice),
+                ):
+                    event.Skip()
+                    return
+                self._on_pause_toggle()
+                return
             if isinstance(
                 focused, (wx.TextCtrl, wx.Button, wx.CheckBox, wx.RadioButton, wx.Choice)
             ):
                 event.Skip()
                 return
-            if key == wx.WXK_SPACE:
-                self._on_pause_toggle()
-                return
-            if key == wx.WXK_RIGHT:
-                self._seek(+_SEEK_STEP)
-                return
-            if key == wx.WXK_LEFT:
-                self._seek(-_SEEK_STEP)
-                return
-            if key == wx.WXK_UP:
-                self._nudge_vol(+_VOL_STEP)
-                return
-            if key == wx.WXK_DOWN:
-                self._nudge_vol(-_VOL_STEP)
-                return
             event.Skip()
+
+        def _focus_controls(self):
+            try:
+                self.btn_pause.SetFocus()
+            except Exception:
+                pass
 
         def _clipboard_media_paths(self) -> list:
             paths = []
@@ -707,6 +727,7 @@ def _build_player():
             self._paused = False
             self._play_pos = start
             self.btn_pause.SetLabel("&Pausa")
+            wx.CallAfter(self._focus_controls)
             if start > 0.15:
                 self._say(MSG_RESUME_AT.format(pos=clip.speak_position(start)))
             else:
@@ -719,6 +740,17 @@ def _build_player():
                 return float(self._play_pos or 0)
             return float(self._play_pos or 0)
 
+        def _save_auto_mark(self, pos: float, paused: bool) -> None:
+            if not self._path or pos <= 0.2:
+                return
+            item = add_mark(self._config_dir, self._path, pos)
+            self._refresh_marks()
+            spoken = clip.speak_position(float(item["sec"]))
+            if paused:
+                self._say(MSG_PAUSED_MARK.format(pos=spoken))
+            else:
+                self._say(MSG_STOPPED_MARK.format(pos=spoken))
+
         def _on_pause_toggle(self):
             if self._listen_busy:
                 return
@@ -728,7 +760,8 @@ def _build_player():
                 self._playing = False
                 self._paused = True
                 self.btn_pause.SetLabel("&Riprendi")
-                self._say(MSG_PAUSED_AT.format(pos=clip.speak_position(pos)))
+                self._save_auto_mark(pos, paused=True)
+                wx.CallAfter(self._focus_controls)
                 return
             if self._paused and self._preview and os.path.isfile(self._preview):
                 if self._player.resume():
@@ -738,6 +771,7 @@ def _build_player():
                     self._say(
                         MSG_RESUME_AT.format(pos=clip.speak_position(self._play_pos))
                     )
+                    wx.CallAfter(self._focus_controls)
                 return
             if self._path and self._piece is not None and self._preview:
                 self._prepare_and_play(0.0)
@@ -761,17 +795,15 @@ def _build_player():
             self._play_pos = 0.0
             self.btn_pause.SetLabel("&Pausa")
             if self._path and pos > 0.2:
-                item = add_mark(self._config_dir, self._path, pos)
-                self._refresh_marks()
-                self._say(
-                    MSG_STOPPED_MARK.format(pos=clip.speak_position(float(item["sec"])))
-                )
+                self._save_auto_mark(pos, paused=False)
             else:
                 self._say("Fermo.")
+            wx.CallAfter(self._focus_controls)
 
         def _seek(self, delta: float):
             if not self._preview or not os.path.isfile(self._preview):
                 return
+            was_paused = bool(self._paused)
             pos = self._position() + float(delta)
             pos = max(0.0, min(pos, max(0.0, self._preview_dur - 0.05)))
             want_play = bool(self._playing and self._player.is_playing())
@@ -782,6 +814,10 @@ def _build_player():
                 self._playing = True
                 self._paused = False
                 self.btn_pause.SetLabel("&Pausa")
+            elif was_paused:
+                self._paused = True
+                self._playing = False
+                self.btn_pause.SetLabel("&Riprendi")
             self._say(clip.speak_position(pos))
 
         def _nudge_vol(self, delta: int):
@@ -796,9 +832,7 @@ def _build_player():
                 self.lst_marks.Append(MSG_NO_MARKS)
                 return
             for item in self._marks:
-                sec = float(item.get("sec") or 0)
-                name = str(item.get("name") or format_clock(sec))
-                self.lst_marks.Append(f"{format_clock(sec)} — {name}")
+                self.lst_marks.Append(mark_row_label(item))
 
         def _selected_mark(self) -> dict | None:
             if not self._marks:

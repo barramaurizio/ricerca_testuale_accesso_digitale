@@ -35,10 +35,11 @@ Trascinamento col mouse = **Control+Alt+V** (file copiato in Esplora) = pulsante
 Distinti dai Segnalibri di percorso (Ctrl+D) e dai punti di lettura documento (Ctrl+B). File dedicato, es. `media_marks.json` (cartella comune RTAD come gli altri).
 
 1. **Senza tetto pratico** di quantità (non come i 100 del documento): se un giorno serve un tetto tecnico altissimo, si dice in guida.
-2. Con audio/video in riproduzione, **Ferma** crea **automaticamente** un segnalibro a quell’orario.
-3. Nome predefinito = orario (ore/minuti/secondi). Si può **rinominare**.
-4. Alla **riapertura** del riproduttore sullo stesso file: dialogo che chiede se riprendere da quel punto («Ti eri fermato a …» + nome se rinominato) oppure ripartire dall’inizio. Stessa frase a voce e a schermo.
-5. Elenco segnalibri del file: scegliere, rinominare, eliminare (Invio/clic come di consueto).
+2. Con audio/video in riproduzione, **Pausa** e **Ferma** creano **automaticamente** un segnalibro a quell’orario.
+3. Nome predefinito = orario. Si può **rinominare**; in elenco restano **orario e nome** (es. `1:35 — Intervista`).
+4. All’avvio dell’ascolto il focus va su **Pausa**, così Spazio e le frecce agiscono subito.
+5. Alla **riapertura** del riproduttore sullo stesso file: dialogo che chiede se riprendere da quel punto («Ti eri fermato a …» + nome se rinominato) oppure ripartire dall’inizio. Stessa frase a voce e a schermo.
+6. Elenco segnalibri del file: scegliere, rinominare, eliminare (Invio/clic come di consueto).
 
 ## Must — Ingressi Windows e menu
 

@@ -337,14 +337,12 @@ def _build_player():
             self.lst_marks.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._goto_selected_mark())
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
-            # Ctrl+Alt+V = stesso effetto del trascinamento (per tutti).
+            # Ctrl+Alt+V: in wx l'accelerator manda EVT_MENU, non EVT_BUTTON.
+            self._id_paste = wx.NewIdRef()
+            self.Bind(wx.EVT_MENU, lambda e: self._paste_from_clipboard(), id=self._id_paste)
             accel = wx.AcceleratorTable(
                 [
-                    (
-                        wx.ACCEL_CTRL | wx.ACCEL_ALT,
-                        ord("V"),
-                        self.btn_paste.GetId(),
-                    ),
+                    (wx.ACCEL_CTRL | wx.ACCEL_ALT, ord("V"), int(self._id_paste)),
                 ]
             )
             self.SetAcceleratorTable(accel)
@@ -354,7 +352,18 @@ def _build_player():
                 wx.CallAfter(self._load_path, self._path, ask_resume=True)
             else:
                 self._refresh_marks()
-                wx.CallAfter(self.btn_paste.SetFocus)
+                wx.CallAfter(self._announce_ready)
+
+        def _announce_ready(self):
+            try:
+                self.btn_paste.SetFocus()
+            except Exception:
+                pass
+            self._say(
+                "Riproduttore pronto. "
+                "Trascina un audio o un video, oppure Control+Alt+V, "
+                "oppure Invio su Incolla o su Sfoglia."
+            )
 
         def _say(self, text: str):
             self.lbl_status.SetLabel(text)
@@ -365,6 +374,15 @@ def _build_player():
 
         def _on_char(self, event):
             key = event.GetKeyCode()
+            # Prima di tutto: Control+Alt+V (anche con focus su pulsante o campo).
+            if (
+                event.ControlDown()
+                and event.AltDown()
+                and not event.ShiftDown()
+                and key in (ord("V"), ord("v"))
+            ):
+                self._paste_from_clipboard()
+                return
             focused = None
             try:
                 focused = wx.Window.FindFocus()
@@ -375,14 +393,6 @@ def _build_player():
                 focused, (wx.TextCtrl, wx.Button, wx.CheckBox, wx.RadioButton, wx.Choice)
             ):
                 event.Skip()
-                return
-            if (
-                event.ControlDown()
-                and event.AltDown()
-                and not event.ShiftDown()
-                and key in (ord("V"), ord("v"))
-            ):
-                self._paste_from_clipboard()
                 return
             if key == wx.WXK_SPACE:
                 self._on_pause_toggle()
@@ -531,19 +541,23 @@ def _build_player():
             return wx.FileDialog
 
         def _browse_file(self):
+            # CallAfter: evita conflitti col CHAR_HOOK / focus sul pulsante.
+            wx.CallAfter(self._browse_file_now)
+
+        def _browse_file_now(self):
             self._say(MSG_BROWSE)
             FileDlg = self._windows_file_dialog_class()
+            parent = self
             try:
                 dlg = FileDlg(
-                    self,
+                    parent,
                     message="Scegli audio o video",
                     wildcard=_WILDCARD,
                     style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
                 )
             except TypeError:
-                # Firma wx classica senza nomi.
                 dlg = FileDlg(
-                    self,
+                    parent,
                     "Scegli audio o video",
                     "",
                     "",
@@ -565,6 +579,7 @@ def _build_player():
                 except Exception:
                     pass
                 if dlg.ShowModal() != wx.ID_OK:
+                    self._say("Scelta file annullata.")
                     return
                 path = dlg.GetPath() or ""
             except Exception:
@@ -583,6 +598,7 @@ def _build_player():
                 self.txt_path.SetValue(path)
             except Exception:
                 pass
+            self._say(f"Scelto: {os.path.basename(path)}.")
             self._load_path(path, ask_resume=True)
 
         def _load_path(self, path: str, ask_resume: bool = False):

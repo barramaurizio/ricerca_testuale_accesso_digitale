@@ -76,9 +76,9 @@ HINT = (
     "(Ferma resta Ferma). Il focus resta sul pulsante usato: "
     "dopo Pausa resta su Riprendi; dopo Ferma resta su Ferma. "
     "Con Tab si arriva all'elenco Segnalibri: frecce su e giù scorrono; "
-    "Invio, un clic sulla riga, oppure Invio su Vai al segnalibro "
-    "riparte da quel punto senza crearne di nuovi. "
-    "I segnalibri nuovi nascono solo con Pausa o Ferma. "
+    "Sull'elenco: frecce su/giù scelgono; Invio, Spazio o un clic "
+    "(o Vai al segnalibro) riparte da quel punto, senza crearne di nuovi. "
+    "Segnalibri nuovi solo con Pausa o Ferma, oppure dopo frecce sinistra/destra. "
     "Se Ferma è già fermo, Invio o clic dice solo Già fermo. "
     "Ripartire dopo la pausa: Invio o clic su Riprendi. "
     "Ogni avviso sta a voce e a schermo."
@@ -361,8 +361,9 @@ def _build_player():
             self.btn_open.Bind(wx.EVT_BUTTON, lambda e: self._open_from_path())
             self.btn_browse.Bind(wx.EVT_BUTTON, lambda e: self._browse_file())
             self.txt_path.Bind(wx.EVT_TEXT_ENTER, lambda e: self._open_from_path())
-            self.btn_pause.Bind(wx.EVT_BUTTON, lambda e: self._on_pause_toggle())
-            self.btn_stop.Bind(wx.EVT_BUTTON, lambda e: self._on_stop())
+            # Pausa/Ferma da pulsante: segnalibro automatico consentito.
+            self.btn_pause.Bind(wx.EVT_BUTTON, lambda e: self._on_pause_from_button())
+            self.btn_stop.Bind(wx.EVT_BUTTON, lambda e: self._on_stop_from_button())
             self.btn_goto.Bind(wx.EVT_BUTTON, lambda e: self._goto_selected_mark())
             self.btn_rename.Bind(wx.EVT_BUTTON, lambda e: self._on_rename())
             self.btn_delete.Bind(wx.EVT_BUTTON, lambda e: self._on_delete())
@@ -453,9 +454,11 @@ def _build_player():
                     event.Skip()
                     return
                 if focused is self.btn_stop:
+                    self._suppress_auto_mark = False
                     self._on_stop()
                     return
                 if focused is self.btn_pause:
+                    self._suppress_auto_mark = False
                     self._on_pause_toggle()
                     return
                 if focused is self.btn_paste:
@@ -496,25 +499,30 @@ def _build_player():
                 event.Skip()
                 return
 
-            # Sinistra/destra: seek fuori dall'elenco (l'elenco non le usa).
+            # Sinistra/destra: seek = navigazione nel tempo → poi Pausa può salvare.
             if (
                 not in_text
                 and not on_marks
                 and session
                 and key in (wx.WXK_LEFT, wx.WXK_RIGHT)
             ):
+                self._suppress_auto_mark = False
                 self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
                 return
 
             if key == wx.WXK_SPACE:
+                # Sull'elenco segnalibri: Spazio = vai al mark (NON pausa).
+                # NVDA spesso manda Spazio per "attivare": non deve creare segnalibri.
+                if on_marks or isinstance(focused, wx.ListBox):
+                    self._goto_selected_mark()
+                    return
                 if isinstance(
                     focused,
                     (wx.Button, wx.TextCtrl, wx.CheckBox, wx.RadioButton, wx.Choice),
                 ):
                     event.Skip()
                     return
-                # Sull'elenco: Spazio pausa/riprende e resta sull'elenco.
-                self._on_pause_toggle(stay_on_list=on_marks)
+                self._on_pause_toggle()
                 return
             if isinstance(
                 focused, (wx.TextCtrl, wx.Button, wx.CheckBox, wx.RadioButton, wx.Choice)
@@ -542,13 +550,10 @@ def _build_player():
             return False
 
         def _on_marks_key(self, event):
-            """Invio sull'elenco = vai al segnalibro evidenziato."""
+            """Invio/Spazio sull'elenco = vai al segnalibro (mai Pausa/nuovo mark)."""
             key = event.GetKeyCode()
-            if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER, wx.WXK_SPACE):
                 self._goto_selected_mark()
-                return
-            if key == wx.WXK_SPACE:
-                self._on_pause_toggle(stay_on_list=True)
                 return
             if key in (wx.WXK_UP, wx.WXK_DOWN):
                 # Muoviamo noi la selezione così coincide con ciò che si sente.
@@ -987,7 +992,10 @@ def _build_player():
             self._paused = False
             self._play_pos = start
             self._set_pause_label(paused=False)
-            self._suppress_auto_mark = False
+            # Se eravamo in un salto a segnalibro, NON riabilitare qui i mark automatici:
+            # altrimenti uno Spazio di NVDA crea subito un segnalibro nuovo.
+            if not stay_on_marks:
+                self._suppress_auto_mark = False
             if stay_on_marks:
                 self._focus_marks()
             else:
@@ -1065,6 +1073,16 @@ def _build_player():
             self._set_pause_label(paused=False)
             return True
 
+        def _on_pause_from_button(self):
+            """Invio/clic su Pausa/Riprendi: qui sì al segnalibro automatico."""
+            self._suppress_auto_mark = False
+            self._on_pause_toggle()
+
+        def _on_stop_from_button(self):
+            """Invio/clic su Ferma: qui sì al segnalibro automatico (se in play)."""
+            self._suppress_auto_mark = False
+            self._on_stop()
+
         def _on_pause_toggle(self, stay_on_list: bool = False):
             if self._listen_busy:
                 return
@@ -1084,7 +1102,6 @@ def _build_player():
                 self._paused = True
                 self._set_pause_label(paused=True)
                 self._save_auto_mark(pos, paused=True)
-                # Focus resta dove si è agito.
                 if stay_on_list:
                     self._focus_marks()
                 else:
@@ -1171,6 +1188,8 @@ def _build_player():
             self._focus_stop()
 
         def _seek(self, delta: float):
+            # Frecce orizzontali = mi muovo nel tempo: la prossima Pausa può salvare.
+            self._suppress_auto_mark = False
             was_paused = bool(self._paused)
             media = max(0.0, self._position() + float(delta))
             # Sempre sulla timeline del file intero.
@@ -1451,24 +1470,22 @@ def _build_player():
             self._last_goto_key = goto_key
             self._last_goto_t = now
 
-            # Salto tra segnalibri: NON creare segnalibri nuovi (solo Pausa/Ferma).
+            # Salto tra segnalibri: resta attivo finché non si usa Pausa/Ferma/frecce ↔.
+            # Così Spazio/Invio/clic sull'elenco NON creano segnalibri nuovi.
             self._suppress_auto_mark = True
             self._stop_audio_no_mark()
 
             # Una sola timeline: wav del FILE INTERO, poi seek al secondo del mark.
-            # I pezzi "dal segnalibro" sfasavano tutti i mark precedenti all'ultimo.
             if self._play_full_at(sec):
                 self._say(
                     f"{announce} {MSG_RESUME_AT.format(pos=clip.speak_position(sec))}"
                 )
                 self._focus_marks()
-                wx.CallLater(1000, self._clear_suppress_auto_mark)
                 return
 
             # Manca il wav intero (o c'era un pezzo tagliato): ricostruiscilo e parti da sec.
             self._say(announce + " Preparazione del file…")
             self._prepare_and_play(sec, stay_on_marks=True)
-            wx.CallLater(2500, self._clear_suppress_auto_mark)
 
         def _on_rename(self):
             item = self._selected_mark()

@@ -43,6 +43,9 @@ Distinti dai Segnalibri di percorso (Ctrl+D) e dai punti di lettura documento (C
 
 ## Must — Ingressi Windows e menu
 
+**Stato integrazione Windows (codice):** voce Explorer `Riproduci con RTAD` (`--play`) in tutti i menu Media; Invia a `Riproduttore RTAD`; ProgID `RTAD.AudioVideo` + OpenWithProgids + RegisteredApplications; Strumenti → Imposta riproduttore predefinito in Windows (`ms-settings:defaultapps`); menu risultato `Riproduci con RTAD`. Resto: prova Add-on + Installer locale di Maurizio.
+
+
 1. Menu **Strumenti** (e impostazioni dove già si scelgono comportamenti SA): apri Riproduttore / preferenze legate al lettore.
 2. **Cerca con Accesso Digitale** (Installer, `setup.iss`): su audio/video aggiungere voce **Riproduci** (o equivalente), senza togliere Taglia/Converti/analisi già presenti (`rtad-non-rompere-flussi`).
 3. **Invia a**: il file audio/video apre il Riproduttore (Standalone installata), non solo l’analisi.

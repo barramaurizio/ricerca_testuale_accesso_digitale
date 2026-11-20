@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=2.0.7
+AppVersion=2.0.8
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v2.0.7
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v2.0.8
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -32,6 +32,7 @@ Name: "{autoprograms}\Ricerca Testuale Accesso Digitale"; Filename: "{app}\Ricer
 Name: "{autodesktop}\Ricerca Testuale Accesso Digitale"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Tasks: desktopicon
 ; Invia a (shell:sendto): collegamento vivo, segue gli aggiornamenti. Non è la copia dell'exe.
 Name: "{userappdata}\Microsoft\Windows\SendTo\Ricerca Testuale Accesso Digitale"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"
+Name: "{userappdata}\Microsoft\Windows\SendTo\Riproduttore RTAD"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Parameters: "--play"
 
 [Registry]
 ; --- INTEGRAZIONE CARTELLE ---
@@ -370,7 +371,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.mp3; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -386,7 +389,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp3\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.wav; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -402,7 +407,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.wav\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.m4a; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -418,7 +425,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.m4a\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.flac; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -434,7 +443,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.flac\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.ogg; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -450,7 +461,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.ogg\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.mp4; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -466,7 +479,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mp4\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.mkv; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -482,7 +497,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mkv\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.webm; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -498,7 +515,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webm\shell\Ricerca
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.avi; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -514,7 +533,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Cerca con Accesso Digitale"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia"; ValueName: "SubCommands"; ValueType: string; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri"; ValueType: string; ValueData: "Apri / analizza questo audio/video"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\00riproduci\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+.mov; ValueType: string; ValueData: "Apri / analizza questo audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\01apri\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto"; ValueType: string; ValueData: "Tutto sull'audio/video"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\02tutto\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --media-all ""%1"""
@@ -617,6 +638,37 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.avi\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini"; ValueType: string; ValueData: "Chiedi a Gemini"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.mov\shell\RicercaTestualeAccessoDigitaleMedia\shell\09gemini\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --ask-gemini ""%1"""
 
+
+; --- RIPRODUTTORE: ProgID per Apri con / Sempre o Solo una volta (solo audio-video) ---
+; Il comando Applications generale (documenti/immagini) resta senza --play, nel [Code].
+Root: HKCU; Subkey: "Software\Classes\RTAD.AudioVideo"; ValueType: string; ValueData: "Riproduttore RTAD (Accesso Digitale)"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\RTAD.AudioVideo\DefaultIcon"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\RTAD.AudioVideo\shell\open"; ValueType: string; ValueData: "Riproduci con RTAD"
+Root: HKCU; Subkey: "Software\Classes\RTAD.AudioVideo\shell\open\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --play ""%1"""
+Root: HKCU; Subkey: "Software\RTAD\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Riproduttore RTAD"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\RTAD\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Riproduttore audio e video di Ricerca Testuale Accesso Digitale"
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "RTAD Riproduttore"; ValueData: "Software\RTAD\Capabilities"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mp3\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp3"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.wav\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wav"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.m4a\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4a"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.flac\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flac"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.ogg\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogg"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.mp4\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp4"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.mkv\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mkv"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.webm\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".webm"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.avi\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".avi"; ValueData: "RTAD.AudioVideo"
+Root: HKCU; Subkey: "Software\Classes\.mov\OpenWithProgids"; ValueType: string; ValueName: "RTAD.AudioVideo"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\RTAD\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mov"; ValueData: "RTAD.AudioVideo"
+
 [Code]
 const
   RTADOpenWithExe = 'Ricerca Testuale Accesso Digitale.exe';
@@ -627,8 +679,8 @@ begin
   Result.CommaText :=
     '.epub,.pdf,.docx,.doc,.odt,.xlsx,.txt,.md,.csv,.log,.rtf,.html,.htm,' +
     '.jpg,.jpeg,.jfif,.png,.bmp,.gif,.tif,.tiff,.webp,.ico,' +
-    '.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav,.wma,' +
-    '.mp4,.m4v,.mkv,.avi,.mov,.wmv,.webm,.mpg,.mpeg,.3gp';
+    '.mp3,.m4a,.m4b,.aac,.flac,.ogg,.opus,.wav,.wma,.aif,.aiff,.mka,' +
+    '.mp4,.m4v,.mkv,.avi,.mov,.wmv,.webm,.flv,.mts,.m2ts,.mpg,.mpeg,.3gp';
 end;
 
 procedure RTADRegisterOpenWith;
@@ -669,6 +721,10 @@ begin
   RegDeleteKeyIncludingSubkeys(
     HKCU, 'Software\Classes\Applications\' + RTADOpenWithExe
   );
+  RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\RTAD.AudioVideo');
+  RegDeleteKeyIncludingSubkeys(HKCU, 'Software\RTAD');
+  if RegValueExists(HKCU, 'Software\RegisteredApplications', 'RTAD Riproduttore') then
+    RegDeleteValue(HKCU, 'Software\RegisteredApplications', 'RTAD Riproduttore');
   Exts := RTADOpenWithExtensions;
   try
     for I := 0 to Exts.Count - 1 do

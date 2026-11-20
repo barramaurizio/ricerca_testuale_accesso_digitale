@@ -1,0 +1,103 @@
+🌟 Novità della Versione 2.0.8
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.8
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.
+- Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».
+- Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\Roaming\RTAD\media_marks.json. Vale nella Standalone e nell'Add-on.
+- Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.
+- Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.
+- Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.
+- Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- Tools, Audio/video player. Enter on the item, or a click, opens the window. Also from the result menu: Play with RTAD. Standalone and Add-on.
+- Player: seek with arrows, volume to 200%, Pause/Resume/Stop; «Already stopped» when idle.
+- Position bookmarks on Pause/Stop; Alt+V or Go to bookmark jumps without creating new ones; rename keeps time and name. Stored in %AppData%\Roaming\RTAD\media_marks.json. Standalone and Add-on.
+- Installed Standalone Explorer menu Search with Accesso Digitale: Play with RTAD on audio/video. Add-on does not add Explorer items.
+- Send to: RTAD Player opens the player; analyse shortcut remains. Portable and Add-on: no automatic Send to.
+- Open with / Always or Just once; Tools → Set default player in Windows opens Windows settings. Add-on does not register associations.
+- From 2.0.7: Mix/Replace Audio sul video and listen pause/seek/volume in Cut and join. Standalone and Add-on.
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.8.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.8
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.8
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.8.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.8.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Riproduttore audio/video con segnalibri (Alt+V); Explorer Riproduci con RTAD, Invia a, Apri con. NVDA testata: 2026.3.1.
+
+Summary EN:
+Audio/video player with bookmarks (Alt+V); Explorer Play with RTAD, Send to, Open with. NVDA tested: 2026.3.1.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.8/ricerca_testuale_accesso_digitale-2.0.8.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit
+
+Summary:
+RTAD 2.0.8: riproduttore, segnalibri Alt+V, menù Windows
+
+Description:
+Riproduttore audio/video gemello SA/Add-on con Pausa/Riprendi, volume, segnalibri (Alt+V / Vai al segnalibro).
+Installer: Riproduci con RTAD in Esplora, Invia a Riproduttore RTAD, Apri con / Sempre o Solo una volta, impostazioni predefinite da Strumenti.
+Guide, novità, changelog e pacchetto .nvda-addon allineati a 2.0.8.

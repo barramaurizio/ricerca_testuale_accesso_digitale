@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.7)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.8)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,17 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.8
+
+- Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.
+- Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».
+- Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\Roaming\RTAD\media_marks.json. Vale nella Standalone e nell'Add-on.
+- Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.
+- Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.
+- Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.
+- Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.
 
 ### 🌟 Novità della Versione 2.0.7
 
@@ -404,6 +415,17 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.8
+
+- Tools, Audio/video player. Enter on the item, or a click, opens the window. Also from the result menu, on an audio or video: Play with RTAD. Enter on the item, or a click. It works in the Standalone and in the Add-on.
+- In the player: while playing, right and left arrows skip forward and back by 5 seconds; up and down arrows set the volume up to 200 percent. Enter on Pause, or a click, or Space outside the bookmark list, pauses: the button becomes Resume. Enter on Resume, or a click, or Space, continues from there. Enter on Stop, or a click, stops. If already stopped: on screen and by voice «Already stopped».
+- Position bookmarks for the file: Enter on Pause or Stop, or a click, creates a bookmark at that time (the name is the time). Jumping to an existing bookmark does not create a new one, nor does Tab or Alt+V on Go to bookmark. On the list, up and down arrows choose. Alt+V, or Tab to Go to bookmark then Enter or a click, or Space or Enter on the list, resumes from that point. Enter on Rename, or a click, changes the name: the list keeps time and name. Bookmarks live in %AppData%\Roaming\RTAD\media_marks.json. It works in the Standalone and in the Add-on.
+- In the installed Standalone, in File Explorer, right-click or Applications key, Search with Accesso Digitale, on an audio or video: Play with RTAD is at the top; Open/analyse, Everything about audio/video, Summary, Tech sheet, Cut and join, Convert remain. Enter on Play with RTAD, or a click, opens the player on that file. The Add-on does not add Explorer items.
+- In the installed Standalone, Send to also has RTAD Player: on an audio or video file it opens the player. The Ricerca Testuale Accesso Digitale shortcut for analysing remains. Portable and Add-on: no automatic Send to.
+- In the installed Standalone, Open with and the «How do you want to open this file?» window show RTAD Player: you can choose Always or Just once. From Tools, Set default player in Windows: Enter on the item, or a click, opens Windows settings for default apps. The Add-on does not register Windows associations.
+- From 2.0.7: Mix/Replace Audio sul video and volumes 0–200. Standalone and Add-on.
+- From 2.0.7: Space pause/resume with time, seek and volume in Cut and join. Standalone and Add-on.
 
 ### 🌟 What's New in Version 2.0.7
 

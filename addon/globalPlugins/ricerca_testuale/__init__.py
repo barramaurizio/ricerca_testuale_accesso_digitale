@@ -17963,6 +17963,7 @@ class SearchFrame(wx.Frame):
             lambda text: speak_accessible(text, force=True),
             path=path or "",
             config_dir=CONFIG_DIR,
+            clipboard_paths=paths_from_windows_clipboard,
         )
 
     def on_clip_dialog(self, event=None, path=""):

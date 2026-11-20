@@ -21,8 +21,10 @@ _STORE_NAME = "media_marks.json"
 _shared = False
 
 MSG_NEED_FILE = (
-    "Incolla il percorso del file nel campo Percorso, poi Invio su Apri, o un clic. "
-    "Oppure Invio su Sfoglia, o un clic, e scegli il file nella finestra di Windows."
+    "Serve un audio o un video. "
+    "Copia il file in Esplora con Control+C, poi qui Control+Alt+V, "
+    "oppure Invio su Incolla, o un clic. "
+    "Oppure Invio su Sfoglia, o un clic."
 )
 MSG_NEED_FFMPEG = "Per questo formato serve ffmpeg."
 MSG_NO_AUDIO = "Questo file non ha una traccia audio da ascoltare."
@@ -30,6 +32,10 @@ MSG_LISTEN_FAIL = "Non riesco a preparare l'ascolto."
 MSG_ALREADY_IDLE = "La riproduzione è già ferma o in pausa."
 MSG_BROWSE = "Apro la finestra di Windows per scegliere l'audio o il video."
 MSG_BROWSE_FAIL = "Non sono riuscito ad aprire la finestra di scelta file."
+MSG_CLIP_EMPTY = (
+    "Negli Appunti non c'è un file audio o video. "
+    "In Esplora seleziona il file e premi Control+C, poi qui Control+Alt+V."
+)
 MSG_PAUSED_AT = "Fermato a {pos}."
 MSG_RESUME_AT = "Riparto da {pos}."
 MSG_STOPPED_MARK = "Fermo a {pos}. Segnalibro salvato."
@@ -48,9 +54,10 @@ MSG_RESUME_ASK_NAMED = (
     "Invio su Dall'inizio, o un clic, riparte da zero."
 )
 HINT = (
-    "Nel campo Percorso si incolla il file con Control+V, poi Invio su Apri, o un clic. "
-    "Invio su Sfoglia, o un clic, apre la finestra di scelta file (nella Standalone "
-    "è quella di RTAD, con Nome file e percorso da incollare). "
+    "Come nel resto di RTAD: copia un file in Esplora con Control+C, "
+    "poi qui Control+Alt+V (equivalente al trascinamento), "
+    "oppure Invio su Incolla, o un clic. "
+    "Invio su Sfoglia, o un clic, apre la finestra di Windows. "
     "Spazio: pausa o ripresa. "
     "Invio o clic su Pausa: mentre suona resta Pausa; in pausa diventa Riprendi. "
     "Invio o clic su Ferma: ferma e salva un segnalibro a quell'orario. "
@@ -60,6 +67,13 @@ HINT = (
     "Nell'elenco segnalibri: Invio o doppio clic va a quel punto; "
     "un clic solo seleziona la riga."
 )
+
+_MEDIA_EXTS = {
+    ".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma",
+    ".aif", ".aiff", ".mka",
+    ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv",
+    ".mts", ".m2ts", ".mpg", ".mpeg", ".3gp",
+}
 
 _WILDCARD = (
     "Audio e video|"
@@ -229,7 +243,7 @@ def _build_player():
     import rtad_clip as clip
 
     class _PlayerDialog(wx.Dialog):
-        def __init__(self, parent, speaker, path, config_dir):
+        def __init__(self, parent, speaker, path, config_dir, clipboard_paths=None):
             super().__init__(
                 parent,
                 title="Riproduttore audio/video",
@@ -237,6 +251,7 @@ def _build_player():
             )
             self._speaker = speaker or (lambda _t: None)
             self._config_dir = config_dir or ""
+            self._clipboard_paths = clipboard_paths
             self._path = path or ""
             self._piece = None
             self._preview = ""
@@ -268,10 +283,12 @@ def _build_player():
             self.txt_path = wx.TextCtrl(self, value=self._path or "")
             self.txt_path.SetName("Percorso")
             path_row.Add(self.txt_path, 1, wx.EXPAND | wx.RIGHT, 6)
-            self.btn_open = wx.Button(self, label="A&pri")
+            self.btn_paste = wx.Button(self, label="&Incolla…")
             self.btn_browse = wx.Button(self, label="&Sfoglia…")
-            path_row.Add(self.btn_open, 0, wx.RIGHT, 6)
-            path_row.Add(self.btn_browse, 0)
+            self.btn_open = wx.Button(self, label="A&pri")
+            path_row.Add(self.btn_paste, 0, wx.RIGHT, 6)
+            path_row.Add(self.btn_browse, 0, wx.RIGHT, 6)
+            path_row.Add(self.btn_open, 0)
             root.Add(path_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
             self.lbl_status = wx.StaticText(self, label="Fermo.")
@@ -303,6 +320,7 @@ def _build_player():
             self.SetSizerAndFit(root)
             self.SetMinSize((720, 420))
 
+            self.btn_paste.Bind(wx.EVT_BUTTON, lambda e: self._paste_from_clipboard())
             self.btn_open.Bind(wx.EVT_BUTTON, lambda e: self._open_from_path())
             self.btn_browse.Bind(wx.EVT_BUTTON, lambda e: self._browse_file())
             self.txt_path.Bind(wx.EVT_TEXT_ENTER, lambda e: self._open_from_path())
@@ -313,12 +331,23 @@ def _build_player():
             self.lst_marks.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._goto_selected_mark())
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
+            # Ctrl+Alt+V come nella finestra principale (equivalente al trascinamento).
+            accel = wx.AcceleratorTable(
+                [
+                    (
+                        wx.ACCEL_CTRL | wx.ACCEL_ALT,
+                        ord("V"),
+                        self.btn_paste.GetId(),
+                    ),
+                ]
+            )
+            self.SetAcceleratorTable(accel)
 
             if self._path and os.path.isfile(self._path):
                 wx.CallAfter(self._load_path, self._path, ask_resume=True)
             else:
                 self._refresh_marks()
-                wx.CallAfter(self.txt_path.SetFocus)
+                wx.CallAfter(self.btn_paste.SetFocus)
 
         def _say(self, text: str):
             self.lbl_status.SetLabel(text)
@@ -340,6 +369,14 @@ def _build_player():
             ):
                 event.Skip()
                 return
+            if (
+                event.ControlDown()
+                and event.AltDown()
+                and not event.ShiftDown()
+                and key in (ord("V"), ord("v"))
+            ):
+                self._paste_from_clipboard()
+                return
             if key == wx.WXK_SPACE:
                 self._on_pause_toggle()
                 return
@@ -356,6 +393,39 @@ def _build_player():
                 self._nudge_vol(-_VOL_STEP)
                 return
             event.Skip()
+
+        def _clipboard_media_paths(self) -> list:
+            paths = []
+            if callable(self._clipboard_paths):
+                try:
+                    paths = list(self._clipboard_paths() or [])
+                except Exception:
+                    log.exception("clipboard_paths")
+                    paths = []
+            else:
+                paths = _paths_from_clipboard_fallback()
+            out = []
+            for path in paths:
+                path = (path or "").strip().strip('"')
+                if not path or not os.path.isfile(path):
+                    continue
+                ext = os.path.splitext(path)[1].lower()
+                if ext in _MEDIA_EXTS:
+                    out.append(os.path.normpath(path))
+            return out
+
+        def _paste_from_clipboard(self):
+            paths = self._clipboard_media_paths()
+            if not paths:
+                self._say(MSG_CLIP_EMPTY)
+                return
+            path = paths[0]
+            try:
+                self.txt_path.SetValue(path)
+            except Exception:
+                pass
+            self._say(f"Appunti: {os.path.basename(path)}.")
+            self._load_path(path, ask_resume=True)
 
         def _typed_path(self) -> str:
             try:
@@ -721,9 +791,59 @@ def _build_player():
     return _PlayerDialog
 
 
-def open_dialog(parent, speaker, path: str = "", config_dir: str = ""):
+def _paths_from_clipboard_fallback() -> list:
+    """Se non arriva la funzione della finestra principale, legge gli Appunti qui."""
+    import wx
+
+    found = []
+    if not wx.TheClipboard.Open():
+        return found
+    try:
+        try:
+            fmt = wx.DataFormat(wx.DF_FILENAME)
+            if wx.TheClipboard.IsSupported(fmt):
+                data = wx.FileDataObject()
+                if wx.TheClipboard.GetData(data):
+                    for name in data.GetFilenames() or []:
+                        p = (name or "").strip()
+                        if p and os.path.isfile(p):
+                            found.append(os.path.normpath(p))
+        except Exception:
+            pass
+        if found:
+            return found
+        try:
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
+                data = wx.TextDataObject()
+                if wx.TheClipboard.GetData(data):
+                    raw = (data.GetText() or "").strip().strip('"')
+                    if raw and os.path.isfile(raw):
+                        found.append(os.path.normpath(raw))
+        except Exception:
+            pass
+    finally:
+        try:
+            wx.TheClipboard.Close()
+        except Exception:
+            pass
+    return found
+
+
+def open_dialog(
+    parent,
+    speaker,
+    path: str = "",
+    config_dir: str = "",
+    clipboard_paths=None,
+):
     cls = _build_player()
-    dialog = cls(parent, speaker, path or "", config_dir or "")
+    dialog = cls(
+        parent,
+        speaker,
+        path or "",
+        config_dir or "",
+        clipboard_paths=clipboard_paths,
+    )
     dialog.ShowModal()
     dialog.close_work()
     dialog.Destroy()

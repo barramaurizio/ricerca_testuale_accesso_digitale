@@ -20185,7 +20185,11 @@ class MainWindow(wx.Frame):
             return
         path = self._prefer_kept_media_path(path) if path else ""
         rtad_player.open_dialog(
-            self, speak_accessible, path=path or "", config_dir=CONFIG_DIR
+            self,
+            speak_accessible,
+            path=path or "",
+            config_dir=CONFIG_DIR,
+            clipboard_paths=paths_from_windows_clipboard,
         )
 
     def on_clip_dialog(self, event=None, path=""):

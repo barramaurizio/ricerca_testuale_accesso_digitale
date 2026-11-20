@@ -2,15 +2,15 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `2.0.7` — Audio sul video: Mix e volumi 0–200; durate con caselle e ore/min/s; ascolto con pausa/orario, frecce e volume, memoria per file. NVDA testata 2026.3.1 (18/11/2026, GitHub `v2.0.7` / `app-v2.0.7`, commit `ddd1e43`). Piano `docs/PIANO_2.0.7.md`. Prima: `2.0.6` il 17/11/2026, GitHub `v2.0.6` / `app-v2.0.6`, commit `6bd826e`, DataStore #13083 via #13084 accettato. Non hotfixare la 1.9.5 né le successive fino alla 2.0.7 inclusa. Una versione già su GitHub si scrive pubblicata, con la data e i tag.
+**Ultima pubblicata:** `2.0.8` — Riproduttore audio/video in RTAD (Spazio/Pausa/Riprendi/Ferma, frecce seek/volume 0–200, segnalibri Alt+V); Explorer Riproduci con RTAD, Invia a, Apri con; Strumenti → Imposta riproduttore predefinito in Windows. Standalone e Add-on. NVDA testata 2026.3.1 (20/11/2026, GitHub `v2.0.8` / `app-v2.0.8`). Piano `docs/PIANO_2.0.8.md`. Prima: `2.0.7` il 18/11/2026, GitHub `v2.0.7` / `app-v2.0.7`, commit `ddd1e43`. Non hotfixare la 1.9.5 né le successive fino alla 2.0.8 inclusa. Una versione già su GitHub si scrive pubblicata, con la data e i tag. Il commit corto e il DataStore si aggiungono appena noti (prima del push se già noti).
 
-**Prossima da pubblicare:** `2.0.8` (**in corso**, piano `docs/PIANO_2.0.8.md`) — lettore audio/video in RTAD: Spazio/Pausa/Riprendi/Ferma, frecce seek/volume 0–200 (base Taglia e unisci), segnalibri di posizione senza tetto pratico (Ferma crea il punto; rinomina; alla riapertura chiede ripresa o inizio), menu Strumenti, Invia a, Cerca con Accesso Digitale, Apri con / predefinito Windows quando maturo; Standalone e Add-on. Chat Desktop della prima stesura persa col PC Acer (20/11/2026); si ricostruisce da piano + 2.0.7, senza pezze anti-freeze (erano le pile della tastiera). Poi immagini in un PDF e PDF/testo. Idee future: dettatura vocale; operatore integrato; confronto del parlato; confronto del testo di un’immagine; riga sulla figura di un EPUB. Papà l’11/11/2026 ha provato il mouse: taglio e unione riusciti, il quadratino bianco gli è piaciuto. Il ritorno con Alt+Tab che a volte tace resta così. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa. «trascriv iamo» resta con lo spazio.
+**Prossima da pubblicare:** `2.0.9` (**non iniziata**, piano da aprire) — immagini in un PDF; poi PDF e testo. Idee future: dettatura vocale; operatore integrato; confronto del parlato; confronto del testo di un’immagine; riga sulla figura di un EPUB. Chat Desktop della prima stesura 2.0.8 persa col PC Acer (20/11/2026); ricostruita da piano + 2.0.7. Papà l’11/11/2026 ha provato il mouse: taglio e unione riusciti, il quadratino bianco gli è piaciuto. Il ritorno con Alt+Tab che a volte tace resta così. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa. «trascriv iamo» resta con lo spazio.
 
 **NVDA:** sull’Add-on 2.0.5 `lastTestedNVDAVersion` resta `2026.3.1`, come sulla 2.0.4 e sulle precedenti dalla 2.0.0. `minimumNVDAVersion` resta `2024.1.0`. La 1.9.9 già accettata resta su `2026.3.0` e non si riscrive. Le già accettate non si riscrivono.
 
 ## Sorgente
 - GitHub: https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
-- Cartella locale: `C:\Users\barra\Downloads\RicercaTestualeAccessoDigitaleGitHub`
+- Cartella locale: `C:\Users\barra\Downloads\ricerca_testuale_accesso_digitale`
 - Feed Thunderbird (riferimento):
   `C:\Users\barra\AppData\Roaming\thunderbird\Profiles\ncyqi6ka.default-release\Mail\Feeds`
 

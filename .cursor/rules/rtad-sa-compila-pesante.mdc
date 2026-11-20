@@ -1,0 +1,28 @@
+---
+description: Prima di compilare la Standalone, EasyOCR/torch devono essere in Python (exe ~250 MB come su GitHub)
+alwaysApply: true
+---
+
+# RTAD — Standalone «pesante» come su GitHub
+
+Le release Standalone su GitHub (`Setup_…` e `…_Portable_…`, tag `app-vX.Y.Z`) pesano circa **250 MB**: includono **EasyOCR + torch** (e dipendenze). Windows OCR resta il predefinito; EasyOCR è il motore facoltativo già nel pacchetto, così chi scarica non deve installare niente a parte.
+
+## Buco del PC nuovo (20/11/2026)
+
+Su un Python pulito, `compila.bat` produce un exe di ~**20 MB** senza EasyOCR. Stesso codice, stesso `compila.bat`: PyInstaller porta dietro solo ciò che è importabile in quella Python. Sull’Acer c’era già EasyOCR → ~250 MB. Qui no → magro. Non è un Add-on: è la SA.
+
+## Prima di `compila.bat` / F9 su `setup.iss` (obbligatorio)
+
+1. `pip install -r Standalone/requirements-ocr-easy.txt`
+2. Verifica: `python -c "import easyocr, torch; print(easyocr.__version__, torch.__version__)"`
+3. `Standalone/compila.bat` deve avere `--collect-all easyocr` e `--collect-all torch` (e hidden-import). EasyOCR è in `try/except`: senza collect-all PyInstaller lo marca *optional* e l’exe resta **~20 MB anche con EasyOCR installato** (buco visto il 20/11/2026).
+4. Poi Maurizio: `compila.bat` (che già richiama ISCC se c’è) / F9 su `setup.iss` se serve
+5. Controlla i MB di Portable e Setup: **~200–250 MB**, come `app-v2.0.7` su GitHub. Se ~20 MB, **fermati**: non pubblicare.
+
+Non dire «puoi compilare» o «rilascio SA OK» se questo controllo non è stato fatto (o i MB non tornano).
+
+## Add-on: non integrare EasyOCR nel pacchetto
+
+L’Add-on resta leggero (~1 MB). OCR = **Windows.Media.Ocr** (NVDA). EasyOCR **non** si bundla nell’`.nvda-addon` (roadmap: OCR pesante fuori dall’Add-on). Nella SA sì, nel pacchetto GitHub.
+
+ffmpeg e yt-dlp restano esterni (PATH), come sempre: non entrano nell’exe.

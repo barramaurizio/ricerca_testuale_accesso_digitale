@@ -10240,20 +10240,31 @@ class DocumentStructureFrame(wx.Frame):
 
         Dopo ripristino da iconizza, SetFocus da solo non basta sempre perché
         le frecce riprendano (serve Tab/Shift+Tab): Raise + caret kick.
+        Non richiamare Raise se siamo già in primo piano: altrimenti
+        EVT_ACTIVATE riparte in loop e NVDA balbetta «Lelelelettore…».
         """
+        if getattr(self, "_reader_restoring_focus", False):
+            return
+        self._reader_restoring_focus = True
         try:
             if not self.IsShown() or self.IsIconized():
                 return
             try:
-                self.Raise()
+                active = wx.GetActiveWindow()
             except Exception:
-                pass
+                active = None
+            if active is not self:
+                try:
+                    self.Raise()
+                except Exception:
+                    pass
             known = self._reader_known_ctrls()
             ctrl = self._last_focus_ctrl
             if ctrl not in known:
                 ctrl = self.txt_display
             try:
-                self.SetFocus()
+                if active is not self:
+                    self.SetFocus()
             except Exception:
                 pass
             try:
@@ -10287,11 +10298,27 @@ class DocumentStructureFrame(wx.Frame):
                     pass
         except Exception:
             pass
+        finally:
+            def _clear_restore_guard():
+                self._reader_restoring_focus = False
+
+            try:
+                wx.CallLater(250, _clear_restore_guard)
+            except Exception:
+                self._reader_restoring_focus = False
 
     def _on_reader_activate(self, event):
         if event.GetActive():
-            wx.CallLater(100, self._restore_reader_focus)
+            # Solo al rientro (dopo una disattivazione), non alla prima apertura:
+            # Raise+SetFocus a ogni Activate faceva ripartire il titolo NVDA in loop.
+            if getattr(self, "_reader_restoring_focus", False):
+                event.Skip()
+                return
+            if getattr(self, "_reader_had_deactivate", False):
+                self._reader_had_deactivate = False
+                wx.CallLater(100, self._restore_reader_focus)
         else:
+            self._reader_had_deactivate = True
             self._remember_text_pos()
         event.Skip()
 
@@ -11802,6 +11829,12 @@ class SearchFrame(wx.Frame):
             wx.ID_ANY, "&Riproduttore audio/video…"
         )
         self.Bind(wx.EVT_MENU, self.on_player_dialog, item_player)
+        item_player_default = tools_menu.Append(
+            wx.ID_ANY, "Imposta riproduttore predefinito in &Windows…"
+        )
+        self.Bind(
+            wx.EVT_MENU, self.on_player_windows_default, item_player_default
+        )
         item_clip = tools_menu.Append(
             wx.ID_ANY, "Taglia e unisci audio/&video…"
         )
@@ -17969,6 +18002,34 @@ class SearchFrame(wx.Frame):
         except Exception as exc:
             logging.exception("on_player_dialog")
             speak_accessible(f"Errore nel riproduttore: {exc}", force=True)
+
+    def on_player_windows_default(self, event=None):
+        """Strumenti → apre le impostazioni Windows sulle app predefinite.
+
+        L'Add-on non registra associazioni: le mette la Standalone installata.
+        Da qui si apre comunque la finestra di Windows per sceglierle.
+        """
+        msg = (
+            "Apro le impostazioni di Windows per le app predefinite. "
+            "Lì puoi scegliere Riproduttore RTAD per audio e video, "
+            "se hai la Standalone installata: "
+            "Sempre, oppure Solo una volta da Apri con."
+        )
+        speak_accessible(msg, force=True)
+        try:
+            os.startfile("ms-settings:defaultapps")
+        except Exception:
+            try:
+                subprocess.Popen(
+                    ["cmd", "/c", "start", "", "ms-settings:defaultapps"],
+                    shell=False,
+                )
+            except Exception as exc:
+                logging.exception("on_player_windows_default")
+                speak_accessible(
+                    f"Non riesco ad aprire le impostazioni di Windows: {exc}",
+                    force=True,
+                )
 
     def on_clip_dialog(self, event=None, path=""):
         """Strumenti → taglia e unisci audio o video."""

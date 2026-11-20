@@ -1,8 +1,8 @@
 # Piano RTAD 2.0.8
 
-**In corso** (non pubblicata). Versione `2.0.8`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
+**Pubblicata** il 20/11/2026. GitHub `v2.0.8` / `app-v2.0.8`. Versione `2.0.8`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere (anche nell’Add-on con NVDA), non `CheckListBox`.
 
-L’ultima pubblicata è la `2.0.7` (18/11/2026, GitHub `v2.0.7` / `app-v2.0.7`, commit `ddd1e43`). Non si tocca. Piano `docs/PIANO_2.0.7.md`.
+L’ultima pubblicata prima di questa era la `2.0.7` (18/11/2026, GitHub `v2.0.7` / `app-v2.0.7`, commit `ddd1e43`). Non si tocca. Piano `docs/PIANO_2.0.7.md`.
 
 ## Perché questa versione
 
@@ -82,4 +82,4 @@ ffmpeg -version
 echo %PATH%
 ```
 
-Serve: Python 3.x, `pip install -r Standalone/requirements-standalone.txt`, ffmpeg+ffprobe nel PATH (come sul Acer). Poi prova: `python Standalone/app_gui.py` dalla cartella del clone.
+Serve: Python 3.x, `pip install -r Standalone/requirements-standalone.txt`, **e** `pip install -r Standalone/requirements-ocr-easy.txt` (EasyOCR+torch: senza di loro `compila.bat` fa un exe ~20 MB invece dei ~250 MB di GitHub). Poi ffmpeg+ffprobe e yt-dlp nel PATH (come sull’Acer). Verifica: `python -c "import easyocr, torch; print(easyocr.__version__, torch.__version__)"`. Prova: `python Standalone/app_gui.py` dalla cartella del clone. L’Add-on non bundla EasyOCR.

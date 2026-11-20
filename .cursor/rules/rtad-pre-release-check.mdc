@@ -30,10 +30,12 @@ Il numero di versione si aggiorna da solo nel titolo. Le frasi no. Leggere «ver
    - `docs/PIANO_` di questa versione: la prima riga dice «Pubblicata», con data e tag.
    - Il commit corto e il numero DataStore si aggiungono quando esistono. Se il push non è ancora partito, prima del push. Se la release è già online, con la versione successiva. Non un commit solo per loro.
 5. Se hai toccato guida o codice addon: `python make_addon.py` e indica il pacchetto fresco. L’exe non lo compili tu: lo fa Maurizio con `compila.bat` e F9 su `setup.iss`.
-6. Un `.nvda-addon` già accettato dallo store non si sostituisce su GitHub. Lo store tiene il file accettato. Due file diversi con lo stesso numero confondono. La correzione dei testi va nella versione successiva. I due exe della Standalone, sulla release GitHub, si sostituiscono: non passano dallo store.
+6. **Standalone pesante (come GitHub ~250 MB):** prima di `compila.bat`, EasyOCR/torch devono essere in questa Python (`pip install -r Standalone/requirements-ocr-easy.txt` + import ok). Dopo la build, Portable e Setup nell’ordine dei **~200–250 MB**. Se ~20 MB, manca EasyOCR: non «puoi compilare» / non pubblicare. Regola `rtad-sa-compila-pesante.mdc`. L’Add-on **non** bundla EasyOCR.
+7. Un `.nvda-addon` già accettato dallo store non si sostituisce su GitHub. Lo store tiene il file accettato. Due file diversi con lo stesso numero confondono. La correzione dei testi va nella versione successiva. I due exe della Standalone, sulla release GitHub, si sostituiscono: non passano dallo store.
 
 ## Cosa scrivere prima di «puoi compilare»
 
+- SA pesante: EasyOCR/torch OK in Python (o MB Portable/Setup ~200–250, non ~20)
 - Versioni: OK, numero
 - Gemelli: OK
 - Finestra SA: primo punto, fra virgolette

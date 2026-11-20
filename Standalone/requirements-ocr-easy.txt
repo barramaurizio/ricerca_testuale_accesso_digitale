@@ -5,7 +5,9 @@
 # Al primo uso EasyOCR scarica i modelli (~100+ MB): serve Internet una volta.
 # Poi in RTAD: attiva OCR → Motore OCR → EasyOCR.
 #
-# Nota: torch/EasyOCR sono pesanti; non sono nel pacchetto base.
-# L'Add-on NVDA resta su Windows OCR di default (EasyOCR solo se importabile).
+# Nota: torch/EasyOCR sono pesanti. Nella release Standalone GitHub (~250 MB)
+# entrano via compila.bat (--collect-all easyocr/torch). Senza collect-all,
+# anche con pip install, PyInstaller li salta (import in try/except) e l'exe
+# resta ~20 MB. L'Add-on NVDA resta su Windows OCR; non bundla EasyOCR.
 
 easyocr>=1.7.1

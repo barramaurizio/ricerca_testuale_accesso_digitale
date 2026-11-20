@@ -327,13 +327,6 @@ def _build_player():
             except Exception:
                 pass
 
-        def _focus_is_text(self) -> bool:
-            try:
-                win = wx.Window.FindFocus()
-            except Exception:
-                return False
-            return isinstance(win, wx.TextCtrl)
-
         def _on_char(self, event):
             key = event.GetKeyCode()
             focused = None

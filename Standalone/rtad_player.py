@@ -76,7 +76,7 @@ HINT = (
     "(Ferma resta Ferma). Il focus resta sul pulsante usato: "
     "dopo Pausa resta su Riprendi; dopo Ferma resta su Ferma. "
     "Con Tab si arriva all'elenco Segnalibri: frecce su e giù scorrono; "
-    "Invio o doppio clic riparte da quello selezionato. "
+    "Invio o un clic sulla riga riparte da quel segnalibro. "
     "Se Ferma è già fermo, Invio o clic dice solo Già fermo. "
     "Ripartire dopo la pausa: Invio o clic su Riprendi. "
     "Ogni avviso sta a voce e a schermo."
@@ -281,6 +281,8 @@ def _build_player():
             self._piece = None
             self._preview = ""
             self._preview_dur = 0.0
+            # Se il wav in cache inizia a metà file (salto a segnalibro), qui c'è l'offset.
+            self._preview_origin = 0.0
             self._playing = False
             self._paused = False
             self._sel_mark_id = ""
@@ -291,6 +293,7 @@ def _build_player():
             self._cancel = threading.Event()
             self._open = True
             self._marks: list[dict] = []
+            self._goto_gen = 0
 
             root = wx.BoxSizer(wx.VERTICAL)
             intro = wx.StaticText(self, label=HINT)
@@ -359,6 +362,9 @@ def _build_player():
             self.btn_delete.Bind(wx.EVT_BUTTON, lambda e: self._on_delete())
             self.lst_marks.Bind(wx.EVT_LISTBOX, self._on_mark_select)
             self.lst_marks.Bind(wx.EVT_LISTBOX_DCLICK, self._on_mark_activate)
+            # Invio/clic sull'elenco: gestiti SULLA lista (più affidabile del solo CHAR_HOOK).
+            self.lst_marks.Bind(wx.EVT_KEY_DOWN, self._on_marks_key)
+            self.lst_marks.Bind(wx.EVT_LEFT_UP, self._on_marks_click)
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
             # Evita che Invio attivi un pulsante "default" diverso da quello col focus.
@@ -464,16 +470,16 @@ def _build_player():
                 if focused is self.btn_close:
                     self.Close()
                     return
-                if on_marks:
+                if on_marks or isinstance(focused, wx.ListBox):
                     self._goto_selected_mark()
                     return
                 # Non Skip: altrimenti wx attiva un altro pulsante.
                 return
 
-            # Su/giù sull'elenco: scorrono i segnalibri. Fuori, in play: volume.
+            # Su/giù sull'elenco: lasciati alla lista (KEY_DOWN) o gestiti qui.
             if key in (wx.WXK_UP, wx.WXK_DOWN) and not in_text:
-                if on_marks:
-                    self._nav_marks(+1 if key == wx.WXK_DOWN else -1)
+                if on_marks or isinstance(focused, wx.ListBox):
+                    event.Skip()
                     return
                 if actively:
                     self._nudge_vol(+_VOL_STEP if key == wx.WXK_UP else -_VOL_STEP)
@@ -518,7 +524,40 @@ def _build_player():
                     return True
             except Exception:
                 pass
+            try:
+                parent = focused.GetParent() if focused else None
+                if parent is self.lst_marks:
+                    return True
+            except Exception:
+                pass
             return False
+
+        def _on_marks_key(self, event):
+            """Invio sull'elenco = vai al segnalibro evidenziato."""
+            key = event.GetKeyCode()
+            if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+                self._goto_selected_mark()
+                return
+            if key == wx.WXK_SPACE:
+                self._on_pause_toggle(stay_on_list=True)
+                return
+            event.Skip()
+
+        def _on_marks_click(self, event):
+            """Un clic sulla riga = seleziona e riparte da quel segnalibro."""
+            event.Skip()
+            try:
+                idx = int(self.lst_marks.HitTest(event.GetPosition()))
+            except Exception:
+                idx = -1
+            if idx < 0 or idx >= len(self._marks):
+                return
+            try:
+                self.lst_marks.SetSelection(idx)
+            except Exception:
+                pass
+            self._remember_sel(idx)
+            wx.CallAfter(self._goto_selected_mark, idx)
 
         def _set_pause_label(self, paused: bool) -> None:
             # In pausa: Riprendi. In riproduzione (o fermo): Pausa. Ferma non cambia.
@@ -882,8 +921,12 @@ def _build_player():
                     pass
             self._preview = dest
             self._preview_dur = clip._wav_duration(dest)
+            self._preview_origin = 0.0
             self._player.set_volume(self._listen_vol)
-            start = max(0.0, min(float(start_sec or 0), max(0.0, self._preview_dur - 0.05)))
+            dur = float(self._preview_dur or 0)
+            start = max(0.0, float(start_sec or 0))
+            if dur > 0:
+                start = min(start, max(0.0, dur - 0.05))
             if not self._player.play(dest, from_sec=start, vol=self._listen_vol):
                 self._say(MSG_LISTEN_FAIL)
                 return
@@ -901,8 +944,10 @@ def _build_player():
                 self._say(MSG_PLAYING if not phrase else f"{phrase} {MSG_PLAYING}")
 
         def _position(self) -> float:
+            """Orario nel file originale (tiene conto se il wav inizia a un segnalibro)."""
+            origin = float(self._preview_origin or 0)
             if self._playing and self._player.is_playing():
-                return self._player.position_sec()
+                return origin + float(self._player.position_sec() or 0)
             if self._paused:
                 return float(self._play_pos or 0)
             return float(self._play_pos or 0)
@@ -923,14 +968,15 @@ def _build_player():
                 return
             # Pausa anche se il flag e il thread non coincidono un attimo.
             if self._playing or self._player.is_playing():
-                if self._player.is_playing():
-                    pos = self._player.pause()
-                else:
-                    pos = float(self._play_pos or 0)
-                    try:
+                # Orario nel FILE (con offset se si era saltati a un segnalibro).
+                pos = float(self._position() or 0)
+                try:
+                    if self._player.is_playing():
                         self._player.pause()
-                    except Exception:
-                        pass
+                    else:
+                        self._player.pause()
+                except Exception:
+                    pass
                 self._play_pos = pos
                 self._playing = False
                 self._paused = True
@@ -945,11 +991,14 @@ def _build_player():
             if self._paused:
                 # Riprendi: solo da qui si riparte dopo una pausa.
                 if self._preview and os.path.isfile(self._preview):
+                    origin = float(self._preview_origin or 0)
+                    # Nel wav in cache l'orario è relativo all'inizio del pezzo.
+                    rel = max(0.0, float(self._play_pos or 0) - origin)
                     ok = self._player.resume()
                     if not ok:
                         ok = self._player.play(
                             self._preview,
-                            from_sec=float(self._play_pos or 0),
+                            from_sec=rel,
                             vol=self._listen_vol,
                         )
                     if ok:
@@ -1023,12 +1072,22 @@ def _build_player():
             if not self._preview or not os.path.isfile(self._preview):
                 return
             was_paused = bool(self._paused)
-            pos = self._position() + float(delta)
-            pos = max(0.0, min(pos, max(0.0, self._preview_dur - 0.05)))
-            want_play = bool(self._playing and self._player.is_playing())
-            if not self._player.seek(pos, play=want_play):
+            origin = float(self._preview_origin or 0)
+            media = self._position() + float(delta)
+            media = max(0.0, media)
+            rel = media - origin
+            dur = float(self._preview_dur or 0)
+            # Fuori dal pezzo in cache: nuova estrazione dal sorgente.
+            if rel < -0.01 or (dur > 0 and rel >= max(0.05, dur - 0.05)):
+                self._prepare_mark_at(media, stay_on_marks=False)
                 return
-            self._play_pos = pos
+            rel = max(0.0, rel)
+            if dur > 0:
+                rel = min(rel, max(0.0, dur - 0.05))
+            want_play = bool(self._playing and self._player.is_playing())
+            if not self._player.seek(rel, play=want_play):
+                return
+            self._play_pos = origin + rel
             if want_play:
                 self._playing = True
                 self._paused = False
@@ -1037,7 +1096,7 @@ def _build_player():
                 self._paused = True
                 self._playing = False
                 self._set_pause_label(paused=True)
-            self._say(clip.speak_position(pos))
+            self._say(clip.speak_position(self._play_pos))
 
         def _nudge_vol(self, delta: int):
             self._listen_vol = clip._clamp_listen_vol(self._listen_vol + int(delta))
@@ -1113,54 +1172,90 @@ def _build_player():
                 return None
             return self._marks[idx]
 
-        def _play_from_sec(self, sec: float) -> bool:
-            """Parte da sec usando il preview già pronto (stesso file ascoltato)."""
-            sec = max(0.0, float(sec or 0))
-            if not self._preview or not os.path.isfile(self._preview):
-                return False
-            dur = float(self._preview_dur or 0) or float(clip._wav_duration(self._preview) or 0)
-            self._preview_dur = dur
-            # Se il punto è oltre il wav in cache, non forzare: si rifà dal file sorgente.
-            if dur > 0 and sec >= max(0.05, dur - 0.05):
-                return False
-            ok = self._player.play(
-                self._preview, from_sec=sec, vol=self._listen_vol
-            )
-            if not ok:
-                return False
-            self._playing = True
-            self._paused = False
-            self._play_pos = sec
-            self._set_pause_label(paused=False)
-            return True
+        def _resolve_mark_index(self, force_idx=None) -> int:
+            """Indice della riga da attivare (clic / Invio / selezione)."""
+            if not self._marks:
+                return -1
+            idx = -1
+            if force_idx is not None:
+                try:
+                    idx = int(force_idx)
+                except Exception:
+                    idx = -1
+            if 0 <= idx < len(self._marks):
+                return idx
+            try:
+                idx = int(self.lst_marks.GetSelection())
+            except Exception:
+                idx = -1
+            if 0 <= idx < len(self._marks):
+                return idx
+            return self._selection_index()
 
-        def _prepare_mark_at(self, start_sec: float, stay_on_marks: bool = True):
-            """Prepara un wav che INIZIA al segnalibro (salto preciso dal file sorgente)."""
+        def _prepare_mark_at(
+            self,
+            start_sec: float,
+            stay_on_marks: bool = True,
+            announce: str = "",
+            gen: int = 0,
+        ):
+            """Estrae dal file sorgente DAL secondo del segnalibro e riproduce."""
             if self._piece is None:
                 self._say(MSG_NEED_FILE)
                 return
-            if self._listen_busy:
-                return
+            # Nuova richiesta: annulla eventuale preparazione precedente.
+            try:
+                self._cancel.set()
+            except Exception:
+                pass
+            self._cancel = threading.Event()
             self._listen_busy = True
-            self._say("Preparazione ascolto dal segnalibro…")
+            if announce:
+                self._say(announce + " Preparazione…")
+            else:
+                self._say("Preparazione ascolto dal segnalibro…")
             dest = os.path.join(
                 tempfile.gettempdir(),
                 f"rtad_player_mark_{os.getpid()}_{int(time.time() * 1000)}.wav",
             )
             start = max(0.0, float(start_sec or 0))
+            cancel = self._cancel
 
             def work():
                 ok, phrase = clip.preview_wav_from(
-                    self._piece, dest, start, cancel=self._cancel
+                    self._piece, dest, start, cancel=cancel
                 )
-                # Il nuovo wav parte già da start: si ascolta da 0.
                 wx.CallAfter(
-                    self._after_prepare_mark, ok, phrase, dest, start, stay_on_marks
+                    self._after_prepare_mark,
+                    ok,
+                    phrase,
+                    dest,
+                    start,
+                    stay_on_marks,
+                    announce,
+                    gen,
                 )
 
             threading.Thread(target=work, daemon=True).start()
 
-        def _after_prepare_mark(self, ok, phrase, dest, mark_sec, stay_on_marks=True):
+        def _after_prepare_mark(
+            self,
+            ok,
+            phrase,
+            dest,
+            mark_sec,
+            stay_on_marks=True,
+            announce="",
+            gen=0,
+        ):
+            # Scarta risultati vecchi se nel frattempo si è chiesto un altro segnalibro.
+            if gen and gen != self._goto_gen:
+                try:
+                    if os.path.isfile(dest):
+                        os.remove(dest)
+                except Exception:
+                    pass
+                return
             self._listen_busy = False
             if not self._open:
                 try:
@@ -1180,7 +1275,8 @@ def _build_player():
                     pass
             self._preview = dest
             self._preview_dur = clip._wav_duration(dest)
-            # mark_sec = orario nel file originale; il wav inizia lì → play da 0.
+            # Il wav INIZIA al segnalibro: offset = mark_sec, play da 0.
+            self._preview_origin = float(mark_sec or 0)
             if not self._player.play(dest, from_sec=0.0, vol=self._listen_vol):
                 self._say(MSG_LISTEN_FAIL)
                 return
@@ -1192,29 +1288,20 @@ def _build_player():
                 self._focus_marks()
             else:
                 self._focus_controls()
-            self._say(
-                MSG_RESUME_AT.format(pos=clip.speak_position(mark_sec))
-                + (f" {phrase}" if phrase else "")
-            )
+            spoken = clip.speak_position(mark_sec)
+            parts = []
+            if announce:
+                parts.append(announce.rstrip("."))
+            parts.append(f"Audio da {spoken}")
+            if phrase:
+                parts.append(phrase)
+            self._say(". ".join(parts) + ".")
 
         def _goto_selected_mark(self, force_idx=None):
             if not self._marks:
                 self._say(MSG_NO_MARKS)
                 return
-            # Fonte di verità: riga evidenziata O indice del doppio clic.
-            idx = -1
-            if force_idx is not None:
-                try:
-                    idx = int(force_idx)
-                except Exception:
-                    idx = -1
-            if idx < 0 or idx >= len(self._marks):
-                try:
-                    idx = int(self.lst_marks.GetSelection())
-                except Exception:
-                    idx = -1
-            if idx < 0 or idx >= len(self._marks):
-                idx = self._selection_index()
+            idx = self._resolve_mark_index(force_idx)
             if idx < 0 or idx >= len(self._marks):
                 self._say(MSG_NO_MARKS)
                 return
@@ -1226,24 +1313,35 @@ def _build_player():
             item = self._marks[idx]
             sec = float(item.get("sec") or 0)
             label = mark_row_label(item)
-            total = len(self._marks)
-            announce = MSG_GOTO_MARK.format(n=idx + 1, total=total, label=label)
+            announce = MSG_GOTO_MARK.format(
+                n=idx + 1, total=len(self._marks), label=label
+            )
 
-            # Ferma l'audio attuale, poi salta a QUESTO orario.
+            # Evita doppio avvio (clic + doppio clic nello stesso istante).
+            now = time.monotonic()
+            goto_key = (idx, round(sec, 2))
+            last_key = getattr(self, "_last_goto_key", None)
+            last_t = float(getattr(self, "_last_goto_t", 0) or 0)
+            if goto_key == last_key and (now - last_t) < 0.45:
+                return
+            self._last_goto_key = goto_key
+            self._last_goto_t = now
+
+            # Ferma l'audio attuale.
             try:
-                if self._player.is_playing():
+                if self._player.is_playing() or self._player.is_open():
                     self._player.pause()
             except Exception:
                 pass
             self._playing = False
             self._paused = False
 
-            self._say(announce)
-            if self._play_from_sec(sec):
-                self._focus_marks()
-                return
-            # Preview assente o troppo corto: estrai dal file sorgente da questo secondo.
-            self._prepare_mark_at(sec, stay_on_marks=True)
+            # Sempre: estrai dal sorgente DA questo secondo (niente seek su wav sbagliato).
+            self._goto_gen += 1
+            gen = self._goto_gen
+            self._prepare_mark_at(
+                sec, stay_on_marks=True, announce=announce, gen=gen
+            )
 
         def _on_rename(self):
             item = self._selected_mark()
@@ -1307,6 +1405,7 @@ def _build_player():
                     pass
                 self._preview = ""
                 self._preview_dur = 0.0
+                self._preview_origin = 0.0
 
         def close_work(self):
             self._open = False

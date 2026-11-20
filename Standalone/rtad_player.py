@@ -338,15 +338,24 @@ def _build_player():
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
             # Ctrl+Alt+V: in wx l'accelerator manda EVT_MENU, non EVT_BUTTON.
-            self._id_paste = wx.NewIdRef()
-            self.Bind(wx.EVT_MENU, lambda e: self._paste_from_clipboard(), id=self._id_paste)
-            accel = wx.AcceleratorTable(
-                [
-                    (wx.ACCEL_CTRL | wx.ACCEL_ALT, ord("V"), int(self._id_paste)),
-                ]
-            )
-            self.SetAcceleratorTable(accel)
-            self._enable_file_drop()
+            try:
+                id_ref = wx.NewIdRef()
+                paste_id = id_ref.GetId() if hasattr(id_ref, "GetId") else int(id_ref)
+            except Exception:
+                paste_id = wx.NewId()
+            self._id_paste = paste_id
+            self.Bind(wx.EVT_MENU, lambda e: self._paste_from_clipboard(), id=paste_id)
+            try:
+                accel = wx.AcceleratorTable(
+                    [(wx.ACCEL_CTRL | wx.ACCEL_ALT, ord("V"), paste_id)]
+                )
+                self.SetAcceleratorTable(accel)
+            except Exception:
+                log.exception("AcceleratorTable paste")
+            try:
+                self._enable_file_drop()
+            except Exception:
+                log.exception("file drop")
 
             if self._path and os.path.isfile(self._path):
                 wx.CallAfter(self._load_path, self._path, ask_resume=True)
@@ -919,14 +928,38 @@ def open_dialog(
     config_dir: str = "",
     clipboard_paths=None,
 ):
-    cls = _build_player()
-    dialog = cls(
-        parent,
-        speaker,
-        path or "",
-        config_dir or "",
-        clipboard_paths=clipboard_paths,
-    )
-    dialog.ShowModal()
-    dialog.close_work()
-    dialog.Destroy()
+    import wx
+
+    speaker = speaker or (lambda _t: None)
+    dialog = None
+    try:
+        cls = _build_player()
+        dialog = cls(
+            parent,
+            speaker,
+            path or "",
+            config_dir or "",
+            clipboard_paths=clipboard_paths,
+        )
+        dialog.ShowModal()
+    except Exception as exc:
+        log.exception("open_dialog riproduttore")
+        msg = f"Errore nel riproduttore: {exc}"
+        try:
+            speaker(msg)
+        except Exception:
+            pass
+        try:
+            wx.MessageBox(msg, "Riproduttore audio/video", wx.OK | wx.ICON_ERROR)
+        except Exception:
+            pass
+    finally:
+        if dialog is not None:
+            try:
+                dialog.close_work()
+            except Exception:
+                pass
+            try:
+                dialog.Destroy()
+            except Exception:
+                pass

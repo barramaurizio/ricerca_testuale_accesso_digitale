@@ -20184,13 +20184,17 @@ class MainWindow(wx.Frame):
             speak_accessible("Modulo riproduttore non disponibile.")
             return
         path = self._prefer_kept_media_path(path) if path else ""
-        rtad_player.open_dialog(
-            self,
-            speak_accessible,
-            path=path or "",
-            config_dir=CONFIG_DIR,
-            clipboard_paths=paths_from_windows_clipboard,
-        )
+        try:
+            rtad_player.open_dialog(
+                self,
+                speak_accessible,
+                path=path or "",
+                config_dir=CONFIG_DIR,
+                clipboard_paths=paths_from_windows_clipboard,
+            )
+        except Exception as exc:
+            logging.exception("on_player_dialog")
+            speak_accessible(f"Errore nel riproduttore: {exc}")
 
     def on_clip_dialog(self, event=None, path=""):
         """Strumenti → taglia e unisci audio o video."""

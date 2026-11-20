@@ -95,6 +95,11 @@ except ImportError:
     rtad_clip = None
 
 try:
+    import rtad_player
+except ImportError:
+    rtad_player = None
+
+try:
     import rtad_image
 except ImportError:
     rtad_image = None
@@ -169,6 +174,12 @@ if rtad_media is not None:
 if rtad_chat is not None:
     try:
         rtad_chat.enable_shared(CONFIG_DIR)
+    except Exception:
+        pass
+
+if rtad_player is not None:
+    try:
+        rtad_player.enable_shared(CONFIG_DIR)
     except Exception:
         pass
 
@@ -14263,6 +14274,10 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Tutto sull'audio/video (&J)…"
         )
         self.Bind(wx.EVT_MENU, self.on_media_all_dialog, item_all_media)
+        item_player = tools_menu.Append(
+            wx.ID_ANY, "&Riproduttore audio/video…"
+        )
+        self.Bind(wx.EVT_MENU, self.on_player_dialog, item_player)
         item_clip = tools_menu.Append(
             wx.ID_ANY, "Taglia e unisci audio/&video…"
         )
@@ -19636,6 +19651,7 @@ class MainWindow(wx.Frame):
         item_all = None
         item_ocr = None
         item_media_all = None
+        item_player = None
         item_clip = None
         item_convert = None
         item_image_clip = None
@@ -19667,6 +19683,7 @@ class MainWindow(wx.Frame):
         elif is_media_result:
             menu.AppendSeparator()
             item_media_all = menu.Append(wx.ID_ANY, "Tutto sull'audio/video…")
+            item_player = menu.Append(wx.ID_ANY, "Riproduci…")
             item_clip = menu.Append(wx.ID_ANY, "Taglia e unisci…")
             item_convert = menu.Append(wx.ID_ANY, "Converti…")
             item_media_desc = menu.Append(wx.ID_ANY, "Riassunto audio/video")
@@ -19793,6 +19810,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e, p=media_for_actions: self.show_media_all_dialog(p),
                 item_media_all,
+            )
+        if item_player is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=media_for_actions: self.on_player_dialog(path=p),
+                item_player,
             )
         if item_clip is not None:
             self.Bind(
@@ -20154,6 +20177,16 @@ class MainWindow(wx.Frame):
                 self.update_list_display()
             except Exception:
                 pass
+
+    def on_player_dialog(self, event=None, path=""):
+        """Strumenti → riproduttore audio/video (2.0.8)."""
+        if rtad_player is None:
+            speak_accessible("Modulo riproduttore non disponibile.")
+            return
+        path = self._prefer_kept_media_path(path) if path else ""
+        rtad_player.open_dialog(
+            self, speak_accessible, path=path or "", config_dir=CONFIG_DIR
+        )
 
     def on_clip_dialog(self, event=None, path=""):
         """Strumenti → taglia e unisci audio o video."""
@@ -22786,6 +22819,7 @@ def _parse_cli_image_action(argv):
         "--image-clip": "image-clip",
         "--clip": "clip",
         "--convert": "convert",
+        "--play": "play",
     }
     args = list(argv[1:]) if argv else []
     i = 0
@@ -23000,6 +23034,8 @@ def _dispatch_cli_action(frame, cli_mode, cli_path, cli_url, path_for_search, de
         _later(lambda: frame.on_image_dialog(path=cli_path))
     elif cli_mode == "clip" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.on_clip_dialog(path=cli_path))
+    elif cli_mode == "play" and cli_path and os.path.isfile(cli_path):
+        _later(lambda: frame.on_player_dialog(path=cli_path))
     elif cli_mode == "convert" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.on_convert_dialog(path=cli_path))
     elif cli_mode == "ask-gemini" and cli_path and os.path.isfile(cli_path):

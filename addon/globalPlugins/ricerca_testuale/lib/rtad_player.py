@@ -77,7 +77,8 @@ HINT = (
     "dopo Pausa resta su Riprendi; dopo Ferma resta su Ferma. "
     "Con Tab si arriva all'elenco Segnalibri: frecce su e giù scorrono; "
     "Invio, un clic sulla riga, oppure Invio su Vai al segnalibro "
-    "riparte da quel punto. "
+    "riparte da quel punto senza crearne di nuovi. "
+    "I segnalibri nuovi nascono solo con Pausa o Ferma. "
     "Se Ferma è già fermo, Invio o clic dice solo Già fermo. "
     "Ripartire dopo la pausa: Invio o clic su Riprendi. "
     "Ogni avviso sta a voce e a schermo."
@@ -282,12 +283,13 @@ def _build_player():
             self._piece = None
             self._preview = ""
             self._preview_dur = 0.0
-            # Se il wav in cache inizia a metà file (salto a segnalibro), qui c'è l'offset.
+            # 0 = wav del file intero (timeline dei segnalibri). >0 = pezzo tagliato (da evitare).
             self._preview_origin = 0.0
             self._playing = False
             self._paused = False
             self._sel_mark_id = ""
             self._listen_busy = False
+            self._suppress_auto_mark = False
             self._listen_vol = _VOL_DEFAULT
             self._play_pos = 0.0
             self._player = clip.LiveListenPlayer()
@@ -985,6 +987,7 @@ def _build_player():
             self._paused = False
             self._play_pos = start
             self._set_pause_label(paused=False)
+            self._suppress_auto_mark = False
             if stay_on_marks:
                 self._focus_marks()
             else:
@@ -1004,6 +1007,9 @@ def _build_player():
             return float(self._play_pos or 0)
 
         def _save_auto_mark(self, pos: float, paused: bool) -> None:
+            # Durante un salto tra segnalibri non se ne creano di nuovi.
+            if self._suppress_auto_mark:
+                return
             if not self._path or pos <= 0.2:
                 return
             item = add_mark(self._config_dir, self._path, pos)
@@ -1013,6 +1019,51 @@ def _build_player():
                 self._say(MSG_PAUSED_MARK.format(pos=spoken))
             else:
                 self._say(MSG_STOPPED_MARK.format(pos=spoken))
+
+        def _clear_suppress_auto_mark(self) -> None:
+            self._suppress_auto_mark = False
+
+        def _stop_audio_no_mark(self) -> None:
+            """Ferma l'audio senza creare segnalibri."""
+            try:
+                if self._player.is_playing() or self._player.is_open():
+                    self._player.pause()
+            except Exception:
+                pass
+            self._playing = False
+            self._paused = False
+
+        def _full_preview_ready(self, need_sec: float = 0.0) -> bool:
+            """True se in cache c'è il wav del FILE INTERO che copre need_sec."""
+            if not self._preview or not os.path.isfile(self._preview):
+                return False
+            if float(self._preview_origin or 0) > 0.01:
+                return False
+            dur = float(self._preview_dur or 0) or float(
+                clip._wav_duration(self._preview) or 0
+            )
+            self._preview_dur = dur
+            if dur <= 1.0:
+                return False
+            if need_sec >= max(0.05, dur - 0.05):
+                return False
+            return True
+
+        def _play_full_at(self, sec: float) -> bool:
+            """Riproduce dal secondo sec sul wav del file intero (stessa timeline)."""
+            sec = max(0.0, float(sec or 0))
+            if not self._full_preview_ready(sec):
+                return False
+            if not self._player.play(
+                self._preview, from_sec=sec, vol=self._listen_vol
+            ):
+                return False
+            self._preview_origin = 0.0
+            self._playing = True
+            self._paused = False
+            self._play_pos = sec
+            self._set_pause_label(paused=False)
+            return True
 
         def _on_pause_toggle(self, stay_on_list: bool = False):
             if self._listen_busy:
@@ -1120,25 +1171,19 @@ def _build_player():
             self._focus_stop()
 
         def _seek(self, delta: float):
-            if not self._preview or not os.path.isfile(self._preview):
-                return
             was_paused = bool(self._paused)
-            origin = float(self._preview_origin or 0)
-            media = self._position() + float(delta)
-            media = max(0.0, media)
-            rel = media - origin
-            dur = float(self._preview_dur or 0)
-            # Fuori dal pezzo in cache: nuova estrazione dal sorgente.
-            if rel < -0.01 or (dur > 0 and rel >= max(0.05, dur - 0.05)):
-                self._prepare_mark_at(media, stay_on_marks=False)
+            media = max(0.0, self._position() + float(delta))
+            # Sempre sulla timeline del file intero.
+            if not self._full_preview_ready(media):
+                self._prepare_and_play(media, stay_on_marks=False)
                 return
-            rel = max(0.0, rel)
-            if dur > 0:
-                rel = min(rel, max(0.0, dur - 0.05))
+            dur = float(self._preview_dur or 0)
+            rel = min(media, max(0.0, dur - 0.05)) if dur > 0 else media
             want_play = bool(self._playing and self._player.is_playing())
             if not self._player.seek(rel, play=want_play):
                 return
-            self._play_pos = origin + rel
+            self._preview_origin = 0.0
+            self._play_pos = rel
             if want_play:
                 self._playing = True
                 self._paused = False
@@ -1406,25 +1451,24 @@ def _build_player():
             self._last_goto_key = goto_key
             self._last_goto_t = now
 
-            # Ferma l'audio e invalida preparazioni in corso.
-            try:
-                if self._player.is_playing() or self._player.is_open():
-                    self._player.pause()
-            except Exception:
-                pass
-            self._playing = False
-            self._paused = False
+            # Salto tra segnalibri: NON creare segnalibri nuovi (solo Pausa/Ferma).
+            self._suppress_auto_mark = True
+            self._stop_audio_no_mark()
 
-            # Sempre dal file sorgente, dal secondo salvato in quel segnalibro.
-            # Niente seek su wav in cache: era la causa dei salti "a caso".
-            gen, cancel = self._begin_prepare()
-            self._prepare_mark_at(
-                sec,
-                stay_on_marks=True,
-                announce=announce,
-                gen=gen,
-                cancel=cancel,
-            )
+            # Una sola timeline: wav del FILE INTERO, poi seek al secondo del mark.
+            # I pezzi "dal segnalibro" sfasavano tutti i mark precedenti all'ultimo.
+            if self._play_full_at(sec):
+                self._say(
+                    f"{announce} {MSG_RESUME_AT.format(pos=clip.speak_position(sec))}"
+                )
+                self._focus_marks()
+                wx.CallLater(1000, self._clear_suppress_auto_mark)
+                return
+
+            # Manca il wav intero (o c'era un pezzo tagliato): ricostruiscilo e parti da sec.
+            self._say(announce + " Preparazione del file…")
+            self._prepare_and_play(sec, stay_on_marks=True)
+            wx.CallLater(2500, self._clear_suppress_auto_mark)
 
         def _on_rename(self):
             item = self._selected_mark()

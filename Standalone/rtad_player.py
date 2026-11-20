@@ -43,6 +43,9 @@ MSG_RESUME_ASK_NAMED = (
     "Invio su Dall'inizio, o un clic, riparte da zero."
 )
 HINT = (
+    "Nel campo Percorso si incolla il file con Control+V, poi Invio su Apri, o un clic. "
+    "Invio su Sfoglia, o un clic, apre la finestra di scelta file (nella Standalone "
+    "è quella di RTAD, con Nome file e percorso da incollare). "
     "Spazio: pausa o ripresa. "
     "Invio o clic su Pausa: mentre suona resta Pausa; in pausa diventa Riprendi. "
     "Invio o clic su Ferma: ferma e salva un segnalibro a quell'orario. "
@@ -51,6 +54,13 @@ HINT = (
     "Frecce su e giù: volume fino a 200 percento. "
     "Nell'elenco segnalibri: Invio o doppio clic va a quel punto; "
     "un clic solo seleziona la riga."
+)
+
+_WILDCARD = (
+    "Audio e video|"
+    "*.mp3;*.m4a;*.m4b;*.aac;*.flac;*.ogg;*.opus;*.wav;*.wma;*.aif;*.aiff;*.mka;"
+    "*.mp4;*.m4v;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.flv;*.mts;*.m2ts;*.mpg;*.mpeg;*.3gp|"
+    "Tutti i file|*.*"
 )
 
 _SEEK_STEP = 5.0
@@ -245,14 +255,27 @@ def _build_player():
             self.lbl_file.Wrap(700)
             root.Add(self.lbl_file, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 10)
 
+            path_row = wx.BoxSizer(wx.HORIZONTAL)
+            path_row.Add(
+                wx.StaticText(self, label="Percorso:"),
+                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
+            )
+            self.txt_path = wx.TextCtrl(self, value=self._path or "")
+            self.txt_path.SetName("Percorso")
+            path_row.Add(self.txt_path, 1, wx.EXPAND | wx.RIGHT, 6)
+            self.btn_open = wx.Button(self, label="A&pri")
+            self.btn_browse = wx.Button(self, label="&Sfoglia…")
+            path_row.Add(self.btn_open, 0, wx.RIGHT, 6)
+            path_row.Add(self.btn_browse, 0)
+            root.Add(path_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
             self.lbl_status = wx.StaticText(self, label="Fermo.")
             root.Add(self.lbl_status, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
 
             row = wx.BoxSizer(wx.HORIZONTAL)
-            self.btn_open = wx.Button(self, label="A&pri file…")
             self.btn_pause = wx.Button(self, label="&Pausa")
             self.btn_stop = wx.Button(self, label="&Ferma")
-            for btn in (self.btn_open, self.btn_pause, self.btn_stop):
+            for btn in (self.btn_pause, self.btn_stop):
                 row.Add(btn, 0, wx.RIGHT, 8)
             root.Add(row, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
@@ -275,7 +298,9 @@ def _build_player():
             self.SetSizerAndFit(root)
             self.SetMinSize((720, 420))
 
-            self.btn_open.Bind(wx.EVT_BUTTON, lambda e: self._pick_file())
+            self.btn_open.Bind(wx.EVT_BUTTON, lambda e: self._open_from_path())
+            self.btn_browse.Bind(wx.EVT_BUTTON, lambda e: self._browse_file())
+            self.txt_path.Bind(wx.EVT_TEXT_ENTER, lambda e: self._open_from_path())
             self.btn_pause.Bind(wx.EVT_BUTTON, lambda e: self._on_pause_toggle())
             self.btn_stop.Bind(wx.EVT_BUTTON, lambda e: self._on_stop())
             self.btn_rename.Bind(wx.EVT_BUTTON, lambda e: self._on_rename())
@@ -288,6 +313,7 @@ def _build_player():
                 wx.CallAfter(self._load_path, self._path, ask_resume=True)
             else:
                 self._refresh_marks()
+                wx.CallAfter(self.txt_path.SetFocus)
 
         def _say(self, text: str):
             self.lbl_status.SetLabel(text)
@@ -296,8 +322,19 @@ def _build_player():
             except Exception:
                 pass
 
+        def _focus_is_text(self) -> bool:
+            try:
+                win = wx.Window.FindFocus()
+            except Exception:
+                return False
+            return isinstance(win, wx.TextCtrl)
+
         def _on_char(self, event):
             key = event.GetKeyCode()
+            # Nel campo Percorso (e altri testi) i tasti restano di scrittura.
+            if self._focus_is_text():
+                event.Skip()
+                return
             if key == wx.WXK_SPACE:
                 self._on_pause_toggle()
                 return
@@ -315,20 +352,51 @@ def _build_player():
                 return
             event.Skip()
 
-        def _pick_file(self):
-            with wx.FileDialog(
+        def _typed_path(self) -> str:
+            try:
+                return self.txt_path.GetValue().strip().strip('"')
+            except Exception:
+                return ""
+
+        def _open_from_path(self):
+            path = self._typed_path()
+            if not path:
+                self._say(MSG_NEED_FILE)
+                try:
+                    self.txt_path.SetFocus()
+                except Exception:
+                    pass
+                return
+            if not os.path.isfile(path):
+                self._say("Quel percorso non è un file. Controlla e riprova.")
+                try:
+                    self.txt_path.SetFocus()
+                except Exception:
+                    pass
+                return
+            self._load_path(path, ask_resume=True)
+
+        def _browse_file(self):
+            dlg = wx.FileDialog(
                 self,
-                "Apri audio o video",
-                wildcard=(
-                    "Audio e video|"
-                    "*.mp3;*.wav;*.m4a;*.flac;*.ogg;*.mp4;*.mkv;*.webm;*.avi;*.mov|"
-                    "Tutti i file|*.*"
-                ),
+                "Scegli audio o video",
+                wildcard=_WILDCARD,
                 style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-            ) as dlg:
+            )
+            try:
                 if dlg.ShowModal() != wx.ID_OK:
                     return
-                self._load_path(dlg.GetPath(), ask_resume=True)
+                path = dlg.GetPath() or ""
+            finally:
+                dlg.Destroy()
+            if not path:
+                self._say(MSG_NEED_FILE)
+                return
+            try:
+                self.txt_path.SetValue(path)
+            except Exception:
+                pass
+            self._load_path(path, ask_resume=True)
 
         def _load_path(self, path: str, ask_resume: bool = False):
             self._halt(clear_preview=True)
@@ -338,6 +406,10 @@ def _build_player():
                 return
             self._path = path
             self._piece = piece
+            try:
+                self.txt_path.SetValue(path)
+            except Exception:
+                pass
             self.lbl_file.SetLabel(os.path.basename(path))
             self._refresh_marks()
             start = 0.0

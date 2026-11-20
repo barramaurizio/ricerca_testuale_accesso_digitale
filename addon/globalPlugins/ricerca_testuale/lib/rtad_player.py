@@ -81,7 +81,9 @@ HINT = (
     "In pausa o fermo le frecce su e giù scorrono i segnalibri "
     "(anche da Riprendi o Ferma). "
     "Invio o doppio clic riparte dal segnalibro selezionato con freccia o clic. "
-    "Se dai di nuovo Invio su Ferma quando è già fermo, dice Già fermo. "
+    "Ferma dalla riproduzione salva un segnalibro; se sei già in pausa o già fermo "
+    "non ne aggiunge un altro: se è già fermo dice solo Già fermo. "
+    "Ripartire dopo la pausa: Invio o clic su Riprendi. "
     "Rinomina ed Elimina agiscono sul segnalibro selezionato; "
     "dopo il nome restano orario e nome in elenco. "
     "Ogni avviso sta a voce e a schermo."
@@ -511,12 +513,11 @@ def _build_player():
             except Exception:
                 self._focus_controls()
 
-        def _focus_after_pause_or_stop(self, prefer_marks_focus: bool = False) -> None:
-            """Dopo pausa/ferma: sull'elenco se ci sono segnalibri (ritardo anti-focus del pulsante)."""
-            if prefer_marks_focus or self._marks:
-                self._focus_marks_list()
-            else:
-                self._focus_controls()
+        def _focus_stop(self) -> None:
+            try:
+                self.btn_stop.SetFocus()
+            except Exception:
+                pass
 
         def _remember_sel(self, idx: int) -> None:
             if idx < 0 or idx >= len(self._marks):
@@ -544,7 +545,7 @@ def _build_player():
             return -1
 
         def _nav_marks(self, delta: int) -> None:
-            """Muove la selezione nell'elenco e porta il focus lì (anche da Riprendi/Ferma)."""
+            """Muove la selezione; da Riprendi/Ferma non ruba il focus (Invio resta sul pulsante)."""
             if not self._marks:
                 self._say(MSG_NO_MARKS)
                 return
@@ -555,12 +556,21 @@ def _build_player():
             else:
                 idx = max(0, min(n - 1, idx + int(delta)))
             try:
+                focused = wx.Window.FindFocus()
+            except Exception:
+                focused = None
+            on_list = self._focus_is_marks(focused)
+            try:
                 self.lst_marks.SetSelection(idx)
                 self._remember_sel(idx)
-                self.lst_marks.SetFocus()
-                # NVDA legge la riga; ripeto anche nello stato per chi vede.
                 label = mark_row_label(self._marks[idx])
-                self.lbl_status.SetLabel(f"Segnalibro {idx + 1} di {n}: {label}")
+                status = f"Segnalibro {idx + 1} di {n}: {label}"
+                if on_list:
+                    # NVDA annuncia la riga; aggiorno solo lo stato a schermo.
+                    self.lbl_status.SetLabel(status)
+                else:
+                    # Focus resta su Riprendi/Ferma: dico io la riga.
+                    self._say(status)
             except Exception:
                 pass
 
@@ -891,22 +901,31 @@ def _build_player():
                 self._paused = True
                 self._set_pause_label(paused=True)
                 self._save_auto_mark(pos, paused=True)
-                # Ritardo: dopo il click wx rimette il focus sul pulsante.
-                wx.CallLater(
-                    80,
-                    self._focus_after_pause_or_stop,
-                    True if prefer_marks_focus else bool(self._marks),
-                )
+                # Resta su Riprendi: frecce scorrono i segnalibri senza rubare Invio.
+                wx.CallLater(80, self._focus_controls)
                 return
-            if self._paused and self._preview and os.path.isfile(self._preview):
-                if self._player.resume():
-                    self._playing = True
-                    self._paused = False
-                    self._set_pause_label(paused=False)
-                    self._say(
-                        MSG_RESUME_AT.format(pos=clip.speak_position(self._play_pos))
-                    )
-                    wx.CallAfter(self._focus_controls)
+            if self._paused:
+                # Riprendi: solo da qui si riparte dopo una pausa.
+                if self._preview and os.path.isfile(self._preview):
+                    ok = self._player.resume()
+                    if not ok:
+                        ok = self._player.play(
+                            self._preview,
+                            from_sec=float(self._play_pos or 0),
+                            vol=self._listen_vol,
+                        )
+                    if ok:
+                        self._playing = True
+                        self._paused = False
+                        self._set_pause_label(paused=False)
+                        self._say(
+                            MSG_RESUME_AT.format(
+                                pos=clip.speak_position(self._play_pos)
+                            )
+                        )
+                        wx.CallAfter(self._focus_controls)
+                        return
+                self._say(MSG_LISTEN_FAIL)
                 return
             if self._path and self._piece is not None and self._preview:
                 self._prepare_and_play(0.0)
@@ -916,25 +935,49 @@ def _build_player():
                 return
             self._say(MSG_NEED_FILE)
 
+        def _soft_halt(self) -> None:
+            """Ferma l'audio tenendo il path del preview (serve ai segnalibri)."""
+            try:
+                if self._player.is_playing():
+                    self._player.pause()
+                elif getattr(self._player, "is_open", lambda: False)():
+                    # Thread residuo: pause/halt senza cancellare il path.
+                    self._player.pause()
+            except Exception:
+                try:
+                    self._player.stop()
+                except Exception:
+                    pass
+
         def _on_stop(self):
             if self._listen_busy:
                 return
-            # Già fermo (non in pausa): avvisa e non rifare il lavoro.
-            if (not self._playing) and (not self._paused) and (not self._player.is_playing()):
+            # Già fermo (non in pausa): solo avviso, nessun segnalibro nuovo.
+            if (not self._playing) and (not self._paused):
+                try:
+                    if self._player.is_playing():
+                        self._soft_halt()
+                except Exception:
+                    pass
                 self._say(MSG_ALREADY_IDLE)
+                wx.CallLater(50, self._focus_stop)
                 return
             pos = self._position()
             was_paused = bool(self._paused)
-            self._player.stop()
+            was_playing = bool(self._playing or self._player.is_playing())
+            self._soft_halt()
             self._playing = False
             self._paused = False
             self._play_pos = 0.0
             self._set_pause_label(paused=False)
-            if self._path and pos > 0.2:
+            # Segnalibro automatico solo se si ferma dalla riproduzione.
+            # In pausa il segnalibro c'è già: non aggiungerne un altro.
+            if was_playing and not was_paused and self._path and pos > 0.2:
                 self._save_auto_mark(pos, paused=False)
             else:
                 self._say("Fermo.")
-            wx.CallLater(80, self._focus_after_pause_or_stop, bool(self._marks) or was_paused)
+            # Focus su Ferma così un altro Invio dice «Già fermo».
+            wx.CallLater(80, self._focus_stop)
 
         def _seek(self, delta: float):
             if not self._preview or not os.path.isfile(self._preview):
@@ -1040,7 +1083,13 @@ def _build_player():
             sec = float(item.get("sec") or 0)
             label = mark_row_label(item)
             if self._preview and os.path.isfile(self._preview):
-                if self._player.seek(sec, play=True):
+                # Dopo Ferma il path del player può essere vuoto: play diretto dal preview.
+                ok = self._player.seek(sec, play=True)
+                if not ok:
+                    ok = self._player.play(
+                        self._preview, from_sec=sec, vol=self._listen_vol
+                    )
+                if ok:
                     self._playing = True
                     self._paused = False
                     self._play_pos = sec
@@ -1050,7 +1099,8 @@ def _build_player():
                         f"Segnalibro: {label}."
                     )
                     wx.CallAfter(self._focus_controls)
-                return
+                    return
+            # Niente preview pronto: prepara e parti da quel secondo.
             self._prepare_and_play(sec)
 
         def _on_rename(self):

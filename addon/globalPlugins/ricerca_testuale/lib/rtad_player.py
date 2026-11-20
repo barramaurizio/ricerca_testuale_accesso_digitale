@@ -336,8 +336,15 @@ def _build_player():
 
         def _on_char(self, event):
             key = event.GetKeyCode()
-            # Nel campo Percorso (e altri testi) i tasti restano di scrittura.
-            if self._focus_is_text():
+            focused = None
+            try:
+                focused = wx.Window.FindFocus()
+            except Exception:
+                focused = None
+            # Come Taglia e unisci: Spazio sui pulsanti li attiva; non rubarlo.
+            if isinstance(
+                focused, (wx.TextCtrl, wx.Button, wx.CheckBox, wx.RadioButton, wx.Choice)
+            ):
                 event.Skip()
                 return
             if key == wx.WXK_SPACE:

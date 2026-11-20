@@ -286,7 +286,9 @@ def _build_player():
                 wx.StaticText(self, label="Percorso:"),
                 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
             )
-            self.txt_path = wx.TextCtrl(self, value=self._path or "")
+            self.txt_path = wx.TextCtrl(
+                self, value=self._path or "", style=wx.TE_PROCESS_ENTER
+            )
             self.txt_path.SetName("Percorso")
             path_row.Add(self.txt_path, 1, wx.EXPAND | wx.RIGHT, 6)
             self.btn_paste = wx.Button(self, label="&Incolla…")

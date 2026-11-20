@@ -41,11 +41,21 @@ MSG_CLIP_EMPTY = (
     "Negli Appunti non c'è un file audio o video. "
     "In Esplora seleziona il file e premi Control+C, poi qui Control+Alt+V."
 )
-MSG_PAUSED_AT = "Fermato a {pos}."
-MSG_PAUSED_MARK = "Fermato a {pos}. Segnalibro salvato."
+MSG_PAUSED_AT = "In pausa a {pos}."
+MSG_PAUSED_MARK = (
+    "In pausa a {pos}. Segnalibro salvato. "
+    "Il pulsante è Riprendi. Sull'elenco frecce su e giù scorrono i segnalibri."
+)
 MSG_RESUME_AT = "Riparto da {pos}."
-MSG_STOPPED_MARK = "Fermo a {pos}. Segnalibro salvato."
-MSG_PLAYING = "In riproduzione. Spazio pausa; frecce destra e sinistra avanti e indietro; frecce su e giù volume."
+MSG_STOPPED_MARK = (
+    "Fermo a {pos}. Segnalibro salvato. "
+    "Sull'elenco frecce su e giù scorrono i segnalibri."
+)
+MSG_PLAYING = (
+    "In riproduzione. Pulsante Pausa. "
+    "Spazio mette in pausa; frecce destra e sinistra avanti e indietro; "
+    "frecce su e giù volume. Sull'elenco Segnalibri le frecce scorrono le righe."
+)
 MSG_MARK_RENAMED = "Segnalibro rinominato."
 MSG_MARK_REMOVED = "Segnalibro eliminato."
 MSG_NO_MARKS = "Nessun segnalibro per questo file."
@@ -64,14 +74,14 @@ HINT = (
     "chi usa la tastiera, in Esplora Control+C e qui Control+Alt+V "
     "(stessa cosa del trascinamento), oppure Invio su Incolla, o un clic. "
     "Invio su Sfoglia, o un clic, apre la finestra di Windows. "
-    "Quando parte l'ascolto, il focus va su Pausa: Spazio mette in pausa o riprende. "
-    "Su Pausa o Ferma: frecce destra e sinistra avanti e indietro; "
-    "frecce su e giù volume fino a 200 percento. "
-    "Sull'elenco Segnalibri: frecce su e giù scorrono le righe (come in Taglia e unisci); "
-    "Invio o doppio clic va a quel punto; un clic solo seleziona. "
-    "Invio su Rinomina o Elimina, o un clic, agisce sul segnalibro selezionato. "
-    "In pausa o con Ferma si salva un segnalibro con l'orario; se lo rinomini, "
-    "in elenco restano orario e nome. "
+    "In riproduzione il pulsante è Pausa; in pausa diventa Riprendi "
+    "(Ferma resta Ferma). Spazio su Pausa/Riprendi mette in pausa o riparte. "
+    "Volume con frecce su e giù solo mentre sta suonando e non si è sull'elenco. "
+    "In pausa o fermo, e sempre sull'elenco Segnalibri, "
+    "frecce su e giù scorrono le righe (come in Taglia e unisci). "
+    "Invio o doppio clic sul segnalibro va a quel punto. "
+    "Rinomina ed Elimina agiscono sul segnalibro selezionato; "
+    "dopo il nome restano orario e nome in elenco. "
     "Ogni avviso sta a voce e a schermo."
 )
 
@@ -414,31 +424,39 @@ def _build_player():
             except Exception:
                 focused = None
             in_text = isinstance(focused, wx.TextCtrl)
-            on_marks = focused is self.lst_marks
+            on_marks = self._focus_is_marks(focused)
             session = bool(self._playing or self._paused)
-            # Elenco segnalibri: su/giù scorrono le righe (come Taglia e unisci).
-            if on_marks and key in (wx.WXK_UP, wx.WXK_DOWN):
+            # Elenco segnalibri: le frecce non rubano volume/seek (come Taglia e unisci).
+            if on_marks and key in (
+                wx.WXK_UP,
+                wx.WXK_DOWN,
+                wx.WXK_LEFT,
+                wx.WXK_RIGHT,
+                wx.WXK_HOME,
+                wx.WXK_END,
+                wx.WXK_PAGEUP,
+                wx.WXK_PAGEDOWN,
+            ):
                 event.Skip()
                 return
             if on_marks and key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
                 self._goto_selected_mark()
                 return
-            # Fuori dall'elenco, in ascolto: frecce seek/volume (anche su Pausa/Ferma).
+            # Seek: fuori dall'elenco, con sessione (riproduzione o pausa).
             if not in_text and not on_marks and session and key in (
                 wx.WXK_LEFT,
                 wx.WXK_RIGHT,
             ):
                 self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
                 return
-            if not in_text and not on_marks and session and key in (
-                wx.WXK_UP,
-                wx.WXK_DOWN,
+            # Volume: solo mentre sta suonando (in pausa/fermo le frecce lasciano l'elenco).
+            if (
+                not in_text
+                and not on_marks
+                and self._playing
+                and key in (wx.WXK_UP, wx.WXK_DOWN)
             ):
                 self._nudge_vol(+_VOL_STEP if key == wx.WXK_UP else -_VOL_STEP)
-                return
-            # Sull'elenco, destra/sinistra restano seek in ascolto (l'elenco non le usa).
-            if on_marks and session and key in (wx.WXK_LEFT, wx.WXK_RIGHT):
-                self._seek(+_SEEK_STEP if key == wx.WXK_RIGHT else -_SEEK_STEP)
                 return
             if key == wx.WXK_SPACE:
                 if isinstance(
@@ -447,8 +465,8 @@ def _build_player():
                 ):
                     event.Skip()
                     return
-                # Anche sull'elenco: Spazio pausa/riprende (come in Taglia e unisci).
-                self._on_pause_toggle()
+                # Sull'elenco: Spazio pausa/riprende e resta sull'elenco.
+                self._on_pause_toggle(prefer_marks_focus=on_marks)
                 return
             if isinstance(
                 focused, (wx.TextCtrl, wx.Button, wx.CheckBox, wx.RadioButton, wx.Choice)
@@ -457,11 +475,42 @@ def _build_player():
                 return
             event.Skip()
 
+        def _focus_is_marks(self, focused) -> bool:
+            if focused is None:
+                return False
+            if focused is self.lst_marks:
+                return True
+            try:
+                if isinstance(focused, wx.ListBox) and focused.GetId() == self.lst_marks.GetId():
+                    return True
+            except Exception:
+                pass
+            return False
+
+        def _set_pause_label(self, paused: bool) -> None:
+            # In pausa: Riprendi. In riproduzione (o fermo): Pausa. Ferma non cambia.
+            try:
+                self.btn_pause.SetLabel("&Riprendi" if paused else "&Pausa")
+            except Exception:
+                pass
+
         def _focus_controls(self):
             try:
                 self.btn_pause.SetFocus()
             except Exception:
                 pass
+
+        def _focus_after_pause_or_stop(self, prefer_marks_focus: bool = False) -> None:
+            """Dopo pausa/ferma: sull'elenco se ci sono segnalibri, così le frecce scorrono."""
+            try:
+                if (prefer_marks_focus or self._marks) and self._marks:
+                    if self.lst_marks.GetSelection() < 0:
+                        self.lst_marks.SetSelection(0)
+                    self.lst_marks.SetFocus()
+                    return
+            except Exception:
+                pass
+            self._focus_controls()
 
         def _clipboard_media_paths(self) -> list:
             paths = []
@@ -747,7 +796,7 @@ def _build_player():
             self._playing = True
             self._paused = False
             self._play_pos = start
-            self.btn_pause.SetLabel("&Pausa")
+            self._set_pause_label(paused=False)
             wx.CallAfter(self._focus_controls)
             if start > 0.15:
                 self._say(MSG_RESUME_AT.format(pos=clip.speak_position(start)))
@@ -772,7 +821,7 @@ def _build_player():
             else:
                 self._say(MSG_STOPPED_MARK.format(pos=spoken))
 
-        def _on_pause_toggle(self):
+        def _on_pause_toggle(self, prefer_marks_focus: bool = False):
             if self._listen_busy:
                 return
             if self._playing and self._player.is_playing():
@@ -780,15 +829,19 @@ def _build_player():
                 self._play_pos = pos
                 self._playing = False
                 self._paused = True
-                self.btn_pause.SetLabel("&Riprendi")
+                self._set_pause_label(paused=True)
                 self._save_auto_mark(pos, paused=True)
-                wx.CallAfter(self._focus_controls)
+                # Dopo pausa: focus sull'elenco così le frecce scorrono subito.
+                wx.CallAfter(
+                    self._focus_after_pause_or_stop,
+                    True if prefer_marks_focus else bool(self._marks),
+                )
                 return
             if self._paused and self._preview and os.path.isfile(self._preview):
                 if self._player.resume():
                     self._playing = True
                     self._paused = False
-                    self.btn_pause.SetLabel("&Pausa")
+                    self._set_pause_label(paused=False)
                     self._say(
                         MSG_RESUME_AT.format(pos=clip.speak_position(self._play_pos))
                     )
@@ -814,12 +867,12 @@ def _build_player():
             self._playing = False
             self._paused = False
             self._play_pos = 0.0
-            self.btn_pause.SetLabel("&Pausa")
+            self._set_pause_label(paused=False)
             if self._path and pos > 0.2:
                 self._save_auto_mark(pos, paused=False)
             else:
                 self._say("Fermo.")
-            wx.CallAfter(self._focus_controls)
+            wx.CallAfter(self._focus_after_pause_or_stop, bool(self._marks))
 
         def _seek(self, delta: float):
             if not self._preview or not os.path.isfile(self._preview):
@@ -834,11 +887,11 @@ def _build_player():
             if want_play:
                 self._playing = True
                 self._paused = False
-                self.btn_pause.SetLabel("&Pausa")
+                self._set_pause_label(paused=False)
             elif was_paused:
                 self._paused = True
                 self._playing = False
-                self.btn_pause.SetLabel("&Riprendi")
+                self._set_pause_label(paused=True)
             self._say(clip.speak_position(pos))
 
         def _nudge_vol(self, delta: int):
@@ -887,7 +940,7 @@ def _build_player():
                     self._playing = True
                     self._paused = False
                     self._play_pos = sec
-                    self.btn_pause.SetLabel("&Pausa")
+                    self._set_pause_label(paused=False)
                     self._say(MSG_RESUME_AT.format(pos=clip.speak_position(sec)))
                     wx.CallAfter(self._focus_controls)
                 return
@@ -946,7 +999,7 @@ def _build_player():
             self._playing = False
             self._paused = False
             self._play_pos = 0.0
-            self.btn_pause.SetLabel("&Pausa")
+            self._set_pause_label(paused=False)
             if clear_preview and self._preview:
                 try:
                     if os.path.isfile(self._preview):

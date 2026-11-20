@@ -548,23 +548,42 @@ def _build_player():
             if key == wx.WXK_SPACE:
                 self._on_pause_toggle(stay_on_list=True)
                 return
+            if key in (wx.WXK_UP, wx.WXK_DOWN):
+                # Muoviamo noi la selezione così coincide con ciò che si sente.
+                try:
+                    idx = int(self.lst_marks.GetSelection())
+                except Exception:
+                    idx = -1
+                n = len(self._marks)
+                if n <= 0:
+                    event.Skip()
+                    return
+                if idx < 0:
+                    idx = 0
+                elif key == wx.WXK_DOWN:
+                    idx = min(n - 1, idx + 1)
+                else:
+                    idx = max(0, idx - 1)
+                self.lst_marks.SetSelection(idx)
+                self._remember_sel(idx)
+                return
             event.Skip()
 
         def _on_marks_click(self, event):
-            """Un clic sulla riga = seleziona e riparte da quel segnalibro."""
+            """Clic: dopo che wx ha aggiornato la selezione, vai a QUELLA riga."""
             event.Skip()
+            # Non usare HitTest (con scroll/NVDA prende spesso la riga sbagliata).
+            wx.CallAfter(self._goto_after_list_click)
+
+        def _goto_after_list_click(self):
             try:
-                idx = int(self.lst_marks.HitTest(event.GetPosition()))
+                idx = int(self.lst_marks.GetSelection())
             except Exception:
                 idx = -1
             if idx < 0 or idx >= len(self._marks):
                 return
-            try:
-                self.lst_marks.SetSelection(idx)
-            except Exception:
-                pass
             self._remember_sel(idx)
-            wx.CallAfter(self._goto_selected_mark, idx)
+            self._goto_selected_mark(force_idx=idx)
 
         def _set_pause_label(self, paused: bool) -> None:
             # In pausa: Riprendi. In riproduzione (o fermo): Pausa. Ferma non cambia.
@@ -1224,30 +1243,6 @@ def _build_player():
                 return idx
             return self._selection_index()
 
-        def _jump_in_preview(self, sec: float) -> bool:
-            """Salto immediato nel wav già in cache (file intero, origin 0)."""
-            sec = max(0.0, float(sec or 0))
-            if not self._preview or not os.path.isfile(self._preview):
-                return False
-            if float(self._preview_origin or 0) > 0.01:
-                return False
-            dur = float(self._preview_dur or 0) or float(
-                clip._wav_duration(self._preview) or 0
-            )
-            self._preview_dur = dur
-            if dur <= 0.2 or sec >= max(0.05, dur - 0.05):
-                return False
-            if not self._player.play(
-                self._preview, from_sec=sec, vol=self._listen_vol
-            ):
-                return False
-            self._playing = True
-            self._paused = False
-            self._play_pos = sec
-            self._preview_origin = 0.0
-            self._set_pause_label(paused=False)
-            return True
-
         def _prepare_mark_at(
             self,
             start_sec: float,
@@ -1350,13 +1345,44 @@ def _build_player():
             self._say(". ".join(parts) + ".")
 
         def _goto_selected_mark(self, force_idx=None):
-            if not self._marks:
+            if not self._path:
+                self._say(MSG_NEED_FILE)
+                return
+            # 1) Capire QUALE riga ha scelto l'utente (prima di ricaricare).
+            idx_ui = -1
+            if force_idx is not None:
+                try:
+                    idx_ui = int(force_idx)
+                except Exception:
+                    idx_ui = -1
+            if idx_ui < 0:
+                try:
+                    idx_ui = int(self.lst_marks.GetSelection())
+                except Exception:
+                    idx_ui = -1
+            want_id = ""
+            if 0 <= idx_ui < len(self._marks):
+                want_id = str(self._marks[idx_ui].get("id") or "")
+            elif self._sel_mark_id:
+                want_id = str(self._sel_mark_id)
+
+            # 2) Ricarica da disco e riposiziona sulla STESSA id.
+            fresh = list_marks(self._config_dir, self._path)
+            if not fresh:
+                self._marks = []
+                self._refresh_marks()
                 self._say(MSG_NO_MARKS)
                 return
-            idx = self._resolve_mark_index(force_idx)
-            if idx < 0 or idx >= len(self._marks):
-                self._say(MSG_NO_MARKS)
-                return
+            self._marks = fresh
+            idx = self._index_for_mark_id(want_id)
+            if idx < 0 and 0 <= idx_ui < len(self._marks):
+                idx = idx_ui
+            if idx < 0:
+                idx = 0
+            self._refresh_marks(select_id=str(self._marks[idx].get("id") or ""))
+            idx = self._index_for_mark_id(str(self._marks[idx].get("id") or ""))
+            if idx < 0:
+                idx = 0
             try:
                 self.lst_marks.SetSelection(idx)
             except Exception:
@@ -1365,22 +1391,22 @@ def _build_player():
             item = self._marks[idx]
             sec = float(item.get("sec") or 0)
             label = mark_row_label(item)
-            announce = MSG_GOTO_MARK.format(
-                n=idx + 1, total=len(self._marks), label=label
+            announce = (
+                f"Segnalibro {idx + 1} di {len(self._marks)}: {label}. "
+                f"Salto a {clip.speak_position(sec)}."
             )
 
-            # Evita doppio avvio (clic + doppio clic nello stesso istante).
+            # Evita doppio avvio (clic + Invio sullo stesso istante).
             now = time.monotonic()
-            goto_key = (idx, round(sec, 2))
+            goto_key = (str(item.get("id") or ""), round(sec, 2))
             last_key = getattr(self, "_last_goto_key", None)
             last_t = float(getattr(self, "_last_goto_t", 0) or 0)
-            if goto_key == last_key and (now - last_t) < 0.35:
+            if goto_key == last_key and (now - last_t) < 0.4:
                 return
             self._last_goto_key = goto_key
             self._last_goto_t = now
 
-            # Ferma l'audio attuale e invalida preparazioni in corso
-            # (altrimenti un wav "vecchio" può ripartire da capo e coprire il salto).
+            # Ferma l'audio e invalida preparazioni in corso.
             try:
                 if self._player.is_playing() or self._player.is_open():
                     self._player.pause()
@@ -1388,23 +1414,9 @@ def _build_player():
                 pass
             self._playing = False
             self._paused = False
-            try:
-                self._cancel.set()
-            except Exception:
-                pass
-            self._cancel = threading.Event()
-            self._play_gen += 1
-            self._listen_busy = False
 
-            # 1) Salto subito nel wav già pronto (caso normale dopo Pausa).
-            if self._jump_in_preview(sec):
-                self._say(
-                    f"{announce} {MSG_RESUME_AT.format(pos=clip.speak_position(sec))}"
-                )
-                self._focus_marks()
-                return
-
-            # 2) Altrimenti estrai dal file sorgente da quel secondo.
+            # Sempre dal file sorgente, dal secondo salvato in quel segnalibro.
+            # Niente seek su wav in cache: era la causa dei salti "a caso".
             gen, cancel = self._begin_prepare()
             self._prepare_mark_at(
                 sec,

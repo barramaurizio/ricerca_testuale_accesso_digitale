@@ -2005,7 +2005,11 @@ class LiveListenPlayer:
 def preview_wav_from(
     piece: Piece, dest: str, start_sec: float, cancel=None
 ) -> tuple[bool, str]:
-    """Wav dal secondo start_sec in poi (salto a segnalibro / ripresa precisa)."""
+    """Wav che INIZIA esattamente a start_sec (salto a segnalibro).
+
+    Usa -ss DOPO -i (più lento, ma allineato all'orario del segnalibro).
+    Estrae pochi minuti: basta per ripartire da quel punto.
+    """
     if not piece.has_audio and piece.kind == "video":
         probed, _err = load_piece(piece.path)
         if probed is not None and probed.has_audio:
@@ -2020,14 +2024,27 @@ def preview_wav_from(
     if span > start:
         remain = max(0.1, span - start)
     else:
-        remain = _LISTEN_FULL_MAX_SEC
-    take = min(remain, _LISTEN_FULL_MAX_SEC)
-    ok, _err = _run(
-        _seek_args(piece.path, start, take)
-        + ["-vn", "-ac", "1", "-ar", "22050", dest],
-        cancel,
-        timeout=600,
-    )
+        remain = 600.0
+    # Pezzo breve dal segnalibro: preparazione più rapida e orario fedele.
+    take = min(remain, 600.0)
+    # -ss dopo -i: attacco allineato al secondo del segnalibro.
+    args = [
+        ff,
+        "-y",
+        "-i",
+        piece.path,
+        "-ss",
+        f"{start:.3f}",
+        "-t",
+        f"{take:.3f}",
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "22050",
+        dest,
+    ]
+    ok, _err = _run(args, cancel, timeout=600)
     if not ok or not os.path.isfile(dest):
         return False, MSG_LISTEN_FAIL
     heard = _wav_duration(dest) or take

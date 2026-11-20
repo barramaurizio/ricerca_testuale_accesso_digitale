@@ -20,11 +20,16 @@ log = logging.getLogger("rtad.player")
 _STORE_NAME = "media_marks.json"
 _shared = False
 
-MSG_NEED_FILE = "Scegli un file audio o video."
+MSG_NEED_FILE = (
+    "Incolla il percorso del file nel campo Percorso, poi Invio su Apri, o un clic. "
+    "Oppure Invio su Sfoglia, o un clic, e scegli il file nella finestra di Windows."
+)
 MSG_NEED_FFMPEG = "Per questo formato serve ffmpeg."
 MSG_NO_AUDIO = "Questo file non ha una traccia audio da ascoltare."
 MSG_LISTEN_FAIL = "Non riesco a preparare l'ascolto."
 MSG_ALREADY_IDLE = "La riproduzione è già ferma o in pausa."
+MSG_BROWSE = "Apro la finestra di Windows per scegliere l'audio o il video."
+MSG_BROWSE_FAIL = "Non sono riuscito ad aprire la finestra di scelta file."
 MSG_PAUSED_AT = "Fermato a {pos}."
 MSG_RESUME_AT = "Riparto da {pos}."
 MSG_STOPPED_MARK = "Fermo a {pos}. Segnalibro salvato."
@@ -376,19 +381,64 @@ def _build_player():
                 return
             self._load_path(path, ask_resume=True)
 
-        def _browse_file(self):
-            dlg = wx.FileDialog(
-                self,
-                "Scegli audio o video",
-                wildcard=_WILDCARD,
-                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-            )
+        def _windows_file_dialog_class(self):
+            """Sempre la FileDialog di Windows (non quella RTAD), come chiesto per il lettore."""
             try:
+                import rtad_picker as picker
+
+                native = getattr(picker, "_windows_file", None)
+                if native is not None:
+                    return native
+            except Exception:
+                log.exception("rtad_picker windows FileDialog")
+            return wx.FileDialog
+
+        def _browse_file(self):
+            self._say(MSG_BROWSE)
+            FileDlg = self._windows_file_dialog_class()
+            try:
+                dlg = FileDlg(
+                    self,
+                    message="Scegli audio o video",
+                    wildcard=_WILDCARD,
+                    style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+                )
+            except TypeError:
+                # Firma wx classica senza nomi.
+                dlg = FileDlg(
+                    self,
+                    "Scegli audio o video",
+                    "",
+                    "",
+                    _WILDCARD,
+                    wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+                )
+            except Exception:
+                log.exception("FileDialog create")
+                self._say(MSG_BROWSE_FAIL)
+                return
+            path = ""
+            try:
+                try:
+                    dlg.CentreOnParent()
+                except Exception:
+                    pass
+                try:
+                    dlg.Raise()
+                except Exception:
+                    pass
                 if dlg.ShowModal() != wx.ID_OK:
                     return
                 path = dlg.GetPath() or ""
+            except Exception:
+                log.exception("FileDialog ShowModal")
+                self._say(MSG_BROWSE_FAIL)
+                return
             finally:
-                dlg.Destroy()
+                try:
+                    dlg.Destroy()
+                except Exception:
+                    pass
             if not path:
                 self._say(MSG_NEED_FILE)
                 return

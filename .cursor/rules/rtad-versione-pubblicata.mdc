@@ -11,7 +11,7 @@ L’ultima pubblicata si legge in cima a `docs/NOTE_CONTESTO_v1.5.md`, nella voc
 
 Nel commit di rilascio, prima che Maurizio committi, quelle tre note dicono già che questa versione è quella che si pubblica. Data, tag `vX.Y.Z` e `app-vX.Y.Z`. «In corso» e «l’ultima pubblicata è la precedente» non entrano in quel commit. È il buco della 2.0.0: il commit `b70e333` diceva ancora «in corso», e la frase «è pubblicata» è partita dopo.
 
-Il commit corto e il numero DataStore si scrivono appena si conoscono. Se il rilascio non è ancora stato spinto, entrano prima del push. Se è già online, entrano con la versione successiva. Non si apre un commit solo per loro.
+Il commit corto entra prima del push, nei tre file, in un commit piccolo: è il numero del commit di rilascio, quindi non può stare dentro quel commit. Il numero DataStore no. Il modulo dello store non si modifica dopo l’invio. Si apre un’issue su `nvaccess/addon-datastore`, con un numero. Se i controlli passano, il bot chiude l’issue e l’Add-on entra nello store. Lì non si scrive il commit corto: lo store tiene i campi del modulo e l’indirizzo della release GitHub. Un commento dopo la chiusura non cambia l’invio, e l’issue non si riapre per aggiungerlo. Se i controlli falliscono, l’issue resta aperta con l’errore e si rinvia il modulo. Il numero si scrive nelle tre note quando l’issue è chiusa. Se la release GitHub è già online, entra con la versione successiva, non in un commit solo per quel numero.
 
 Non hotfixare una versione già pubblicata. Il `.nvda-addon` accettato dallo store non si sostituisce. I due exe della Standalone, sulla release GitHub, si sostituiscono.
 

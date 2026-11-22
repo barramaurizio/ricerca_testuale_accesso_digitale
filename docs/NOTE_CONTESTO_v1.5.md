@@ -2,7 +2,7 @@
 
 Documento di lavoro per nuove chat Cursor.  
 Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.  
-**Ultima pubblicata:** `2.0.9` — queste immagini in un solo PDF, una per pagina; figura e formula nel capitolo EPUB. Il report della figura prende il nome dell’immagine nel libro e sta accanto al libro. Standalone e Add-on. NVDA testata 2026.3.1 (22/11/2026, GitHub `v2.0.9` / `app-v2.0.9`). Piano `docs/PIANO_2.0.9.md`. Prima: `2.0.8` il 20/11/2026, GitHub `v2.0.8` / `app-v2.0.8`, commit `c8512b5`. Non hotfixare la 1.9.5 né le successive fino alla 2.0.9 inclusa. Una versione già su GitHub si scrive pubblicata, con la data e i tag. Il commit corto e il numero DataStore si aggiungono quando esistono.
+**Ultima pubblicata:** `2.0.9` — queste immagini in un solo PDF, una per pagina; figura e formula nel capitolo EPUB. Il report della figura prende il nome dell’immagine nel libro e sta accanto al libro. Standalone e Add-on. NVDA testata 2026.3.1 (22/11/2026, GitHub `v2.0.9` / `app-v2.0.9`, commit `7a8ef52`). Piano `docs/PIANO_2.0.9.md`. Prima: `2.0.8` il 20/11/2026, GitHub `v2.0.8` / `app-v2.0.8`, commit `c8512b5`. Non hotfixare la 1.9.5 né le successive fino alla 2.0.9 inclusa. Una versione già su GitHub si scrive pubblicata, con la data e i tag. Il numero DataStore si aggiunge quando lo store l’accetta.
 
 **Prossima da pubblicare:** `2.0.10` (non iniziata) — PDF e testo: pagine da-a, più PDF nell’ordine, brano salvato dal lettore. Idee future: dettatura vocale; operatore integrato; confronto del parlato; confronto del testo di un’immagine. Chat Desktop della prima stesura 2.0.8 persa col PC Acer (20/11/2026); ricostruita da piano + 2.0.7. Papà l’11/11/2026 ha provato il mouse: taglio e unione riusciti, il quadratino bianco gli è piaciuto. Il ritorno con Alt+Tab che a volte tace resta così. Papà ha rimesso Gemini e la usa. Cloud Vision non lo usa. «trascriv iamo» resta con lo spazio.
 
@@ -18,6 +18,8 @@ Piano release: `docs/ROADMAP_DOPO_1.5.0.md`.
 1. Standalone (`Standalone/app_gui.py` + moduli) — prova e test
 2. Add-on NVDA gemello (solo dopo SA ok)
 3. Compila Portable/Installer → due tag GitHub (`vX.Y.Z` add-on, `app-vX.Y.Z` standalone) → store NVDA
+
+Il modulo del DataStore non si modifica dopo l’invio. Si apre un’issue su `nvaccess/addon-datastore`, con un numero. Se i controlli passano, il bot chiude l’issue e l’Add-on entra nello store. Lì non si scrive il commit corto: lo store tiene i campi del modulo e l’indirizzo della release GitHub. Un commento dopo la chiusura non cambia l’invio, e l’issue non si riapre per aggiungerlo. Se i controlli falliscono, l’issue resta aperta con l’errore e si rinvia il modulo. Il numero DataStore si scrive nelle tre note quando l’issue è chiusa. Se la release GitHub è già online, entra con la versione successiva.
 
 ## Stato al 4/11/2026
 Quel giorno l’ultima pubblicata era la 1.9.5. Oggi l’ultima pubblicata è la 2.0.0, scritta in cima a questo file.

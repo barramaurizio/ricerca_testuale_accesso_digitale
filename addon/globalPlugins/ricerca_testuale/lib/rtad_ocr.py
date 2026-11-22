@@ -3328,6 +3328,24 @@ def image_address_lines(image_url="", page_url="", from_screen=False) -> list:
     return lines
 
 
+def image_report_name(path: str, source_path: str = "") -> str:
+    """Nome nel report e in Salva testo. Una figura EPUB tiene il nome nel libro."""
+    src = (source_path or "").strip()
+    if src and os.path.isfile(src):
+        return os.path.basename(src) or "immagine"
+    base = os.path.basename(path or "")
+    if base.lower().startswith("rtad_fig_"):
+        try:
+            with open((path or "") + ".rtad_src.json", "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            original = str((data or {}).get("name") or "").strip()
+            if original:
+                return os.path.basename(original.replace("\\", "/"))
+        except Exception:
+            pass
+    return base or "immagine"
+
+
 def get_image_tech_info(
     path: str,
     source_path: str = "",
@@ -3366,6 +3384,7 @@ def get_image_tech_info(
     if not path or not os.path.isfile(path):
         info["error"] = "File non trovato."
         return info
+    info["file_name"] = image_report_name(path)
     ext = os.path.splitext(path)[1].lower()
     info["ext"] = ext
     fmt_map = {
@@ -4028,8 +4047,8 @@ def _parse_date_hint_from_name(name: str) -> str:
 def _build_gemini_grounding(path: str) -> str:
     """Indizi file + OCR Vision per ancorare Gemini e ridurre allucinazioni."""
     lines = ["Indizi dal file / OCR (ancora fattuale — rispettali):"]
-    base = os.path.basename(path or "") or ""
-    if base:
+    base = image_report_name(path)
+    if base and base != "immagine":
         lines.append(f"- Nome file: {base}")
     date_hint = _parse_date_hint_from_name(base)
     if date_hint:
@@ -4494,11 +4513,7 @@ def format_full_image_report(
 ) -> str:
     """Report unificato «Tutto sull'immagine» (sezioni a richiesta, 1.6.6)."""
     src = (source_path or "").strip()
-    label = (
-        os.path.basename(src)
-        if src and os.path.isfile(src)
-        else (os.path.basename(path) or "immagine")
-    )
+    label = image_report_name(path, src)
     parts = [f"Immagine: {label}", ""]
     if include_ocr:
         if should_abort and should_abort():
@@ -4683,11 +4698,7 @@ def describe_image(
     )
     tech_block = format_tech_sheet(tech) if include_tech else ""
     addr = "\n".join(image_address_lines(image_url, page_url, from_screen))
-    display = (
-        os.path.basename(src)
-        if src and os.path.isfile(src)
-        else (os.path.basename(path) or "immagine")
-    )
+    display = image_report_name(path, src)
 
     def _pack(desc: str) -> str:
         parts = [(desc or "").strip()]

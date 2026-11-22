@@ -32,6 +32,18 @@ MSG_NEED_CROP = (
 )
 MSG_BAD_NUM = "Servono quattro numeri: sinistra, alto, larghezza, altezza."
 MSG_NOT_IMAGE = "non è un'immagine."
+MSG_CLIP_EMPTY = (
+    "Negli Appunti non c'è un'immagine né una cartella. "
+    "In Esplora, Control+C sul file o sulla cartella, poi qui Control+Alt+V. "
+    "Oppure trascina il file o la cartella."
+)
+MSG_DROP_EMPTY = (
+    "Nessuna immagine. Trascina un'immagine o una cartella, "
+    "oppure in Esplora Control+C e qui Control+Alt+V."
+)
+MSG_FOLDER_EMPTY = (
+    "Nessuna immagine in questa cartella. Le cartelle dentro non si aprono."
+)
 
 _EXTS = {
     ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif",
@@ -46,6 +58,11 @@ _INTRO = (
     "Invio sul pulsante Aggiungi file, o un clic, mette le immagini in elenco. "
     "Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. "
     "Le cartelle che stanno dentro non si aprono. "
+    "Trascinare un'immagine o una cartella sulla finestra fa la stessa cosa di Control+Alt+V. "
+    "In Esplora, Control+C sul file o sulla cartella, poi qui Control+Alt+V, "
+    "oppure Invio sul pulsante Incolla, o un clic. "
+    "Se incolli un percorso, vale lo stesso: un'immagine entra da sola, "
+    "una cartella mette le sue immagini. Le cartelle dentro non si aprono. "
     "L'ordine dell'elenco è l'ordine del risultato. "
     "Invio sul pulsante Sposta su o Sposta giù, o un clic, cambia l'ordine. "
     "Invio o doppio clic su una riga rilegge i quattro campi rispetto all'immagine intera. "
@@ -79,18 +96,29 @@ _INTRO = (
     "Si unisce l'immagine intera, il taglio già scelto, oppure il giro già scelto su quella riga. "
     "Il file unito si chiama Unito-uno-sotto-l-altro oppure "
     "Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. "
+    "Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco "
+    "in un solo PDF, una per pagina, nell'ordine. "
+    "Se sulla riga c'è un taglio o un giro, nel PDF entra quello. "
+    "Il file di partenza resta com'è. "
+    "Con una immagine il file si chiama nome-pdf. "
+    "Con più immagini si chiama Unito-pdf. "
+    "Se il nome c'è già, si aggiunge -2. "
+    "Lo Stato, la barra di stato e Fatti dicono la stessa frase, "
+    "con il nome e quante pagine. "
     "I file creati restano nell'elenco Fatti. "
     "Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro. "
     "Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: "
-    "A Aggiungi file, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, "
+    "A Aggiungi file, K Aggiungi cartella, H Incolla, S Sposta su, G Sposta giù, M Rimuovi, "
     "I metà sinistra, D metà destra, P metà sopra, O metà sotto, C centro, "
     "B un quarto a destra, J un quarto a sinistra, N mezzo giro, "
-    "T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro. "
+    "T tieni questo taglio, E esegui, V uno sotto l'altro, Q uno accanto all'altro, "
+    "F in un PDF. "
     "Il file di partenza resta com'è. Esc chiude."
 )
 _ALT = {
     "A": "add",
     "K": "folder",
+    "H": "paste",
     "S": "up",
     "G": "down",
     "M": "remove",
@@ -103,6 +131,7 @@ _ALT = {
     "E": "run",
     "V": "down_join",
     "Q": "side_join",
+    "F": "pdf",
     "B": "turn_right",
     "J": "turn_left",
     "N": "turn_half",
@@ -462,6 +491,172 @@ def build(shots: list, side_by_side: bool = False) -> tuple:
     ), dest
 
 
+def _pages_phrase(count: int) -> str:
+    if int(count) == 1:
+        return "1 pagina"
+    return f"{int(count)} pagine"
+
+
+def _pdf_place(width: int, height: int):
+    """Pagina A4. La foto sta al centro, con le sue proporzioni."""
+    width = max(1, int(width))
+    height = max(1, int(height))
+    if width > height:
+        page_w, page_h = 842, 595
+    else:
+        page_w, page_h = 595, 842
+    margin = 36
+    scale = min(
+        (page_w - 2 * margin) / width,
+        (page_h - 2 * margin) / height,
+    )
+    draw_w = width * scale
+    draw_h = height * scale
+    x = (page_w - draw_w) / 2
+    y = (page_h - draw_h) / 2
+    return page_w, page_h, x, y, draw_w, draw_h
+
+
+def _pdf_document(pages: list) -> bytes:
+    """Un JPEG per pagina. pages: (byte jpeg, larghezza, altezza)."""
+    count = len(pages)
+    chunks = [b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"]
+    offsets = [0]
+
+    def emit(obj_num: int, body: bytes):
+        while len(offsets) <= obj_num:
+            offsets.append(0)
+        offsets[obj_num] = sum(len(chunk) for chunk in chunks)
+        chunks.append(f"{obj_num} 0 obj\n".encode("ascii") + body + b"\nendobj\n")
+
+    kids = " ".join(f"{3 + i * 3} 0 R" for i in range(count))
+    emit(1, b"<< /Type /Catalog /Pages 2 0 R >>")
+    emit(2, f"<< /Type /Pages /Count {count} /Kids [{kids}] >>".encode("ascii"))
+    for index, page in enumerate(pages):
+        data, width, height = page
+        page_id = 3 + index * 3
+        content_id = page_id + 1
+        image_id = page_id + 2
+        page_w, page_h, x, y, draw_w, draw_h = _pdf_place(width, height)
+        content = (
+            f"q\n{draw_w:.2f} 0 0 {draw_h:.2f} {x:.2f} {y:.2f} cm\n/Im0 Do\nQ\n"
+        ).encode("ascii")
+        emit(
+            page_id,
+            (
+                f"<< /Type /Page /Parent 2 0 R "
+                f"/MediaBox [0 0 {page_w} {page_h}] "
+                f"/Contents {content_id} 0 R "
+                f"/Resources << /XObject << /Im0 {image_id} 0 R >> >> >>"
+            ).encode("ascii"),
+        )
+        emit(
+            content_id,
+            f"<< /Length {len(content)} >>\nstream\n".encode("ascii")
+            + content
+            + b"endstream",
+        )
+        emit(
+            image_id,
+            (
+                f"<< /Type /XObject /Subtype /Image /Width {int(width)} "
+                f"/Height {int(height)} /ColorSpace /DeviceRGB "
+                f"/BitsPerComponent 8 /Filter /DCTDecode /Length {len(data)} >>\n"
+                f"stream\n"
+            ).encode("ascii")
+            + data
+            + b"\nendstream",
+        )
+    startxref = sum(len(chunk) for chunk in chunks)
+    total = 2 + count * 3
+    xref = ["xref\n", f"0 {total + 1}\n", "0000000000 65535 f \n"]
+    for num in range(1, total + 1):
+        xref.append(f"{offsets[num]:010d} 00000 n \n")
+    trailer = (
+        f"trailer\n<< /Size {total + 1} /Root 1 0 R >>\n"
+        f"startxref\n{startxref}\n%%EOF\n"
+    )
+    chunks.append("".join(xref).encode("ascii"))
+    chunks.append(trailer.encode("ascii"))
+    return b"".join(chunks)
+
+
+def _jpeg_bytes(image) -> bytes:
+    import tempfile
+    import wx
+
+    if image.HasAlpha():
+        image = _flat(image)
+    try:
+        image.SetOption(wx.IMAGE_OPTION_QUALITY, 85)
+    except Exception:
+        pass
+    fd, path = tempfile.mkstemp(suffix=".jpg")
+    os.close(fd)
+    try:
+        if not image.SaveFile(path, wx.BITMAP_TYPE_JPEG):
+            return b""
+        with open(path, "rb") as handle:
+            data = handle.read()
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    if data[:2] != b"\xff\xd8":
+        return b""
+    return data
+
+
+def pdf_output_path(shots: list) -> str:
+    first = shots[0]
+    folder = os.path.dirname(os.path.abspath(first.path)) or os.getcwd()
+    if len(shots) == 1:
+        stem = os.path.splitext(os.path.basename(first.path))[0] + "-pdf"
+    else:
+        stem = "Unito-pdf"
+    return _unique_output(folder, stem, ".pdf")
+
+
+def build_pdf(shots: list) -> tuple:
+    """Un PDF nuovo, una immagine per pagina. I file di partenza restano."""
+    if not shots:
+        return False, MSG_EMPTY, ""
+    pages = []
+    for shot in shots:
+        image, err = render_shot(shot)
+        if image is None:
+            return False, err or MSG_FAIL, ""
+        data = _jpeg_bytes(image)
+        if not data:
+            return False, MSG_FAIL, ""
+        pages.append((data, image.GetWidth(), image.GetHeight()))
+    dest = pdf_output_path(shots)
+    try:
+        blob = _pdf_document(pages)
+        with open(dest, "wb") as handle:
+            handle.write(blob)
+    except Exception:
+        log.exception("pdf immagini")
+        return False, MSG_FAIL, ""
+    if not os.path.isfile(dest) or os.path.getsize(dest) < 100:
+        return False, MSG_FAIL, ""
+    return True, (
+        f"Creato {os.path.basename(dest)}, {_pages_phrase(len(pages))}, "
+        "nella stessa cartella."
+    ), dest
+
+
+def pdf_history_label(shots: list, out_path: str, pages: int) -> str:
+    name = os.path.basename(out_path)
+    bits = []
+    for index, shot in enumerate(shots, 1):
+        bits.append(
+            f"pagina {index}, {os.path.basename(shot.path)}, {crop_spoken(shot)}"
+        )
+    return f"{name}, {_pages_phrase(pages)}: {'; '.join(bits)}."
+
+
 def crop_spoken(shot: Shot) -> str:
     """La parte scelta, poi i quattro numeri con il loro nome."""
     view_w, view_h = view_size(shot.width, shot.height, shot.turns)
@@ -495,9 +690,84 @@ def history_label(shots: list, out_path: str, size: str, side_by_side: bool) -> 
     )
 
 
-def open_dialog(parent, speaker, paths=None):
+def expand_image_inputs(paths) -> list:
+    """File immagine, nell'ordine. Una cartella vale le immagini che contiene."""
+    from rtad_clip import _files_in_folder
+
+    found = []
+    seen = set()
+    for raw in paths or []:
+        path = (raw or "").strip().strip('"').strip("'")
+        if not path:
+            continue
+        try:
+            path = os.path.normpath(path)
+        except Exception:
+            continue
+        if os.path.isdir(path):
+            items = _files_in_folder(path, _EXTS)
+        elif os.path.isfile(path) and os.path.splitext(path)[1].lower() in _EXTS:
+            items = [path]
+        else:
+            items = []
+        for item in items:
+            key = os.path.normcase(os.path.abspath(item))
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(item)
+    return found
+
+
+def paths_on_clipboard() -> list:
+    """File o cartelle negli Appunti: copia da Esplora, oppure un percorso scritto."""
     import wx
-    dialog = ImageDialog(parent, speaker, paths or [])
+
+    found = []
+    if not wx.TheClipboard.Open():
+        return found
+    try:
+        try:
+            fmt = wx.DataFormat(wx.DF_FILENAME)
+            if wx.TheClipboard.IsSupported(fmt):
+                data = wx.FileDataObject()
+                if wx.TheClipboard.GetData(data):
+                    for name in data.GetFilenames() or []:
+                        path = (name or "").strip().strip('"')
+                        if path and (os.path.isfile(path) or os.path.isdir(path)):
+                            found.append(os.path.normpath(path))
+        except Exception:
+            pass
+        if not found:
+            try:
+                if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
+                    data = wx.TextDataObject()
+                    if wx.TheClipboard.GetData(data):
+                        for line in (data.GetText() or "").splitlines():
+                            path = line.strip().strip('"').strip("'")
+                            if path and (os.path.isfile(path) or os.path.isdir(path)):
+                                found.append(os.path.normpath(path))
+            except Exception:
+                pass
+    finally:
+        try:
+            wx.TheClipboard.Close()
+        except Exception:
+            pass
+    out = []
+    seen = set()
+    for path in found:
+        key = os.path.normcase(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
+def open_dialog(parent, speaker, paths=None, make_pdf=False):
+    import wx
+    dialog = ImageDialog(parent, speaker, paths or [], make_pdf=make_pdf)
     dialog.ShowModal()
     dialog.close_work()
     dialog.Destroy()
@@ -608,7 +878,7 @@ def _install_dialog():
                 self._on_rect(rect.x, rect.y, rect.width, rect.height)
 
     class ImageDialog(wx.Dialog):
-        def __init__(self, parent, speaker, paths):
+        def __init__(self, parent, speaker, paths, make_pdf=False):
             super().__init__(
                 parent,
                 title="Taglia e unisci immagini",
@@ -619,6 +889,7 @@ def _install_dialog():
             self._done: list[tuple[str, str]] = []
             self._open = True
             self._initial = list(paths or [])
+            self._make_pdf = bool(make_pdf)
             self._view_image = None
 
             vbox = wx.BoxSizer(wx.VERTICAL)
@@ -685,10 +956,14 @@ def _install_dialog():
             row1 = wx.BoxSizer(wx.HORIZONTAL)
             self.btn_add = wx.Button(self, label="&Aggiungi file…")
             self.btn_folder = wx.Button(self, label="Aggiungi cartella (&K)")
+            self.btn_paste = wx.Button(self, label="Incolla (&H)")
             self.btn_up = wx.Button(self, label="Sposta &su")
             self.btn_down = wx.Button(self, label="Sposta &giù")
             self.btn_remove = wx.Button(self, label="Ri&muovi")
-            for btn in (self.btn_add, self.btn_folder, self.btn_up, self.btn_down, self.btn_remove):
+            for btn in (
+                self.btn_add, self.btn_folder, self.btn_paste,
+                self.btn_up, self.btn_down, self.btn_remove,
+            ):
                 row1.Add(btn, 0, wx.RIGHT, 6)
             vbox.Add(row1, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
 
@@ -718,8 +993,12 @@ def _install_dialog():
             self.btn_run = wx.Button(self, label="&Esegui")
             self.btn_under = wx.Button(self, label="Uno sotto l'altro (&V)")
             self.btn_side = wx.Button(self, label="Uno accanto all'altro (&Q)")
+            self.btn_pdf = wx.Button(self, label="In un PDF (&F)")
             self.btn_close = wx.Button(self, wx.ID_CANCEL, "Chiudi")
-            for btn in (self.btn_keep, self.btn_run, self.btn_under, self.btn_side, self.btn_close):
+            for btn in (
+                self.btn_keep, self.btn_run, self.btn_under,
+                self.btn_side, self.btn_pdf, self.btn_close,
+            ):
                 row3.Add(btn, 0, wx.RIGHT, 6)
             vbox.Add(row3, 0, wx.ALL, 8)
 
@@ -751,6 +1030,8 @@ def _install_dialog():
 
             self.btn_add.Bind(wx.EVT_BUTTON, self._on_add)
             self.btn_folder.Bind(wx.EVT_BUTTON, self._on_add_folder)
+            self.btn_paste.Bind(wx.EVT_BUTTON, self._on_paste)
+            self._enable_file_drop()
             self.btn_up.Bind(wx.EVT_BUTTON, lambda e: self._move(-1))
             self.btn_down.Bind(wx.EVT_BUTTON, lambda e: self._move(1))
             self.btn_remove.Bind(wx.EVT_BUTTON, self._on_remove)
@@ -766,6 +1047,7 @@ def _install_dialog():
             self.btn_run.Bind(wx.EVT_BUTTON, self._on_run)
             self.btn_under.Bind(wx.EVT_BUTTON, lambda e: self._on_join(False))
             self.btn_side.Bind(wx.EVT_BUTTON, lambda e: self._on_join(True))
+            self.btn_pdf.Bind(wx.EVT_BUTTON, self._on_pdf)
             self.Bind(wx.EVT_CHAR_HOOK, self._on_char)
             self.Bind(wx.EVT_CLOSE, self._on_close)
             self.SetEscapeId(wx.ID_CANCEL)
@@ -917,8 +1199,42 @@ def _install_dialog():
         def _load_initial(self):
             paths = [p for p in self._initial if p]
             self._initial = []
-            if paths:
-                self._ingest(paths)
+            files = expand_image_inputs(paths)
+            if files:
+                self._ingest(files)
+            elif paths:
+                self._say(MSG_FOLDER_EMPTY)
+            if self._make_pdf and self._rows:
+                self._on_pdf()
+
+        def _take_inputs(self, paths, empty_message: str):
+            files = expand_image_inputs(paths)
+            if not files:
+                self._say(empty_message)
+                return
+            self._ingest(files)
+
+        def _on_paste(self, _event=None):
+            self._take_inputs(paths_on_clipboard(), MSG_CLIP_EMPTY)
+
+        def _enable_file_drop(self):
+            import wx
+
+            owner = self
+
+            class _Drop(wx.FileDropTarget):
+                def OnDropFiles(self, x, y, filenames):
+                    try:
+                        owner._take_inputs(filenames or [], MSG_DROP_EMPTY)
+                    except Exception:
+                        log.exception("OnDropFiles immagini")
+                    return True
+
+            for win in (self, self.lst, self.lst_done):
+                try:
+                    win.SetDropTarget(_Drop())
+                except Exception:
+                    pass
 
         def _on_add(self, _event=None):
             with wx.FileDialog(
@@ -1118,6 +1434,21 @@ def _install_dialog():
                 return
             self._finish(list(self._rows), side_by_side)
 
+        def _on_pdf(self, _event=None):
+            if not self._rows:
+                self._say(MSG_EMPTY)
+                return
+            rows = [clone_shot(shot) for shot in self._rows]
+            ok, phrase, dest = build_pdf(rows)
+            if not ok or not dest or not os.path.isfile(dest):
+                self._say(phrase or MSG_FAIL)
+                return
+            label = pdf_history_label(rows, dest, len(rows))
+            self._done.append((label, dest))
+            self._refresh_done()
+            text = phrase if phrase.endswith(".") else phrase + "."
+            self._say(f"{text} In Fatti: {label}")
+
         def _finish(self, shots, side_by_side: bool):
             rows = [clone_shot(shot) for shot in shots]
             ok, phrase, dest = build(rows, side_by_side)
@@ -1152,6 +1483,14 @@ def _install_dialog():
         def _on_char(self, event):
             key = event.GetKeyCode()
             if (
+                event.ControlDown()
+                and event.AltDown()
+                and not event.ShiftDown()
+                and key in (ord("V"), ord("v"))
+            ):
+                self._on_paste()
+                return
+            if (
                 event.AltDown()
                 and not event.ControlDown()
                 and not event.ShiftDown()
@@ -1179,6 +1518,8 @@ def _install_dialog():
                 self._on_add()
             elif name == "folder":
                 self._on_add_folder()
+            elif name == "paste":
+                self._on_paste()
             elif name == "up":
                 self._move(-1)
             elif name == "down":
@@ -1209,6 +1550,8 @@ def _install_dialog():
                 self._on_join(False)
             elif name == "side_join":
                 self._on_join(True)
+            elif name == "pdf":
+                self._on_pdf()
 
     globals()["ImageDialog"] = ImageDialog
 

@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.8)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.9)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.9
+
+- In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.
+- Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.
+- Resta dalla 2.0.8: Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.
 
 ### 🌟 Novità della Versione 2.0.8
 
@@ -415,6 +421,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.9
+
+- In Cut and join images, Enter on Into one PDF, or a click, writes the images in the list into one PDF, one per page, in that order. A crop or a turn already on the row goes into the page. One image is named name-pdf. Several images are named Unito-pdf. If the name exists, -2 is added. The original file stays as it is. Status, the status bar and Done say the same sentence, with the name and the page count. In that window, Control+Alt+V, or Enter on Paste, or a click, puts in the copied file or folder. Folders inside are not opened. On an image result, the menu has Into one PDF…. Enter on the item, or a click. It works in the Standalone and in the Add-on. In the installed Standalone, in File Explorer, right-click or the Applications key, Search with Accesso Digitale: on an image there is Into one PDF; on a folder, Into one PDF (Accesso Digitale). Send to has Into one PDF RTAD. Portable and Add-on: no automatic Send to.
+- In an EPUB chapter, the Figures list is under the links. Enter or a double-click on the row opens Everything about the image. A single click only selects. A figure on its own says Figure, or Figure without a caption. A formula inside the sentence says formula; in the list, Formula or Formula without a caption. A repeated sign says symbol and is not listed. With no figures: No figure in this chapter. The chapter status also says how many figures. The saved report takes the name of the image in the book and sits next to the book. It works in the Standalone and in the Add-on.
+- From 2.0.8: Tools, Audio/video player, with Pause, Resume, Stop, arrows, bookmarks and the installed Explorer items. Standalone and Add-on.
 
 ### 🌟 What's New in Version 2.0.8
 
@@ -866,6 +878,9 @@ For Microsoft Word documents, the add-on opens the file cleanly and safely. You 
 ---
 
 ## 📦 Download & Install
+
+Dalla versione 2.0.8 la Standalone, Portable e Installer, è costruita con Python 3.13. Su Windows 7 non parte: manca il punto di ingresso PssQuerySnapshot in KERNEL32, e la finestra dice che python313.dll non si carica. Non è una funzione rotta. Chi resta su Windows 7 tiene la Portable 2.0.7. Dalla 2.0.8 in poi serve Windows 8.1 o successivo.
+
 Scarica l'ultima versione rilasciata (`.nvda-addon` o la versione `.exe` standalone) dalla sezione [Releases di GitHub](https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases).
 
 ---

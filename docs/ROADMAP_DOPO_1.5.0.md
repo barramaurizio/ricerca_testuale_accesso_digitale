@@ -212,8 +212,9 @@ Contenuto previsto `1.6.0`:
 53. ~~**`2.0.6`:** post/pagina con immagine **e** video → entrambi i flussi (Ctrl+Alt+V / Descrivi da URL); più **Audio sul video** (sostituzione audio, anche su video muto); Spazio ascolta/ferma in Taglia e unisci.~~ **pubblicata** il 17/11/2026. GitHub `v2.0.6` / `app-v2.0.6`. Commit `6bd826e`. DataStore #13083 via #13084 accettato. Piano: `docs/PIANO_2.0.6.md`. Non si rifà.
 54. ~~**`2.0.7`:** Audio sul video — mix/sovrapposizione con volumi 0–200; caselle di durata indipendenti e ore/min/s; ascolto con pausa e orario, frecce avanti/indietro e volume, memoria per file.~~ **pubblicata** il 18/11/2026. GitHub `v2.0.7` / `app-v2.0.7`, commit `ddd1e43`. Piano: `docs/PIANO_2.0.7.md`. Non si rifà.
 55. ~~**`2.0.8`:** lettore audio/video in RTAD (Standalone e Add-on): Pausa/Riprendi/Ferma, frecce, volume 0–200, segnalibri di posizione, Apri con / Invia a / Cerca con Accesso Digitale, Imposta riproduttore predefinito in Windows.~~ **pubblicata** il 20/11/2026. GitHub `v2.0.8` / `app-v2.0.8`, commit `c8512b5`. Piano: `docs/PIANO_2.0.8.md`. Non si rifà.
-56. **`2.0.9` (non iniziata):** immagini in un PDF; poi PDF e testo.
-57. **Idea futura (calma):** dettatura vocale; operatore integrato; confronto del parlato; confronto del testo di un’immagine; riga sulla figura di un EPUB.
+56. ~~**`2.0.9`:** queste immagini in un solo PDF, una per pagina; figura e formula nel capitolo EPUB. Il report della figura prende il nome dell’immagine nel libro e sta accanto al libro.~~ **pubblicata** il 22/11/2026. GitHub `v2.0.9` / `app-v2.0.9`. Piano: `docs/PIANO_2.0.9.md`. Non si rifà.
+57. **`2.0.10` (non iniziata):** PDF e testo: pagine da-a, più PDF nell’ordine, brano salvato dal lettore.
+58. **Idea futura (calma):** dettatura vocale; operatore integrato; confronto del parlato; confronto del testo di un’immagine. La riga sulla figura di un EPUB è nella `2.0.9`.
 
 
 

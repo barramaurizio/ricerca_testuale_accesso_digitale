@@ -1,0 +1,93 @@
+🌟 Novità della Versione 2.0.9
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+Pubblicata il 22/11/2026. GitHub v2.0.9 / app-v2.0.9. Il commit corto e il numero DataStore si aggiungono quando esistono.
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.9
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.9
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.
+- Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.
+- Nell'Add-on, ultima versione NVDA testata: 2026.3.1. Le chat stanno nella cartella comune, insieme alla Standalone.
+
+## 🇬🇧 English
+
+- In Cut and join images, Enter on Into one PDF, or a click, writes the images in the list into one PDF, one per page, in that order. A crop or a turn already on the row goes into the page. One image is named name-pdf. Several images are named Unito-pdf. If the name exists, -2 is added. The original file stays as it is. Status, the status bar and Done say the same sentence, with the name and the page count. In that window, Control+Alt+V, or Enter on Paste, or a click, puts in the copied file or folder. Folders inside are not opened. On an image result, the menu has Into one PDF…. Enter on the item, or a click. It works in the Standalone and in the Add-on. In the installed Standalone, in File Explorer, right-click or the Applications key, Search with Accesso Digitale: on an image there is Into one PDF; on a folder, Into one PDF (Accesso Digitale). Send to has Into one PDF RTAD. Portable and Add-on: no automatic Send to.
+- In an EPUB chapter, the Figures list is under the links. Enter or a double-click on the row opens Everything about the image. A single click only selects. A figure on its own says Figure, or Figure without a caption. A formula inside the sentence says formula; in the list, Formula or Formula without a caption. A repeated sign says symbol and is not listed. With no figures: No figure in this chapter. The chapter status also says how many figures. The saved report takes the name of the image in the book and sits next to the book. It works in the Standalone and in the Add-on.
+- Last NVDA version tested: 2026.3.1. The chats live in the shared folder, together with the Standalone.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.9.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.9
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.9
+
+Descrizione:
+stessa della release Add-on (i due punti sopra, senza la riga NVDA).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.9.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.9.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Immagini in un solo PDF; figura e formula nel capitolo EPUB.
+
+Summary EN:
+Images into one PDF; figure and formula in the EPUB chapter.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.9/ricerca_testuale_accesso_digitale-2.0.9.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.9
+
+Description:
+Immagini dell'elenco in un solo PDF, una per pagina, e figura o formula nel capitolo EPUB.
+Il report della figura prende il nome dell'immagine nel libro e sta accanto al libro.
+Guide, novità, changelog e pacchetto .nvda-addon allineati a 2.0.9.

@@ -3,7 +3,9 @@
 
 Una pagina Internet e un file .html locale sono lo stesso formato.
 Un capitolo EPUB usa la stessa finestra: il sommario e i link interni
-restano nel libro. Un link http esce nel browser di Windows.
+restano nel libro. Una figura o una formula del libro è una riga:
+Invio o doppio clic apre Tutto sull'immagine. Un link http esce
+nel browser di Windows.
 Word e PDF restano sul lettore dei documenti.
 """
 
@@ -24,6 +26,7 @@ MAX_FETCH_BYTES = 2 * 1024 * 1024
 MAX_PAGE_CHARS = 1_500_000
 MAX_HEADINGS = 300
 MAX_LINKS = 300
+MAX_FIGURES = 300
 FETCH_TIMEOUT = 20
 
 MSG_LOADING = "Carico la pagina: {name}. Attendere."
@@ -64,7 +67,12 @@ MSG_DOWNLOAD = "Impossibile scaricare la pagina."
 MSG_NOT_HTML = "Questo file non è una pagina HTML."
 MSG_NOT_FOUND = "File non trovato."
 MSG_EMPTY = "La pagina è vuota."
-MSG_CHAPTER = "Capitolo: {title}. {heads} intestazioni, {links} link."
+MSG_CHAPTER = (
+    "Capitolo: {title}. {heads} intestazioni, {links} link, {figures} figure."
+)
+MSG_NO_FIGURE = "Nessuna figura in questo capitolo."
+MSG_FIGURE_MISS = "Questa figura non è nel libro."
+MSG_FIGURE_OPEN = "Apro Tutto sull'immagine."
 MSG_LOADING_CHAPTER = "Carico il capitolo: {name}. Attendere."
 MSG_LOADING_CHAPTER_ROW = "Carico il capitolo. Attendere."
 MSG_NO_TOC = "Nessuna voce di sommario."
@@ -119,9 +127,12 @@ MSG_CHAT_PAGE = (
 )
 
 HINT_EPUB = (
-    "Tab: sommario, intestazioni, link e testo. "
+    "Tab: sommario, intestazioni, link, figure e testo. "
     "Invio o doppio clic sul sommario apre quel capitolo, qui. "
     "Invio o doppio clic su un'intestazione o su un link interno resta nel libro. "
+    "Invio o doppio clic su una figura apre Tutto sull'immagine. "
+    "Nel testo, una figura a sé dice Figura, una formula dentro la frase "
+    "dice formula, un segno ripetuto dice simbolo. "
     "Un link http esce nel browser di Windows. "
     "Indietro e Avanti tornano al capitolo di prima, "
     "anche con Alt+freccia sinistra e Alt+freccia destra. "
@@ -137,7 +148,7 @@ _UA = (
 _SKIP_SCHEME = ("javascript:", "data:", "vbscript:")
 _HEAD_OPEN = re.compile(r"h([1-6])\b", re.I)
 _ATTR = re.compile(
-    r"""\b(id|href|name)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))""",
+    r"""\b(id|href|name|src|alt)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))""",
     re.I,
 )
 _TITLE = re.compile(r"<title\b[^>]*>(.*?)</title>", re.I | re.S)
@@ -302,6 +313,89 @@ def _resolve_zip_href(member: str, href_path: str) -> str:
     return _zip_norm(full)
 
 
+_SYMBOL_STEMS = frozenset({
+    "indoubz", "indoubi", "indoubr",
+    "imgl", "varr", "xarr",
+    "hcap", "xcap", "ycap", "pcap",
+    "karr", "parr", "omegatild", "ftilde",
+})
+_FIG_TOKEN = re.compile(r"\ue000(\d+)\ue001")
+
+
+def epub_image_role(src: str) -> str:
+    """symbol = segno ripetuto nella frase. figure = foto o formula."""
+    name = os.path.basename(urllib.parse.unquote((src or "").split("?")[0].split("#")[0]))
+    stem = os.path.splitext(name)[0].lower()
+    if stem in _SYMBOL_STEMS:
+        return "symbol"
+    return "figure"
+
+
+def materialize_epub_image(epub_path: str, member: str) -> str:
+    """Copia la figura dal libro in un file temporaneo. Vuoto se non c'è."""
+    import json
+    import tempfile
+    import zipfile
+
+    if not epub_path or not member or not os.path.isfile(epub_path):
+        return ""
+    try:
+        with zipfile.ZipFile(epub_path, "r") as zf:
+            name = member.replace("\\", "/")
+            try:
+                zf.getinfo(name)
+            except KeyError:
+                low = name.lower()
+                name = next((item for item in zf.namelist() if item.lower() == low), "")
+            if not name:
+                return ""
+            data = zf.read(name)
+    except Exception:
+        return ""
+    if not data:
+        return ""
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"):
+        ext = ".jpg"
+    fd, path = tempfile.mkstemp(prefix="rtad_fig_", suffix=ext)
+    os.close(fd)
+    try:
+        with open(path, "wb") as handle:
+            handle.write(data)
+    except Exception:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return ""
+    original = os.path.basename(name.replace("\\", "/"))
+    stem = os.path.splitext(original)[0] or "figura"
+    try:
+        with open(path + ".rtad_src.json", "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "title": stem,
+                    "name": original,
+                    "epub": os.path.abspath(epub_path),
+                    "member": name,
+                },
+                handle,
+                ensure_ascii=False,
+            )
+    except Exception:
+        pass
+    return path
+
+
+def figure_sentence(alt: str, kind: str = "Figura") -> str:
+    alt = re.sub(r"\s+", " ", (alt or "")).strip()
+    if alt:
+        return f"{kind}: {alt}."
+    if kind == "Formula":
+        return "Formula senza didascalia."
+    return "Figura senza didascalia."
+
+
 def _chapter_html_file(member: str) -> bool:
     return (member or "").lower().endswith((".xhtml", ".html", ".htm", ".xml"))
 
@@ -383,6 +477,7 @@ def _load_epub_page(source: str) -> tuple[dict, str]:
         title=title,
         heads=len(page.get("headings") or []),
         links=len(page.get("links") or []),
+        figures=len(page.get("figures") or []),
     )
     if fragment:
         marker = ""
@@ -452,7 +547,13 @@ def build_page(raw: str, base: str) -> dict:
     )
     headings = []
     links = []
+    figures = []
     anchors: dict[str, str] = {}
+    line_figs: list[dict] = []
+    want_figures = is_epub_source(base)
+    _epub_path, chapter_member, _epub_fragment = (
+        parse_epub_source(base) if want_figures else ("", "", "")
+    )
     lines: list[str] = []
     current: list[str] = []
     pending_anchors: list[str] = []
@@ -497,21 +598,80 @@ def build_page(raw: str, base: str) -> dict:
         if anchor and marker and not anchors.get(anchor):
             anchors[anchor] = marker
 
-    def flush_line():
-        piece = _inline_text("".join(current))
+    def _keep_figure(fig: dict, sentence: str):
+        if len(figures) >= MAX_FIGURES:
+            return
+        figures.append(
+            {
+                "label": sentence,
+                "member": fig.get("member") or "",
+                "alt": fig.get("alt") or "",
+            }
+        )
+
+    def _place_images(raw_current: str, figs: list) -> list[str]:
+        if not figs:
+            piece = _inline_text(raw_current)
+            return [piece] if piece else []
+        text = _inline_text(raw_current)
+        plain = re.sub(r"\ue000\d+\ue001", "", text).strip()
+        if not plain:
+            out = []
+            for fig in figs:
+                if fig.get("role") == "symbol" and not (fig.get("alt") or "").strip():
+                    out.append("simbolo")
+                    continue
+                sentence = figure_sentence(fig.get("alt") or "", "Figura")
+                _keep_figure(fig, sentence)
+                out.append(sentence)
+            return out
+
+        def repl(match):
+            idx = int(match.group(1))
+            if idx < 0 or idx >= len(figs):
+                return " "
+            fig = figs[idx]
+            if fig.get("role") == "symbol" and not (fig.get("alt") or "").strip():
+                return " simbolo "
+            sentence = figure_sentence(fig.get("alt") or "", "Formula")
+            _keep_figure(fig, sentence)
+            return " formula "
+
+        piece = _FIG_TOKEN.sub(repl, text)
+        piece = re.sub(r"\s+", " ", piece).strip()
+        piece = re.sub(r" ([.,;:!?»)])", r"\1", piece)
+        return [piece] if piece else []
+
+    def _take_pieces() -> list[str]:
+        raw_current = "".join(current)
         current.clear()
+        figs = list(line_figs)
+        line_figs.clear()
+        return _place_images(raw_current, figs)
+
+    def flush_line():
+        pieces = _take_pieces()
         hrefs = list(line_hrefs)
         line_hrefs.clear()
-        if piece and len(hrefs) == 1:
-            info = classify_href(base, hrefs[0])
-            token = ""
-            if info.get("kind") == "anchor" and info.get("fragment"):
-                token = "#" + (info.get("fragment") or "")
-            elif info.get("kind") == "http" and len(piece) >= 40:
-                token = info.get("target") or ""
-            if token and token not in piece:
-                piece = piece + " " + token
-        if piece:
+        if len(pieces) == 1:
+            piece = pieces[0]
+            if piece and len(hrefs) == 1:
+                info = classify_href(base, hrefs[0])
+                token = ""
+                if info.get("kind") == "anchor" and info.get("fragment"):
+                    token = "#" + (info.get("fragment") or "")
+                elif info.get("kind") == "http" and len(piece) >= 40:
+                    token = info.get("target") or ""
+                if token and token not in piece:
+                    piece = piece + " " + token
+            if piece:
+                lines.append(piece)
+                while pending_anchors:
+                    remember(pending_anchors.pop(0), piece)
+            return
+        for piece in pieces:
+            if not piece:
+                continue
             lines.append(piece)
             while pending_anchors:
                 remember(pending_anchors.pop(0), piece)
@@ -546,9 +706,26 @@ def build_page(raw: str, base: str) -> dict:
             continue
         if skip_until:
             continue
+        if not closing and name == "img" and want_figures:
+            src = _attr(tag, "src")
+            low_src = (src or "").strip().lower()
+            if src and not low_src.startswith(("http://", "https://", "data:")):
+                member = _resolve_zip_href(
+                    chapter_member,
+                    urllib.parse.unquote(src.split("#", 1)[0].split("?", 1)[0]),
+                )
+                if member:
+                    line_figs.append(
+                        {
+                            "role": epub_image_role(src),
+                            "alt": _attr(tag, "alt"),
+                            "member": member,
+                        }
+                    )
+                    current.append(f"\ue000{len(line_figs) - 1}\ue001")
+            continue
         if closing and heading_level and name == f"h{heading_level}":
-            text = _inline_text("".join(current))
-            current.clear()
+            text = " ".join(piece for piece in _take_pieces() if piece).strip()
             if text:
                 add_heading(heading_level, text, heading_anchor, heading_href)
             else:
@@ -598,8 +775,8 @@ def build_page(raw: str, base: str) -> dict:
             if anchor and anchor not in anchors and anchor not in pending_anchors:
                 pending_anchors.append(anchor)
     flush_line()
-    if heading_level and current:
-        text = _inline_text("".join(current))
+    if heading_level and (current or line_figs):
+        text = " ".join(piece for piece in _take_pieces() if piece).strip()
         if text:
             add_heading(heading_level, text, heading_anchor, heading_href)
     body = "\n".join(lines).strip()
@@ -608,10 +785,11 @@ def build_page(raw: str, base: str) -> dict:
         title = headings[0]["title"] if headings else "Pagina"
     message = MSG_READY.format(title=title, heads=len(headings), links=len(links))
     return {
-        "ok": bool(body or headings or links),
+        "ok": bool(body or headings or links or figures),
         "title": title,
         "headings": headings,
         "links": links,
+        "figures": figures,
         "anchors": anchors,
         "body": body,
         "base": base,
@@ -980,9 +1158,11 @@ class HtmlBrowserFrame(wx.Frame):
     """Pagina HTML dentro RTAD. La stessa frase è in etichetta e in voce."""
 
     def __init__(
-        self, speak, source, parent=None, page_url: str = "", address_label: str = ""
+        self, speak, source, parent=None, page_url: str = "", address_label: str = "",
+        on_figure=None,
     ):
         self.speak = speak or (lambda *_a, **_k: None)
+        self._on_figure = on_figure
         self._alive = True
         self._gen = 0
         self._hint_said = False
@@ -1044,6 +1224,17 @@ class HtmlBrowserFrame(wx.Frame):
         vbox.Add(self.lst_links, 0, wx.EXPAND | wx.ALL, 8)
         self.lst_links.Bind(wx.EVT_LISTBOX_DCLICK, self.on_link)
         self.lst_links.Bind(wx.EVT_SET_FOCUS, lambda e: self._remember_list("links", e))
+
+        self.lst_figures = None
+        if self._epub:
+            vbox.Add(wx.StaticText(panel, label="&Figure"), 0, wx.LEFT | wx.RIGHT, 8)
+            self.lst_figures = wx.ListBox(panel, style=wx.LB_SINGLE)
+            self.lst_figures.SetName("Figure")
+            self.lst_figures.Append(MSG_LOADING_CHAPTER_ROW)
+            self.lst_figures.SetSelection(0)
+            vbox.Add(self.lst_figures, 0, wx.EXPAND | wx.ALL, 8)
+            self.lst_figures.Bind(wx.EVT_LISTBOX_DCLICK, self.on_figure)
+            self.lst_figures.Bind(wx.EVT_SET_FOCUS, lambda e: self._remember_list("figures", e))
 
         vbox.Add(wx.StaticText(panel, label="&Testo"), 0, wx.LEFT | wx.RIGHT, 8)
         self.txt = wx.TextCtrl(
@@ -1186,7 +1377,7 @@ class HtmlBrowserFrame(wx.Frame):
             return item.get("target") or item.get("href") or ""
         return item.get("href") or ""
 
-    def _fill_lists(self, headings, links, loading=False, toc=None):
+    def _fill_lists(self, headings, links, loading=False, toc=None, figures=None):
         row = MSG_LOADING_CHAPTER_ROW if self._epub else MSG_LOADING_ROW
         if self.lst_toc is not None:
             self.lst_toc.Clear()
@@ -1203,9 +1394,13 @@ class HtmlBrowserFrame(wx.Frame):
                 self.lst_toc.SetSelection(0)
         self.lst_heads.Clear()
         self.lst_links.Clear()
+        if self.lst_figures is not None:
+            self.lst_figures.Clear()
         if loading:
             self.lst_heads.Append(row)
             self.lst_links.Append(row)
+            if self.lst_figures is not None:
+                self.lst_figures.Append(row)
         else:
             if headings:
                 for i, item in enumerate(headings, 1):
@@ -1221,10 +1416,20 @@ class HtmlBrowserFrame(wx.Frame):
                     )
             else:
                 self.lst_links.Append(MSG_NO_LINK)
+            if self.lst_figures is not None:
+                if figures:
+                    for i, item in enumerate(figures, 1):
+                        self.lst_figures.Append(
+                            f"{i}. {item.get('label') or ''}"
+                        )
+                else:
+                    self.lst_figures.Append(MSG_NO_FIGURE)
         if self.lst_heads.GetCount():
             self.lst_heads.SetSelection(0)
         if self.lst_links.GetCount():
             self.lst_links.SetSelection(0)
+        if self.lst_figures is not None and self.lst_figures.GetCount():
+            self.lst_figures.SetSelection(0)
 
     def _select_toc(self, page: dict):
         if self.lst_toc is None:
@@ -1265,6 +1470,7 @@ class HtmlBrowserFrame(wx.Frame):
             page.get("headings") or [],
             page.get("links") or [],
             toc=page.get("toc") or [],
+            figures=page.get("figures") or [],
         )
         if page.get("kind") == "epub":
             self._select_toc(page)
@@ -1411,6 +1617,35 @@ class HtmlBrowserFrame(wx.Frame):
         if not item:
             return
         self._activate_link(item)
+
+    def on_figure(self, event=None):
+        if self.lst_figures is None:
+            return
+        label = self.lst_figures.GetStringSelection() or ""
+        if label in (MSG_LOADING_ROW, MSG_LOADING_CHAPTER_ROW, MSG_NO_FIGURE):
+            self._say(label or MSG_NO_FIGURE)
+            return
+        page = self.current_page()
+        item = self._selected(self.lst_figures, page.get("figures") or [], MSG_NO_FIGURE)
+        if not item:
+            return
+        sentence = (item.get("label") or "").strip() or MSG_NO_FIGURE
+        epub_path, _member, _fragment = parse_epub_source(
+            page.get("source") or page.get("base") or ""
+        )
+        image = materialize_epub_image(epub_path, item.get("member") or "")
+        if not image:
+            self._set_status(MSG_FIGURE_MISS)
+            self._say(f"{sentence} {MSG_FIGURE_MISS}")
+            return
+        self._set_status(f"{sentence} {MSG_FIGURE_OPEN}")
+        self._say(f"{sentence} {MSG_FIGURE_OPEN}")
+        if self._on_figure:
+            try:
+                self._on_figure(image)
+            except Exception:
+                import logging
+                logging.getLogger("rtad.html").exception("figura epub")
 
     def go_back(self):
         if self.index <= 0:
@@ -1727,6 +1962,9 @@ class HtmlBrowserFrame(wx.Frame):
             if focus is self.lst_links:
                 self.on_link()
                 return
+            if self.lst_figures is not None and focus is self.lst_figures:
+                self.on_figure()
+                return
             if focus is self.txt:
                 url = self._url_on_caret_line()
                 if url:
@@ -1736,11 +1974,13 @@ class HtmlBrowserFrame(wx.Frame):
 
 
 def open_browser(
-    speak, source, keep=None, page_url: str = "", address_label: str = ""
+    speak, source, keep=None, page_url: str = "", address_label: str = "",
+    on_figure=None,
 ):
     """Apre il lettore e, se serve, lo tiene in una lista contro il garbage collector."""
     frame = HtmlBrowserFrame(
-        speak, source, page_url=page_url, address_label=address_label
+        speak, source, page_url=page_url, address_label=address_label,
+        on_figure=on_figure,
     )
     if keep is not None:
         keep.append(frame)
@@ -1757,7 +1997,7 @@ def open_browser(
     return frame
 
 
-def open_epub(speak, file_path, keep=None):
+def open_epub(speak, file_path, keep=None, on_figure=None):
     """Apre il primo capitolo di un EPUB nella stessa finestra della pagina HTML."""
     import rtad_docstruct as docstruct
 
@@ -1769,7 +2009,12 @@ def open_epub(speak, file_path, keep=None):
         except Exception:
             pass
         return None
-    return open_browser(speak, epub_source(file_path, book["start"]), keep=keep)
+    return open_browser(
+        speak,
+        epub_source(file_path, book["start"]),
+        keep=keep,
+        on_figure=on_figure,
+    )
 
 
 def _decode_mail_header(raw) -> str:

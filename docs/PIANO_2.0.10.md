@@ -26,7 +26,7 @@ Menu Strumenti, e sul risultato PDF la voce «PDF e testo…». Invio sulla voce
 - Aggiungi file, Aggiungi cartella, Incolla. Le cartelle dentro non si aprono. Control+Alt+V fa la stessa cosa di Incolla. Trascinare un PDF o una cartella sulla finestra fa la stessa cosa.
 - Dall’elenco, Alt e la lettera: A Aggiungi file, K Aggiungi cartella, H Incolla, S Sposta su, G Sposta giù, D Metti da parte, T Tieni queste pagine, E Scrivi il PDF, U Unisci i PDF, Z Unisci i testi. Alt+P, in questa finestra, legge lo Stato: premuto due volte di seguito lo copia. Alt+R resta a NVIDIA.
 
-Nella Standalone installata, in Esplora file: «PDF e testo». Invia a: «PDF e testo RTAD». Portable e Add-on: niente voce automatica in Esplora.
+Nella Standalone installata, in Esplora file: «PDF e testo». Invia a: «PDF e testo RTAD». In Apri con c’è Ricerca Testuale Accesso Digitale: Sempre lo rende il lettore predefinito dei PDF. Lo sceglie lui, nelle app predefinite di Windows. Portable e Add-on non possono.
 
 Le pagine si copiano dal PDF, con `pypdf` nel programma. Il writer della 2.0.9, che disegna foto su un foglio, qui non si usa.
 

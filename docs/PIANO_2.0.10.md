@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.10
 
-**Pubblicata** il 24/11/2026. GitHub `v2.0.10` / `app-v2.0.10`. Il commit corto e il numero DataStore si aggiungono quando esistono. Versione `2.0.10`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere, non `CheckListBox`.
+**Pubblicata** il 24/11/2026. GitHub `v2.0.10` / `app-v2.0.10`, commit `046f0cd`. Il numero DataStore si aggiunge quando lo store l’accetta. Versione `2.0.10`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere, non `CheckListBox`.
 
 L’ultima pubblicata prima di questa era la `2.0.9` (22/11/2026, GitHub `v2.0.9` / `app-v2.0.9`, commit `7a8ef52`, DataStore #13179 via #13180 accettato). Non si tocca. Piano `docs/PIANO_2.0.9.md`.
 

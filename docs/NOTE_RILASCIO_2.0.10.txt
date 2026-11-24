@@ -7,7 +7,7 @@ Ordine campi GitHub «Draft new release»:
 Ordine campi NVDA Add-on DataStore:
   Summary → Download URL → Source URL → Nome e cognome → License → License URL
 
-Pubblicata il 24/11/2026. GitHub `v2.0.10` / `app-v2.0.10`. Il commit corto e il numero DataStore si aggiungono quando esistono.
+Pubblicata il 24/11/2026. GitHub `v2.0.10` / `app-v2.0.10`, commit `046f0cd`. Il numero DataStore si aggiunge quando lo store l’accetta.
 
 ════════════════════════════════════════════════════════
 ADD-ON — Release GitHub

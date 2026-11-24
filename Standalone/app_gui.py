@@ -105,6 +105,11 @@ except ImportError:
     rtad_image = None
 
 try:
+    import rtad_pdfdoc
+except ImportError:
+    rtad_pdfdoc = None
+
+try:
     import rtad_convert
 except ImportError:
     rtad_convert = None
@@ -130,7 +135,7 @@ except ImportError:
     rtad_picker = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.9"
+APP_VERSION = "2.0.10"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -7898,6 +7903,15 @@ def report_save_stem_for_path(file_path):
     stem = os.path.splitext(base)[0] or "rtad_report"
     # Titolo/ID solo per scarichi RTAD (prefisso rtad_media_* o rtad_fig_*).
     # Un file locale rinominato (anche con .rtad_src.json) tiene lo stem disco.
+    # La figura di una pagina PDF porta il nome del PDF e il numero di pagina.
+    if (base or "").lower().startswith("rtad_pagina_") and rtad_media is not None and file_path:
+        try:
+            meta = rtad_media.read_media_source_meta(file_path)
+            title = str(meta.get("save_stem") or "").strip()
+            if title:
+                return _safe_filename_stem(title, fallback=stem)
+        except Exception:
+            pass
     use_source_meta = (base or "").lower().startswith(("rtad_media_", "rtad_fig_"))
     if use_source_meta:
         try:
@@ -7919,6 +7933,16 @@ def report_save_dir_for_path(file_path):
     if not file_path:
         return ""
     base = os.path.basename(file_path).lower()
+    if base.startswith("rtad_pagina_") and rtad_media is not None:
+        try:
+            pdf = str(
+                rtad_media.read_media_source_meta(file_path).get("pdf") or ""
+            ).strip()
+        except Exception:
+            pdf = ""
+        folder = os.path.dirname(os.path.abspath(pdf)) if pdf else ""
+        if folder and os.path.isdir(folder) and not _looks_like_temp_dir(folder):
+            return folder
     if base.startswith("rtad_fig_") and rtad_media is not None:
         try:
             epub = str(
@@ -12199,19 +12223,49 @@ class DocumentStructureFrame(wx.Frame):
             except Exception:
                 pass
             for i, item in enumerate(self.outline, 1):
-                level = int(item.get("level") or 1)
-                indent = "  " * max(0, level - 1)
-                title = item.get("title") or ""
-                page = item.get("page")
-                # «i.» = posizione in lista (non la pagina PDF); la pagina va esplicita
-                page_bit = f" — pag. PDF {int(page)}" if page else ""
-                self.lst_outline.Append(
-                    f"{i}. {indent}[H{level}] {title}{page_bit}"
-                )
+                self.lst_outline.Append(self._outline_row_label(i, item))
             vbox.Add(self.lst_outline, 0, wx.EXPAND | wx.ALL, 8)
             self.lst_outline.Bind(wx.EVT_LISTBOX_DCLICK, self.on_outline_activate)
+            self.lst_outline.Bind(wx.EVT_LISTBOX, self._sync_figure_page_from_selection)
         else:
             self.lst_outline = None
+
+        self.txt_page_figure = None
+        self._figure_busy = False
+        self._figure_page_auto = ""
+        if (self.file_path or "").lower().endswith(".pdf"):
+            hint_fig = wx.StaticText(
+                panel,
+                label=(
+                    "La figura è una pagina di questo file. "
+                    "Scrivi il numero, da 1 all'ultima. "
+                    "Una voce del sommario che indica una pagina del volume, "
+                    "se non è in questo file, non la apre. "
+                    "Invio sul pulsante Figura di questa pagina, o un clic."
+                ),
+            )
+            try:
+                hint_fig.SetName("Figura")
+            except Exception:
+                pass
+            vbox.Add(hint_fig, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+            row_fig = wx.BoxSizer(wx.HORIZONTAL)
+            row_fig.Add(
+                wx.StaticText(panel, label="Pagina"),
+                0,
+                wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
+                6,
+            )
+            self.txt_page_figure = wx.TextCtrl(panel, size=(80, -1))
+            try:
+                self.txt_page_figure.SetName("Pagina")
+            except Exception:
+                pass
+            row_fig.Add(self.txt_page_figure, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+            btn_fig = wx.Button(panel, label="&Figura di questa pagina")
+            btn_fig.Bind(wx.EVT_BUTTON, self.on_page_figure)
+            row_fig.Add(btn_fig, 0, wx.ALIGN_CENTER_VERTICAL)
+            vbox.Add(row_fig, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         self.lbl_link_result = None
         if self.links:
@@ -12330,6 +12384,17 @@ class DocumentStructureFrame(wx.Frame):
             self._reload_reading_list(report)
             self._arm_reading_resume(report)
 
+        self.lbl_passage = wx.StaticText(
+            panel,
+            label=(
+                "Salva la selezione scrive solo il testo selezionato nel riquadro. "
+                "Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. "
+                "Invio sul pulsante, o un clic."
+            ),
+        )
+        self.lbl_passage.SetName("Selezione")
+        vbox.Add(self.lbl_passage, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_open_link = None
         if self.links:
@@ -12345,6 +12410,9 @@ class DocumentStructureFrame(wx.Frame):
         btn_save = wx.Button(panel, label="&Salva testo…")
         btn_save.Bind(wx.EVT_BUTTON, self.on_save_text)
         hbox.Add(btn_save, 0, wx.ALL, 5)
+        btn_passage = wx.Button(panel, label="Salva la selezione (&D)")
+        btn_passage.Bind(wx.EVT_BUTTON, self.on_save_passage)
+        hbox.Add(btn_passage, 0, wx.ALL, 5)
         self.btn_translate = None
         if rtad_translate is not None:
             self.btn_translate = wx.Button(panel, label="Trad&uci…")
@@ -12378,6 +12446,7 @@ class DocumentStructureFrame(wx.Frame):
             self.lst_links,
             self.lst_reading,
             self.txt_display,
+            self.txt_page_figure,
         ):
             if ctrl is not None:
                 ctrl.Bind(wx.EVT_SET_FOCUS, self._on_reader_child_focus)
@@ -12388,6 +12457,7 @@ class DocumentStructureFrame(wx.Frame):
             resume_lead = (self._reading_sentence or "").strip()
         elif self.lst_outline is not None and self.lst_outline.GetCount() > 0:
             self.lst_outline.SetSelection(0)
+            self._sync_figure_page_from_selection()
             self.lst_outline.SetFocus()
         else:
             self.txt_display.SetFocus()
@@ -12402,7 +12472,9 @@ class DocumentStructureFrame(wx.Frame):
             "Control+Shift+B: torna all'ultimo. Invio sull'elenco: scegli un altro. "
             "I link «Sito web» sono esterni. "
             "Invio o doppio clic: un link interno va a quel titolo, qui. "
-            "Un sito web si apre fuori. Un clic solo seleziona la riga."
+            "Un sito web si apre fuori. Un clic solo seleziona la riga. "
+            "Salva la selezione scrive solo il testo selezionato nel riquadro. "
+            "La figura della pagina si apre con Invio sul pulsante Figura di questa pagina, o un clic."
             + (" Alt+U: traduci." if rtad_translate is not None else "")
         )
 
@@ -12541,6 +12613,38 @@ class DocumentStructureFrame(wx.Frame):
             mode = ""
         return mode or ""
 
+    def _section_here_sentence(self, title, jumped, page):
+        """Esito di una sezione: resta nel lettore. Stessa frase a schermo e a voce."""
+        page_bit = ""
+        try:
+            if page:
+                page_bit = f" È la pagina {int(page)} di questo file."
+        except (TypeError, ValueError):
+            page_bit = ""
+        external = (
+            " La figura della pagina si apre con Invio sul pulsante Figura di questa pagina, o un clic."
+        )
+        if jumped == "section":
+            return f"Testo sulla sezione «{title}».{page_bit}"
+        if jumped == "index_only":
+            return (
+                f"Per «{title}» in questo testo c'è solo la riga dell'indice.{page_bit}"
+                + external
+            )
+        return (
+            f"Sezione «{title}». Il testo di questa sezione non è in questo lettore.{page_bit}"
+            + external
+        )
+
+    def _show_section_result(self, sentence):
+        try:
+            if self.lbl_summary is not None:
+                self.lbl_summary.SetLabel(sentence)
+                self.lbl_summary.Wrap(680)
+        except Exception:
+            pass
+        speak_accessible(sentence)
+
     def on_outline_activate(self, event=None):
         if self.lst_outline is None:
             return
@@ -12548,80 +12652,208 @@ class DocumentStructureFrame(wx.Frame):
         if sel == wx.NOT_FOUND or sel < 0 or sel >= len(self.outline):
             return
         item = self.outline[sel]
-        title = (item.get("title") or "").strip()
+        title = (item.get("title") or "").strip() or "sezione"
         jumped = self._jump_outline_in_text(item)
-        is_pdf = bool(
-            self.file_path
-            and os.path.splitext(self.file_path)[1].lower() == ".pdf"
-        )
-        prefer_text = jumped in ("section", "index_only")
-
-        def _refocus(prefer=prefer_text):
-            try:
-                self.Iconize(False)
-                self.Raise()
-                self.Show()
-                if prefer and self.txt_display is not None:
-                    self.txt_display.SetFocus()
-                elif self.lst_outline is not None:
-                    self.lst_outline.SetFocus()
-                elif self.txt_display is not None:
-                    self.txt_display.SetFocus()
-            except Exception:
-                pass
-
-        def _after_open(open_mode=""):
-            if open_mode == "page" and jumped == "section":
-                speak_accessible(
-                    f"Sezione «{title}» nel testo RTAD e PDF aperto alla pagina. "
-                    f"Focus sul testo del documento."
-                )
-            elif open_mode == "page":
-                speak_accessible(
-                    f"Apro il PDF alla pagina con l'app predefinita («{title}»). "
-                    + (
-                        "In RTAD c'è solo l'indice di questa lingua. "
-                        if jumped == "index_only"
-                        else "Per leggere usa il testo qui in RTAD. "
-                    )
-                )
-            elif open_mode == "file" and jumped == "section":
-                speak_accessible(
-                    f"Testo sulla sezione «{title}»; PDF aperto con l'app predefinita "
-                    f"(senza salto pagina garantito)."
-                )
-            elif open_mode == "file":
-                speak_accessible(
-                    f"PDF aperto con l'app predefinita («{title}»). "
-                    + (
-                        "In RTAD c'è solo l'indice; vai alla pagina stampata nel visualizzatore."
-                        if jumped == "index_only"
-                        else ""
-                    )
-                )
-            elif jumped == "section":
-                speak_accessible(f"Testo sulla sezione «{title}».")
+        page = self._outline_page(item)
+        total = self._file_page_total()
+        if page and total and page > total:
+            self._sync_figure_page_from_selection()
+            where = f"«{title}» indica la pagina {page} del volume. "
+            where += (
+                f"Questo file ha {total} pagine, dalla 1 alla {total}. "
+                f"Per la figura, scrivi un numero da 1 a {total} nel campo Pagina, "
+                "poi Invio sul pulsante Figura di questa pagina, o un clic."
+            )
+            if jumped == "section":
+                where = f"Testo sulla sezione «{title}». " + where
             elif jumped == "index_only":
-                speak_accessible(
-                    f"Per «{title}» in RTAD c'è solo l'indice (corpo non estraibile). "
-                    f"Controlla l'app predefinita per i PDF in Windows e riprova Invio."
+                where = (
+                    f"Per «{title}» in questo testo c'è solo la riga dell'indice. "
+                    + where
                 )
-            else:
-                speak_accessible(f"Titolo in sommario: {title}")
-            wx.CallLater(500, _refocus)
+            self._show_section_result(where)
+            return
+        self._sync_figure_page_from_selection()
+        self._show_section_result(
+            self._section_here_sentence(title, jumped, page)
+        )
 
-        if is_pdf:
-            def _open():
-                mode = ""
+    def _file_page_total(self):
+        cached = getattr(self, "_file_page_total_cache", None)
+        if cached is None:
+            total = 0
+            path = self.file_path or ""
+            if path.lower().endswith(".pdf") and rtad_docstruct is not None:
                 try:
-                    mode = self._open_pdf_page_from_item(item)
+                    total = int(rtad_docstruct.pdf_file_page_count(path) or 0)
                 except Exception:
-                    mode = ""
-                _after_open(mode)
+                    total = 0
+            self._file_page_total_cache = total if total > 0 else 0
+        return self._file_page_total_cache
 
-            wx.CallAfter(_open)
-        else:
-            _after_open("")
+    def _page_in_this_file(self, page):
+        try:
+            page = int(page)
+        except (TypeError, ValueError):
+            return False
+        if page < 1:
+            return False
+        total = self._file_page_total()
+        if total and page > total:
+            return False
+        return True
+
+    def _outline_row_label(self, index, item):
+        title = (item.get("title") or "").strip() or "sezione"
+        page = self._outline_page(item)
+        total = self._file_page_total()
+        if page and total and page > total:
+            return (
+                f"Voce {index}. {title}. Nel volume è la pagina {page}. "
+                f"In questo file le pagine vanno da 1 a {total}."
+            )
+        if page and self._page_in_this_file(page):
+            return f"Pagina {page} di questo file. {title}."
+        return f"Voce {index}. {title}."
+
+    def _outline_page(self, item):
+        if rtad_docstruct is not None:
+            return rtad_docstruct.outline_file_page(item)
+        return None
+
+    def _sync_figure_page_from_selection(self, event=None):
+        """Il numero della sezione selezionata entra nel campo Pagina."""
+        if self.txt_page_figure is None:
+            return
+        page = None
+        if self.lst_outline is not None and self.outline:
+            sel = self.lst_outline.GetSelection()
+            if sel != wx.NOT_FOUND and 0 <= sel < len(self.outline):
+                page = self._outline_page(self.outline[sel])
+                if not self._page_in_this_file(page):
+                    page = None
+        current = (self.txt_page_figure.GetValue() or "").strip()
+        auto = getattr(self, "_figure_page_auto", "")
+        if current and current != auto:
+            return
+        shown = str(page) if page else ""
+        self._figure_page_auto = shown
+        if current != shown:
+            self.txt_page_figure.ChangeValue(shown)
+
+    def _figure_page_number(self):
+        raw = ""
+        if self.txt_page_figure is not None:
+            raw = (self.txt_page_figure.GetValue() or "").strip()
+        if raw:
+            if not raw.isdigit():
+                return None, "La pagina non è un numero."
+            return int(raw), ""
+        if self.lst_outline is not None and self.outline:
+            sel = self.lst_outline.GetSelection()
+            if sel != wx.NOT_FOUND and 0 <= sel < len(self.outline):
+                page = self._outline_page(self.outline[sel])
+                if page:
+                    return page, ""
+        return None, (
+            "Scrivi il numero della pagina, oppure seleziona una sezione che indica la pagina, "
+            "poi Invio sul pulsante Figura di questa pagina, o un clic."
+        )
+
+    def on_page_figure(self, event=None):
+        if getattr(self, "_figure_busy", False):
+            self._show_section_result("Disegno la pagina. Attendere prego.")
+            return
+        page, err = self._figure_page_number()
+        if not page:
+            self._show_section_result(err or "La pagina non è un numero.")
+            return
+        if rtad_docstruct is None:
+            self._show_section_result(
+                "Questa pagina non si è disegnata. Il file di partenza resta com'è."
+            )
+            return
+        total = rtad_docstruct.pdf_file_page_count(self.file_path)
+        if total == -1:
+            self._show_section_result(
+                "Questo PDF è protetto. Il file di partenza resta com'è."
+            )
+            return
+        if total and (page < 1 or page > total):
+            self._show_section_result(
+                f"La pagina {page} non è in questo file: ne ha {total}, dalla 1 alla {total}. "
+                f"Scrivi un numero da 1 a {total} nel campo Pagina, "
+                "poi Invio sul pulsante Figura di questa pagina, o un clic."
+            )
+            return
+        name = os.path.basename(self.file_path)
+        self._show_section_result(
+            f"Disegno la pagina {page} di {name}. Attendere prego."
+        )
+        self._figure_busy = True
+        pdf_path = self.file_path
+
+        def _work():
+            fd, dest = tempfile.mkstemp(suffix=".png", prefix="rtad_pagina_")
+            os.close(fd)
+            try:
+                ok, msg = rtad_docstruct.render_pdf_page(pdf_path, page, dest)
+            except Exception:
+                ok, msg = False, ""
+            ocr = ""
+            if ok and rtad_ocr is not None:
+                try:
+                    ocr = (rtad_ocr.ocr_image_file(dest) or "").strip()
+                except Exception:
+                    ocr = ""
+
+            def _done():
+                self._figure_busy = False
+                if not ok:
+                    self._show_section_result(
+                        msg
+                        or "Questa pagina non si è disegnata. Il file di partenza resta com'è."
+                    )
+                    try:
+                        os.remove(dest)
+                    except OSError:
+                        pass
+                    return
+                sentence = f"Pagina {page} di {name}. La figura è in questa finestra. "
+                if ocr:
+                    sentence += "Il testo disegnato è nel riquadro sotto. "
+                else:
+                    sentence += "Nessun testo disegnato in questa pagina. "
+                sentence += (
+                    "Salva testo e Salva immagine scrivono accanto a questo PDF: "
+                    "Invio sul pulsante, o un clic. "
+                    "Stampa testo e Stampa immagine mandano alla stampante: "
+                    "Invio sul pulsante, o un clic. "
+                    "Invio sul pulsante Tutto sull'immagine, o un clic, la descrive."
+                )
+
+                def _full(path):
+                    for window in wx.GetTopLevelWindows():
+                        opener = getattr(window, "show_image_all_dialog", None)
+                        if callable(opener) and window is not self:
+                            opener(path)
+                            return
+                    speak_accessible("Tutto sull'immagine non è in questa finestra.")
+
+                rtad_docstruct.show_pdf_page_figure(
+                    dest,
+                    f"Pagina {page} — {name}",
+                    sentence,
+                    ocr,
+                    speak_accessible,
+                    _full,
+                    pdf_path=pdf_path,
+                    page=page,
+                )
+
+            wx.CallAfter(_done)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def _say_link(self, sentence):
         try:
@@ -12660,14 +12892,15 @@ class DocumentStructureFrame(wx.Frame):
         href = (item.get("href") or "").strip()
         text = (item.get("text") or "").strip()
         if href.lower().startswith("rtad-pdf-page:") or item.get("page"):
-            mode = self._open_pdf_page_from_item(item)
-            if mode == "page":
-                speak_accessible("PDF aperto alla pagina con l'app.")
-                return
-            if mode == "file":
-                speak_accessible("PDF aperto con l'app predefinita.")
-                return
-            speak_accessible("Impossibile aprire il PDF con l'app di sistema.")
+            page = item.get("page")
+            m_page = re.match(r"rtad-pdf-page:(\d+)$", href, re.I)
+            if not page and m_page:
+                page = int(m_page.group(1))
+            title = (text or str(item.get("target_title") or "")).strip() or "sezione"
+            jumped = self._jump_outline_in_text({"title": title, "level": 1})
+            self._show_section_result(
+                self._section_here_sentence(title, jumped, page)
+            )
             return
         if href.lower().startswith(("http://", "https://")):
             opened = False
@@ -13054,6 +13287,44 @@ class DocumentStructureFrame(wx.Frame):
         except Exception as e:
             speak_accessible(f"Salvataggio non riuscito: {e}")
 
+    def on_save_passage(self, event=None):
+        """Scrive solo il testo selezionato, accanto al file."""
+        if rtad_pdfdoc is None:
+            sentence = "Modulo PDF e testo non disponibile."
+            self._show_passage(sentence)
+            return
+        try:
+            chosen = self.txt_display.GetStringSelection() or ""
+        except Exception:
+            chosen = ""
+        stem = report_save_stem_for_path(self.file_path)
+        folder = ""
+        if self.file_path:
+            cand = os.path.dirname(os.path.abspath(self.file_path))
+            if cand and os.path.isdir(cand) and not _looks_like_temp_dir(cand):
+                folder = cand
+        if not folder:
+            folder = load_last_media_report_dir() or os.path.expanduser("~")
+        ok, sentence, path = rtad_pdfdoc.save_passage(chosen, folder, stem)
+        if ok and path:
+            save_last_media_report_dir(path)
+        self._show_passage(sentence)
+
+    def _show_passage(self, sentence):
+        sentence = (sentence or "").strip()
+        if getattr(self, "lbl_passage", None) is not None and sentence:
+            self.lbl_passage.SetLabel(sentence)
+            try:
+                self.lbl_passage.Wrap(720)
+            except Exception:
+                pass
+            try:
+                self.Layout()
+            except Exception:
+                pass
+        if sentence:
+            speak_accessible(sentence)
+
     def _show_reading_status(self, sentence, speak=True):
         sentence = (sentence or "").strip()
         if self.lbl_reading is not None and sentence:
@@ -13306,6 +13577,9 @@ class DocumentStructureFrame(wx.Frame):
             if self.lst_outline is not None and focused is self.lst_outline:
                 self.on_outline_activate()
                 return
+            if self.txt_page_figure is not None and focused is self.txt_page_figure:
+                self.on_page_figure()
+                return
         event.Skip()
 
 
@@ -13325,7 +13599,7 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.\n• Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».\n• Resta dalla 2.0.8: Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\\Roaming\\RTAD\\media_marks.json. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.\n• Resta dalla 2.0.8: Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.8: Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video (sostituzione). Utile anche se il video è muto. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
+            "• In PDF e testo, Invio sul pulsante Scrivi il PDF, o un clic, scrive le pagine da-a del PDF selezionato. Pagina 1 è la prima del file. Se scrivi solo A, parte dalla prima. Se scrivi solo Da, arriva fino all'ultima. Il file si chiama nome-pagine-3-8. Con almeno due PDF, Invio sul pulsante Unisci i PDF, o un clic, li mette nell'ordine dell'elenco: il file si chiama nome1-pagine-1-13-unione-nome2-pagine-1-8-9-20. Da tre file in su: i primi due, con le loro pagine, e e-N. Se su una riga tieni più intervalli, restano tutti: Invio sul pulsante Tieni queste pagine, o un clic, aggiunge il blocco e non cancella i precedenti. Unisci i PDF e Unisci i testi usano tutti gli intervalli della riga, nell'ordine in cui li hai tenuti. Nell'elenco PDF, nell'ordine, il nome resta quello del file caricato, intero. Dopo Scrivi o Unisci, le pagine tenute si staccano da quella riga. Il nome nuovo sta solo in Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco, se vuoi unire quel file nuovo. Invio sul pulsante Metti da parte, o un clic, toglie la riga dall'elenco di lavoro e la lascia in Da parte. Il file sul disco resta. Invio o doppio clic su una riga di Da parte la rimette nell'elenco. Un clic solo seleziona la riga. Invio sul pulsante Unisci i testi, o un clic, scrive un testo: ogni file è un titolo, sotto ci sono le pagine tenute, per esempio pagine 9-20 di 115. Lo Stato dice le stesse pagine. Vale anche con un solo PDF. Se la pagina non c'è: «La pagina 40 non c'è: questo file ne ha 12.» Un PDF di sole scansioni resta un PDF di quelle pagine. Il testo si crea lo stesso, e dentro c'è solo: «Nessun testo in queste pagine.» Se il PDF di partenza ha una firma, lo Stato dice che il file nuovo non la porta. Il file di partenza resta com'è. Se il nome c'è già, si aggiunge -2. Lo Stato, la barra di stato e Fatti dicono la stessa frase. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato PDF, nel menu: PDF e testo…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un PDF c'è PDF e testo. Invia a ha PDF e testo RTAD. Portable e Add-on: niente Invia a automatico.\n• Nel lettore, Invio sul pulsante Salva la selezione, o un clic, scrive solo il testo selezionato: nome-selezione. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Se non c'è una selezione: «Nessun testo selezionato. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Poi Invio sul pulsante Salva la selezione, o un clic.» Salva testo resta tutto il documento. Vale per ogni documento aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Nel lettore, Invio o doppio clic su una sezione del sommario resta qui: va al testo di quella sezione. Non apre l'app predefinita. A schermo e a voce dice la sezione e, se c'è, la pagina di questo file. La figura della pagina si apre qui: scrivi il numero, oppure seleziona una sezione che indica la pagina, poi Invio sul pulsante Figura di questa pagina, o un clic. La pagina si vede nella finestra e il testo disegnato è nel riquadro sotto. Invio sul pulsante Tutto sull'immagine, o un clic, la descrive. Salva testo e Salva immagine scrivono accanto a questo PDF, con il nome del PDF e il numero di pagina: Invio sul pulsante, o un clic. Stampa testo e Stampa immagine mandano alla stampante: Invio sul pulsante, o un clic. Vale per ogni PDF aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Resta dalla 2.0.9: In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.\n• Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».\n• Resta dalla 2.0.8: Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\\Roaming\\RTAD\\media_marks.json. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.\n• Resta dalla 2.0.8: Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.8: Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video (sostituzione). Utile anche se il video è muto. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
             "• Resta dalla 2.0.2: Salva immagine, se la pagina consegna il testo del post, propone il testo del post come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.\n"
             "• Resta dalla 2.0.2: Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\\Roaming\\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»\n"
             "• Resta dalla 2.0.1: Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.\n"
@@ -13618,6 +13892,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Strumenti, Riproduttore audio/video… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato: Riproduci con RTAD. Freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù volume fino a 200. Pausa/Riprendi e Ferma. Segnalibri con Pausa o Ferma; Alt+V o Vai al segnalibro riparte da lì. Nella Standalone installata: Cerca con Accesso Digitale → Riproduci con RTAD; Invia a → Riproduttore RTAD; Apri con; Strumenti → Imposta riproduttore predefinito in Windows.\n"
             "  - Strumenti, Taglia e unisci audio/video… : Invio sulla voce, o un clic, apre la finestra. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama nome1-unione-nome2. Da tre file in su: i primi due e e-N. Se il nome c'è già, si aggiunge -2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Invio sul pulsante Esegui, o un clic, taglia la riga selezionata. Invio sul pulsante Unisci, o un clic, unisce almeno due file. Il file di partenza resta com'è.\n"
             "  - Strumenti, Taglia e unisci immagini… : Invio sulla voce, o un clic, apre la finestra. L'anteprima è più alta. Il file scritto resta a misura intera. Invio sul pulsante Un quarto a destra, Un quarto a sinistra o Mezzo giro, o un clic, gira l'immagine. Invio sul pulsante Esegui, o un clic, scrive nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, tiene quel taglio. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri, sinistra, alto, larghezza e altezza, si riempiono. Invio sul pulsante Esegui, o un clic, scrive il taglio. Invio sul pulsante Uno sotto l'altro o Uno accanto all'altro, o un clic, unisce almeno due immagini. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. Il file di partenza resta com'è.\n"
+            "  - Strumenti, PDF e testo… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un PDF: PDF e testo. Da e A sono le pagine. Pagina 1 è la prima del file. Invio sul pulsante Scrivi il PDF, o un clic, scrive nome-pagine-3-8. Invio sul pulsante Unisci i PDF, o un clic, unisce almeno due PDF: nome1-unione-nome2. Invio sul pulsante Unisci i testi, o un clic, scrive un testo con il nome di ogni file come titolo. Nel lettore, Invio sul pulsante Salva la selezione, o un clic, scrive solo il testo selezionato: nome-selezione. Nella Standalone installata, in Esplora file: PDF e testo. Invia a: PDF e testo RTAD. Portable e Add-on: niente Invia a automatico.\n"
             "  - Strumenti, Converti audio e video… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Converti. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Nell'elenco Formato, freccia su e freccia giù scelgono. Invio sul pulsante Converti la riga, o un clic, scrive il file selezionato. Invio sul pulsante Converti tutti, o un clic, scrive ogni riga. Da un video a un formato audio si tiene solo l'audio. Un audio non diventa un video. Il file di partenza resta com'è.\n"
             "  - Nella finestra Confronta: Alt + A aggiunge, Alt + L toglie, anche prima di Invio. Canc sull'elenco toglie\n"
             "  - Nella scelta: Shift + freccia giù, Control + freccia, Control + Spazio, Alt + C cambia cartella\n"
@@ -14348,6 +14623,8 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "Co&nverti audio e video…"
         )
         self.Bind(wx.EVT_MENU, self.on_convert_dialog, item_convert)
+        item_pdfdoc = tools_menu.Append(wx.ID_ANY, "PDF e &testo…")
+        self.Bind(wx.EVT_MENU, self.on_pdfdoc_dialog, item_pdfdoc)
         item_batch_media = tools_menu.Append(
             wx.ID_ANY, "Anali&zza cartella audio/video…"
         )
@@ -19714,6 +19991,7 @@ class MainWindow(wx.Frame):
         item_convert = None
         item_image_clip = None
         item_image_pdf = None
+        item_pdfdoc = None
         item_media_tech = None
         item_media_desc = None
         media_for_actions = (
@@ -19753,6 +20031,7 @@ class MainWindow(wx.Frame):
             item_pdf_describe = menu.Append(
                 wx.ID_ANY, "Descrivi immagine da PDF"
             )
+            item_pdfdoc = menu.Append(wx.ID_ANY, "PDF e testo…")
         item_read_doc = None
         item_copy_doc = None
         is_shell_doc = ext_sel in SHELL_DOCUMENT_EXTS or is_pdf_result
@@ -19922,6 +20201,12 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e: self.describe_image_from_pdf(file_path),
                 item_pdf_describe,
+            )
+        if item_pdfdoc is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=file_path: self.on_pdfdoc_dialog(path=p),
+                item_pdfdoc,
             )
         if item_read_doc is not None:
             self.Bind(
@@ -20310,6 +20595,41 @@ class MainWindow(wx.Frame):
         if path:
             items.insert(0, path)
         rtad_image.open_dialog(self, speak_accessible, items, make_pdf=True)
+
+    def _selected_pdf_path(self):
+        """Il PDF della riga selezionata, se è un file PDF."""
+        try:
+            sel = self.lst_results.GetSelection()
+        except Exception:
+            return ""
+        if sel == wx.NOT_FOUND or sel not in getattr(self, "file_map", {}):
+            return ""
+        item = self.file_map[sel]
+        cand = item.get("file_path") if isinstance(item, dict) else ""
+        cand = (cand or "").strip()
+        if (
+            cand
+            and os.path.isfile(cand)
+            and os.path.splitext(cand)[1].lower() == ".pdf"
+        ):
+            return cand
+        return ""
+
+    def on_pdfdoc_dialog(self, event=None, path="", paths=None):
+        """Strumenti → PDF e testo."""
+        if rtad_pdfdoc is None:
+            speak_accessible("Modulo PDF e testo non disponibile.")
+            return
+        items = [p for p in (paths or []) if p]
+        if path:
+            items.insert(0, path)
+        if not items:
+            picked = self._selected_pdf_path()
+            if picked:
+                items.append(picked)
+        rtad_pdfdoc.open_dialog(
+            self, speak_accessible, items, extract_text=extract_lines_from_pdf
+        )
 
     def on_convert_dialog(self, event=None, path=""):
         """Strumenti, converti audio o video."""
@@ -22931,6 +23251,7 @@ def _parse_cli_image_action(argv):
         "--ask-gemini": "ask-gemini",
         "--image-clip": "image-clip",
         "--image-pdf": "image-pdf",
+        "--pdf-text": "pdf-text",
         "--clip": "clip",
         "--convert": "convert",
         "--play": "play",
@@ -23160,6 +23481,18 @@ def _dispatch_cli_action(
             seen.add(key)
             pdf_paths.append(cand)
         _later(lambda paths=list(pdf_paths): frame.on_image_pdf(paths=paths))
+    elif cli_mode == "pdf-text" and cli_path and os.path.exists(cli_path):
+        pdf_paths = [cli_path]
+        seen = {os.path.normcase(os.path.abspath(cli_path))}
+        for cand in extra_paths or []:
+            if not cand or not os.path.exists(cand):
+                continue
+            key = os.path.normcase(os.path.abspath(cand))
+            if key in seen:
+                continue
+            seen.add(key)
+            pdf_paths.append(cand)
+        _later(lambda paths=list(pdf_paths): frame.on_pdfdoc_dialog(paths=paths))
     elif cli_mode == "clip" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.on_clip_dialog(path=cli_path))
     elif cli_mode == "play" and cli_path and os.path.isfile(cli_path):

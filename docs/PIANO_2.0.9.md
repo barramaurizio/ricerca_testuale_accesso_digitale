@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.9
 
-**Pubblicata** il 22/11/2026. GitHub `v2.0.9` / `app-v2.0.9`, commit `7a8ef52`. Versione `2.0.9`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere, non `CheckListBox`.
+**Pubblicata** il 22/11/2026. GitHub `v2.0.9` / `app-v2.0.9`, commit `7a8ef52`, DataStore #13179 via #13180 accettato. Versione `2.0.9`. Vale per Standalone e Add-on. A schermo e a voce. Il tasto e il gesto del mouse che fa la stessa cosa stanno nella stessa frase. Caselle di scelta: `wx.CheckBox` o `wx.RadioButton` vere, non `CheckListBox`.
 
 L’ultima pubblicata prima di questa era la `2.0.8` (20/11/2026, GitHub `v2.0.8` / `app-v2.0.8`, commit `c8512b5`). Non si tocca. Piano `docs/PIANO_2.0.8.md`.
 

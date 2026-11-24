@@ -3,6 +3,7 @@
 wxPython>=4.2.0
 pywin32>=306
 feedparser>=6.0.0
+pypdf>=5.1.0
 pyinstaller>=6.0.0
 
 # OCR EasyOCR (opzionale, pesante): vedi requirements-ocr-easy.txt

@@ -15,6 +15,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import tempfile
 import webbrowser
 import zipfile
 import zlib
@@ -1705,8 +1706,9 @@ def enrich_pdf_structure_with_text(struct: dict, plain: str) -> dict:
         struct["message"] = (
             f"PDF: {len(outline)} voci di sommario"
             + (f", {n_ext} link web." if n_ext else ".")
-            + " Invio sul sommario va al testo della sezione qui in RTAD;"
-            " i link «Sito web» sono esterni."
+            + " Invio o doppio clic sul sommario va al testo della sezione, qui in RTAD."
+            " La figura della pagina si apre con Invio sul pulsante Figura di questa pagina, o un clic."
+            " I link «Sito web» sono esterni."
         )
     elif not (struct.get("message") or "").strip():
         struct["message"] = (
@@ -1839,13 +1841,13 @@ def extract_structure_from_pdf(file_path: str) -> dict:
             "message": (
                 f"PDF: {len(outline)} voci di sommario"
                 + (f", {len(uri_only)} link web." if uri_only else ".")
-                + " Invio sul sommario apre l'app predefinita alla pagina "
-                "(se nota) e, dove possibile, va al testo in RTAD."
+                + " Invio o doppio clic sul sommario va al testo della sezione, qui in RTAD."
+                " La figura della pagina si apre con Invio sul pulsante Figura di questa pagina, o un clic."
+                " I link «Sito web» sono esterni."
                 if has_struct
                 else (
-                    "PDF senza sommario/TOC né link URI rilevati. "
-                    "Mostro il testo piano se disponibile; "
-                    "oppure apri il file con l'app predefinita."
+                    "PDF senza sommario. Mostro il testo piano. "
+                    "La figura della pagina si apre con Invio sul pulsante Figura di questa pagina, o un clic."
                 )
             ),
         }
@@ -2125,6 +2127,727 @@ def open_pdf_at_page(
         return "page" if page_i else "file"
     except Exception:
         return ""
+
+
+def outline_file_page(item) -> int | None:
+    """Pagina del file indicata da una voce di sommario. None se non c'è."""
+    if not isinstance(item, dict):
+        return None
+    raw = item.get("page")
+    try:
+        if raw:
+            number = int(raw)
+            if number > 0:
+                return number
+    except (TypeError, ValueError):
+        pass
+    title = str(item.get("title") or "")
+    match = re.search(r"\(\s*p\.\s*(\d+)\s*\)", title, re.I)
+    if not match:
+        match = re.match(r"^\s*Pagina\s+(\d+)\b", title, re.I)
+    if not match:
+        return None
+    try:
+        number = int(match.group(1))
+    except ValueError:
+        return None
+    return number if number > 0 else None
+
+
+def pdf_file_page_count(path: str) -> int:
+    """Pagine del file. -1 se è protetto, 0 se non si conta."""
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(path)
+        if getattr(reader, "is_encrypted", False):
+            try:
+                reader.decrypt("")
+            except Exception:
+                return -1
+        return len(reader.pages)
+    except Exception as exc:
+        logging.debug(f"pdf_file_page_count: {exc}")
+        return 0
+
+
+def _pdf_render_script() -> str:
+    """Disegna una pagina PDF in PNG con Windows.Data.Pdf. Nessun programma esterno."""
+    return r"""
+param(
+  [Parameter(Mandatory=$true)][string]$PdfPath,
+  [Parameter(Mandatory=$true)][int]$Page,
+  [Parameter(Mandatory=$true)][string]$DestPath,
+  [int]$MaxWidth = 1600
+)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+$null = [Windows.Storage.StorageFile,Windows.Storage,ContentType=WindowsRuntime]
+$null = [Windows.Storage.StorageFolder,Windows.Storage,ContentType=WindowsRuntime]
+$null = [Windows.Storage.CreationCollisionOption,Windows.Storage,ContentType=WindowsRuntime]
+$null = [Windows.Storage.FileAccessMode,Windows.Storage,ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.InMemoryRandomAccessStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
+$null = [Windows.Data.Pdf.PdfDocument,Windows.Data.Pdf,ContentType=WindowsRuntime]
+$null = [Windows.Data.Pdf.PdfPageRenderOptions,Windows.Data.Pdf,ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapDecoder,Windows.Graphics,ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapEncoder,Windows.Graphics,ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.SoftwareBitmap,Windows.Graphics,ContentType=WindowsRuntime]
+
+function Await-Op {
+  param($Async, [Type]$ResultType)
+  $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetParameters().Count -eq 1
+  })[0]
+  $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+  $task = $asTask.Invoke($null, @($Async))
+  if (-not $task.Wait(120000)) { throw 'Timeout' }
+  if ($task.IsFaulted) { throw $task.Exception.GetBaseException().Message }
+  return $task.Result
+}
+function Await-Act {
+  param($Async)
+  $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and -not $_.IsGenericMethod -and $_.GetParameters().Count -eq 1
+  })[0]
+  $task = $asTask.Invoke($null, @($Async))
+  if (-not $task.Wait(120000)) { throw 'Timeout' }
+  if ($task.IsFaulted) { throw $task.Exception.GetBaseException().Message }
+}
+
+$path = [System.IO.Path]::GetFullPath($PdfPath)
+if (-not [System.IO.File]::Exists($path)) { Write-Error "File assente"; exit 2 }
+$file = Await-Op ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
+$doc = Await-Op ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($file)) ([Windows.Data.Pdf.PdfDocument])
+$count = [int]$doc.PageCount
+if ($Page -lt 1 -or $Page -gt $count) {
+  Write-Output "PAGE $Page $count"
+  exit 4
+}
+$pdfPage = $doc.GetPage([uint32]($Page - 1))
+$opts = [Windows.Data.Pdf.PdfPageRenderOptions]::new()
+$w = [double]$pdfPage.Size.Width
+if ($w -lt 1) { $w = 800 }
+$destW = [int][Math]::Round($w * 2.0)
+if ($destW -gt $MaxWidth) { $destW = $MaxWidth }
+if ($destW -lt 600) { $destW = 600 }
+$opts.DestinationWidth = [uint32]$destW
+$mem = [Windows.Storage.Streams.InMemoryRandomAccessStream]::new()
+Await-Act ($pdfPage.RenderToStreamAsync($mem, $opts))
+$mem.Seek(0)
+$decoder = Await-Op ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($mem)) ([Windows.Graphics.Imaging.BitmapDecoder])
+$soft = Await-Op ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+$dest = [System.IO.Path]::GetFullPath($DestPath)
+$folderPath = [System.IO.Path]::GetDirectoryName($dest)
+$name = [System.IO.Path]::GetFileName($dest)
+$folder = Await-Op ([Windows.Storage.StorageFolder]::GetFolderFromPathAsync($folderPath)) ([Windows.Storage.StorageFolder])
+$outFile = Await-Op ($folder.CreateFileAsync($name, [Windows.Storage.CreationCollisionOption]::ReplaceExisting)) ([Windows.Storage.StorageFile])
+$outStream = Await-Op ($outFile.OpenAsync([Windows.Storage.FileAccessMode]::ReadWrite)) ([Windows.Storage.Streams.IRandomAccessStream])
+$encoder = Await-Op ([Windows.Graphics.Imaging.BitmapEncoder]::CreateAsync([Windows.Graphics.Imaging.BitmapEncoder]::PngEncoderId, $outStream)) ([Windows.Graphics.Imaging.BitmapEncoder])
+$encoder.SetSoftwareBitmap($soft)
+Await-Act ($encoder.FlushAsync())
+$outStream.Dispose()
+Write-Output "OK $count"
+"""
+
+
+def render_pdf_page(pdf_path: str, page: int, dest_png: str) -> tuple:
+    """(ok, errore). Disegna la pagina in un PNG, qui, senza un altro lettore."""
+    if not pdf_path or not os.path.isfile(pdf_path):
+        return False, "File non trovato."
+    if os.name != "nt":
+        return False, "La figura della pagina si disegna su Windows."
+    try:
+        page_i = int(page)
+    except (TypeError, ValueError):
+        return False, "La pagina non è un numero."
+    if page_i < 1:
+        return False, "La pagina non è un numero."
+    fd, script = tempfile.mkstemp(suffix=".ps1", prefix="rtad_pdf_page_")
+    os.close(fd)
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    try:
+        with open(script, "w", encoding="utf-8") as handle:
+            handle.write(_pdf_render_script())
+        proc = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                script,
+                "-PdfPath",
+                os.path.abspath(pdf_path),
+                "-Page",
+                str(page_i),
+                "-DestPath",
+                os.path.abspath(dest_png),
+            ],
+            capture_output=True,
+            timeout=120,
+            check=False,
+            creationflags=flags,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "Il disegno della pagina ha impiegato troppo tempo."
+    except Exception as exc:
+        logging.debug(f"render_pdf_page: {exc}")
+        return False, "Questa pagina non si è disegnata. Il file di partenza resta com'è."
+    finally:
+        try:
+            os.remove(script)
+        except OSError:
+            pass
+    out = (proc.stdout or b"").decode("utf-8", errors="replace").strip()
+    err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
+    if out.upper().startswith("PAGE "):
+        parts = out.split()
+        have = parts[-1] if parts else "?"
+        return False, f"La pagina {page_i} non c'è: questo file ne ha {have}."
+    if proc.returncode != 0 or not os.path.isfile(dest_png) or os.path.getsize(dest_png) < 32:
+        logging.debug(f"render_pdf_page rc={proc.returncode} out={out!r} err={err[:400]!r}")
+        low = (err + " " + out).lower()
+        if "password" in low or "encrypt" in low or "protected" in low:
+            return False, "Questo PDF è protetto. Il file di partenza resta com'è."
+        return False, "Questa pagina non si è disegnata. Il file di partenza resta com'è."
+    return True, ""
+
+
+def page_figure_stem(pdf_path: str, page: int) -> str:
+    """Nome file: il PDF e la pagina, per esempio Manuale-pagina-1."""
+    stem = os.path.splitext(os.path.basename(pdf_path or ""))[0]
+    stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", stem)
+    stem = re.sub(r"\s+", " ", stem).strip(" .") or "documento"
+    suffix = f"-pagina-{int(page)}"
+    if len(stem) + len(suffix) > 180:
+        stem = stem[: 180 - len(suffix)].rstrip(" .") or "documento"
+    return stem + suffix
+
+
+def write_page_figure_sidecar(png_path: str, pdf_path: str, page: int) -> None:
+    """Accanto al PNG temporaneo: così Salva testo trova PDF e pagina."""
+    import json
+
+    if not png_path or not pdf_path:
+        return
+    payload = {
+        "pdf": pdf_path,
+        "page": int(page),
+        "save_stem": page_figure_stem(pdf_path, page),
+    }
+    try:
+        with open(png_path + ".rtad_src.json", "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _unique_beside(folder: str, stem: str, ext: str) -> str:
+    candidate = os.path.join(folder, stem + ext)
+    n = 2
+    while os.path.exists(candidate):
+        candidate = os.path.join(folder, f"{stem}-{n}{ext}")
+        n += 1
+    return candidate
+
+
+def default_printer_name() -> str:
+    """Nome della stampante predefinita di Windows."""
+    if os.name != "nt":
+        return ""
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows NT\CurrentVersion\Windows",
+        ) as key:
+            device, _ = winreg.QueryValueEx(key, "Device")
+        return str(device or "").split(",", 1)[0].strip()
+    except Exception:
+        return ""
+
+
+def print_png_to_pdf(png_path: str, pdf_path: str, printer_name: str) -> bool:
+    """Scrive la figura in un PDF, nella cartella scelta, senza «Salva con nome»."""
+    if not png_path or not os.path.isfile(png_path) or not printer_name:
+        return False
+    folder = os.path.dirname(pdf_path)
+    if not folder or not os.path.isdir(folder):
+        return False
+    script = r"""
+param(
+  [string]$ImagePath,
+  [string]$PdfPath,
+  [string]$PrinterName
+)
+$ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Drawing
+$script:img = [System.Drawing.Image]::FromFile($ImagePath)
+$doc = New-Object System.Drawing.Printing.PrintDocument
+$doc.PrinterSettings.PrinterName = $PrinterName
+$doc.PrinterSettings.PrintToFile = $true
+$doc.PrinterSettings.PrintFileName = $PdfPath
+$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+$doc.add_PrintPage({
+  param($sender, $e)
+  $bounds = $e.MarginBounds
+  $iw = [double]$script:img.Width
+  $ih = [double]$script:img.Height
+  if ($iw -lt 1 -or $ih -lt 1) { return }
+  $ratio = [Math]::Min($bounds.Width / $iw, $bounds.Height / $ih)
+  $w = [Math]::Max(1, [int]($iw * $ratio))
+  $h = [Math]::Max(1, [int]($ih * $ratio))
+  $x = $bounds.X + [int](($bounds.Width - $w) / 2)
+  $y = $bounds.Y + [int](($bounds.Height - $h) / 2)
+  $rect = New-Object System.Drawing.Rectangle $x, $y, $w, $h
+  $e.Graphics.DrawImage($script:img, $rect)
+  $e.HasMorePages = $false
+})
+$doc.Print()
+$script:img.Dispose()
+$doc.Dispose()
+"""
+    fd, path = tempfile.mkstemp(suffix=".ps1", prefix="rtad_stampa_figura_")
+    os.close(fd)
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    proc = None
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(script)
+        proc = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                path,
+                "-ImagePath",
+                os.path.abspath(png_path),
+                "-PdfPath",
+                os.path.abspath(pdf_path),
+                "-PrinterName",
+                printer_name,
+            ],
+            capture_output=True,
+            timeout=60,
+            check=False,
+            creationflags=flags,
+        )
+    except Exception as exc:
+        logging.debug(f"print_png_to_pdf: {exc}")
+        return False
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return (
+        proc is not None
+        and proc.returncode == 0
+        and os.path.isfile(pdf_path)
+        and os.path.getsize(pdf_path) > 32
+    )
+
+
+def print_text_to_printer(
+    text: str, printer_name: str, pdf_path: str = "", title: str = "Testo"
+) -> bool:
+    """Manda il testo alla stampante. Se è «Print to PDF», scrive il file indicato."""
+    if not (text or "").strip() or not printer_name:
+        return False
+    if pdf_path:
+        folder = os.path.dirname(pdf_path)
+        if not folder or not os.path.isdir(folder):
+            return False
+    script = r"""
+param(
+  [string]$TextPath,
+  [string]$PdfPath,
+  [string]$PrinterName,
+  [string]$Title
+)
+$ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Drawing
+$script:text = [System.IO.File]::ReadAllText($TextPath, [System.Text.Encoding]::UTF8)
+$doc = New-Object System.Drawing.Printing.PrintDocument
+$doc.PrinterSettings.PrinterName = $PrinterName
+$doc.DocumentName = $Title
+if ($PdfPath) {
+  $doc.PrinterSettings.PrintToFile = $true
+  $doc.PrinterSettings.PrintFileName = $PdfPath
+}
+$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+$font = New-Object System.Drawing.Font "Segoe UI", 11
+$script:start = 0
+$doc.add_PrintPage({
+  param($sender, $e)
+  $bounds = $e.MarginBounds
+  $rect = New-Object System.Drawing.RectangleF $bounds.X, $bounds.Y, $bounds.Width, $bounds.Height
+  $fmt = New-Object System.Drawing.StringFormat
+  $remaining = $script:text.Substring($script:start)
+  $chars = 0
+  $lines = 0
+  [void]$e.Graphics.MeasureString($remaining, $font, $rect.Size, $fmt, [ref]$chars, [ref]$lines)
+  if ($chars -lt 1) { $chars = [Math]::Min(1, $remaining.Length) }
+  $chunk = $remaining.Substring(0, [Math]::Min($chars, $remaining.Length))
+  $e.Graphics.DrawString($chunk, $font, [System.Drawing.Brushes]::Black, $rect, $fmt)
+  $script:start += $chunk.Length
+  $e.HasMorePages = $script:start -lt $script:text.Length
+})
+$doc.Print()
+$font.Dispose()
+$doc.Dispose()
+"""
+    fd_script, script_path = tempfile.mkstemp(suffix=".ps1", prefix="rtad_stampa_testo_")
+    os.close(fd_script)
+    fd_text, text_path = tempfile.mkstemp(suffix=".txt", prefix="rtad_stampa_testo_")
+    os.close(fd_text)
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    proc = None
+    try:
+        with open(text_path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        with open(script_path, "w", encoding="utf-8") as handle:
+            handle.write(script)
+        args = [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-File",
+            script_path,
+            "-TextPath",
+            os.path.abspath(text_path),
+            "-PdfPath",
+            os.path.abspath(pdf_path) if pdf_path else "",
+            "-PrinterName",
+            printer_name,
+            "-Title",
+            title or "Testo",
+        ]
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            timeout=60,
+            check=False,
+            creationflags=flags,
+        )
+    except Exception as exc:
+        logging.debug(f"print_text_to_printer: {exc}")
+        return False
+    finally:
+        for path in (script_path, text_path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    if proc is None or proc.returncode != 0:
+        return False
+    if pdf_path:
+        return os.path.isfile(pdf_path) and os.path.getsize(pdf_path) > 32
+    return True
+
+
+def show_pdf_page_figure(
+    png_path,
+    title,
+    sentence,
+    body,
+    speaker,
+    on_full=None,
+    pdf_path="",
+    page=0,
+):
+    """Finestra della pagina: la figura si vede, il testo disegnato si legge."""
+    import wx
+
+    frame = wx.Frame(
+        None,
+        title=title or "Figura della pagina",
+        size=(860, 780),
+        style=wx.DEFAULT_FRAME_STYLE,
+    )
+    panel = wx.Panel(frame)
+    vbox = wx.BoxSizer(wx.VERTICAL)
+    lbl = wx.StaticText(panel, label=sentence)
+    try:
+        lbl.SetName("Stato")
+        lbl.Wrap(800)
+    except Exception:
+        pass
+    vbox.Add(lbl, 0, wx.ALL | wx.EXPAND, 8)
+
+    scroll = wx.ScrolledWindow(panel, style=wx.VSCROLL | wx.HSCROLL)
+    try:
+        scroll.SetName("Figura della pagina")
+    except Exception:
+        pass
+    scroll.SetScrollRate(20, 20)
+    try:
+        img = wx.Image(png_path, wx.BITMAP_TYPE_PNG)
+    except Exception:
+        img = None
+    if img is not None and img.IsOk():
+        width, height = img.GetWidth(), img.GetHeight()
+        max_w = 800
+        if width > max_w and width > 0:
+            height = max(1, int(height * max_w / float(width)))
+            width = max_w
+            img = img.Scale(width, height, wx.IMAGE_QUALITY_HIGH)
+        bitmap = wx.StaticBitmap(scroll, bitmap=wx.Bitmap(img))
+        try:
+            bitmap.SetName("Figura della pagina")
+        except Exception:
+            pass
+        inner = wx.BoxSizer(wx.VERTICAL)
+        inner.Add(bitmap, 0, wx.ALL, 4)
+        scroll.SetSizer(inner)
+        scroll.SetVirtualSize((width + 8, height + 8))
+    vbox.Add(scroll, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+
+    shown = (body or "").strip() or "Nessun testo disegnato in questa pagina."
+    box = wx.TextCtrl(panel, value=shown, style=wx.TE_MULTILINE | wx.TE_READONLY)
+    try:
+        box.SetName("Testo della figura")
+    except Exception:
+        pass
+    vbox.Add(box, 1, wx.EXPAND | wx.ALL, 8)
+
+    handed = {"yes": False}
+    if pdf_path and page:
+        write_page_figure_sidecar(png_path, pdf_path, int(page))
+
+    def _say(msg):
+        try:
+            lbl.SetLabel(msg)
+            lbl.Wrap(800)
+        except Exception:
+            pass
+        try:
+            speaker(msg)
+        except Exception:
+            pass
+
+    def _dest_folder():
+        folder = os.path.dirname(os.path.abspath(pdf_path)) if pdf_path else ""
+        if folder and os.path.isdir(folder):
+            return folder
+        return ""
+
+    def _save_text(_event):
+        text = (body or "").strip()
+        folder = _dest_folder()
+        if not folder or not page:
+            _say("La cartella del PDF non c'è più. Il file di partenza resta com'è.")
+            return
+        if not text:
+            _say("Niente da salvare. In questa pagina non c'è testo disegnato.")
+            return
+        dest = _unique_beside(folder, page_figure_stem(pdf_path, int(page)), ".rtad.txt")
+        try:
+            with open(dest, "w", encoding="utf-8") as handle:
+                handle.write(text)
+        except Exception:
+            _say("Salvataggio non riuscito. Il file di partenza resta com'è.")
+            return
+        _say(
+            f"Testo salvato: {os.path.basename(dest)}, nella stessa cartella del PDF."
+        )
+
+    def _save_image(_event):
+        import shutil
+
+        folder = _dest_folder()
+        if not folder or not page or not os.path.isfile(png_path):
+            _say("La cartella del PDF non c'è più. Il file di partenza resta com'è.")
+            return
+        dest = _unique_beside(folder, page_figure_stem(pdf_path, int(page)), ".png")
+        try:
+            shutil.copy2(png_path, dest)
+        except Exception:
+            _say("Salvataggio non riuscito. Il file di partenza resta com'è.")
+            return
+        _say(
+            f"Immagine salvata: {os.path.basename(dest)}, nella stessa cartella del PDF."
+        )
+
+    def _print_text(_event):
+        text = (body or "").strip()
+        if not text:
+            _say("Niente da stampare. In questa pagina non c'è testo disegnato.")
+            return
+        printer_name = default_printer_name()
+        if not printer_name:
+            _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+        payload = f"Pagina {int(page)} di {os.path.basename(pdf_path)}\n\n{text}"
+        if "pdf" in printer_name.lower():
+            folder = _dest_folder()
+            if not folder or not page:
+                _say("La cartella del PDF non c'è più. Il file di partenza resta com'è.")
+                return
+            dest = _unique_beside(
+                folder, page_figure_stem(pdf_path, int(page)) + "-testo", ".pdf"
+            )
+            ok = print_text_to_printer(
+                payload, printer_name, dest, os.path.basename(dest)
+            )
+            if ok:
+                _say(
+                    f"Testo in PDF: {os.path.basename(dest)}, nella stessa cartella del PDF. "
+                    "L'editor resta chiuso."
+                )
+            else:
+                _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+        if print_text_to_printer(payload, printer_name, "", "Testo della figura"):
+            _say("Testo inviato alla stampante predefinita. L'editor resta chiuso.")
+        else:
+            _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+
+    def _print_image(_event):
+        if not os.path.isfile(png_path):
+            _say("L'immagine non c'è più. Il file di partenza resta com'è.")
+            return
+        try:
+            bitmap = wx.Bitmap(png_path, wx.BITMAP_TYPE_PNG)
+        except Exception:
+            bitmap = None
+        if bitmap is None or not bitmap.IsOk():
+            _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+        printer_name = default_printer_name()
+        if "pdf" in printer_name.lower():
+            folder = _dest_folder()
+            if not folder or not page:
+                _say("La cartella del PDF non c'è più. Il file di partenza resta com'è.")
+                return
+            dest = _unique_beside(
+                folder, page_figure_stem(pdf_path, int(page)), ".pdf"
+            )
+            if print_png_to_pdf(png_path, dest, printer_name):
+                _say(
+                    f"Figura in PDF: {os.path.basename(dest)}, nella stessa cartella del PDF. "
+                    "Sul foglio c'è l'immagine."
+                )
+            else:
+                _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+
+        class _PagePrintout(wx.Printout):
+            def __init__(self, image):
+                super().__init__(os.path.basename(png_path))
+                self.image = image
+
+            def GetPageInfo(self):
+                return (1, 1, 1, 1)
+
+            def HasPage(self, page):
+                return page == 1
+
+            def OnPrintPage(self, page):
+                dc = self.GetDC()
+                if dc is None:
+                    return False
+                width, height = self.image.GetWidth(), self.image.GetHeight()
+                area_w, area_h = dc.GetSize()
+                if width < 1 or height < 1 or area_w < 1 or area_h < 1:
+                    return False
+                scale = min(area_w / float(width), area_h / float(height)) * 0.92
+                if scale <= 0:
+                    return False
+                dc.SetUserScale(scale, scale)
+                x = int((area_w / scale - width) / 2)
+                y = int((area_h / scale - height) / 2)
+                dc.DrawBitmap(self.image, x, y, True)
+                return True
+
+        try:
+            printer = wx.Printer()
+            ok = printer.Print(frame, _PagePrintout(bitmap), False)
+        except Exception:
+            _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+        if not ok:
+            try:
+                cancelled = printer.GetLastError() != wx.PRINTER_ERROR
+            except Exception:
+                cancelled = False
+            if cancelled:
+                _say("Stampa annullata. L'immagine resta com'è.")
+            else:
+                _say("Impossibile stampare. Assicurati di avere una stampante configurata.")
+            return
+        _say("Immagine inviata alla stampante predefinita. Paint resta chiuso.")
+
+    def _close(event):
+        if not handed["yes"]:
+            for path in (png_path, png_path + ".rtad_src.json"):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+        event.Skip()
+
+    def _key(event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE:
+            frame.Close()
+            return
+        event.Skip()
+
+    row_save = wx.BoxSizer(wx.HORIZONTAL)
+    btn_text = wx.Button(panel, label="&Salva testo")
+    btn_text.Bind(wx.EVT_BUTTON, _save_text)
+    row_save.Add(btn_text, 0, wx.ALL, 5)
+    btn_image = wx.Button(panel, label="Salva &immagine")
+    btn_image.Bind(wx.EVT_BUTTON, _save_image)
+    row_save.Add(btn_image, 0, wx.ALL, 5)
+    btn_print_text = wx.Button(panel, label="Stam&pa testo")
+    btn_print_text.Bind(wx.EVT_BUTTON, _print_text)
+    row_save.Add(btn_print_text, 0, wx.ALL, 5)
+    btn_print_image = wx.Button(panel, label="Stampa imma&gine")
+    btn_print_image.Bind(wx.EVT_BUTTON, _print_image)
+    row_save.Add(btn_print_image, 0, wx.ALL, 5)
+    vbox.Add(row_save, 0, wx.ALIGN_CENTER)
+
+    hbox = wx.BoxSizer(wx.HORIZONTAL)
+    if callable(on_full):
+        btn = wx.Button(panel, label="&Tutto sull'immagine")
+
+        def _full(_event, path=png_path):
+            handed["yes"] = True
+            on_full(path)
+
+        btn.Bind(wx.EVT_BUTTON, _full)
+        hbox.Add(btn, 0, wx.ALL, 5)
+    close = wx.Button(panel, label="Chiudi (ESC)")
+    close.Bind(wx.EVT_BUTTON, lambda _e: frame.Close())
+    hbox.Add(close, 0, wx.ALL, 5)
+    vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.BOTTOM, 4)
+    panel.SetSizer(vbox)
+    frame.Bind(wx.EVT_CLOSE, _close)
+    frame.Bind(wx.EVT_CHAR_HOOK, _key)
+    frame.Centre()
+    frame.Show()
+    frame.Raise()
+    box.SetFocus()
+    try:
+        speaker(sentence)
+        text = (body or "").strip()
+        if text and len(text) <= 1500:
+            speaker(text)
+    except Exception:
+        pass
+    return frame
 
 
 def _odt_attr(el, local_name: str) -> str:

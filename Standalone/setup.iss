@@ -1,7 +1,7 @@
 [Setup]
 AppId={{8F24C28D-4D3A-421A-93B4-855584C1C400}}
 AppName=Ricerca Testuale Accesso Digitale
-AppVersion=2.0.9
+AppVersion=2.0.10
 AppPublisher=Maurizio Barra (Accesso Digitale)
 AppPublisherURL=https://paypal.me/AccessoDigitale
 AppSupportURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
 DefaultDirName={autopf}\Ricerca Testuale Accesso Digitale
 DefaultGroupName=Ricerca Testuale Accesso Digitale
 DisableProgramGroupPage=yes
-OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v2.0.9
+OutputBaseFilename=Setup_RicercaTestualeAccessoDigitale_v2.0.10
 OutputDir=InstallerOutput
 Compression=lzma
 SolidCompression=yes
@@ -34,6 +34,7 @@ Name: "{autodesktop}\Ricerca Testuale Accesso Digitale"; Filename: "{app}\Ricerc
 Name: "{userappdata}\Microsoft\Windows\SendTo\Ricerca Testuale Accesso Digitale"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"
 Name: "{userappdata}\Microsoft\Windows\SendTo\Riproduttore RTAD"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Parameters: "--play"
 Name: "{userappdata}\Microsoft\Windows\SendTo\In un PDF RTAD"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Parameters: "--image-pdf"
+Name: "{userappdata}\Microsoft\Windows\SendTo\PDF e testo RTAD"; Filename: "{app}\Ricerca Testuale Accesso Digitale.exe"; Parameters: "--pdf-text"
 
 [Registry]
 ; --- INTEGRAZIONE CARTELLE ---
@@ -265,6 +266,8 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaT
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\03copia\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --copy-pdf-text ""%1"""
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\04descrivi"; ValueType: string; ValueData: "Descrivi immagini del PDF"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\04descrivi\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --describe-pdf ""%1"""
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\05pdftext"; ValueType: string; ValueData: "PDF e testo"
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\RicercaTestualeAccessoDigitalePdf\shell\05pdftext\command"; ValueType: string; ValueData: """{app}\Ricerca Testuale Accesso Digitale.exe"" --pdf-text ""%1"""
 
 ; --- SOTTOMENÙ DOCUMENTI (Apri / Leggi testo / Copia testo) ---
 

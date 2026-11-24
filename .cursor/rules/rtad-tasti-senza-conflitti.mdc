@@ -1,0 +1,34 @@
+---
+description: Prima di un tasto nuovo, confrontarlo con quelli già presi
+alwaysApply: true
+---
+
+# RTAD — tasti, niente sovrapposizioni
+
+Un comando nuovo (Alt+lettera, Ctrl+, tasto funzione, gesto NVDA, `&` su pulsante o menu) si confronta con i tasti già presi, in Standalone e nell’Add-on. Stessa lettera e stesso modificatore è un conflitto anche se l’altro sta in un’altra finestra: a finestra aperta il suo gancio si prende il tasto e quello di prima non parte.
+
+Ctrl+Maiusc+lettera non è Alt+lettera. Se la lettera è già nota, nel messaggio si nominano tutti e due.
+
+## Già presi sulla finestra principale
+
+Non si riusano con Alt da solo:
+
+- Alt+P Stato (due volte di seguito copia). In una finestra nuova Alt+P legge lo Stato di quella finestra, due volte lo copia.
+- Alt+S porta allo stato della ricerca.
+- Alt+T Tutto il PC. Alt+K cattura schermo. Alt+Maiusc+K descrive la cattura.
+- Alt+N annulla la ricerca. Alt+I info versione. Alt+F4 chiude.
+- Alt+L chiave Google. Alt+H chiave Gemini. Alt+B conversazioni. Alt+Q nuova conversazione. Alt+A analisi audio/video.
+- Menu: Alt+F File, Alt+G Segnalibri, Alt+C Cronologia, Alt+R Profili, Alt+V Voce, Alt+M Strumenti. Aiuto non ha lettera.
+- Alt+R la prende anche NVIDIA.
+
+Gesti NVDA dell’Add-on: NVDA+Maiusc+Ctrl+F, +S, +D, e NVDA+Maiusc+G.
+
+Dentro una stessa finestra ogni lettera di pulsante è unica. Due finestre di lavoro diverse possono usare la stessa lettera solo se non è nell’elenco qui sopra.
+
+I tasti già pubblicati (per esempio Taglia e unisci, che usa M, S, T, K) non si spostano in questa verifica. Si sposta il tasto nuovo.
+
+## Nel messaggio, prima della prova
+
+La lettera, che cosa fa già, e che non coincide. Se coincide, si cambia lettera prima.
+
+Esempio del buco: Alt+P su Metti da parte copriva lo Stato. Alt+M copriva Strumenti. Metti da parte è Alt+D. Ctrl+D resta il segnalibro.

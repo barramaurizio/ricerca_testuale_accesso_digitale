@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.11
 
-**Pubblicata** il 26/11/2026. GitHub `v2.0.11` / `app-v2.0.11`, commit `7b9f3e1`. Il numero DataStore si aggiunge quando lo store l’accetta. Versione `2.0.11`. Vale per Standalone e Add-on. Non si tocca la `2.0.10` pubblicata.
+**Pubblicata** il 26/11/2026. GitHub `v2.0.11` / `app-v2.0.11`, commit `7b9f3e1`. DataStore #13290 via #13291 accettato. Versione `2.0.11`. Vale per Standalone e Add-on. Non si tocca la `2.0.10` pubblicata.
 
 Maurizio l’aveva scritta sull’Acer, in locale, prima del guasto del 20/11/2026. La chat è sparita con quel PC. Qui resta nel repository, così non si perde un’altra volta. Va fatta prima di dettatura vocale, operatore integrato, confronto del parlato e confronto del testo di un’immagine.
 

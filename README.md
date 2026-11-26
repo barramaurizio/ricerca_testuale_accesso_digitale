@@ -1,4 +1,4 @@
-# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.10)
+# Ricerca Testuale Accesso Digitale / Text Search Accesso Digitale (v2.0.11)
 **Autore / Author:** Maurizio Barra (Accesso Digitale)
 
 ---
@@ -6,6 +6,12 @@
 ## 🇮🇹 Italiano
 
 Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibilità e il recupero rapido di informazioni all'interno del computer. Disponibile sia come **Componente Aggiuntivo (Add-on) per NVDA** sia come **Applicazione Standalone (.exe)**.
+
+### 🌟 Novità della Versione 2.0.11
+
+- In Strumenti, Invio sulla voce Fotocamera, o un clic, apre la fotocamera. La mano dice luce, contrasto, colore, nitidezza, volto, distanza e stabilità, e parla solo quando qualcosa cambia. Spazio sulla lista Misure, o Invio sul pulsante Com'è ora, o un clic, ripete tutto. Quando è pronto dice: «Pronto. Luce giusta, nitido, volto al centro. Puoi scattare o registrare.» Se non c'è un volto: «Pronto. Luce giusta, nitido. Nessun volto. Puoi scattare o registrare.» Se l'immagine è pronta e la ripresa no: «Pronto. Luce giusta, nitido, volto al centro. Puoi scattare. Per registrare, fermo.» Se l'audio non va: «Puoi scattare. Per registrare, non sento l'audio.» La casella Suono quando è pronto è spuntata: un breve suono quando diventa pronto. Invio sul pulsante Scatta, o un clic, salva nome-scatto. Invio su Registra, o un clic, registra. Invio su Ferma, o un clic, chiude e dice com'è la ripresa. Il file si chiama nome-ripresa. Il giudizio sta accanto, stesso nome, testo. Se il nome c'è già, arriva il -2. L'originale resta. Senza fotocamera: «Nessuna fotocamera. Collega la webcam e riapri.» Se è occupata: «La fotocamera è già in uso.» Se si stacca: «La fotocamera si è staccata.» Senza FFmpeg: «Per la fotocamera serve ffmpeg.» Vale per la Standalone e per l'Add-on.
+- Nella lista Parametri, su e giù scelgono. Freccia a destra alza, freccia a sinistra abbassa, e la mano dice il valore nuovo. Home rimette automatico, se la fotocamera lo consegna. Agli estremi: «Sei al massimo.» «Sei al minimo.» Se il valore è fisso: «Questo valore è fisso.» Se un parametro non arriva: «Questa fotocamera non consegna il fuoco.» Stessa frase per gli altri, con l'articolo. Vale per la Standalone e per l'Add-on.
+- Nel menu del risultato, Invio sulla voce Com'è questa foto, o un clic, giudica la foto già salvata. Com'è questo video fa lo stesso sul video: campiona i fotogrammi e l'audio, e dice se è fermo, se si muove o se traballa, se la luce cala o sfarfalla, se l'audio è silenzio, basso, giusto, troppo alto o saturo. Se il video è muto, la riga lo dice. Gli stessi pulsanti stanno in Tutto sull'immagine e in Tutto sull'audio/video. Non spende la chiave. Tutto sull'immagine resta il racconto di che cosa c'è. Vale per la Standalone e per l'Add-on.
 
 ### 🌟 Novità della Versione 2.0.10
 
@@ -428,6 +434,12 @@ Uno strumento di ricerca testuale avanzata progettato per facilitare l'accessibi
 - **Filtri tipologici più ricchi:** più estensioni in Immagini, Audio/Video e Documenti (es. m4a, flac, webp, html, md…).
 - **Scorciatoie Alt senza conflitti:** una sola azione per lettera (T/P/N/I/S/K); Avvia con INVIO nel campo testo.
 - Restano le novità 1.5.3 (PDF testo/immagini, Copia/Salva Immagine).
+
+### 🌟 What's New in Version 2.0.11
+
+- Tools, Fotocamera. Enter on the item, or a click, opens the camera. The hand speaks when light, contrast, colour, sharpness, face, distance or steadiness changes. Space on the measures list, or Enter on Com'è ora, or a click, repeats the whole report. When it is ready it says so, and a short beep sounds if the checkbox is on. Enter on Scatta saves nome-scatto. Enter on Registra, then on Ferma, saves nome-ripresa and says how the clip is. The written judgment sits beside the file. Standalone and Add-on.
+- In Parametri, up and down choose. Right raises, left lowers, and the hand says the new value. Home restores automatic when the camera delivers it. At the ends: «Sei al massimo.» «Sei al minimo.» If the driver rejects the value: «Questo valore è fisso.» If a control is missing: «Questa fotocamera non consegna il fuoco.» Same sentence for the others.
+- On a saved photo, Com'è questa foto. On a saved video, Com'è questo video. The same buttons are in Tutto sull'immagine and Tutto sull'audio/video. It samples frames and audio and does not spend the key. Tutto sull'immagine still tells what is in the picture. Standalone and Add-on.
 
 ### 🌟 What's New in Version 2.0.10
 

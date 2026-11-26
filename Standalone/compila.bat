@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Compilazione Ricerca Testuale Accesso Digitale v2.0.10
+echo Compilazione Ricerca Testuale Accesso Digitale v2.0.11
 echo ======================================================
 
 REM Prerequisiti Python (stessa python del PATH):
@@ -25,12 +25,12 @@ REM feedparser e EasyOCR/torch vanno inclusi esplicitamente
 REM 1. Compilazione Standalone Portatile (File singolo .exe pronto all'uso)
 echo.
 echo [1/2] Creazione eseguibile Standalone (OneFile)...
-pyinstaller --noconfirm --onefile --windowed --version-file "version.txt" --add-binary "nvdaControllerClient64.dll;." --hidden-import=feedparser --hidden-import=pypdf --collect-submodules=pypdf --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --hidden-import=rtad_reading_mark --hidden-import=easyocr --hidden-import=torch --collect-all easyocr --collect-all torch --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
+pyinstaller --noconfirm --onefile --windowed --version-file "version.txt" --add-binary "nvdaControllerClient64.dll;." --hidden-import=feedparser --hidden-import=pypdf --collect-submodules=pypdf --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --hidden-import=rtad_reading_mark --hidden-import=rtad_ripresa --hidden-import=rtad_player --hidden-import=easyocr --hidden-import=torch --collect-all easyocr --collect-all torch --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
 
 REM 2. Compilazione Cartella per eventuale Setup Inno Setup
 echo.
 echo [2/2] Creazione build per Inno Setup (OneDir)...
-pyinstaller --noconfirm --onedir --windowed --version-file "version.txt" --add-binary "nvdaControllerClient64.dll;." --hidden-import=feedparser --hidden-import=pypdf --collect-submodules=pypdf --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --hidden-import=rtad_reading_mark --hidden-import=easyocr --hidden-import=torch --collect-all easyocr --collect-all torch --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
+pyinstaller --noconfirm --onedir --windowed --version-file "version.txt" --add-binary "nvdaControllerClient64.dll;." --hidden-import=feedparser --hidden-import=pypdf --collect-submodules=pypdf --hidden-import=rtad_attach_dialog --hidden-import=rtad_whisper --hidden-import=rtad_reading_mark --hidden-import=rtad_ripresa --hidden-import=rtad_player --hidden-import=easyocr --hidden-import=torch --collect-all easyocr --collect-all torch --collect-submodules=feedparser --name "Ricerca Testuale Accesso Digitale" app_gui.py
 
 if %ERRORLEVEL% EQU 0 (
     echo.

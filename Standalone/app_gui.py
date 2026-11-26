@@ -100,6 +100,11 @@ except ImportError:
     rtad_player = None
 
 try:
+    import rtad_ripresa
+except ImportError:
+    rtad_ripresa = None
+
+try:
     import rtad_image
 except ImportError:
     rtad_image = None
@@ -135,7 +140,7 @@ except ImportError:
     rtad_picker = None
 
 APP_TITLE = "Ricerca Testuale Accesso Digitale"
-APP_VERSION = "2.0.10"
+APP_VERSION = "2.0.11"
 DONATION_URL = "https://paypal.me/AccessoDigitale"
 YOUTUBE_URL = "https://www.youtube.com/@AccessoDigitale"
 GITHUB_REPO_URL = "https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases"
@@ -10122,6 +10127,18 @@ class ImageInfoFrame(wx.Frame):
             self.btn_translate.Bind(wx.EVT_BUTTON, self.on_translate)
             hbox.Add(self.btn_translate, 0, wx.ALL, 5)
         file_ext = os.path.splitext(self.image_path or "")[1].lower()
+        if rtad_ripresa is not None and rtad_ripresa.file_kind(self.image_path) in (
+            "image",
+            "video",
+        ):
+            hand_label = (
+                "Com'è questa &foto…"
+                if rtad_ripresa.file_kind(self.image_path) == "image"
+                else "Com'è questo &video…"
+            )
+            btn_hand = wx.Button(panel, label=hand_label)
+            btn_hand.Bind(wx.EVT_BUTTON, self.on_ripresa_file)
+            hbox.Add(btn_hand, 0, wx.ALL, 5)
         if rtad_chat is not None and file_ext in IMG_EXTS + MEDIA_EXTS:
             btn_chat = wx.Button(panel, label="Chiedi a &Gemini…")
             btn_chat.Bind(wx.EVT_BUTTON, self.on_ask_gemini)
@@ -10159,6 +10176,20 @@ class ImageInfoFrame(wx.Frame):
         if kept and os.path.isfile(kept):
             return kept
         return self.image_path or ""
+
+    def on_ripresa_file(self, event=None):
+        path = getattr(self, "_kept_dest", "") or self.image_path or ""
+        if not path or not os.path.isfile(path):
+            speak_accessible("Il file non c'è più.")
+            return
+        if rtad_ripresa is None:
+            speak_accessible("Modulo fotocamera non disponibile.")
+            return
+        try:
+            rtad_ripresa.open_file_report(self, speak_accessible, path)
+        except Exception as exc:
+            logging.exception("ImageInfoFrame.on_ripresa_file")
+            speak_accessible(f"Errore nel giudizio: {exc}")
 
     def on_media_clip(self, event=None):
         parent = self._media_tools_parent
@@ -11597,12 +11628,22 @@ class GeminiChatFrame(wx.Frame):
         else:
             speak_accessible("Consultazione web spenta.")
 
+    def _source_attach_row(self) -> str:
+        try:
+            return rtad_chat.conversation_file_row(self.session)
+        except Exception:
+            return ""
+
     def _refresh_attach_list(self):
         if not hasattr(self, "lst_attach"):
             return
         atts = (self.session or {}).get("attachments") or []
         self.lst_attach.Clear()
         shown = 0
+        source = self._source_attach_row()
+        if source:
+            self.lst_attach.Append(source)
+            shown += 1
         for att in atts:
             if not isinstance(att, dict):
                 continue
@@ -11778,7 +11819,7 @@ class GeminiChatFrame(wx.Frame):
         else:
             extra = ""
         if extra:
-            if not (self.session.get("attachments") or []):
+            if not (self.session.get("attachments") or []) and not self._source_attach_row():
                 extra += " Nessun allegato presente."
             if msg == "Nessun file allegato.":
                 msg = extra
@@ -11790,15 +11831,20 @@ class GeminiChatFrame(wx.Frame):
     def on_detach(self, event=None):
         if self._busy:
             return
-        if not (self.session.get("attachments") or []):
+        source = self._source_attach_row()
+        if not source and not (self.session.get("attachments") or []):
             self._show_notice("Nessun allegato presente.")
             return
         idx = self.lst_attach.GetSelection()
         if idx == wx.NOT_FOUND:
             self._show_notice("Scegli un allegato da togliere.")
             return
+        if source and idx == 0:
+            self._show_notice(rtad_chat.conversation_file_stays(self.session))
+            return
+        real = idx - 1 if source else idx
         try:
-            name = rtad_chat.remove_attachment(self.session, idx)
+            name = rtad_chat.remove_attachment(self.session, real)
         except Exception as exc:
             self._show_notice(f"Non posso togliere l'allegato: {exc}")
             return
@@ -11812,7 +11858,7 @@ class GeminiChatFrame(wx.Frame):
         self._fill_suggestions()
         self._render()
         msg = f"Allegato tolto: {name}"
-        if not (self.session.get("attachments") or []):
+        if not (self.session.get("attachments") or []) and not self._source_attach_row():
             msg += " Nessun allegato presente."
         self._show_notice(msg)
 
@@ -13599,7 +13645,7 @@ class WhatsNewFrame(wx.Frame):
             f"Benvenuto nella versione {APP_VERSION}!\n\n"
             "Ecco le novità principali di questo aggiornamento:\n"
             "--------------------------------------------------\n"
-            "• In PDF e testo, Invio sul pulsante Scrivi il PDF, o un clic, scrive le pagine da-a del PDF selezionato. Pagina 1 è la prima del file. Se scrivi solo A, parte dalla prima. Se scrivi solo Da, arriva fino all'ultima. Il file si chiama nome-pagine-3-8. Con almeno due PDF, Invio sul pulsante Unisci i PDF, o un clic, li mette nell'ordine dell'elenco: il file si chiama nome1-pagine-1-13-unione-nome2-pagine-1-8-9-20. Da tre file in su: i primi due, con le loro pagine, e e-N. Se su una riga tieni più intervalli, restano tutti: Invio sul pulsante Tieni queste pagine, o un clic, aggiunge il blocco e non cancella i precedenti. Unisci i PDF e Unisci i testi usano tutti gli intervalli della riga, nell'ordine in cui li hai tenuti. Nell'elenco PDF, nell'ordine, il nome resta quello del file caricato, intero. Dopo Scrivi o Unisci, le pagine tenute si staccano da quella riga. Il nome nuovo sta solo in Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco, se vuoi unire quel file nuovo. Invio sul pulsante Metti da parte, o un clic, toglie la riga dall'elenco di lavoro e la lascia in Da parte. Il file sul disco resta. Invio o doppio clic su una riga di Da parte la rimette nell'elenco. Un clic solo seleziona la riga. Invio sul pulsante Unisci i testi, o un clic, scrive un testo: ogni file è un titolo, sotto ci sono le pagine tenute, per esempio pagine 9-20 di 115. Lo Stato dice le stesse pagine. Vale anche con un solo PDF. Se la pagina non c'è: «La pagina 40 non c'è: questo file ne ha 12.» Un PDF di sole scansioni resta un PDF di quelle pagine. Il testo si crea lo stesso, e dentro c'è solo: «Nessun testo in queste pagine.» Se il PDF di partenza ha una firma, lo Stato dice che il file nuovo non la porta. Il file di partenza resta com'è. Se il nome c'è già, si aggiunge -2. Lo Stato, la barra di stato e Fatti dicono la stessa frase. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato PDF, nel menu: PDF e testo…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un PDF c'è PDF e testo. Invia a ha PDF e testo RTAD. Portable e Add-on: niente Invia a automatico. Nella Standalone installata, in Apri con, c’è Ricerca Testuale Accesso Digitale: Sempre lo rende il lettore predefinito dei PDF. Lo scegli tu, nelle app predefinite di Windows. Portable e Add-on non possono.\n• Nel lettore, Invio sul pulsante Salva la selezione, o un clic, scrive solo il testo selezionato: nome-selezione. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Se non c'è una selezione: «Nessun testo selezionato. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Poi Invio sul pulsante Salva la selezione, o un clic.» Salva testo resta tutto il documento. Vale per ogni documento aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Nel lettore, Invio o doppio clic su una sezione del sommario resta qui: va al testo di quella sezione. Non apre l'app predefinita. A schermo e a voce dice la sezione e, se c'è, la pagina di questo file. La figura della pagina si apre qui: scrivi il numero, oppure seleziona una sezione che indica la pagina, poi Invio sul pulsante Figura di questa pagina, o un clic. La pagina si vede nella finestra e il testo disegnato è nel riquadro sotto. Invio sul pulsante Tutto sull'immagine, o un clic, la descrive. Salva testo e Salva immagine scrivono accanto a questo PDF, con il nome del PDF e il numero di pagina: Invio sul pulsante, o un clic. Stampa testo e Stampa immagine mandano alla stampante: Invio sul pulsante, o un clic. Vale per ogni PDF aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Resta dalla 2.0.9: In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.\n• Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».\n• Resta dalla 2.0.8: Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\\Roaming\\RTAD\\media_marks.json. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.\n• Resta dalla 2.0.8: Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.8: Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video (sostituzione). Utile anche se il video è muto. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
+            "• In Strumenti, Invio sulla voce Fotocamera, o un clic, apre la fotocamera. La mano dice luce, contrasto, colore, nitidezza, volto, distanza e stabilità, e parla solo quando qualcosa cambia. Spazio sulla lista Misure, o Invio sul pulsante Com'è ora, o un clic, ripete tutto. Quando è pronto dice: «Pronto. Luce giusta, nitido, volto al centro. Puoi scattare o registrare.» Se non c'è un volto: «Pronto. Luce giusta, nitido. Nessun volto. Puoi scattare o registrare.» Se l'immagine è pronta e la ripresa no: «Pronto. Luce giusta, nitido, volto al centro. Puoi scattare. Per registrare, fermo.» Se l'audio non va: «Puoi scattare. Per registrare, non sento l'audio.» La casella Suono quando è pronto è spuntata: un breve suono quando diventa pronto. Alt+S, oppure Invio sul pulsante Scatta, o un clic, salva nome-scatto. Alt+V, oppure Invio sul pulsante Registra video, o un clic, registra. Alt+V di nuovo, oppure Invio sul pulsante Ferma video, o un clic, chiude e dice com'è la ripresa. Durante la ripresa la mano non parla da sola: Alt+O dice dov'è il volto. Con la finestra davanti, il centro stretto dice «Il volto è proprio al centro.» Un piccolo spostamento dice «un filo». Il file si chiama nome-ripresa. Il giudizio sta accanto, stesso nome, testo. Se il nome c'è già, arriva il -2. L'originale resta. Senza fotocamera: «Nessuna fotocamera. Collega la webcam e riapri.» Se è occupata: «La fotocamera è già in uso.» Se si stacca: «La fotocamera si è staccata.» Senza FFmpeg: «Per la fotocamera serve ffmpeg.» Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su una foto c'è Com'è questa foto; su un video, Com'è questo video. Sul vuoto del desktop o di una cartella: Fotocamera (Accesso Digitale). Invia a ha Mano sulla foto o video RTAD e Fotocamera RTAD. Portable e Add-on: niente menu di Esplora file automatico. Vale per la Standalone e per l'Add-on.\n• Nella lista Parametri, su e giù scelgono. Freccia a destra alza, freccia a sinistra abbassa, e la mano dice il valore nuovo. Home rimette automatico, se la fotocamera lo consegna. Agli estremi: «Sei al massimo.» «Sei al minimo.» Se il valore è fisso: «Questo valore è fisso.» Se un parametro non arriva: «Questa fotocamera non consegna il fuoco.» Stessa frase per gli altri, con l'articolo. Vale per la Standalone e per l'Add-on.\n• Nel menu del risultato, Invio sulla voce Com'è questa foto, o un clic, giudica la foto già salvata. Com'è questo video fa lo stesso sul video: campiona i fotogrammi e l'audio, e dice se è fermo, se si muove o se traballa, se la luce cala o sfarfalla, se l'audio è silenzio, basso, giusto, troppo alto o saturo. Se il video è muto, la riga lo dice. Gli stessi pulsanti stanno in Tutto sull'immagine e in Tutto sull'audio/video. Non spende la chiave. Tutto sull'immagine resta il racconto di che cosa c'è. Vale per la Standalone e per l'Add-on.\n• Resta dalla 2.0.10: In PDF e testo, Invio sul pulsante Scrivi il PDF, o un clic, scrive le pagine da-a del PDF selezionato. Pagina 1 è la prima del file. Se scrivi solo A, parte dalla prima. Se scrivi solo Da, arriva fino all'ultima. Il file si chiama nome-pagine-3-8. Con almeno due PDF, Invio sul pulsante Unisci i PDF, o un clic, li mette nell'ordine dell'elenco: il file si chiama nome1-pagine-1-13-unione-nome2-pagine-1-8-9-20. Da tre file in su: i primi due, con le loro pagine, e e-N. Se su una riga tieni più intervalli, restano tutti: Invio sul pulsante Tieni queste pagine, o un clic, aggiunge il blocco e non cancella i precedenti. Unisci i PDF e Unisci i testi usano tutti gli intervalli della riga, nell'ordine in cui li hai tenuti. Nell'elenco PDF, nell'ordine, il nome resta quello del file caricato, intero. Dopo Scrivi o Unisci, le pagine tenute si staccano da quella riga. Il nome nuovo sta solo in Fatti. Invio o doppio clic su un fatto lo rimette nell'elenco, se vuoi unire quel file nuovo. Invio sul pulsante Metti da parte, o un clic, toglie la riga dall'elenco di lavoro e la lascia in Da parte. Il file sul disco resta. Invio o doppio clic su una riga di Da parte la rimette nell'elenco. Un clic solo seleziona la riga. Invio sul pulsante Unisci i testi, o un clic, scrive un testo: ogni file è un titolo, sotto ci sono le pagine tenute, per esempio pagine 9-20 di 115. Lo Stato dice le stesse pagine. Vale anche con un solo PDF. Se la pagina non c'è: «La pagina 40 non c'è: questo file ne ha 12.» Un PDF di sole scansioni resta un PDF di quelle pagine. Il testo si crea lo stesso, e dentro c'è solo: «Nessun testo in queste pagine.» Se il PDF di partenza ha una firma, lo Stato dice che il file nuovo non la porta. Il file di partenza resta com'è. Se il nome c'è già, si aggiunge -2. Lo Stato, la barra di stato e Fatti dicono la stessa frase. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato PDF, nel menu: PDF e testo…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un PDF c'è PDF e testo. Invia a ha PDF e testo RTAD. Portable e Add-on: niente Invia a automatico. Nella Standalone installata, in Apri con, c’è Ricerca Testuale Accesso Digitale: Sempre lo rende il lettore predefinito dei PDF. Lo scegli tu, nelle app predefinite di Windows. Portable e Add-on non possono.\n• Resta dalla 2.0.10: Nel lettore, Invio sul pulsante Salva la selezione, o un clic, scrive solo il testo selezionato: nome-selezione. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Se non c'è una selezione: «Nessun testo selezionato. Nel riquadro, Shift e le frecce, oppure NVDA+F9 e poi NVDA+F10 una volta sola. Poi Invio sul pulsante Salva la selezione, o un clic.» Salva testo resta tutto il documento. Vale per ogni documento aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Resta dalla 2.0.10: Nel lettore, Invio o doppio clic su una sezione del sommario resta qui: va al testo di quella sezione. Non apre l'app predefinita. A schermo e a voce dice la sezione e, se c'è, la pagina di questo file. La figura della pagina si apre qui: scrivi il numero, oppure seleziona una sezione che indica la pagina, poi Invio sul pulsante Figura di questa pagina, o un clic. La pagina si vede nella finestra e il testo disegnato è nel riquadro sotto. Invio sul pulsante Tutto sull'immagine, o un clic, la descrive. Salva testo e Salva immagine scrivono accanto a questo PDF, con il nome del PDF e il numero di pagina: Invio sul pulsante, o un clic. Stampa testo e Stampa immagine mandano alla stampante: Invio sul pulsante, o un clic. Vale per ogni PDF aperto con Leggi documento, nella Standalone e nell'Add-on.\n• Resta dalla 2.0.9: In Taglia e unisci immagini, Invio sul pulsante In un PDF, o un clic, scrive le immagini dell'elenco in un solo PDF, una per pagina, nell'ordine. Se sulla riga c'è un taglio o un giro, nel PDF entra quello. Con una immagine il file si chiama nome-pdf. Con più immagini si chiama Unito-pdf. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome e quante pagine. Nella finestra, Control+Alt+V, oppure Invio sul pulsante Incolla, o un clic, mette il file o la cartella copiati. Le cartelle dentro non si aprono. Sul risultato immagine, nel menu: In un PDF…. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è In un PDF; su una cartella, In un PDF (Accesso Digitale). Invia a ha In un PDF RTAD. Portable e Add-on: niente Invia a automatico.\n• Nel capitolo EPUB, l'elenco Figure sta sotto i link. Invio o doppio clic sulla riga apre Tutto sull'immagine. Un clic solo seleziona. Una figura a sé dice Figura, oppure Figura senza didascalia. Una formula dentro la frase dice formula; in elenco, Formula oppure Formula senza didascalia. Un segno ripetuto dice simbolo e non entra in elenco. Senza figure: Nessuna figura in questo capitolo. Lo stato del capitolo dice anche quante figure. Il report salvato prende il nome dell'immagine nel libro e sta accanto al libro. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Strumenti, Riproduttore audio/video. Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un audio o un video: Riproduci con RTAD. Invio sulla voce, o un clic. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nel riproduttore: mentre suona, freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù regolano il volume fino a 200 percento. Invio sul pulsante Pausa, o un clic, oppure Spazio fuori dall'elenco segnalibri, mette in pausa: il pulsante diventa Riprendi. Invio su Riprendi, o un clic, oppure Spazio, riparte da lì. Invio sul pulsante Ferma, o un clic, ferma. Se è già fermo: a schermo e a voce «Già fermo».\n• Resta dalla 2.0.8: Segnalibri di posizione del file: Invio su Pausa o su Ferma, o un clic, crea un segnalibro a quell'orario (il nome è l'orario). Non se ne creano andando a un segnalibro già presente, né con Tab o Alt+V sul pulsante Vai al segnalibro. Sull'elenco, freccia su e giù scelgono. Alt+V, oppure Tab sul pulsante Vai al segnalibro e poi Invio o un clic, oppure Spazio o Invio sull'elenco, riparte da quel punto. Invio sul pulsante Rinomina, o un clic, cambia il nome: in elenco restano orario e nome. I segnalibri stanno in %AppData%\\Roaming\\RTAD\\media_marks.json. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.8: Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale, su un audio o un video: in cima c'è Riproduci con RTAD; restano Apri/analizza, Tutto sull'audio/video, Riassunto, Scheda, Taglia e unisci, Converti. Invio sulla voce Riproduci con RTAD, o un clic, apre il riproduttore su quel file. L'Add-on non aggiunge voci in Esplora file.\n• Resta dalla 2.0.8: Nella Standalone installata, Invia a ha anche Riproduttore RTAD: sul file audio o video apre il riproduttore. Resta il collegamento Ricerca Testuale Accesso Digitale per analizzare. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.8: Nella Standalone installata, Apri con e la finestra «Come vuoi aprire questo file?» mostrano Riproduttore RTAD: puoi scegliere Sempre o Solo una volta. Da Strumenti, Imposta riproduttore predefinito in Windows: Invio sulla voce, o un clic, apre le impostazioni di Windows sulle app predefinite. L'Add-on non registra associazioni di Windows.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, apre le scelte: Sostituisci (come nella 2.0.6) oppure Mix con volumi da 0 a 200 percento, in modo pulito. Due caselle indipendenti, Tutto il video e Tutto l'audio: Spazio sulla casella, o un clic, le accende o le spegne. Se una casella è spenta, subito sotto ci sono ore, minuti e secondi di quel pezzo, regolabili con le frecce su e giù. A fine lavoro, a schermo e a voce, dice le durate del video e dell'audio scelti e del risultato. Il file si chiama nomevideo-con-audio-nomeaudio. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.7: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; Spazio di nuovo mette in pausa e dice l'orario a schermo e a voce; Spazio ancora riparte da lì. Mentre suona o in pausa, freccia destra e sinistra avanti e indietro di 5 secondi; mentre suona, freccia su e giù regolano il volume fino a 200 percento, senza strappi. Ogni file ricorda punto e volume finché la finestra resta aperta. Spazio sulla casella Ascolto solo i primi 20 secondi, o un clic, oppure Alt+S, accende o spegne l'anteprima corta; disattivata, si ascolta tutto il pezzo. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: Con Ctrl+Alt+V, o Descrivi da URL, se il post o la pagina ha un video e anche immagini, RTAD riconosce entrambi. Si apre la descrizione dell'immagine come prima. L'indirizzo resta in elenco con lo scarico, come per YouTube: dopo, il menu del tasto applicazioni o del tasto destro ha tutte le voci, compreso Audio/video e Tutto sull'audio/video. Non si apre da solo l'hub. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, con un video e un audio in elenco, Invio sul pulsante Audio sul video, o un clic, scrive un video nuovo con quell'audio al posto di quello del video (sostituzione). Utile anche se il video è muto. Una copertina dentro un mp3 non conta come video. Il file di partenza resta com'è. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.6: In Taglia e unisci audio/video, Spazio sull'elenco di lavoro o sui Fatti ascolta il pezzo; se sta già suonando, Spazio di nuovo ferma. Invio o doppio clic su un fatto lo rimette nell'elenco di lavoro, come prima. Vale nella Standalone e nell'Add-on.\n• Resta dalla 2.0.5: Con Ctrl+Alt+V, o Descrivi da URL, su una pagina qualsiasi con più immagini appare l'elenco con una casella accanto a ciascuna. Spazio sulla casella Nascondi icone piccole, o un clic, la spegne e mostra anche le icone; se è accesa, le lascia fuori. Spazio sulla casella di ciascuna immagine, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra. Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Se la pagina consegna titolo o commento, il nome del file usa quel testo; con più foto si aggiunge 1, 2, 3… I post con più immagini restano come nella 2.0.3. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n• Resta dalla 2.0.4: Salva immagine e le descrizioni da post: se la pagina consegna il testo del post, il nome del file usa quel testo il più lungo possibile, fino a circa 240 caratteri, come già per i video. Prima era un pezzo breve a 80. Se nel testo c'è un URL insieme alle parole, può restare. Un testo che è solo un indirizzo non diventa il nome. Con più foto dello stesso post restano 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on.\n• Dopo Salva video o Salva audio, Taglia e unisci, o Converti, dal risultato usano il file già salvato: stessa cartella e stesso titolo, non il file temporaneo in Temp. Sul report, Invio sul pulsante Taglia e unisci, o un clic, oppure Invio sul pulsante Converti, o un clic, apre quella finestra sul file salvato. Il file tagliato si chiama titolo-taglio. Se il risultato resta in Temp, Stato e Fatti dicono il percorso intero.\n• Unione audio o video: con due file, Invio sul pulsante Unisci, o un clic, scrive nome1-unione-nome2. Se i titoli sono lunghi, resta il principio di entrambi. Da tre file in su: i primi due nomi e e-N. Se il nome c'è già, si aggiunge -2. Il file di partenza resta com'è.\n• Nella Standalone installata, l'Installer mette il collegamento in Invia a (shell:sendto). Punta all'exe installato e segue gli aggiornamenti. Non è la copia dell'exe intero. Portable e Add-on: niente Invia a automatico.\n• Resta dalla 2.0.3: Con Ctrl+Alt+V, o Descrivi da URL, se il post ha più immagini (su X fino a quattro), appare l'elenco con una casella accanto a ciascuna, tutte accese. Spazio sulla casella, o un clic, accende o spegne. Invio sul pulsante Scarica e descrivi, o un clic, prende le selezionate una dopo l'altra: ogni foto ha il suo report in una finestra a parte. Alt+Tab passa da una all'altra; sul titolo si sente «Descrizione immagine (2 di 4)». Invio sul pulsante Solo la prima, o un clic, prende solo la prima. Il nome del file resta il testo del post; con più foto si aggiunge 1, 2, 3 o 4. Vale nella Standalone e nell'Add-on. Il navigatore dell'Add-on resta per la figura sotto il focus.\n"
             "• Resta dalla 2.0.2: Salva immagine, se la pagina consegna il testo del post, propone il testo del post come nome del file. Invio sul pulsante Salva immagine, o un clic, salva con quel nome. Se la pagina non consegna il testo, il nome resta quello di oggi. Il testo disegnato dentro la foto resta fuori. Con Ctrl+Alt+V, o Descrivi da URL, puoi incollare l'indirizzo del post oppure l'indirizzo della foto: con il post, il nome è il commento; con solo la foto, se l'hai già descritta con la pagina, il nome resta quello del post. Vale per X e per le altre pagine che consegnano il commento, nella Standalone e nell'Add-on.\n"
             "• Resta dalla 2.0.2: Le chat di Gemini, i punti di lettura e i profili di ricerca della Standalone e dell'Add-on stanno nella cartella comune %AppData%\\Roaming\\RTAD. Portable, Installer e Add-on leggono la stessa cartella. Se la stessa conversazione è stata cambiata in tutte e due, a schermo e a voce: «Questa conversazione è stata cambiata anche nell'altra copia. Non l'ho sovrascritta. Restano tutte e due.» Se all'avvio le due copie erano diverse, a schermo e a voce: «Due copie di una conversazione sono diverse. Le tengo tutte e due. Non ne ho sovrascritta una.»\n"
             "• Resta dalla 2.0.1: Taglia e unisci immagini: l'anteprima è più alta, così la foto si vede meglio mentre si lavora. Il file scritto resta a misura intera: una foto 900 per 900 resta 900 per 900. Invio sul pulsante Un quarto a destra, o un clic, gira l'immagine di un quarto verso destra. Invio sul pulsante Un quarto a sinistra, o un clic, la gira dall'altra parte. Invio sul pulsante Mezzo giro, o un clic, la capovolge. Il file di partenza resta com'è. Invio sul pulsante Esegui, o un clic, scrive il file nuovo: si chiama nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Il file unito si chiama Unito-uno-sotto-l-altro oppure Unito-uno-accanto-all-altro. Se il nome c'è già, si aggiunge -2. Dall'elenco, Alt e la lettera: B un quarto a destra, J un quarto a sinistra, N mezzo giro. Nella Standalone installata, in Esplora file, tasto destro o tasto Applicazioni, Cerca con Accesso Digitale: su un'immagine c'è Taglia e unisci; su un audio o un video ci sono Taglia e unisci e Converti. Invio sulla voce, o un clic, apre la finestra con quel file già in elenco. L'Add-on non aggiunge voci in Esplora file. Nella cronologia di Gemini, Invio sul pulsante Rinomina, o un clic, dà un nome nuovo alla conversazione. Il contenuto resta com'è. Vale nella Standalone e nell'Add-on.\n"
@@ -13890,6 +13936,7 @@ class ShortcutsFrame(wx.Frame):
             "  - Alt + A : Allega file. Elenco per data, i più recenti in cima\n"
             "  - Strumenti, Confronta file… : da due a dodici file. Anche nel menu del risultato\n"
             "  - Strumenti, Riproduttore audio/video… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato: Riproduci con RTAD. Freccia destra e sinistra avanti e indietro di 5 secondi; freccia su e giù volume fino a 200. Pausa/Riprendi e Ferma. Segnalibri con Pausa o Ferma; Alt+V o Vai al segnalibro riparte da lì. Nella Standalone installata: Cerca con Accesso Digitale → Riproduci con RTAD; Invia a → Riproduttore RTAD; Apri con; Strumenti → Imposta riproduttore predefinito in Windows.\n"
+            "  - Strumenti, Fotocamera… : Invio sulla voce, o un clic, apre la fotocamera. La mano parla quando cambia luce, contrasto, colore, nitidezza, volto, distanza o stabilità. Spazio sulla lista Misure, o Invio sul pulsante Com'è ora, o un clic, ripete tutto. Quando è pronto dice la frase e, se la casella è spuntata, fa un breve suono. Alt+S, oppure Invio su Scatta, o un clic, salva nome-scatto. Alt+V registra e ferma. Nella Standalone installata, in Esplora file, Cerca con Accesso Digitale: Com'è questa foto, Com'è questo video, e sul vuoto Fotocamera (Accesso Digitale). Nella lista Parametri, su e giù scelgono; freccia destra alza, freccia sinistra abbassa; Home rimette automatico. Sul risultato: Com'è questa foto, oppure Com'è questo video.\n"
             "  - Strumenti, Taglia e unisci audio/video… : Invio sulla voce, o un clic, apre la finestra. Due numeri, 1:20, sono un minuto e 20 secondi. Tre numeri, 01:20:50, sono un'ora, 20 minuti e 50 secondi. Se scrivi solo la Fine, il tratto parte dall'inizio. Se scrivi solo l'Inizio, il tratto arriva fino alla fine del file. Il file unito si chiama nome1-unione-nome2. Da tre file in su: i primi due e e-N. Se il nome c'è già, si aggiunge -2. Lo Stato, la barra di stato e Fatti dicono la stessa frase, con il nome di ogni file. Dall'elenco, Alt e la lettera del pulsante fa la stessa cosa: A Aggiungi, K Aggiungi cartella, S Sposta su, G Sposta giù, M Rimuovi, C Ascolta, F Ferma, T Tieni, O Togli, L Altro tratto, E Esegui, U Unisci. Invio sul pulsante Aggiungi cartella, o un clic, mette gli audio e i video di quella cartella. Le cartelle dentro non si aprono. Invio sul pulsante Esegui, o un clic, taglia la riga selezionata. Invio sul pulsante Unisci, o un clic, unisce almeno due file. Il file di partenza resta com'è.\n"
             "  - Strumenti, Taglia e unisci immagini… : Invio sulla voce, o un clic, apre la finestra. L'anteprima è più alta. Il file scritto resta a misura intera. Invio sul pulsante Un quarto a destra, Un quarto a sinistra o Mezzo giro, o un clic, gira l'immagine. Invio sul pulsante Esegui, o un clic, scrive nome-giro-un-quarto-a-destra, nome-giro-un-quarto-a-sinistra o nome-giro-mezzo-giro. Anche dal menu del risultato, su un'immagine: Taglia e unisci. Invio sul pulsante Metà sinistra, Metà destra, Metà sopra, Metà sotto o Centro, o un clic, tiene quel taglio. Col mouse, trascina un rettangolo sull'immagine: al rilascio i quattro numeri, sinistra, alto, larghezza e altezza, si riempiono. Invio sul pulsante Esegui, o un clic, scrive il taglio. Invio sul pulsante Uno sotto l'altro o Uno accanto all'altro, o un clic, unisce almeno due immagini. Invio sul pulsante Aggiungi cartella, o un clic, mette le immagini di quella cartella. Le cartelle dentro non si aprono. Il file di partenza resta com'è.\n"
             "  - Strumenti, PDF e testo… : Invio sulla voce, o un clic, apre la finestra. Anche dal menu del risultato, su un PDF: PDF e testo. Da e A sono le pagine. Pagina 1 è la prima del file. Invio sul pulsante Scrivi il PDF, o un clic, scrive nome-pagine-3-8. Invio sul pulsante Unisci i PDF, o un clic, unisce almeno due PDF: nome1-unione-nome2. Invio sul pulsante Unisci i testi, o un clic, scrive un testo con il nome di ogni file come titolo. Nel lettore, Invio sul pulsante Salva la selezione, o un clic, scrive solo il testo selezionato: nome-selezione. Nella Standalone installata, in Esplora file: PDF e testo. Invia a: PDF e testo RTAD. Portable e Add-on: niente Invia a automatico. Nella Standalone installata, in Apri con, c’è Ricerca Testuale Accesso Digitale: Sempre lo rende il lettore predefinito dei PDF. Lo scegli tu, nelle app predefinite di Windows. Portable e Add-on non possono.\n"
@@ -14605,6 +14652,8 @@ class MainWindow(wx.Frame):
             wx.ID_ANY, "&Riproduttore audio/video…"
         )
         self.Bind(wx.EVT_MENU, self.on_player_dialog, item_player)
+        item_camera = tools_menu.Append(wx.ID_ANY, "F&otocamera…")
+        self.Bind(wx.EVT_MENU, self.on_camera_dialog, item_camera)
         item_player_default = tools_menu.Append(
             wx.ID_ANY, "Imposta riproduttore predefinito in &Windows…"
         )
@@ -19991,6 +20040,8 @@ class MainWindow(wx.Frame):
         item_convert = None
         item_image_clip = None
         item_image_pdf = None
+        item_hand = None
+        item_hand_video = None
         item_pdfdoc = None
         item_media_tech = None
         item_media_desc = None
@@ -20018,10 +20069,17 @@ class MainWindow(wx.Frame):
             item_tech = menu.Append(wx.ID_ANY, "Scheda tecnica immagine")
             item_image_clip = menu.Append(wx.ID_ANY, "Taglia e unisci…")
             item_image_pdf = menu.Append(wx.ID_ANY, "In un PDF…")
+            if rtad_ripresa is not None:
+                item_hand = menu.Append(wx.ID_ANY, "Com'è questa foto…")
         elif is_media_result:
             menu.AppendSeparator()
             item_media_all = menu.Append(wx.ID_ANY, "Tutto sull'audio/video…")
             item_player = menu.Append(wx.ID_ANY, "Riproduci con RTAD")
+            if (
+                rtad_ripresa is not None
+                and rtad_ripresa.file_kind(media_for_actions) == "video"
+            ):
+                item_hand_video = menu.Append(wx.ID_ANY, "Com'è questo video…")
             item_clip = menu.Append(wx.ID_ANY, "Taglia e unisci…")
             item_convert = menu.Append(wx.ID_ANY, "Converti…")
             item_media_desc = menu.Append(wx.ID_ANY, "Riassunto audio/video")
@@ -20155,6 +20213,18 @@ class MainWindow(wx.Frame):
                 wx.EVT_MENU,
                 lambda e, p=media_for_actions: self.on_player_dialog(path=p),
                 item_player,
+            )
+        if item_hand is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=file_path: self.on_ripresa_file(path=p),
+                item_hand,
+            )
+        if item_hand_video is not None:
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, p=media_for_actions: self.on_ripresa_file(path=p),
+                item_hand_video,
             )
         if item_clip is not None:
             self.Bind(
@@ -20528,6 +20598,32 @@ class MainWindow(wx.Frame):
                 self.update_list_display()
             except Exception:
                 pass
+
+    def on_camera_dialog(self, event=None):
+        """Strumenti → fotocamera (2.0.11)."""
+        if rtad_ripresa is None:
+            speak_accessible("Modulo fotocamera non disponibile.")
+            return
+        try:
+            rtad_ripresa.open_camera(self, speak_accessible)
+        except Exception as exc:
+            logging.exception("on_camera_dialog")
+            speak_accessible(f"Errore nella fotocamera: {exc}")
+
+    def on_ripresa_file(self, event=None, path=""):
+        """Com'è questa foto, oppure Com'è questo video (2.0.11)."""
+        if rtad_ripresa is None:
+            speak_accessible("Modulo fotocamera non disponibile.")
+            return
+        path = path or ""
+        if not path or not os.path.isfile(path):
+            speak_accessible("Il file non c'è più.")
+            return
+        try:
+            rtad_ripresa.open_file_report(self, speak_accessible, path)
+        except Exception as exc:
+            logging.exception("on_ripresa_file")
+            speak_accessible(f"Errore nel giudizio: {exc}")
 
     def on_player_dialog(self, event=None, path=""):
         """Strumenti → riproduttore audio/video (2.0.8)."""
@@ -23255,6 +23351,8 @@ def _parse_cli_image_action(argv):
         "--clip": "clip",
         "--convert": "convert",
         "--play": "play",
+        "--hand": "hand",
+        "--camera": "camera",
     }
     args = list(argv[1:]) if argv else []
     i = 0
@@ -23497,6 +23595,10 @@ def _dispatch_cli_action(
         _later(lambda: frame.on_clip_dialog(path=cli_path))
     elif cli_mode == "play" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.on_player_dialog(path=cli_path))
+    elif cli_mode == "hand" and cli_path and os.path.isfile(cli_path):
+        _later(lambda: frame.on_ripresa_file(path=cli_path))
+    elif cli_mode == "camera":
+        _later(lambda: frame.on_camera_dialog())
     elif cli_mode == "convert" and cli_path and os.path.isfile(cli_path):
         _later(lambda: frame.on_convert_dialog(path=cli_path))
     elif cli_mode == "ask-gemini" and cli_path and os.path.isfile(cli_path):

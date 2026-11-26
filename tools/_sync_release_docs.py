@@ -110,6 +110,9 @@ def main() -> int:
         ROOT / "Standalone" / "rtad_player.py", LIB / "rtad_player.py"
     )
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_ripresa.py", LIB / "rtad_ripresa.py"
+    )
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_image.py", LIB / "rtad_image.py"
     )
     shutil.copy2(
@@ -177,6 +180,11 @@ def main() -> int:
             "rtad_player.py",
             ROOT / "Standalone" / "rtad_player.py",
             LIB / "rtad_player.py",
+        ),
+        (
+            "rtad_ripresa.py",
+            ROOT / "Standalone" / "rtad_ripresa.py",
+            LIB / "rtad_ripresa.py",
         ),
         (
             "rtad_image.py",

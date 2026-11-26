@@ -1103,6 +1103,46 @@ def new_free_session() -> dict:
     return session
 
 
+def conversation_file_row(session: dict) -> str:
+    """Prima riga di Allegati: il file da cui è nata la chat. Vuota se non c'è."""
+    session = session or {}
+    path = (session.get("path") or "").strip()
+    if session.get("kind") == "free" and not path:
+        return ""
+    if not path or path.lower().startswith(("http://", "https://")):
+        return ""
+    if not os.path.isfile(path):
+        return ""
+    name = os.path.basename(path) or "file"
+    title = (session.get("title") or "").strip()
+    if (
+        title
+        and title not in ("Conversazione", "File")
+        and not title.lower().startswith("rtad_media_")
+    ):
+        name = title
+    kind = attachment_kind(path)
+    word = _kind_it(kind) if kind else "file"
+    if kind == "video":
+        return (
+            f"{name}, file di questa conversazione, video. "
+            "Gemini, in questa finestra, non riceve il video."
+        )
+    if kind == "audio":
+        return (
+            f"{name}, file di questa conversazione, audio. "
+            "Gemini, in questa finestra, non riceve l'audio."
+        )
+    return f"{name}, file di questa conversazione, {word}."
+
+
+def conversation_file_stays(session: dict) -> str:
+    """Alt+L sul file di partenza: resta, non è un allegato aggiunto."""
+    path = ((session or {}).get("path") or "").strip()
+    name = os.path.basename(path) or ((session or {}).get("title") or "").strip() or "file"
+    return f"{name} è il file di questa conversazione. Resta."
+
+
 def attachment_problem(session: dict, path: str) -> str:
     """Motivo breve se il file non va proprio messo nel gruppo. Vuoto se può entrare.
 

@@ -146,6 +146,67 @@ def _file_key(path: str) -> str:
         return (path or "").lower()
 
 
+def _file_bytes(path: str) -> int:
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return -1
+
+
+def _mark_epoch(item: dict) -> float:
+    raw = str(item.get("ts") or "").strip()
+    if not raw:
+        return 0.0
+    try:
+        return datetime.fromisoformat(raw).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def _belongs_to_file(item: dict, mtime: float) -> bool:
+    """Un segnalibro fatto prima che il file esistesse è di un altro file, stesso nome."""
+    stamp = _mark_epoch(item)
+    if stamp <= 0 or mtime <= 0:
+        return True
+    return stamp + 2.0 >= mtime
+
+
+def _group_for_file(config_dir: str, media_path: str) -> dict:
+    """Segnalibri di questo file. Se il file è stato sostituito, quelli vecchi non contano."""
+    data = _load_store(config_dir)
+    key = _file_key(media_path)
+    group = dict(data["marks"].get(key) or {})
+    items = list(group.get("items") or [])
+    size = _file_bytes(media_path)
+    if size < 0 or not items:
+        return group
+    stored = group.get("bytes")
+    changed = False
+    if stored is not None and int(stored) != size:
+        items = []
+        changed = True
+    elif stored is None:
+        try:
+            mtime = os.path.getmtime(media_path)
+        except OSError:
+            mtime = 0.0
+        kept = [it for it in items if _belongs_to_file(it, mtime)]
+        if len(kept) != len(items):
+            items = kept
+            changed = True
+    if not changed and stored is not None:
+        return group
+    group["items"] = items
+    group["bytes"] = size
+    resume = str(group.get("resume_id") or "")
+    ids = {str(it.get("id") or "") for it in items}
+    if resume not in ids:
+        group["resume_id"] = str(items[-1]["id"]) if items else ""
+    data["marks"][key] = group
+    _save_store(config_dir, data)
+    return group
+
+
 def _load_store(config_dir: str) -> dict:
     path = store_path(config_dir)
     if not os.path.isfile(path):
@@ -180,16 +241,14 @@ def format_clock(seconds: float) -> str:
 
 
 def list_marks(config_dir: str, media_path: str) -> list[dict]:
-    data = _load_store(config_dir)
-    group = data["marks"].get(_file_key(media_path)) or {}
+    group = _group_for_file(config_dir, media_path)
     items = list(group.get("items") or [])
     items.sort(key=lambda it: float(it.get("sec") or 0))
     return items
 
 
 def last_mark(config_dir: str, media_path: str) -> dict | None:
-    data = _load_store(config_dir)
-    group = data["marks"].get(_file_key(media_path)) or {}
+    group = _group_for_file(config_dir, media_path)
     resume_id = str(group.get("resume_id") or "")
     items = list(group.get("items") or [])
     if resume_id:
@@ -208,9 +267,13 @@ def add_mark(
     sec: float,
     name: str = "",
 ) -> dict:
+    _group_for_file(config_dir, media_path)
     data = _load_store(config_dir)
     key = _file_key(media_path)
     group = data["marks"].setdefault(key, {"resume_id": "", "items": []})
+    size = _file_bytes(media_path)
+    if size >= 0:
+        group["bytes"] = size
     items = list(group.get("items") or [])
     clock = format_clock(sec)
     label = (name or "").strip() or clock

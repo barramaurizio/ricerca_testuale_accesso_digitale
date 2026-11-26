@@ -1,0 +1,89 @@
+🌟 Novità della Versione 2.0.11
+(Testi pronti da incollare — ordine = campi Web con NVDA)
+
+Ordine campi GitHub «Draft new release»:
+  Tag → Titolo → Descrizione → Asset(s)
+
+Ordine campi NVDA Add-on DataStore:
+  Summary → Download URL → Source URL → Nome e cognome → License → License URL
+
+════════════════════════════════════════════════════════
+ADD-ON — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+v2.0.11
+
+Titolo:
+Ricerca Testuale Accesso Digitale - NVDA Add-on v2.0.11
+
+Descrizione:
+
+```markdown
+## 🇮🇹 Italiano
+
+- In Strumenti, Invio sulla voce Fotocamera, o un clic, apre la fotocamera. La mano dice luce, contrasto, colore, nitidezza, volto, distanza e stabilità, e parla solo quando qualcosa cambia. Spazio sulla lista Misure, o Invio sul pulsante Com'è ora, o un clic, ripete tutto. Quando è pronto dice la frase, e la casella Suono quando è pronto, spuntata, fa un breve suono. Alt+S scatta. Alt+V registra e ferma. Alt+O, durante la ripresa, dice dov'è il volto. Il centro stretto dice «proprio al centro»; un piccolo spostamento dice «un filo». Il giudizio sta accanto. Nella Standalone installata, in Esplora file: Com'è questa foto, Com'è questo video, e sul vuoto Fotocamera (Accesso Digitale). Vale per la Standalone e per l'Add-on. Portable e Add-on non scrivono il menu di Esplora file.
+- Nella lista Parametri, su e giù scelgono. Freccia a destra alza, freccia a sinistra abbassa. Home rimette automatico, se la fotocamera lo consegna. Se non arriva: «Questa fotocamera non consegna il fuoco.»
+- Nel menu del risultato, Com'è questa foto e Com'è questo video giudicano il file già salvato. Gli stessi pulsanti stanno in Tutto sull'immagine e in Tutto sull'audio/video. Non spende la chiave. Tutto sull'immagine resta il racconto di che cosa c'è.
+
+## 🇬🇧 English
+
+- Tools, Fotocamera. The hand speaks when light, contrast, colour, sharpness, face, distance or steadiness changes, and says when you can shoot or record. Alt+S shoots. Alt+V records and stops. The installed Standalone also adds Com'è questa foto, Com'è questo video and Fotocamera to File Explorer. Standalone and Add-on. Portable and the Add-on do not write the Explorer menu.
+- In Parametri, up and down choose. Right raises, left lowers. Home restores automatic when the camera delivers it. If a control is missing: «Questa fotocamera non consegna il fuoco.»
+- On a saved photo or video, Com'è questa foto and Com'è questo video give the same judgment without spending the key. Tutto sull'immagine still tells what is in the picture.
+```
+
+Asset(s):
+ricerca_testuale_accesso_digitale-2.0.11.nvda-addon
+
+════════════════════════════════════════════════════════
+STANDALONE — Release GitHub
+════════════════════════════════════════════════════════
+
+Tag:
+app-v2.0.11
+
+Titolo:
+Ricerca Testuale Accesso Digitale Standalone v2.0.11
+
+Descrizione:
+stessa della release Add-on (completa i bullet IT/EN sopra).
+
+Asset(s):
+Setup_RicercaTestualeAccessoDigitale_v2.0.11.exe
+RicercaTestualeAccessoDigitale_Portable_v2.0.11.exe
+
+════════════════════════════════════════════════════════
+ADD-ON — NVDA DataStore (ordine campi Web)
+════════════════════════════════════════════════════════
+
+Summary IT:
+Fotocamera in tempo reale, con la frase quando è pronto lo scatto o la ripresa, e lo stesso giudizio su una foto o un video già salvati.
+
+Summary EN:
+Live camera hand, with a spoken ready signal before the shot or the recording, and the same judgment on a saved photo or video.
+
+Download URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale/releases/download/v2.0.11/ricerca_testuale_accesso_digitale-2.0.11.nvda-addon
+
+Source URL:
+https://github.com/barramaurizio/ricerca_testuale_accesso_digitale
+
+Nome e cognome:
+Maurizio Barra
+
+License:
+GPL v2
+
+License URL:
+https://www.gnu.org/licenses/gpl-2.0.html
+
+---
+
+GitHub Desktop — Commit (opzionale, non è Draft Release)
+
+Summary:
+Aggiornamento Standalone e Add-on alla v2.0.11
+
+Description:
+Fotocamera in tempo reale, scatto e ripresa, e il giudizio su foto e video già salvati, senza spendere la chiave.

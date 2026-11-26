@@ -7,6 +7,8 @@ Ordine campi GitHub «Draft new release»:
 Ordine campi NVDA Add-on DataStore:
   Summary → Download URL → Source URL → Nome e cognome → License → License URL
 
+Pubblicata il 26/11/2026. GitHub `v2.0.11` / `app-v2.0.11`, commit `7b9f3e1`. Il numero DataStore si aggiunge quando lo store l’accetta.
+
 ════════════════════════════════════════════════════════
 ADD-ON — Release GitHub
 ════════════════════════════════════════════════════════
@@ -87,3 +89,4 @@ Aggiornamento Standalone e Add-on alla v2.0.11
 
 Description:
 Fotocamera in tempo reale, scatto e ripresa, e il giudizio su foto e video già salvati, senza spendere la chiave.
+Il commit 7b9f3e1 resta quello del rilascio.

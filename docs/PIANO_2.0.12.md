@@ -1,6 +1,6 @@
 # Piano RTAD 2.0.12
 
-**In corso.** Si apre dopo la 2.0.11 pubblicata il 26/11/2026 (GitHub `v2.0.11` / `app-v2.0.11`, commit `7b9f3e1`, DataStore #13290 via #13291 accettato). Vale per Standalone e Add-on. Non si tocca la `2.0.11` pubblicata. Questa versione non è ancora pubblicata.
+**Pubblicata** il 28/11/2026. GitHub `v2.0.12` / `app-v2.0.12`, commit `0f55495`. Vale per Standalone e Add-on. Non si tocca la `2.0.11` pubblicata.
 
 Due cose, nella stessa versione.
 

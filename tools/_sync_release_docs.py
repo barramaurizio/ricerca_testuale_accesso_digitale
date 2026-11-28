@@ -119,6 +119,9 @@ def main() -> int:
         ROOT / "Standalone" / "rtad_pdfdoc.py", LIB / "rtad_pdfdoc.py"
     )
     shutil.copy2(
+        ROOT / "Standalone" / "rtad_pdfedit.py", LIB / "rtad_pdfedit.py"
+    )
+    shutil.copy2(
         ROOT / "Standalone" / "rtad_convert.py", LIB / "rtad_convert.py"
     )
     shutil.copy2(
@@ -195,6 +198,11 @@ def main() -> int:
             "rtad_pdfdoc.py",
             ROOT / "Standalone" / "rtad_pdfdoc.py",
             LIB / "rtad_pdfdoc.py",
+        ),
+        (
+            "rtad_pdfedit.py",
+            ROOT / "Standalone" / "rtad_pdfedit.py",
+            LIB / "rtad_pdfedit.py",
         ),
         (
             "rtad_convert.py",

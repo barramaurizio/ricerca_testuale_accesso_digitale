@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Compilazione Ricerca Testuale Accesso Digitale v2.0.11
+echo Compilazione Ricerca Testuale Accesso Digitale v2.0.12
 echo ======================================================
 
 REM Prerequisiti Python (stessa python del PATH):

@@ -4716,6 +4716,36 @@ def _materialize_via_ytdlp(
                 out["source_webpage"] = (parts[2] or "").strip()
     except Exception:
         pass
+    page = (out.get("source_webpage") or url or "").strip()
+    try:
+        host = urllib.parse.urlparse(page).netloc.lower().split(":")[0]
+    except Exception:
+        host = ""
+    if host.startswith("www."):
+        host = host[4:]
+    title_now = (out.get("source_title") or "").strip()
+    cut = title_now.endswith("...") or title_now.endswith("…")
+    social = host in {
+        "x.com", "twitter.com", "mobile.x.com", "mobile.twitter.com",
+    }
+    if page and (social or cut):
+        try:
+            import rtad_ocr
+            longer = ""
+            if social:
+                longer = rtad_ocr.fetch_page_post_text(page) or ""
+            if not longer and cut:
+                html_text = rtad_ocr._fetch_html(page)
+                longer = (
+                    rtad_ocr.page_title_from_html(html_text)
+                    or rtad_ocr.post_text_from_html(html_text)
+                    or ""
+                )
+            chosen = rtad_ocr.prefer_longer_title(longer, title_now)
+            if chosen:
+                out["source_title"] = chosen
+        except Exception:
+            pass
     # Anche se il merge ffmpeg fallisce, spesso restano video+audio usabili.
     picked = _pick_ytdlp_outputs(tmpdir, page_url=url)
     if not picked.get("ok"):

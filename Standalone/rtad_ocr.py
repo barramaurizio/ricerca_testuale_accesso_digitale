@@ -5065,6 +5065,26 @@ def post_piece(text: str, limit: int = 240) -> str:
     return raw
 
 
+def prefer_longer_title(page_text: str, source_title: str) -> str:
+    """Se il titolo dello scarico è tagliato, usa il commento intero della pagina.
+
+    yt-dlp su X si ferma con i puntini. L'immagine usa già il commento, fino a 240.
+    """
+    piece = post_piece(page_text or "")
+    cur = re.sub(r"\s+", " ", (source_title or "")).strip()
+    if not piece:
+        return cur
+    bare = cur
+    while bare.endswith("...") or bare.endswith("…"):
+        bare = bare[:-3] if bare.endswith("...") else bare[:-1]
+        bare = bare.rstrip()
+    tail = bare.split(" - ", 1)[1].strip() if " - " in bare else bare
+    tail = tail.rstrip(" .-_")
+    if tail and tail in piece and len(piece) > len(tail):
+        return piece
+    return cur
+
+
 def post_text_from_html(html_text: str) -> str:
     """Il commento che la pagina scrive nei meta, se c'è."""
     if not html_text:
@@ -5116,7 +5136,7 @@ def fetch_page_post_text(page_url: str, timeout: int = 8) -> str:
     return post_text_from_html(_fetch_html(page_url, timeout))
 
 
-_POST_IMAGE_LIMIT = 4
+_POST_IMAGE_LIMIT = 40
 _PAGE_IMAGE_LIMIT = 40
 _PAGE_HTML_MAX_BYTES = 800_000
 _ICON_MAX_EDGE = 64
@@ -5203,8 +5223,8 @@ def prefer_post_image_url(url: str) -> str:
 def image_urls_from_html(html_text: str, limit: int = _POST_IMAGE_LIMIT) -> list:
     """Indirizzi delle foto del post, nell'ordine della pagina, fino a limit.
 
-    Su X il testo della pagina porta spesso tutte e quattro. Altrimenti resta
-    l'immagine dei meta, come oggi.
+    Su X il testo della pagina porta gli indirizzi che consegna, anche oltre
+    quattro. Altrimenti resta l'immagine dei meta, come oggi.
     """
     if not html_text or limit < 1:
         return []
@@ -5801,7 +5821,7 @@ def recall_image_post(image_url: str) -> dict:
 def resolve_pasted_image(url: str, download: bool = True) -> dict:
     """Scarica la foto di un indirizzo incollato.
 
-    Un post consegna il commento e le immagini della pagina (fino a quattro).
+    Un post consegna il commento e le immagini della pagina (fino a quaranta).
     Una pagina qualsiasi consegna le immagini del HTML, con meta e tag img.
     Se ce n'è più di una e download è False, restituisce solo l'elenco.
     L'indirizzo della foto scarica quel file. Se quella foto era già stata

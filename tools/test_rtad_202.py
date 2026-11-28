@@ -44,6 +44,21 @@ def main():
         "Il cielo sopra Roma stamattina era limpido",
     )
     check(named.startswith("Il cielo"), "con il post il nome è il post")
+    short = (
+        "JuventusFC - Congeliamo il calcio per le festività #FC27 "
+        "in offerta quest'invern..."
+    )
+    full = (
+        "Congeliamo il calcio per le festività #FC27 in offerta quest'inverno. "
+        "https://t.co/s8gGq9pIiO"
+    )
+    chosen = rtad_ocr.prefer_longer_title(full, short)
+    check(chosen.endswith("s8gGq9pIiO"), "il video prende il commento intero")
+    check(
+        rtad_ocr.prefer_longer_title("", "Titolo intero del video")
+        == "Titolo intero del video",
+        "senza commento resta il titolo",
+    )
 
     cache = tempfile.mkdtemp(prefix="rtad202_img_")
     rtad_ocr._image_post_dir = cache
